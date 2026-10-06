@@ -15,7 +15,8 @@ class CoreServiceProvider extends ServiceProvider
         $this->app->scoped(TenantContext::class);
         $this->app->singleton(SettingsService::class);
 
-        $this->app->singleton('translation.loader', fn ($app) => new DatabaseTranslationLoader($app['files'], $app['path.lang']));
+        // extend() rather than singleton(): the translation provider is deferred and would override a plain binding.
+        $this->app->extend('translation.loader', fn ($loader, $app) => new DatabaseTranslationLoader($app['files'], $app['path.lang']));
     }
 
     public function boot(): void

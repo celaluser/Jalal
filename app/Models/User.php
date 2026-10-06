@@ -5,20 +5,24 @@ namespace App\Models;
 use App\Modules\Tenancy\Models\Restaurant;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['restaurant_id', 'name', 'email', 'password', 'locale', 'google_id', 'avatar'])]
-#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, Notifiable;
+
+    /**
+     * restaurant_id is fillable for server-side code only (registration, staff creation);
+     * never pass raw request input to create()/fill().
+     */
+    protected $fillable = ['restaurant_id', 'name', 'email', 'password', 'locale', 'google_id', 'avatar'];
+
+    protected $hidden = ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'];
 
     /**
      * Users are deliberately NOT tenant-scoped: login must find a user before any tenant is

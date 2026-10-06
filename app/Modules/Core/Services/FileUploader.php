@@ -7,6 +7,7 @@ use App\Modules\Core\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Intervention\Image\Format;
 use Intervention\Image\Laravel\Facades\Image;
 use InvalidArgumentException;
 
@@ -49,13 +50,13 @@ class FileUploader
         $width = $height = null;
 
         if ($isImage) {
-            $image = Image::read($file->getRealPath());
+            $image = Image::decodePath($file->getRealPath());
             $image->scaleDown(width: $maxDimension, height: $maxDimension);
             $width = $image->width();
             $height = $image->height();
 
             $path = $folder.'/'.Str::uuid().'.webp';
-            $contents = (string) $image->toWebp(quality: (int) $this->settings->get('storage.image_quality', 82));
+            $contents = (string) $image->encodeUsingFormat(Format::WEBP, quality: (int) $this->settings->get('storage.image_quality', 82));
             Storage::disk($disk)->put($path, $contents, 'public');
             $mime = 'image/webp';
             $size = strlen($contents);
