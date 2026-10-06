@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ isset($title) ? $title.' · ' : '' }}{{ config('app.name') }}</title>
+    @php($metaDescription = $description ?? platform_setting('seo.meta_description'))
+    @if ($metaDescription)<meta name="description" content="{{ $metaDescription }}">@endif
+    <meta property="og:title" content="{{ isset($title) ? $title.' · ' : '' }}{{ config('app.name') }}">
+    @if ($metaDescription)<meta property="og:description" content="{{ $metaDescription }}">@endif
+    @if ($favicon = platform_setting('general.favicon'))<link rel="icon" href="{{ $favicon }}">@endif
     {{-- Apply the saved theme before first paint to avoid a flash. --}}
     <script>
         try {
@@ -31,6 +36,7 @@
     @endif
     @error('demo')<div class="bg-red-600 px-4 py-2 text-center text-sm text-white" role="alert">{{ $message }}</div>@enderror
     {{ $slot }}
+    <x-cookie-banner />
     @livewireScripts
     @stack('scripts')
 </body>

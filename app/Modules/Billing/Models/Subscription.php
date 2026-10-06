@@ -24,6 +24,7 @@ class Subscription extends Model
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
             'canceled_at' => 'datetime',
+            'reminder_sent_at' => 'datetime',
         ];
     }
 

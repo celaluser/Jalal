@@ -48,6 +48,8 @@ class RegisterController extends Controller
                 'name' => $data['restaurant_name'],
                 'slug' => $this->uniqueSlug($data['restaurant_name']),
                 'locale' => app()->getLocale(),
+                'currency_code' => $this->settings->get('general.default_currency'),
+                'timezone' => $this->settings->get('general.timezone', config('app.timezone')),
             ]);
 
             $user = User::create([

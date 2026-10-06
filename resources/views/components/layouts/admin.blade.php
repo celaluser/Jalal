@@ -9,7 +9,7 @@
                         <p class="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-gray-400">{{ __('admin.nav.group_'.$group) }}</p>
                         @foreach ($items as $item)
                             @if (\Illuminate\Support\Facades\Route::has($item['route']))
-                                <a href="{{ route($item['route']) }}" @class(['block rounded-lg px-2 py-1.5', 'bg-brand-50 font-semibold text-brand-700 dark:bg-gray-800 dark:text-brand-500' => request()->routeIs($item['active']), 'hover:bg-gray-100 dark:hover:bg-gray-800' => ! request()->routeIs($item['active'])])
+                                <a href="{{ route($item['route'], $item['params']) }}" @class(['block rounded-lg px-2 py-1.5', 'bg-brand-50 font-semibold text-brand-700 dark:bg-gray-800 dark:text-brand-500' => request()->routeIs($item['active']), 'hover:bg-gray-100 dark:hover:bg-gray-800' => ! request()->routeIs($item['active'])])
                                    @if (request()->routeIs($item['active'])) aria-current="page" @endif>{{ __($item['label']) }}</a>
                             @endif
                         @endforeach

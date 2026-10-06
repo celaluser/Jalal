@@ -4,11 +4,11 @@ use App\Models\User;
 use App\Modules\Auth\Services\RestaurantRoleService;
 use App\Modules\Auth\Services\TwoFactorService;
 use App\Modules\Auth\Support\Permissions;
+use App\Modules\Core\Mail\TemplatedMail;
 use App\Modules\Core\Services\SettingsService;
 use App\Modules\Tenancy\Models\Restaurant;
 use Database\Seeders\RolesAndPermissionsSeeder;
-use Illuminate\Auth\Notifications\VerifyEmail;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -28,7 +28,7 @@ function registerPayload(array $overrides = []): array
 }
 
 it('registers a restaurant together with its owner', function () {
-    Notification::fake();
+    Mail::fake();
 
     $this->post('/register', registerPayload())->assertRedirect(route('verification.notice'));
 
@@ -41,7 +41,8 @@ it('registers a restaurant together with its owner', function () {
     app(PermissionRegistrar::class)->setPermissionsTeamId($restaurant->id);
     expect($user->fresh()->hasRole(Permissions::OWNER))->toBeTrue();
 
-    Notification::assertSentTo($user, VerifyEmail::class);
+    Mail::assertSent(TemplatedMail::class, fn ($m) => $m->templateKey === 'verify_email' && $m->hasTo('ada@example.com'));
+    Mail::assertSent(TemplatedMail::class, fn ($m) => $m->templateKey === 'welcome');
 });
 
 it('generates unique slugs for restaurants with the same name', function () {

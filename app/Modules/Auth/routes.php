@@ -12,13 +12,13 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['web', SetLocale::class])->group(function () {
     Route::middleware('guest')->group(function () {
         Route::get('/login', [LoginController::class, 'create'])->name('login');
-        Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:login')->name('login.store');
+        Route::post('/login', [LoginController::class, 'store'])->middleware(['throttle:login', 'recaptcha'])->name('login.store');
 
         Route::get('/register', [RegisterController::class, 'create'])->name('register');
-        Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:register');
+        Route::post('/register', [RegisterController::class, 'store'])->middleware(['throttle:register', 'recaptcha']);
 
         Route::get('/forgot-password', [PasswordResetController::class, 'request'])->name('password.request');
-        Route::post('/forgot-password', [PasswordResetController::class, 'email'])->middleware('throttle:login')->name('password.email');
+        Route::post('/forgot-password', [PasswordResetController::class, 'email'])->middleware(['throttle:login', 'recaptcha'])->name('password.email');
         Route::get('/reset-password/{token}', [PasswordResetController::class, 'reset'])->name('password.reset');
         Route::post('/reset-password', [PasswordResetController::class, 'update'])->name('password.update');
 

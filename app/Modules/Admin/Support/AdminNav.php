@@ -8,16 +8,16 @@ namespace App\Modules\Admin\Support;
  */
 final class AdminNav
 {
-    /** @var array<string, list<array{label: string, route: string, active: string}>> */
+    /** @var array<string, list<array{label: string, route: string, active: string, params: array<string, string>}>> */
     private static array $groups = [];
 
-    public static function add(string $group, string $labelKey, string $route, ?string $activePattern = null): void
+    public static function add(string $group, string $labelKey, string $route, ?string $activePattern = null, array $params = []): void
     {
-        self::$groups[$group][] = ['label' => $labelKey, 'route' => $route, 'active' => $activePattern ?? $route];
+        self::$groups[$group][] = ['label' => $labelKey, 'route' => $route, 'active' => $activePattern ?? $route, 'params' => $params];
     }
 
     /**
-     * @return array<string, list<array{label: string, route: string, active: string}>>
+     * @return array<string, list<array{label: string, route: string, active: string, params: array<string, string>}>>
      */
     public static function groups(): array
     {

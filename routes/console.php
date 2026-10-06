@@ -6,3 +6,4 @@ use Illuminate\Support\Facades\Schedule;
 Schedule::command('demo:reset')->dailyAt('04:00')->when(fn () => config('demo.enabled'));
 
 Schedule::command('billing:expire')->dailyAt('02:30');
+Schedule::command('billing:remind')->dailyAt('09:00');

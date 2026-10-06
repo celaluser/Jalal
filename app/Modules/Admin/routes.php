@@ -3,11 +3,13 @@
 use App\Modules\Admin\Http\Controllers\BillingSettingsController;
 use App\Modules\Admin\Http\Controllers\CouponController;
 use App\Modules\Admin\Http\Controllers\DashboardController;
+use App\Modules\Admin\Http\Controllers\EmailTemplateController;
 use App\Modules\Admin\Http\Controllers\ImpersonationController;
 use App\Modules\Admin\Http\Controllers\InvoiceController;
 use App\Modules\Admin\Http\Controllers\PaymentSettingsController;
 use App\Modules\Admin\Http\Controllers\PlanController;
 use App\Modules\Admin\Http\Controllers\RestaurantController;
+use App\Modules\Admin\Http\Controllers\SettingsController;
 use App\Modules\Admin\Http\Controllers\SubscriptionController;
 use App\Modules\Core\Http\Middleware\SetLocale;
 use Illuminate\Support\Facades\Route;
@@ -44,6 +46,19 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
 
         Route::get('settings/billing', [BillingSettingsController::class, 'edit'])->name('settings.billing');
         Route::put('settings/billing', [BillingSettingsController::class, 'update'])->name('settings.billing.update');
+
+        Route::get('settings/{section}', [SettingsController::class, 'edit'])->name('settings.section')
+            ->where('section', 'general|seo|security|auth|mail|domains|ai|realtime|storage');
+        Route::put('settings/{section}', [SettingsController::class, 'update'])->name('settings.section.update')
+            ->where('section', 'general|seo|security|auth|mail|domains|ai|realtime|storage');
+        Route::post('settings/mail/test', [SettingsController::class, 'testMail'])->middleware('throttle:5,1')->name('settings.mail.test');
+
+        Route::get('email-templates', [EmailTemplateController::class, 'index'])->name('email-templates.index');
+        Route::get('email-templates/{key}', [EmailTemplateController::class, 'edit'])->name('email-templates.edit');
+        Route::put('email-templates/{key}', [EmailTemplateController::class, 'update'])->name('email-templates.update');
+        Route::delete('email-templates/{key}', [EmailTemplateController::class, 'reset'])->name('email-templates.reset');
+        Route::post('email-templates/{key}/preview', [EmailTemplateController::class, 'preview'])->name('email-templates.preview');
+        Route::post('email-templates/{key}/test', [EmailTemplateController::class, 'test'])->middleware('throttle:5,1')->name('email-templates.test');
 
         Route::get('settings/payments', [PaymentSettingsController::class, 'edit'])->name('settings.payments');
         Route::put('settings/payments/{gateway}', [PaymentSettingsController::class, 'update'])->name('settings.payments.update');

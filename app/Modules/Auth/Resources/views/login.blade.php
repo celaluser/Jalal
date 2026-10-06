@@ -6,6 +6,7 @@
         <x-ui.input name="email" type="email" :label="__('auth.email')" required autofocus autocomplete="username" />
         <x-ui.input name="password" type="password" :label="__('auth.password_label')" required autocomplete="current-password" />
         <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="remember" class="rounded"> {{ __('auth.remember') }}</label>
+        <x-recaptcha />
         <x-ui.button>{{ __('auth.login') }}</x-ui.button>
     </form>
     @if (app(\App\Modules\Core\Services\SettingsService::class)->get('auth.google_enabled'))

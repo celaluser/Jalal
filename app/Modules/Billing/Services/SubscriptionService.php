@@ -74,6 +74,7 @@ class SubscriptionService
         $subscription->forceFill([
             'status' => 'active',
             'canceled_at' => null,
+            'reminder_sent_at' => null,
             'ends_at' => $this->endFor($subscription->plan, $from, $subscription->interval),
         ])->save();
 

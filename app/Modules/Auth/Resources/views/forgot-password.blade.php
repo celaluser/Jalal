@@ -5,6 +5,7 @@
     <form method="POST" action="{{ route('password.email') }}" class="space-y-4">
         @csrf
         <x-ui.input name="email" type="email" :label="__('auth.email')" required autofocus />
+        <x-recaptcha />
         <x-ui.button>{{ __('auth.send_reset_link') }}</x-ui.button>
     </form>
 </x-layouts.guest>

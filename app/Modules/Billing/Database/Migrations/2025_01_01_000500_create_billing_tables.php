@@ -52,6 +52,7 @@ return new class extends Migration
             $table->timestamp('starts_at')->nullable();
             $table->timestamp('ends_at')->nullable();
             $table->timestamp('canceled_at')->nullable();
+            $table->timestamp('reminder_sent_at')->nullable();
             $table->string('gateway', 40)->nullable();
             $table->string('gateway_ref')->nullable();
             $table->foreignId('coupon_id')->nullable()->constrained('coupons')->nullOnDelete();

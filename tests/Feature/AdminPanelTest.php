@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Modules\Admin\Services\DashboardService;
+use App\Modules\Admin\Support\AdminNav;
 use App\Modules\Admin\Support\ChartScale;
 use App\Modules\Auth\Support\Permissions;
 use App\Modules\Billing\Models\Coupon;
@@ -13,6 +14,7 @@ use App\Modules\Billing\Services\SubscriptionService;
 use App\Modules\Core\Services\SettingsService;
 use App\Modules\Tenancy\Models\Restaurant;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Support\Facades\Route;
 use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
@@ -328,5 +330,26 @@ describe('edit forms', function () {
             ->assertRedirect('/admin/plans/create');
 
         $this->get('/admin/plans/create')->assertSee('value="Typed Name"', false)->assertSee('value="77"', false);
+    });
+});
+
+describe('navigation', function () {
+    it('has a translation for every sidebar label and group', function () {
+        foreach (AdminNav::groups() as $group => $items) {
+            expect(__('admin.nav.group_'.$group))->not->toBe('admin.nav.group_'.$group);
+
+            foreach ($items as $item) {
+                expect(__($item['label']))->not->toBe($item['label'], "missing translation for {$item['label']}");
+                expect(Route::has($item['route']))->toBeTrue("route {$item['route']} does not exist");
+            }
+        }
+    });
+
+    it('shows unsaved settings with their effective defaults instead of blanks', function () {
+        config(['app.name' => 'Default Name', 'app.timezone' => 'Europe/Istanbul']);
+
+        $this->actingAs($this->admin)->get('/admin/settings/general')
+            ->assertSee('value="Default Name"', false)
+            ->assertSee('<option value="Europe/Istanbul" selected', false);
     });
 });

@@ -36,4 +36,5 @@ return [
     'verify' => 'Verify',
     'enable' => 'Enable',
     'disable' => 'Disable',
+    'recaptcha_failed' => 'Please confirm you are not a robot and try again.',
 ];

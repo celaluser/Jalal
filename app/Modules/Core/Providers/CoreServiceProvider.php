@@ -2,9 +2,12 @@
 
 namespace App\Modules\Core\Providers;
 
+use App\Modules\Core\Http\Middleware\MaintenanceMode;
 use App\Modules\Core\Services\DatabaseTranslationLoader;
+use App\Modules\Core\Services\RuntimeSettings;
 use App\Modules\Core\Services\SettingsService;
 use App\Modules\Core\Tenancy\TenantContext;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Middleware\PermissionMiddleware;
@@ -30,5 +33,28 @@ class CoreServiceProvider extends ServiceProvider
         $router->aliasMiddleware('role_or_permission', RoleOrPermissionMiddleware::class);
 
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
+        $this->loadViewsFrom(__DIR__.'/../Resources/views', 'core');
+
+        // Through the kernel: it re-syncs its groups to the router, which would drop a router-level push.
+        $this->app->make(HttpKernel::class)->appendMiddlewareToGroup('web', MaintenanceMode::class);
+
+        $this->applyRuntimeSettings();
+    }
+
+    /**
+     * Admin-managed settings override .env defaults. Skipped before installation (no database yet);
+     * a broken database must never take the whole site down, so failures are swallowed.
+     */
+    private function applyRuntimeSettings(): void
+    {
+        if (! (config('installer.force_installed') || is_file(config('installer.lock_file')))) {
+            return;
+        }
+
+        try {
+            $this->app->make(RuntimeSettings::class)->apply();
+        } catch (\Throwable) {
+            // keep .env values
+        }
     }
 }

@@ -7,6 +7,8 @@ use App\Modules\Billing\Models\Payment;
 use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Payments\PaymentNotification;
 use App\Modules\Billing\Support\Money;
+use App\Modules\Core\Mail\SafeMail;
+use App\Modules\Core\Mail\TemplatedMail;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -78,8 +80,12 @@ class PaymentProcessor
     public function settle(Invoice $invoice, ?string $gateway = null, ?string $reference = null): Invoice
     {
         $this->invoices->markPaid($invoice, $gateway, $reference);
+        $this->activate($invoice, $gateway, $reference);
 
-        return $this->activate($invoice, $gateway, $reference);
+        // After the surrounding transaction commits, so a rolled-back payment never sends a receipt.
+        DB::afterCommit(fn () => $this->sendReceipt($invoice->fresh()));
+
+        return $invoice;
     }
 
     /**
@@ -103,6 +109,24 @@ class PaymentProcessor
         $invoice->update(['subscription_id' => $subscription->id]);
 
         return $invoice;
+    }
+
+    private function sendReceipt(Invoice $invoice): void
+    {
+        $restaurant = Restaurant::withTrashed()->with('owner')->find($invoice->restaurant_id);
+        $owner = $restaurant?->owner;
+
+        if (! $owner || (float) $invoice->total <= 0) {
+            return;
+        }
+
+        SafeMail::send($owner, new TemplatedMail('invoice_paid', [
+            'name' => $owner->name,
+            'restaurant' => $restaurant->name,
+            'invoice_number' => $invoice->number,
+            'total' => number_format((float) $invoice->total, 2).' '.$invoice->currency_code,
+            'plan' => $invoice->items[0]['description'] ?? '',
+        ], $owner->locale, [[$this->invoices->pdf($invoice)->output(), $invoice->number.'.pdf']]));
     }
 
     private function amountMatches(Invoice $invoice, PaymentNotification $n): bool
