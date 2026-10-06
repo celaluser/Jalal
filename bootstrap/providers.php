@@ -2,7 +2,10 @@
 
 use App\Modules\Auth\Providers\AuthServiceProvider;
 use App\Modules\Core\Providers\CoreServiceProvider;
+use App\Modules\Installer\Providers\InstallerServiceProvider;
+use App\Modules\Licensing\Providers\LicensingServiceProvider;
 use App\Modules\Tenancy\Providers\TenancyServiceProvider;
+use App\Modules\Updater\Providers\UpdaterServiceProvider;
 use App\Providers\AppServiceProvider;
 
 return [
@@ -10,4 +13,7 @@ return [
     CoreServiceProvider::class,
     TenancyServiceProvider::class,
     AuthServiceProvider::class,
+    LicensingServiceProvider::class,
+    InstallerServiceProvider::class,
+    UpdaterServiceProvider::class,
 ];

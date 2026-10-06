@@ -5,7 +5,11 @@ namespace App\Modules\Core\Providers;
 use App\Modules\Core\Services\DatabaseTranslationLoader;
 use App\Modules\Core\Services\SettingsService;
 use App\Modules\Core\Tenancy\TenantContext;
+use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 
 class CoreServiceProvider extends ServiceProvider
 {
@@ -19,8 +23,12 @@ class CoreServiceProvider extends ServiceProvider
         $this->app->extend('translation.loader', fn ($loader, $app) => new DatabaseTranslationLoader($app['files'], $app['path.lang']));
     }
 
-    public function boot(): void
+    public function boot(Router $router): void
     {
+        $router->aliasMiddleware('role', RoleMiddleware::class);
+        $router->aliasMiddleware('permission', PermissionMiddleware::class);
+        $router->aliasMiddleware('role_or_permission', RoleOrPermissionMiddleware::class);
+
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
     }
 }
