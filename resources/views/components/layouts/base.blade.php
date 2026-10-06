@@ -22,6 +22,13 @@
     @if (config('demo.enabled'))
         <div class="bg-amber-100 px-4 py-1.5 text-center text-xs text-amber-900" role="note">{{ __('demo.banner') }}</div>
     @endif
+    @if (session('impersonator_id'))
+        <form method="POST" action="{{ route('impersonation.stop') }}" class="flex items-center justify-center gap-3 bg-indigo-600 px-4 py-1.5 text-sm text-white" role="note">
+            @csrf
+            <span>{{ __('admin.impersonate.banner', ['name' => auth()->user()?->name]) }}</span>
+            <button class="rounded bg-white px-2 py-0.5 font-semibold text-indigo-700">{{ __('admin.impersonate.stop') }}</button>
+        </form>
+    @endif
     @error('demo')<div class="bg-red-600 px-4 py-2 text-center text-sm text-white" role="alert">{{ $message }}</div>@enderror
     {{ $slot }}
     @livewireScripts

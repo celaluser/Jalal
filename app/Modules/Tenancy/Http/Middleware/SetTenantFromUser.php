@@ -24,6 +24,10 @@ class SetTenantFromUser
 
         $restaurant = $user->restaurant;
 
+        // A user bound to a restaurant that no longer exists (soft deleted) must not fall through
+        // as a platform user.
+        abort_if($user->restaurant_id !== null && $restaurant === null, 403, __('auth.restaurant_suspended'));
+
         if ($restaurant !== null) {
             abort_if($restaurant->isSuspended(), 403, __('auth.restaurant_suspended'));
             $this->context->set($restaurant);

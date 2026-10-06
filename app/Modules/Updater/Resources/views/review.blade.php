@@ -1,4 +1,4 @@
-<x-layouts.app :title="__('updater.title')">
+<x-layouts.admin :title="__('updater.title')">
     <x-ui.card class="mx-auto max-w-xl">
         <h1 class="mb-1 text-xl font-semibold">{{ __('updater.review') }}</h1>
         <p class="mb-3 text-sm text-gray-500">{{ $current }} → <strong>{{ $package->version() }}</strong> · {{ __('updater.file_count', ['count' => count($package->paths())]) }}</p>
@@ -13,4 +13,4 @@
             <x-ui.button variant="secondary">{{ __('updater.cancel') }}</x-ui.button>
         </form>
     </x-ui.card>
-</x-layouts.app>
+</x-layouts.admin>

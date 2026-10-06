@@ -2,6 +2,7 @@
 
 namespace App\Modules\Billing\Models;
 
+use App\Modules\Core\Tenancy\TenantScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -39,7 +40,8 @@ class Plan extends Model
 
     public function subscriptions(): HasMany
     {
-        return $this->hasMany(Subscription::class);
+        // Plans are platform-wide: count subscribers of every restaurant, not just the ambient tenant.
+        return $this->hasMany(Subscription::class)->withoutGlobalScope(TenantScope::class);
     }
 
     /** @return int|null null = unlimited */

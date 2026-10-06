@@ -1,4 +1,4 @@
-<x-layouts.app :title="__('updater.title')">
+<x-layouts.admin :title="__('updater.title')">
     <div class="space-y-6">
         <x-ui.card>
             <h1 class="mb-1 text-xl font-semibold">{{ __('updater.title') }}</h1>
@@ -33,4 +33,4 @@
             </table>
         </x-ui.card>
     </div>
-</x-layouts.app>
+</x-layouts.admin>
