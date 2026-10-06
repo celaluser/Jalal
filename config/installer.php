@@ -15,7 +15,7 @@ return [
     'min_php' => '8.2.0',
 
     'extensions' => [
-        'bcmath', 'ctype', 'curl', 'dom', 'fileinfo', 'gd', 'intl', 'json', 'mbstring',
+        'ctype', 'curl', 'dom', 'fileinfo', 'gd', 'intl', 'json', 'mbstring',
         'openssl', 'pdo', 'tokenizer', 'xml', 'zip',
     ],
 

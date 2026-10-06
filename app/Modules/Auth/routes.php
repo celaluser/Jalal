@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['web', SetLocale::class])->group(function () {
     Route::middleware('guest')->group(function () {
         Route::get('/login', [LoginController::class, 'create'])->name('login');
-        Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:login');
+        Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:login')->name('login.store');
 
         Route::get('/register', [RegisterController::class, 'create'])->name('register');
         Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:register');
@@ -23,7 +23,7 @@ Route::middleware(['web', SetLocale::class])->group(function () {
         Route::post('/reset-password', [PasswordResetController::class, 'update'])->name('password.update');
 
         Route::get('/two-factor-challenge', [TwoFactorController::class, 'challenge'])->name('two-factor.challenge');
-        Route::post('/two-factor-challenge', [TwoFactorController::class, 'verify'])->middleware('throttle:login');
+        Route::post('/two-factor-challenge', [TwoFactorController::class, 'verify'])->middleware('throttle:login')->name('two-factor.verify');
 
         Route::get('/auth/google', [GoogleController::class, 'redirect'])->name('google.redirect');
         Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('google.callback');

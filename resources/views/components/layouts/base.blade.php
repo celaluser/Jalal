@@ -19,6 +19,10 @@
     @stack('head')
 </head>
 <body class="min-h-screen bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
+    @if (config('demo.enabled'))
+        <div class="bg-amber-100 px-4 py-1.5 text-center text-xs text-amber-900" role="note">{{ __('demo.banner') }}</div>
+    @endif
+    @error('demo')<div class="bg-red-600 px-4 py-2 text-center text-sm text-white" role="alert">{{ $message }}</div>@enderror
     {{ $slot }}
     @livewireScripts
     @stack('scripts')

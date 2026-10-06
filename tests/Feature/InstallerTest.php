@@ -9,6 +9,7 @@ use App\Modules\Licensing\Services\FormatLicenseVerifier;
 use App\Modules\Licensing\Services\LicenseManager;
 use App\Modules\Licensing\Services\ServerLicenseVerifier;
 use App\Modules\Licensing\Support\LicenseResult;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Http;
 
 const VALID_CODE = '86731e51-1234-4abc-9def-0123456789ab';
@@ -184,4 +185,36 @@ it('installs end to end on a fresh sqlite database', function () {
 
     config(['database.default' => $originalDefault]);
     DB::purge('installer_target');
+});
+
+it('wipes what it created and writes no configuration when installation fails midway', function () {
+    $dir = sys_get_temp_dir().'/install-fail-'.uniqid();
+    mkdir($dir);
+    $dbFile = $dir.'/fresh.sqlite';
+    touch($dbFile);
+    $envPath = $dir.'/.env';
+
+    config(['installer.force_installed' => false, 'installer.lock_file' => $dir.'/installed']);
+    $this->app->singleton(EnvWriter::class, fn () => new EnvWriter($envPath));
+    $this->app->forgetInstance(InstallerService::class);
+
+    $originalDefault = config('database.default');
+
+    try {
+        // A null name makes the admin insert fail after the tables exist.
+        expect(fn () => app(InstallerService::class)->install([
+            'license' => ['code' => VALID_CODE, 'valid' => true],
+            'database' => ['driver' => 'sqlite', 'database' => $dbFile],
+            'site' => ['name' => 'x', 'url' => 'https://x.test'],
+            'admin' => ['name' => null, 'email' => 'a@b.test', 'password' => 'long-enough-1'],
+        ]))->toThrow(QueryException::class);
+
+        expect(file_exists($envPath))->toBeFalse()
+            ->and(file_exists($dir.'/installed'))->toBeFalse()
+            ->and(app(DatabaseConnector::class)->isEmpty())->toBeTrue();
+    } finally {
+        // Before teardown: RefreshDatabase rolls back whatever the *default* connection is.
+        config(['database.default' => $originalDefault]);
+        DB::purge('installer_target');
+    }
 });

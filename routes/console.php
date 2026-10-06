@@ -1,8 +1,6 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Public demo sites restore pristine data every night. demo:reset itself refuses to run outside DEMO_MODE.
+Schedule::command('demo:reset')->dailyAt('04:00')->when(fn () => config('demo.enabled'));

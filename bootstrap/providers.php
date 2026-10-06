@@ -2,6 +2,7 @@
 
 use App\Modules\Auth\Providers\AuthServiceProvider;
 use App\Modules\Core\Providers\CoreServiceProvider;
+use App\Modules\Demo\Providers\DemoServiceProvider;
 use App\Modules\Installer\Providers\InstallerServiceProvider;
 use App\Modules\Licensing\Providers\LicensingServiceProvider;
 use App\Modules\Tenancy\Providers\TenancyServiceProvider;
@@ -16,4 +17,5 @@ return [
     LicensingServiceProvider::class,
     InstallerServiceProvider::class,
     UpdaterServiceProvider::class,
+    DemoServiceProvider::class,
 ];

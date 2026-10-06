@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
 use Spatie\Permission\PermissionRegistrar;
+use Throwable;
 
 class InstallerService
 {
@@ -36,28 +37,36 @@ class InstallerService
             throw new RuntimeException(__('installer.database_not_empty'));
         }
 
+        try {
+            Artisan::call('migrate', ['--force' => true]);
+            Artisan::call('db:seed', ['--force' => true]);
+
+            $admin = User::create([
+                'name' => $data['admin']['name'],
+                'email' => $data['admin']['email'],
+                'password' => $data['admin']['password'],
+            ]);
+            $admin->forceFill(['email_verified_at' => now()])->save();
+
+            app(PermissionRegistrar::class)->setPermissionsTeamId(config('tenancy.platform_team_id'));
+            $admin->assignRole(Permissions::SUPER_ADMIN);
+
+            $this->licenses->record(
+                $data['license']['code'],
+                $data['license']['valid'] ? LicenseResult::valid() : LicenseResult::unreachable('unverified')
+            );
+
+            app(SettingsService::class)->set('site.name', $data['site']['name']);
+        } catch (Throwable $e) {
+            // The database was verified empty above, so wiping it only removes what this run created
+            // and lets the user retry cleanly.
+            Artisan::call('db:wipe', ['--force' => true]);
+
+            throw $e;
+        }
+
+        // Last on purpose: configuration is only written once everything else succeeded.
         $this->writeEnvironment($data);
-
-        Artisan::call('migrate', ['--force' => true]);
-        Artisan::call('db:seed', ['--force' => true]);
-
-        $admin = User::create([
-            'name' => $data['admin']['name'],
-            'email' => $data['admin']['email'],
-            'password' => $data['admin']['password'],
-        ]);
-        $admin->forceFill(['email_verified_at' => now()])->save();
-
-        app(PermissionRegistrar::class)->setPermissionsTeamId(config('tenancy.platform_team_id'));
-        $admin->assignRole(Permissions::SUPER_ADMIN);
-
-        $this->licenses->record(
-            $data['license']['code'],
-            $data['license']['valid'] ? LicenseResult::valid() : LicenseResult::unreachable('unverified')
-        );
-
-        app(SettingsService::class)->set('site.name', $data['site']['name']);
-
         $this->lock();
     }
 

@@ -7,5 +7,10 @@ return [
     */
     'enabled' => (bool) env('DEMO_MODE', false),
 
-    'allowed_routes' => ['login', 'logout', 'password.email', 'two-factor.challenge'],
+    /*
+    | Shared password of all demo accounts; shown on the login page while demo mode is on.
+    */
+    'password' => env('DEMO_PASSWORD', 'demo-password'),
+
+    'allowed_routes' => ['login.store', 'logout', 'two-factor.verify'],
 ];
