@@ -80,6 +80,13 @@ return [
 
     'locale' => env('APP_LOCALE', 'en'),
 
+    /*
+    | The platform's default language. Unlike 'locale', this is never changed per request
+    | (Application::setLocale() overwrites 'locale' with the visitor's language), so it is the
+    | safe thing to fall back on.
+    */
+    'default_locale' => env('APP_LOCALE', 'en'),
+
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),

@@ -26,7 +26,7 @@ final class SettingsSchema
                     ['name' => 'site_name', 'key' => 'site.name', 'type' => 'text', 'label' => 'admin.settings.general.site_name', 'default' => config('app.name'), 'rules' => ['required', 'string', 'max:100']],
                     ['name' => 'logo', 'key' => 'general.logo', 'type' => 'image', 'label' => 'admin.settings.general.logo'],
                     ['name' => 'favicon', 'key' => 'general.favicon', 'type' => 'image', 'label' => 'admin.settings.general.favicon'],
-                    ['name' => 'default_language', 'key' => 'general.default_language', 'type' => 'select', 'label' => 'admin.settings.general.default_language', 'default' => config('app.locale'), 'options' => 'languages', 'rules' => ['required', 'string', 'max:12']],
+                    ['name' => 'default_language', 'key' => 'general.default_language', 'type' => 'select', 'label' => 'admin.settings.general.default_language', 'default' => config('app.default_locale'), 'options' => 'languages', 'rules' => ['required', 'string', 'max:12']],
                     ['name' => 'default_currency', 'key' => 'general.default_currency', 'type' => 'select', 'label' => 'admin.settings.general.default_currency', 'default' => 'USD', 'options' => 'currencies', 'rules' => ['required', 'string', 'max:8']],
                     ['name' => 'timezone', 'key' => 'general.timezone', 'type' => 'select', 'label' => 'admin.settings.general.timezone', 'default' => config('app.timezone'), 'options' => 'timezones', 'rules' => ['required', 'timezone:all']],
                     ['name' => 'support_email', 'key' => 'general.support_email', 'type' => 'email', 'label' => 'admin.settings.general.support_email', 'rules' => ['nullable', 'email', 'max:190']],

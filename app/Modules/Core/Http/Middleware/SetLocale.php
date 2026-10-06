@@ -24,7 +24,7 @@ class SetLocale
         $active = $this->activeLanguages();
         $codes = array_keys($active);
 
-        $locale = $this->pick($request, $codes) ?? config('app.locale');
+        $locale = $this->pick($request, $codes) ?? config('app.default_locale');
 
         if ($request->hasSession() && $request->query('lang') === $locale) {
             $request->session()->put('locale', $locale);
@@ -44,13 +44,13 @@ class SetLocale
     {
         try {
             if (! Schema::hasTable('languages')) {
-                return [config('app.locale') => false];
+                return [config('app.default_locale') => false];
             }
 
             return Cache::remember('languages.active', 3600, fn () => Language::active()->pluck('is_rtl', 'code')->all())
-                ?: [config('app.locale') => false];
+                ?: [config('app.default_locale') => false];
         } catch (\Throwable) {
-            return [config('app.locale') => false];
+            return [config('app.default_locale') => false];
         }
     }
 

@@ -27,7 +27,7 @@ class RuntimeSettings
         }
 
         if ($lang = $get('general.default_language')) {
-            config(['app.locale' => $lang]);
+            config(['app.locale' => $lang, 'app.default_locale' => $lang]);
         }
 
         $this->mail($get);

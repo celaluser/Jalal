@@ -21,7 +21,7 @@ class EmailTemplateRenderer
     {
         $definition = EmailTemplateRegistry::find($key) ?? throw new \InvalidArgumentException("Unknown e-mail template [{$key}].");
 
-        $row = $override ?? $this->row($key, $locale ?? config('app.locale'));
+        $row = $override ?? $this->row($key, $locale ?? config('app.default_locale'));
 
         if ($row !== null && ! $definition['required'] && ! ($row['is_active'] ?? true)) {
             return null;

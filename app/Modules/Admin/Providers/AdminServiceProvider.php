@@ -20,6 +20,9 @@ class AdminServiceProvider extends ServiceProvider
         AdminNav::add('billing', 'admin.nav.coupons', 'admin.coupons.index', 'admin.coupons.*');
         AdminNav::add('billing', 'admin.nav.payments', 'admin.settings.payments', 'admin.settings.payments*');
         AdminNav::add('billing', 'admin.nav.billing_settings', 'admin.settings.billing', 'admin.settings.billing*');
+        AdminNav::add('content', 'admin.nav.landing', 'admin.landing.edit', 'admin.landing.*');
+        AdminNav::add('content', 'admin.nav.blog', 'admin.posts.index', 'admin.posts.*');
+        AdminNav::add('content', 'admin.nav.pages', 'admin.pages.index', 'admin.pages.*');
         AdminNav::add('system', 'admin.nav.email_templates', 'admin.email-templates.index', 'admin.email-templates.*');
         AdminNav::add('system', 'admin.nav.settings', 'admin.settings.section', 'admin.settings.section*', ['section' => 'general']);
         AdminNav::add('system', 'admin.nav.updates', 'admin.updates.index', 'admin.updates.*');

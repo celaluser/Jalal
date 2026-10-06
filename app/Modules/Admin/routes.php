@@ -1,11 +1,14 @@
 <?php
 
 use App\Modules\Admin\Http\Controllers\BillingSettingsController;
+use App\Modules\Admin\Http\Controllers\BlogPostController;
 use App\Modules\Admin\Http\Controllers\CouponController;
 use App\Modules\Admin\Http\Controllers\DashboardController;
 use App\Modules\Admin\Http\Controllers\EmailTemplateController;
 use App\Modules\Admin\Http\Controllers\ImpersonationController;
 use App\Modules\Admin\Http\Controllers\InvoiceController;
+use App\Modules\Admin\Http\Controllers\LandingPageController;
+use App\Modules\Admin\Http\Controllers\PageController;
 use App\Modules\Admin\Http\Controllers\PaymentSettingsController;
 use App\Modules\Admin\Http\Controllers\PlanController;
 use App\Modules\Admin\Http\Controllers\RestaurantController;
@@ -52,6 +55,11 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
         Route::put('settings/{section}', [SettingsController::class, 'update'])->name('settings.section.update')
             ->where('section', 'general|seo|security|auth|mail|domains|ai|realtime|storage');
         Route::post('settings/mail/test', [SettingsController::class, 'testMail'])->middleware('throttle:5,1')->name('settings.mail.test');
+
+        Route::get('landing', [LandingPageController::class, 'edit'])->name('landing.edit');
+        Route::put('landing', [LandingPageController::class, 'update'])->name('landing.update');
+        Route::resource('pages', PageController::class)->except('show');
+        Route::resource('posts', BlogPostController::class)->except('show');
 
         Route::get('email-templates', [EmailTemplateController::class, 'index'])->name('email-templates.index');
         Route::get('email-templates/{key}', [EmailTemplateController::class, 'edit'])->name('email-templates.edit');
