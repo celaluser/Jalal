@@ -3,6 +3,7 @@
 namespace App\Modules\Core\Tenancy;
 
 use App\Modules\Tenancy\Models\Restaurant;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
 
@@ -31,6 +32,15 @@ trait BelongsToRestaurant
 
             $model->restaurant_id = $id;
         });
+    }
+
+    /**
+     * Deliberately look across all tenants. Only platform (super admin) code may call this;
+     * it is the one greppable escape hatch next to TenantContext::bypass().
+     */
+    public function scopeAllTenants(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope(TenantScope::class);
     }
 
     public function restaurant(): BelongsTo

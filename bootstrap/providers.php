@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Auth\Providers\AuthServiceProvider;
+use App\Modules\Billing\Providers\BillingServiceProvider;
 use App\Modules\Core\Providers\CoreServiceProvider;
 use App\Modules\Demo\Providers\DemoServiceProvider;
 use App\Modules\Installer\Providers\InstallerServiceProvider;
@@ -13,6 +14,7 @@ return [
     AppServiceProvider::class,
     CoreServiceProvider::class,
     TenancyServiceProvider::class,
+    BillingServiceProvider::class,
     AuthServiceProvider::class,
     LicensingServiceProvider::class,
     InstallerServiceProvider::class,

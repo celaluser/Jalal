@@ -1,0 +1,25 @@
+<?php
+
+return [
+    'no_trial' => 'No trial is available for this plan.',
+    'invoice' => 'Invoice',
+    'issued' => 'Issued',
+    'paid_on' => 'Paid on',
+    'due' => 'Due',
+    'from' => 'From',
+    'bill_to' => 'Bill to',
+    'tax_id' => 'Tax ID',
+    'description' => 'Description',
+    'amount' => 'Amount',
+    'subtotal' => 'Subtotal',
+    'discount' => 'Discount',
+    'total' => 'Total',
+    'interval_monthly' => 'monthly',
+    'interval_yearly' => 'yearly',
+    'interval_lifetime' => 'lifetime',
+    'interval_free' => 'free',
+    'status_open' => 'open',
+    'status_paid' => 'paid',
+    'status_void' => 'void',
+    'status_refunded' => 'refunded',
+];
