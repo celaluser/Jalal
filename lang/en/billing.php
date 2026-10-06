@@ -22,4 +22,8 @@ return [
     'status_paid' => 'paid',
     'status_void' => 'void',
     'status_refunded' => 'refunded',
+    'gateway_unavailable' => 'This payment method is not available.',
+    'gateway_failed' => 'The payment provider could not be reached. Please try again or choose another method.',
+    'payment_received' => 'Payment received. Your plan is active.',
+    'payment_pending' => 'We have not received a confirmation of your payment yet. It may take a few minutes.',
 ];

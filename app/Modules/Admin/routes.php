@@ -5,6 +5,7 @@ use App\Modules\Admin\Http\Controllers\CouponController;
 use App\Modules\Admin\Http\Controllers\DashboardController;
 use App\Modules\Admin\Http\Controllers\ImpersonationController;
 use App\Modules\Admin\Http\Controllers\InvoiceController;
+use App\Modules\Admin\Http\Controllers\PaymentSettingsController;
 use App\Modules\Admin\Http\Controllers\PlanController;
 use App\Modules\Admin\Http\Controllers\RestaurantController;
 use App\Modules\Admin\Http\Controllers\SubscriptionController;
@@ -43,4 +44,7 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
 
         Route::get('settings/billing', [BillingSettingsController::class, 'edit'])->name('settings.billing');
         Route::put('settings/billing', [BillingSettingsController::class, 'update'])->name('settings.billing.update');
+
+        Route::get('settings/payments', [PaymentSettingsController::class, 'edit'])->name('settings.payments');
+        Route::put('settings/payments/{gateway}', [PaymentSettingsController::class, 'update'])->name('settings.payments.update');
     });

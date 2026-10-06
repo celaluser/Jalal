@@ -63,6 +63,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('restaurant_id')->index();
             $table->foreignId('subscription_id')->nullable()->constrained('subscriptions')->nullOnDelete();
+            $table->foreignId('plan_id')->nullable()->constrained('plans')->nullOnDelete(); // what paying this invoice buys
             $table->string('number')->unique();
             $table->string('status', 12)->index(); // open | paid | void | refunded
             $table->string('currency_code', 8);
@@ -83,6 +84,20 @@ return new class extends Migration
             $table->timestamps();
         });
 
+        Schema::create('payments', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('restaurant_id')->index();
+            $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
+            $table->string('gateway', 40);
+            $table->string('transaction_id');       // the gateway's own id for this payment
+            $table->unsignedBigInteger('amount');   // minor units (cents)
+            $table->string('currency_code', 8);
+            $table->string('status', 12);           // pending | succeeded | failed | mismatch
+            $table->json('payload')->nullable();
+            $table->timestamps();
+            $table->unique(['gateway', 'transaction_id']); // makes webhook replays idempotent
+        });
+
         Schema::create('coupon_redemptions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('coupon_id')->constrained('coupons')->cascadeOnDelete();
@@ -95,7 +110,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        foreach (['coupon_redemptions', 'invoices', 'subscriptions', 'coupons', 'plans'] as $t) {
+        foreach (['coupon_redemptions', 'payments', 'invoices', 'subscriptions', 'coupons', 'plans'] as $t) {
             Schema::dropIfExists($t);
         }
     }

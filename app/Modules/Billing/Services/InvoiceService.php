@@ -58,6 +58,7 @@ class InvoiceService
                 return DB::transaction(fn () => Invoice::create([
                     'restaurant_id' => $restaurant->id,
                     'subscription_id' => $subscription?->id,
+                    'plan_id' => $plan->id,
                     'number' => $this->nextNumber(),
                     'status' => $amounts['total'] === 0 ? 'paid' : 'open',
                     'currency_code' => $plan->currency_code,

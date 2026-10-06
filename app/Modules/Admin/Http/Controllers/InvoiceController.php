@@ -5,6 +5,7 @@ namespace App\Modules\Admin\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Services\InvoiceService;
+use App\Modules\Billing\Services\PaymentProcessor;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,7 +13,7 @@ use Illuminate\View\View;
 
 class InvoiceController extends Controller
 {
-    public function __construct(private readonly InvoiceService $invoices) {}
+    public function __construct(private readonly InvoiceService $invoices, private readonly PaymentProcessor $processor) {}
 
     public function index(Request $request): View
     {
@@ -36,7 +37,8 @@ class InvoiceController extends Controller
 
     public function markPaid(int $invoice): RedirectResponse
     {
-        $this->invoices->markPaid(Invoice::allTenants()->findOrFail($invoice), 'manual');
+        // settle() also activates the plan the invoice is for (e.g. a confirmed bank transfer).
+        $this->processor->settle(Invoice::allTenants()->findOrFail($invoice), 'manual');
 
         return back()->with('status', __('admin.invoices.marked_paid'));
     }
