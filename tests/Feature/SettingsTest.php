@@ -45,7 +45,7 @@ function formFor(string $section, array $overrides = []): array
 describe('settings screens', function () {
     it('renders every section from the schema', function (string $section) {
         $this->actingAs($this->admin)->get("/admin/settings/{$section}")->assertOk()->assertSee(__(SettingsSchema::section($section)['title']));
-    })->with(array_keys(SettingsSchema::sections()));
+    })->with(['general', 'seo', 'security', 'auth', 'mail', 'domains', 'ai', 'realtime', 'storage']);
 
     it('404s unknown sections', function () {
         $this->actingAs($this->admin)->get('/admin/settings/nope')->assertNotFound();
@@ -392,4 +392,8 @@ describe('transactional e-mails', function () {
         Mail::assertSent(TemplatedMail::class, 1);
         Mail::assertSent(TemplatedMail::class, fn ($m) => $m->templateKey === 'subscription_expiring' && $m->hasTo($soon->owner->email));
     });
+});
+
+it('has a settings screen for every schema section (guards the list used by the dataset above)', function () {
+    expect(array_keys(SettingsSchema::sections()))->toEqual(['general', 'seo', 'security', 'auth', 'mail', 'domains', 'ai', 'realtime', 'storage']);
 });
