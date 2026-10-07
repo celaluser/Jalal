@@ -36,7 +36,7 @@ class GoogleController extends Controller
         $user = User::where('google_id', $google->getId())->first()
             ?? User::where('email', $google->getEmail())->first();
 
-        if (! $user || $user->restaurant?->isSuspended()) {
+        if (! $user || $user->disabled_at !== null || $user->restaurant?->isSuspended()) {
             return redirect()->route('login')->withErrors(['email' => __('auth.google_no_account')]);
         }
 

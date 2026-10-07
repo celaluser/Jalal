@@ -14,6 +14,7 @@ return [
         'menu' => 'Menu',
         'options' => 'Options & extras',
         'appearance' => 'Appearance',
+        'team' => 'Team',
         'orders' => 'Live orders',
         'ordering' => 'Ordering',
         'tables' => 'Tables & QR',

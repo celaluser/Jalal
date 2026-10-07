@@ -5,6 +5,7 @@ return [
     'password' => 'The provided password is incorrect.',
     'throttle' => 'Too many login attempts. Please try again in :seconds seconds.',
 
+    'account_disabled' => 'This account has been switched off by the restaurant owner.',
     'restaurant_suspended' => 'This restaurant account is suspended. Please contact support.',
     'login' => 'Sign in',
     'register' => 'Create account',

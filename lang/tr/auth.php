@@ -5,6 +5,7 @@ return [
     'password' => 'Girilen şifre hatalı.',
     'throttle' => 'Çok fazla giriş denemesi. Lütfen :seconds saniye sonra tekrar deneyin.',
 
+    'account_disabled' => 'Bu hesap restoran sahibi tarafından devre dışı bırakıldı.',
     'restaurant_suspended' => 'Bu restoran hesabı askıya alındı. Lütfen destek ile iletişime geçin.',
     'login' => 'Giriş yap',
     'register' => 'Hesap oluştur',

@@ -30,6 +30,10 @@ class LoginController extends Controller
             throw ValidationException::withMessages(['email' => __('auth.failed')]);
         }
 
+        if ($user->disabled_at !== null) {
+            throw ValidationException::withMessages(['email' => __('auth.account_disabled')]);
+        }
+
         if ($user->restaurant?->isSuspended()) {
             throw ValidationException::withMessages(['email' => __('auth.restaurant_suspended')]);
         }

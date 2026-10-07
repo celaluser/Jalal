@@ -14,6 +14,7 @@ use App\Modules\Orders\Providers\OrdersServiceProvider;
 use App\Modules\Storefront\Providers\StorefrontServiceProvider;
 use App\Modules\Support\Providers\SupportServiceProvider;
 use App\Modules\Tables\Providers\TablesServiceProvider;
+use App\Modules\Team\Providers\TeamServiceProvider;
 use App\Modules\Tenancy\Providers\TenancyServiceProvider;
 use App\Modules\Updater\Providers\UpdaterServiceProvider;
 use App\Providers\AppServiceProvider;
@@ -30,6 +31,7 @@ return [
     TablesServiceProvider::class,
     OrdersServiceProvider::class,
     AiServiceProvider::class,
+    TeamServiceProvider::class,
     StorefrontServiceProvider::class,
     AuthServiceProvider::class,
     LicensingServiceProvider::class,

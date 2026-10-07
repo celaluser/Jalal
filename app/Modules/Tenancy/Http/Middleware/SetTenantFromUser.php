@@ -22,6 +22,8 @@ class SetTenantFromUser
 
         abort_if($user === null, 401);
 
+        abort_if($user->disabled_at !== null, 403, __('auth.account_disabled'));
+
         $restaurant = $user->restaurant;
 
         // A user bound to a restaurant that no longer exists (soft deleted) must not fall through
