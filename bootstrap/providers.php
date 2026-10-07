@@ -2,6 +2,7 @@
 
 use App\Modules\Admin\Providers\AdminServiceProvider;
 use App\Modules\Ai\Providers\AiServiceProvider;
+use App\Modules\Analytics\Providers\AnalyticsServiceProvider;
 use App\Modules\Auth\Providers\AuthServiceProvider;
 use App\Modules\Billing\Providers\BillingServiceProvider;
 use App\Modules\Cms\Providers\CmsServiceProvider;
@@ -32,6 +33,7 @@ return [
     TablesServiceProvider::class,
     OrdersServiceProvider::class,
     MarketingServiceProvider::class,
+    AnalyticsServiceProvider::class,
     AiServiceProvider::class,
     TeamServiceProvider::class,
     StorefrontServiceProvider::class,

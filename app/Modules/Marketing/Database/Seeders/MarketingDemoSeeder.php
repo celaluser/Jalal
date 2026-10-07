@@ -72,7 +72,7 @@ class MarketingDemoSeeder extends Seeder
 
                     // Spread the orders over the last weeks.
                     $when = now()->subDays(random_int(1, 60 - $n * 3))->subMinutes(random_int(0, 600));
-                    Order::whereKey($order->id)->update(['created_at' => $when, 'completed_at' => $when->copy()->addMinutes(25)]);
+                    Order::whereKey($order->id)->update(['created_at' => $when, 'accepted_at' => $when->copy()->addMinutes(2), 'ready_at' => $when->copy()->addMinutes(random_int(12, 28)), 'completed_at' => $when->copy()->addMinutes(35)]);
 
                     if (isset($ratings[$n])) {
                         $review = $reviews->submit($restaurant, $order->fresh(), $ratings[$n], [1 => 'Cold food and a long wait.', 2 => 'Slow service, but the pasta was fine.', 3 => 'Good, nothing special.', 4 => 'Tasty and quick, will order again.', 5 => 'Best pizza in town! Fresh and hot.'][$ratings[$n]]);

@@ -42,7 +42,7 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Per-language names and descriptions with tabs, drag-and-drop order (and keyboard buttons), duplicate product
 - ✅ Plan limits enforced; usage shown on the subscription page
 - ✅ Stock tracking (portions count down with orders, return on cancel, auto sold-out, low-stock warning), one-screen prices & stock editor, percentage price change, CSV export of the menu
-- ⬜ CSV import, scheduled availability (e.g. breakfast only), scheduled availability (e.g. breakfast only), product photo gallery, nutrition beyond calories
+- ⬜ CSV import, scheduled availability (e.g. breakfast only), product photo gallery, nutrition beyond calories
 
 ## 6. Tables and QR codes (Phase 6)
 - ✅ Areas and tables (single and bulk), unguessable table tokens with regenerate
@@ -70,7 +70,7 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Ordering settings: types, fees, payment methods, auto-accept, preparation time, guest cancel
 - ✅ Staff order entry (POS) for waiters, cashiers, managers: menu browser with options, table / takeaway / delivery, optional "paid now" for cashiers; server re-prices everything
 - ✅ Optional guest e-mail at checkout: order received, ready, cancelled-by-restaurant e-mails (admin-editable templates; a mail outage never blocks an order)
-- ⬜ Online card payment for orders (not verifiable without live gateway accounts), SMS notifications (needs a provider), courier tracking, order history reports (Phase 11), branches
+- ⬜ Online card payment for orders (not verifiable without live gateway accounts), SMS notifications (needs a provider), courier tracking, branches
 
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
@@ -87,7 +87,7 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 ## Not started (original plan)
 - ✅ **Phase 10** marketing and CRM: customer records built from orders (search, filters, CSV export with formula protection, notes, erasure on request), restaurant promo codes applied at checkout (percent/fixed, minimum, dates, usage limits, previewed live), loyalty rewards (single-use code per guest after every Nth completed order, shown on the order page and e-mailed), guest ratings with staff replies and low-rating alerts, average rating on the menu, e-mail campaigns to opted-in guests (queued, daily cap, signed one-click unsubscribe, consent rechecked at send time)
   - 🟡 Marketing mail uses your SMTP account; keep the per-restaurant daily cap modest on shared hosting. No SMS/WhatsApp campaigns
-- ⬜ **Phase 11** analytics: sales, best sellers, hours, exports
+- ✅ **Phase 11** analytics: sales, orders, average order and cancel rate with previous-period comparison, sales by day, best sellers, busy-hours heatmap, order type/payment/channel split, new vs returning customers, discounts, time to ready, custom periods in the restaurant's time zone, CSV export; plans without the analytics feature get the headline numbers for 7 days
 - ⬜ **Phase 12** add-on infrastructure
 - ⬜ **Phase 13** security, performance and compliance pass (data export/erasure, audit log, security headers, load checks)
 - ⬜ **Phase 14** Envato packaging: documentation, changelog, licence list, update-signing tool

@@ -7,6 +7,7 @@ return [
         'dashboard' => 'Dashboard',
         'domains' => 'Domains',
         'new_order' => 'New order',
+        'reports' => 'Reports',
         'customers' => 'Customers',
         'reviews' => 'Reviews',
         'promos' => 'Promo codes',
