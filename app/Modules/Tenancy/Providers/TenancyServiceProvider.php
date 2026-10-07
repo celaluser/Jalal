@@ -18,8 +18,10 @@ class TenancyServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
         $this->loadViewsFrom(__DIR__.'/../Resources/views', 'tenancy');
+        $this->loadRoutesFrom(__DIR__.'/../routes.php');
 
         RestaurantNav::add('main', 'panel.nav.dashboard', 'dashboard', icon: 'grid');
+        RestaurantNav::add('settings', 'panel.nav.restaurant', 'restaurant.settings', icon: 'store', can: 'settings.manage');
 
         $router->aliasMiddleware('tenant.resolve', ResolveTenant::class);
         $router->aliasMiddleware('tenant.user', SetTenantFromUser::class);

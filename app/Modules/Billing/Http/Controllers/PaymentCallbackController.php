@@ -66,6 +66,6 @@ class PaymentCallbackController extends Controller
 
         $paid = $model->fresh()->status === 'paid';
 
-        return redirect()->route('dashboard')->with('status', $paid ? __('billing.payment_received') : __('billing.payment_pending'));
+        return redirect()->route('billing.index')->with('status', $paid ? __('billing.payment_received') : __('billing.payment_pending'));
     }
 }

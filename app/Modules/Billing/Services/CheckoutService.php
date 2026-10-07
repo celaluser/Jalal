@@ -54,7 +54,7 @@ class CheckoutService
                 $invoice,
                 $this->gateways->config($gatewayCode),
                 route('billing.return', [$gatewayCode, $invoice->number]),
-                route('dashboard'),
+                route('billing.index'),
                 route('webhooks.payments', $gatewayCode),
             );
         } catch (Throwable $e) {

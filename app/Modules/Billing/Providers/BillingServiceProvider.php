@@ -3,6 +3,7 @@
 namespace App\Modules\Billing\Providers;
 
 use App\Modules\Billing\Payments\GatewayManager;
+use App\Modules\Core\Support\RestaurantNav;
 use Illuminate\Support\ServiceProvider;
 
 class BillingServiceProvider extends ServiceProvider
@@ -17,5 +18,7 @@ class BillingServiceProvider extends ServiceProvider
         $this->loadRoutesFrom(__DIR__.'/../routes.php');
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
         $this->loadViewsFrom(__DIR__.'/../Resources/views', 'billing');
+
+        RestaurantNav::add('settings', 'panel.nav.subscription', 'billing.index', 'billing.*', icon: 'credit-card', can: 'billing.manage');
     }
 }

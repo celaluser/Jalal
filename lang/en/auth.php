@@ -50,4 +50,9 @@ return [
     'password_hint' => 'At least 8 characters.',
     'manual_key' => 'Or enter this key manually',
     'recaptcha_failed' => 'Please confirm you are not a robot and try again.',
+    'choose_plan' => 'Choose your plan',
+    'popular' => 'Popular',
+    'trial_days' => ':days-day free trial, no payment now',
+    'no_card' => 'Free, no payment needed',
+    'pay_after_verify' => 'Payment after you confirm your e-mail',
 ];

@@ -499,7 +499,7 @@ describe('http endpoints', function () {
             ->push(['id' => 'cs_1', 'client_reference_id' => $invoice->number, 'payment_status' => 'unpaid'])
             ->push(['id' => 'cs_1', 'client_reference_id' => $invoice->number, 'payment_status' => 'paid', 'payment_intent' => 'pi_1', 'amount_total' => 1000, 'currency' => 'usd'])]);
 
-        $this->get("/billing/return/stripe/{$invoice->number}?session_id=cs_1&status=paid&paid=1")->assertRedirect(route('dashboard'));
+        $this->get("/billing/return/stripe/{$invoice->number}?session_id=cs_1&status=paid&paid=1")->assertRedirect(route('billing.index'));
         expect($invoice->fresh()->status)->toBe('open');
 
         $this->get("/billing/return/stripe/{$invoice->number}?session_id=cs_1");
@@ -511,7 +511,7 @@ describe('http endpoints', function () {
         $invoice = gwInvoice(gwPlan(['currency_code' => 'TRY', 'price' => 100]));
         Http::fake(['sandbox-api.iyzipay.com/*' => Http::response(['status' => 'success', 'paymentStatus' => 'SUCCESS', 'basketId' => $invoice->number, 'paidPrice' => 100, 'currency' => 'TRY', 'paymentId' => 'P1'])]);
 
-        $this->post("/billing/return/iyzico/{$invoice->number}", ['token' => 'abcdef-123456'])->assertRedirect(route('dashboard'));
+        $this->post("/billing/return/iyzico/{$invoice->number}", ['token' => 'abcdef-123456'])->assertRedirect(route('billing.index'));
 
         expect($invoice->fresh()->status)->toBe('paid');
     });

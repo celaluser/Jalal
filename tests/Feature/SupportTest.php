@@ -38,7 +38,7 @@ function staffOf(Restaurant $restaurant, string $role = Permissions::OWNER): Use
 
 function shop(string $name = 'Shop'): Restaurant
 {
-    return Restaurant::create(['name' => $name, 'slug' => strtolower($name).uniqid()]);
+    return Restaurant::create(['name' => $name, 'slug' => strtolower($name).uniqid(), 'onboarded_at' => now()]);
 }
 
 describe('restaurant side', function () {

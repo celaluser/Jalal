@@ -21,7 +21,7 @@ class EmailVerificationController extends Controller
     {
         $request->fulfill();
 
-        return redirect()->route('dashboard');
+        return redirect()->intended(route('dashboard'));
     }
 
     public function send(Request $request): RedirectResponse
