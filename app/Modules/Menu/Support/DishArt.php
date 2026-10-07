@@ -16,13 +16,16 @@ final class DishArt
         'pizza' => ['pizza', 'margherita', 'pide', 'lahmacun', 'calzone', 'بيتزا'],
         'burger' => ['burger', 'hamburger', 'sandwich', 'sandviç', 'sandvic', 'wrap', 'hot dog', 'hotdog', 'döner', 'doner', 'برغر', 'ساندويتش'],
         'pasta' => ['pasta', 'spaghetti', 'penne', 'lasagna', 'lasagne', 'noodle', 'makarna', 'risotto', 'ravioli', 'gnocchi', 'mantı', 'manti', 'معكرونة', 'باستا'],
-        'salad' => ['salad', 'salata', 'bowl', 'çoban', 'coban', 'سلطة'],
+        'sushi' => ['sushi', 'maki', 'nigiri', 'sashimi', 'temaki', 'roll', 'سوشي'],
+        'dumpling' => ['gyoza', 'dumpling', 'dim sum', 'momo', 'jiaozi'],
+        'bowl' => ['bowl', 'rice', 'pilav', 'teriyaki', 'poke', 'donburi', 'biryani', 'أرز'],
+        'salad' => ['salad', 'salata', 'edamame', 'çoban', 'coban', 'سلطة'],
         'soup' => ['soup', 'çorba', 'corba', 'broth', 'ramen', 'شوربة', 'حساء'],
         'dessert' => ['dessert', 'cake', 'tiramisu', 'cheesecake', 'ice cream', 'icecream', 'gelato', 'dondurma', 'tatlı', 'tatli', 'baklava', 'pudding', 'brownie', 'waffle', 'sweet', 'pastry', 'حلويات', 'كيك', 'آيس'],
+        'drink' => ['drink', 'iced', 'juice', 'lemonade', 'limonata', 'soda', 'cola', 'cocktail', 'mocktail', 'smoothie', 'beverage', 'içecek', 'icecek', 'meyve suyu', 'ayran', 'water', 'su', 'beer', 'wine', 'mojito', 'عصير', 'مشروب', 'ليمون'],
         'coffee' => ['coffee', 'espresso', 'latte', 'cappuccino', 'americano', 'mocha', 'tea', 'çay', 'cay', 'kahve', 'türk kahvesi', 'قهوة', 'شاي'],
-        'drink' => ['drink', 'juice', 'lemonade', 'limonata', 'soda', 'cola', 'cocktail', 'mocktail', 'smoothie', 'beverage', 'içecek', 'icecek', 'meyve suyu', 'ayran', 'water', 'su', 'beer', 'wine', 'mojito', 'عصير', 'مشروب', 'ليمون'],
         'grill' => ['steak', 'grill', 'bbq', 'kebab', 'kebap', 'kebob', 'ribs', 'chicken', 'tavuk', 'köfte', 'kofte', 'meat', 'lamb', 'kuzu', 'beef', 'fish', 'balık', 'balik', 'salmon', 'shrimp', 'et', 'izgara', 'مشاوي', 'دجاج', 'لحم', 'ستيك'],
-        'starter' => ['starter', 'appetizer', 'appetiser', 'bruschetta', 'meze', 'bread', 'ekmek', 'fries', 'patates', 'snack', 'antipasti', 'burrata', 'hummus', 'falafel', 'nachos', 'wings', 'başlangıç', 'baslangic', 'مقبلات', 'خبز'],
+        'starter' => ['bruschetta', 'meze', 'bread', 'ekmek', 'fries', 'patates', 'snack', 'antipasti', 'burrata', 'hummus', 'falafel', 'nachos', 'wings', 'مقبلات', 'خبز'],
     ];
 
     /** Short words that must match whole ("tea" is not "steak", "su" is not "sushi"); all others match at the start of a word. */

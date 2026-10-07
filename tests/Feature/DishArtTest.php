@@ -15,17 +15,18 @@ it('picks an illustration from the dish name, in several languages', function (s
     ['Margherita Pizza', 'pizza'], ['Cheeseburger', 'burger'], ['Spaghetti Carbonara', 'pasta'], ['Greek Salad', 'salad'],
     ['Mercimek Çorbası', 'soup'], ['Tiramisu', 'dessert'], ['Sütlaç Tatlı', 'dessert'], ['Latte', 'coffee'], ['Türk Çayı', 'coffee'],
     ['Fresh Lemonade', 'drink'], ['Ayran', 'drink'], ['Ribeye Steak', 'grill'], ['Adana Kebap', 'grill'], ['Bruschetta', 'starter'],
-    ['بيتزا مارجريتا', 'pizza'], ['قهوة', 'coffee'], ['Mystery Dish', 'plate'], ['', 'plate'],
+    ['Salmon Avocado Roll', 'sushi'], ['Gyoza', 'dumpling'], ['Chicken Teriyaki Bowl', 'bowl'], ['Edamame', 'salad'], ['Iced Green Tea', 'drink'], ['Iced Latte', 'drink'], ['بيتزا مارجريتا', 'pizza'], ['قهوة', 'coffee'], ['Mystery Dish', 'plate'], ['', 'plate'],
 ]);
 
 it('only treats short keywords as whole words', function () {
-    expect(DishArt::motif('Sushi platter'))->toBe('plate')   // "su" must not match inside "sushi"
+    expect(DishArt::motif('Superfood special'))->toBe('plate')   // "su" must not match the start of another word
         ->and(DishArt::motif('Su'))->toBe('drink')
         ->and(DishArt::motif('Wrap of the day'))->toBe('burger');
 });
 
 it('falls back to the category name, preferring the product name', function () {
-    expect(DishArt::motif('House special', 'Desserts'))->toBe('dessert')
+    expect(DishArt::motif('House special', 'Starters'))->toBe('plate') // a section name alone says nothing about the dish
+        ->and(DishArt::motif('House special', 'Desserts'))->toBe('dessert')
         ->and(DishArt::motif('Chocolate Cake', 'Pizza'))->toBe('dessert')
         ->and(DishArt::motif('Mystery', 'Mystery'))->toBe('plate');
 });
