@@ -73,6 +73,8 @@
     --fg: #14161b;
     --muted: #5d6577;
     --link: #0e6350;
+    /* Text on the primary colour; the admin palette sets it to white for dark primaries. */
+    --on-brand: #0f1115;
 
     --viz-series-1: #2a78d6;
     --viz-grid: #e8e7e3;
@@ -139,7 +141,7 @@
     .btn {
         @apply inline-flex select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition duration-150 disabled:pointer-events-none disabled:opacity-50;
     }
-    .btn-primary { @apply bg-brand-500 text-ink-950 shadow-sm hover:bg-brand-400 active:bg-brand-600; }
+    .btn-primary { @apply bg-brand-500 shadow-sm hover:bg-brand-400 active:bg-brand-600; color: var(--on-brand); }
     .btn-secondary { @apply border border-line-strong bg-surface text-fg shadow-sm hover:bg-surface-2; }
     .btn-ghost { @apply text-fg hover:bg-surface-2; }
     .btn-dark { @apply bg-ink-950 text-white shadow-sm hover:bg-ink-800 dark:bg-white dark:text-ink-950 dark:hover:bg-ink-100; }

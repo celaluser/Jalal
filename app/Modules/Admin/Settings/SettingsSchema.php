@@ -9,7 +9,7 @@ use DateTimeZone;
  * validates straight from this, so adding a setting means adding one line here.
  *
  * field keys: name (form field), key (settings key), type, label, rules, default, options, help.
- * types: text | email | url | number | textarea | select | toggle | secret | image
+ * types: text | email | url | number | textarea | select | toggle | secret | image | color
  */
 final class SettingsSchema
 {
@@ -26,6 +26,8 @@ final class SettingsSchema
                     ['name' => 'site_name', 'key' => 'site.name', 'type' => 'text', 'label' => 'admin.settings.general.site_name', 'default' => config('app.name'), 'rules' => ['required', 'string', 'max:100']],
                     ['name' => 'logo', 'key' => 'general.logo', 'type' => 'image', 'label' => 'admin.settings.general.logo'],
                     ['name' => 'favicon', 'key' => 'general.favicon', 'type' => 'image', 'label' => 'admin.settings.general.favicon'],
+                    ['name' => 'brand_color', 'key' => 'general.brand_color', 'type' => 'color', 'label' => 'admin.settings.general.brand_color', 'help' => 'admin.settings.general.brand_color_help', 'default' => '#ffb020', 'rules' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/']],
+                    ['name' => 'accent_color', 'key' => 'general.accent_color', 'type' => 'color', 'label' => 'admin.settings.general.accent_color', 'help' => 'admin.settings.general.accent_color_help', 'default' => '#1c8e73', 'rules' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/']],
                     ['name' => 'default_language', 'key' => 'general.default_language', 'type' => 'select', 'label' => 'admin.settings.general.default_language', 'default' => config('app.default_locale'), 'options' => 'languages', 'rules' => ['required', 'string', 'max:12']],
                     ['name' => 'default_currency', 'key' => 'general.default_currency', 'type' => 'select', 'label' => 'admin.settings.general.default_currency', 'default' => 'USD', 'options' => 'currencies', 'rules' => ['required', 'string', 'max:8']],
                     ['name' => 'timezone', 'key' => 'general.timezone', 'type' => 'select', 'label' => 'admin.settings.general.timezone', 'default' => config('app.timezone'), 'options' => 'timezones', 'rules' => ['required', 'timezone:all']],

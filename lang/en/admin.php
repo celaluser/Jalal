@@ -192,9 +192,12 @@ return [
         'default_description' => 'Platform-wide options. Changes apply immediately.',
         'sections' => 'Settings sections',
         'remove_image' => 'Remove current image',
+        'reset_color' => 'Reset',
         'general' => [
             'title' => 'General', 'description' => 'Name, branding, defaults and maintenance mode.',
             'site_name' => 'Site name', 'logo' => 'Logo', 'favicon' => 'Favicon',
+            'brand_color' => 'Primary colour', 'brand_color_help' => 'Buttons, highlights and the logo mark across the site, sign-in and panels. Text on it switches to white automatically for dark colours.',
+            'accent_color' => 'Accent colour', 'accent_color_help' => 'Links, active menu items and success states. It is darkened as needed so links stay readable.',
             'default_language' => 'Default language', 'default_currency' => 'Default currency for new restaurants', 'timezone' => 'Time zone',
             'support_email' => 'Support e-mail address', 'maintenance' => 'Maintenance mode',
             'maintenance_help' => 'Visitors see a maintenance page. Super admins can still sign in and use the panel.',

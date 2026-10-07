@@ -48,6 +48,18 @@
                                     @error($name)<p class="mt-1.5 text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
                                 </div>
                                 @break
+                            @case('color')
+                                <div x-data="{ c: @js(old($name, $values[$name]) ?: $field['default']) }">
+                                    <label for="{{ $name }}" class="mb-1.5 block text-sm font-medium">{{ $label }}</label>
+                                    <div class="flex items-center gap-3">
+                                        <input id="{{ $name }}" name="{{ $name }}" type="color" x-model="c" class="size-11 cursor-pointer rounded-xl border border-line-strong bg-surface p-1">
+                                        <code class="rounded-lg bg-surface-2 px-2 py-1 text-sm" x-text="c" dir="ltr"></code>
+                                        <button type="button" class="text-sm text-muted underline-offset-2 hover:underline" x-on:click="c = @js($field['default'])">{{ __('admin.settings.reset_color') }}</button>
+                                    </div>
+                                    @error($name)<p class="mt-1.5 text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
+                                    @if (! empty($field['help']))<p class="mt-1.5 text-xs text-muted">{{ __($field['help']) }}</p>@endif
+                                </div>
+                                @break
                             @default
                                 <x-ui.input :name="$name" :type="$field['type'] === 'number' ? 'number' : ($field['type'] === 'email' ? 'email' : 'text')" :label="$label" :value="$values[$name]" autocomplete="off" :hint="! empty($field['help']) ? __($field['help']) : null" />
                         @endswitch
