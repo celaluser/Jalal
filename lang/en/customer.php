@@ -27,4 +27,6 @@ return [
     'most_loved' => 'Most loved',
     'goes_well' => 'Goes well with',
     'cart_hint' => 'Looks delicious. Anything else?',
+    'too_many' => 'Too many attempts. Please wait a minute and try again.',
+    'generic_error' => 'Something went wrong. Please try again.',
 ];

@@ -8,10 +8,13 @@
         'currency' => $currency,
         'quoteUrl' => $base.'/cart/quote',
         'csrf' => csrf_token(),
+        'ordering' => $ordering,
         'storageKey' => 'qrmenu.cart.'.$restaurant->id,
         'diet' => collect($dietary)->mapWithKeys(fn ($d) => [$d => __('menu.diet.'.$d)])->all(),
         'allergen' => collect($allergens)->mapWithKeys(fn ($a) => [$a => __('menu.allergen.'.$a)])->all(),
-        't' => collect(['sold_out', 'unavailable', 'option_required', 'option_unavailable', 'invalid_option', 'too_many_options', 'quantity'])->mapWithKeys(fn ($k) => [$k => __('customer.error_'.$k)])->all(),
+        't' => collect(['sold_out', 'unavailable', 'option_required', 'option_unavailable', 'invalid_option', 'too_many_options', 'quantity'])->mapWithKeys(fn ($k) => [$k => __('customer.error_'.$k)])->all()
+            + collect(['table_required', 'name_required', 'phone_required', 'address_required'])->mapWithKeys(fn ($k) => [$k => __('orders.error_'.$k)])->all()
+            + ['too_many' => __('customer.too_many'), 'generic_error' => __('customer.generic_error')],
     ];
     $ogImage = $logo;
 @endphp
@@ -42,7 +45,7 @@
                     @else<span class="menu-radius grid size-14 shrink-0 place-items-center bg-white/90 text-xl font-bold text-[#0f1115] shadow-lg">{{ mb_strtoupper(mb_substr($restaurant->name, 0, 1)) }}</span>@endif
                     <div class="min-w-0">
                         <h1 class="display truncate text-2xl font-bold leading-tight">{{ $restaurant->name }}</h1>
-                        @if ($table)<p class="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-black/15 px-2.5 py-0.5 text-sm font-semibold"><x-ui.icon name="qr" size="4" />{{ __('customer.table', ['name' => $table['name']]) }}</p>
+                        @if ($table)<p class="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-black/15 px-2.5 py-0.5 text-sm font-semibold"><x-ui.icon name="qr" size="4" />{{ table_label($table['name']) }}</p>
                         @elseif ($restaurant->city)<p class="truncate text-sm opacity-80">{{ $restaurant->city }}</p>@endif
                     </div>
                 </div>
@@ -273,17 +276,22 @@
         </template>
     </div>
 
-    {{-- Cart drawer --}}
+    {{-- Cart and checkout drawer --}}
     <div x-show="cartOpen" x-cloak class="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label="{{ __('customer.cart') }}" x-on:keydown.tab="trap($event)">
         <div class="absolute inset-0 bg-black/50" x-on:click="cartOpen = false" x-transition.opacity></div>
         <div class="menu-page relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden shadow-2xl" style="border-radius: min(var(--menu-radius) * 1.6, 1.75rem) min(var(--menu-radius) * 1.6, 1.75rem) 0 0">
-            <div class="menu-line flex items-center justify-between border-b px-5 py-4">
-                <div><h2 class="display text-xl font-bold">{{ __('customer.cart') }}</h2><p class="menu-muted text-xs" x-show="cart.length">{{ __('customer.cart_hint') }}</p></div>
-                <button type="button" x-on:click="cartOpen = false" class="menu-card grid size-9 place-items-center" aria-label="{{ __('customer.close') }}"><x-ui.icon name="x" size="5" /></button>
+            <div class="menu-line flex items-center justify-between gap-3 border-b px-5 py-4">
+                <div class="flex min-w-0 items-center gap-2">
+                    <button type="button" x-show="stage === 'checkout'" x-on:click="stage = 'cart'" class="menu-card grid size-9 shrink-0 place-items-center" aria-label="{{ __('orders.back') }}"><x-ui.icon name="chevron-right" size="5" class="rotate-180 rtl:rotate-0" /></button>
+                    <div class="min-w-0"><h2 class="display text-xl font-bold" x-text="stage === 'cart' ? @js(__('customer.cart')) : @js(__('orders.checkout'))"></h2><p class="menu-muted text-xs" x-show="stage === 'cart' && cart.length">{{ __('customer.cart_hint') }}</p></div>
+                </div>
+                <button type="button" x-on:click="cartOpen = false" class="menu-card grid size-9 shrink-0 place-items-center" aria-label="{{ __('customer.close') }}"><x-ui.icon name="x" size="5" /></button>
             </div>
-            <div class="overflow-y-auto px-5">
+
+            {{-- Step 1: the cart --}}
+            <div class="overflow-y-auto px-5" x-show="stage === 'cart'">
                 <div x-show="cart.length === 0" class="py-12 text-center"><p class="font-semibold">{{ __('customer.cart_empty_title') }}</p><p class="menu-muted mt-1 text-sm">{{ __('customer.cart_empty_text') }}</p></div>
-                <ul class="divide-y menu-line">
+                <ul class="menu-divide">
                     <template x-for="(line, i) in cart" :key="line.key">
                         <li class="py-4">
                             <div class="flex items-start justify-between gap-3">
@@ -309,27 +317,96 @@
                         </li>
                     </template>
                 </ul>
-            </div>
-            <div class="menu-line border-t px-5 py-4" x-show="cart.length > 0 && suggestions.length > 0">
-                <p class="mb-2 text-sm font-bold">{{ __('customer.goes_well') }}</p>
-                <div class="menu-scroll -mx-5 flex gap-2.5 overflow-x-auto px-5">
-                    <template x-for="p in suggestions" :key="'s' + p.id">
-                        <div class="menu-card flex w-52 shrink-0 items-center gap-2.5 p-2">
-                            <div class="menu-img size-12 shrink-0 overflow-hidden rounded-lg"><img :src="pic(p)" alt="" loading="lazy" class="size-full object-cover"></div>
-                            <div class="min-w-0 flex-1"><p class="truncate text-sm font-semibold" x-text="p.name"></p><p class="tnum text-xs font-bold" x-text="money(cents(p.price))"></p></div>
-                            <button type="button" class="menu-add !size-8" x-on:click="quickAdd(p, $event)" :aria-label="@js(__('customer.add')) + ' ' + p.name"><x-ui.icon name="plus" size="4" /></button>
-                        </div>
-                    </template>
+                <div class="menu-line -mx-5 border-t px-5 py-4" x-show="cart.length > 0 && suggestions.length > 0">
+                    <p class="mb-2 text-sm font-bold">{{ __('customer.goes_well') }}</p>
+                    <div class="menu-scroll -mx-5 flex gap-2.5 overflow-x-auto px-5">
+                        <template x-for="p in suggestions" :key="'s' + p.id">
+                            <div class="menu-card flex w-52 shrink-0 items-center gap-2.5 p-2">
+                                <div class="menu-img size-12 shrink-0 overflow-hidden rounded-lg"><img :src="pic(p)" alt="" loading="lazy" class="size-full object-cover"></div>
+                                <div class="min-w-0 flex-1"><p class="truncate text-sm font-semibold" x-text="p.name"></p><p class="tnum text-xs font-bold" x-text="money(cents(p.price))"></p></div>
+                                <button type="button" class="menu-add !size-8" x-on:click="quickAdd(p, $event)" :aria-label="@js(__('customer.add')) + ' ' + p.name"><x-ui.icon name="plus" size="4" /></button>
+                            </div>
+                        </template>
+                    </div>
                 </div>
             </div>
-            <div class="menu-surface menu-line space-y-3 border-t p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]" x-show="cart.length > 0">
+            <div class="menu-surface menu-line space-y-3 border-t p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]" x-show="stage === 'cart' && cart.length > 0">
                 <div class="flex items-baseline justify-between text-lg font-semibold"><span>{{ __('customer.subtotal') }}</span><span class="tnum" x-text="subtotal"></span></div>
                 <p class="menu-muted text-xs" x-show="quoting">{{ __('customer.checking') }}</p>
                 <p class="menu-muted text-xs" x-show="offline && !quoting">{{ __('customer.offline_total') }}</p>
                 <p class="text-sm font-medium text-red-600" x-show="hasErrors" role="alert">{{ __('customer.fix_cart') }}</p>
-                {{-- Enabled when ordering ships (the cart above already prices on the server) --}}
-                <button type="button" class="menu-btn w-full !py-3.5" disabled>{{ __('customer.place_order') }}</button>
-                <p class="menu-muted text-center text-xs">{{ __('customer.ordering_soon') }}</p>
+                <p class="menu-card px-3 py-2 text-sm font-medium" x-show="!ord.accepting" x-text="ord.message" role="status"></p>
+                <button type="button" class="menu-btn w-full !py-3.5 !text-base" :disabled="!ord.accepting || hasErrors || quoting" x-on:click="startCheckout()">{{ __('orders.checkout') }}</button>
+            </div>
+
+            {{-- Step 2: how and where --}}
+            <div class="overflow-y-auto px-5 py-4" x-show="stage === 'checkout'" x-cloak>
+                <fieldset>
+                    <legend class="mb-2 font-semibold">{{ __('orders.how') }}</legend>
+                    <div class="grid gap-2" :class="ord.types.length > 2 ? 'grid-cols-3' : (ord.types.length === 2 ? 'grid-cols-2' : 'grid-cols-1')">
+                        @foreach (['dine_in' => 'qr', 'takeaway' => 'smartphone', 'delivery' => 'store'] as $type => $icon)
+                            <label x-show="ord.types.includes('{{ $type }}')" class="menu-card flex cursor-pointer flex-col items-center gap-1 px-2 py-3 text-center text-sm font-semibold" :style="form.type === '{{ $type }}' ? 'border-color: var(--menu-accent); box-shadow: 0 0 0 2px var(--menu-accent)' : ''">
+                                <input type="radio" name="otype" value="{{ $type }}" x-model="form.type" class="sr-only">
+                                <x-ui.icon name="{{ $icon }}" size="5" />{{ __('orders.type_'.$type) }}
+                            </label>
+                        @endforeach
+                    </div>
+                </fieldset>
+
+                <div class="mt-4 space-y-3">
+                    <div x-show="form.type === 'dine_in' && !ord.table && ord.tables.length">
+                        <label class="mb-1 block text-sm font-semibold" for="co-table">{{ __('orders.choose_table') }}</label>
+                        <select id="co-table" x-model="form.table_id" class="menu-card w-full px-3 py-2.5"><template x-for="t in ord.tables" :key="t.id"><option :value="t.id" x-text="t.name"></option></template></select>
+                        <p class="mt-1 text-sm text-red-600" x-show="errors.table_id" x-text="errors.table_id" role="alert"></p>
+                    </div>
+                    <p class="menu-card px-3 py-2.5 text-sm font-medium" x-show="form.type === 'dine_in' && ord.table"><x-ui.icon name="qr" size="4" class="me-1 inline" /><span x-text="ord.table ? ord.table.label : ''"></span></p>
+
+                    <div x-show="needsContact || ord.requireName">
+                        <label class="mb-1 block text-sm font-semibold" for="co-name">{{ __('orders.name') }}</label>
+                        <input id="co-name" x-model="form.name" maxlength="80" autocomplete="name" class="menu-card w-full px-3 py-2.5">
+                        <p class="mt-1 text-sm text-red-600" x-show="errors.name" x-text="errors.name" role="alert"></p>
+                    </div>
+                    <div x-show="needsContact">
+                        <label class="mb-1 block text-sm font-semibold" for="co-phone">{{ __('orders.phone_label') }}</label>
+                        <input id="co-phone" x-model="form.phone" type="tel" inputmode="tel" maxlength="40" autocomplete="tel" class="menu-card w-full px-3 py-2.5" dir="ltr">
+                        <p class="mt-1 text-sm text-red-600" x-show="errors.phone" x-text="errors.phone" role="alert"></p>
+                    </div>
+                    <div x-show="form.type === 'delivery'">
+                        <label class="mb-1 block text-sm font-semibold" for="co-address">{{ __('orders.address_label') }}</label>
+                        <textarea id="co-address" x-model="form.address" rows="2" maxlength="255" autocomplete="street-address" class="menu-card w-full px-3 py-2.5"></textarea>
+                        <p class="mt-1 text-sm text-red-600" x-show="errors.address" x-text="errors.address" role="alert"></p>
+                        <p class="menu-muted mt-1 text-xs" x-show="ord.deliveryMin">{{ __('orders.minimum_note', ['amount' => '']) }}<span x-text="ord.deliveryMin"></span></p>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-semibold" for="co-note">{{ __('orders.note_label') }}</label>
+                        <textarea id="co-note" x-model="form.note" rows="2" maxlength="300" class="menu-card w-full px-3 py-2.5"></textarea>
+                    </div>
+                    <fieldset x-show="ord.payments.length > 0">
+                        <legend class="mb-1.5 text-sm font-semibold">{{ __('orders.pay_how') }}</legend>
+                        <div class="flex gap-2">
+                            @foreach (['cash', 'card'] as $m)
+                                <label x-show="ord.payments.includes('{{ $m }}')" class="menu-card flex flex-1 cursor-pointer items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold" :style="form.payment === '{{ $m }}' ? 'border-color: var(--menu-accent); box-shadow: 0 0 0 2px var(--menu-accent)' : ''">
+                                    <input type="radio" name="pay" value="{{ $m }}" x-model="form.payment" class="sr-only"><x-ui.icon name="{{ $m === 'cash' ? 'wallet' : 'credit-card' }}" size="4" />{{ __('orders.pay_'.$m) }}
+                                </label>
+                            @endforeach
+                        </div>
+                        <p class="menu-muted mt-1.5 text-xs" x-text="@js(['dine_in' => __('orders.pay_on_spot_dine_in'), 'takeaway' => __('orders.pay_on_spot_takeaway'), 'delivery' => __('orders.pay_on_spot_delivery')])[form.type]"></p>
+                    </fieldset>
+                </div>
+
+                <dl class="menu-line mt-5 space-y-1.5 border-t pt-4 text-sm tnum">
+                    <div class="flex justify-between"><dt class="menu-muted">{{ __('customer.subtotal') }}</dt><dd x-text="totals ? totals.subtotal : subtotal"></dd></div>
+                    <div class="flex justify-between" x-show="totals && totals.raw.service > 0"><dt class="menu-muted">{{ __('orders.service') }}</dt><dd x-text="totals ? totals.service : ''"></dd></div>
+                    <div class="flex justify-between" x-show="totals && totals.raw.delivery > 0"><dt class="menu-muted">{{ __('orders.delivery_fee') }}</dt><dd x-text="totals ? totals.delivery : ''"></dd></div>
+                    <div class="flex justify-between" x-show="totals && totals.raw.tax > 0"><dt class="menu-muted">{{ __('orders.tax') }}<span x-show="ord.taxIncluded"> ({{ __('orders.tax_included') }})</span></dt><dd x-text="totals ? totals.tax : ''"></dd></div>
+                </dl>
+            </div>
+            <div class="menu-surface menu-line space-y-3 border-t p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]" x-show="stage === 'checkout'" x-cloak>
+                <p class="text-sm font-medium text-red-600" x-show="formError" x-text="formError" role="alert"></p>
+                <button type="button" class="menu-btn w-full justify-between !py-3.5 !text-base" :disabled="submitting || quoting" x-on:click="submit()">
+                    <span x-text="submitting ? @js(__('orders.placing')) : @js(__('orders.place'))"></span>
+                    <span class="tnum" x-text="totals ? totals.total : subtotal"></span>
+                </button>
             </div>
         </div>
     </div>

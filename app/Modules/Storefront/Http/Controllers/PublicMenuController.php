@@ -7,6 +7,9 @@ use App\Modules\Billing\Services\LimitGuard;
 use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Menu\Services\ThemeRegistry;
+use App\Modules\Orders\Services\OrderSettings;
+use App\Modules\Orders\Services\OrderTotals;
+use App\Modules\Orders\Support\OrderType;
 use App\Modules\Storefront\Services\CartPricing;
 use App\Modules\Storefront\Services\MenuCache;
 use App\Modules\Storefront\Services\MenuLocale;
@@ -59,6 +62,7 @@ class PublicMenuController extends Controller
             'description' => __('customer.meta_description', ['name' => $restaurant->name]),
             // A table link is personal to that table's guests: keep it out of search results.
             'noindex' => $table !== null,
+            'ordering' => $this->ordering($restaurant, $table, $request),
         ]);
 
         // Remember a language the guest explicitly picked (and only a valid one).
@@ -100,10 +104,39 @@ class PublicMenuController extends Controller
         $restaurant = $this->tenant->get();
         abort_if($this->limits->plan($restaurant) === null, 503);
 
-        $data = $request->validate(['lines' => ['required', 'array', 'max:'.CartPricing::MAX_LINES]]);
+        $data = $request->validate(['lines' => ['required', 'array', 'max:'.CartPricing::MAX_LINES], 'type' => ['nullable', 'in:'.implode(',', OrderType::ALL)]]);
         app()->setLocale($this->locales->resolve($request, $restaurant));
 
-        return response()->json($pricing->quote($restaurant, $data['lines']));
+        $quote = $pricing->quote($restaurant, $data['lines']);
+
+        // With an order type chosen, also show what the order will cost in full.
+        if (! empty($data['type'])) {
+            $sums = app(OrderTotals::class)->compute($quote['subtotal_cents'], $data['type'], app(OrderSettings::class)->for($restaurant));
+            $quote['totals'] = collect($sums)->map(fn ($c) => $restaurant->money($c / 100))->all() + ['raw' => $sums];
+        }
+
+        return response()->json($quote);
+    }
+
+    /** What the checkout needs to know about this restaurant's ordering rules. @return array<string, mixed> */
+    private function ordering(Restaurant $restaurant, $table, Request $request): array
+    {
+        $settings = app(OrderSettings::class);
+        $s = $settings->for($restaurant);
+        $pick = ! $table && $s['dine_in_pick_table'];
+
+        return [
+            'accepting' => $settings->accepting($restaurant),
+            'message' => $s['paused_message'] ?: __('orders.error_closed'),
+            'types' => $settings->types($restaurant),
+            'table' => $table ? ['id' => $table->id, 'name' => $table->name, 'label' => table_label($table->name)] : null,
+            'tables' => $pick ? DiningTable::where('is_active', true)->orderBy('sort')->orderBy('id')->get(['id', 'name'])->map(fn ($t) => ['id' => $t->id, 'name' => table_label($t->name)])->all() : [],
+            'payments' => $settings->paymentMethods($restaurant),
+            'requireName' => (bool) $s['require_name'],
+            'deliveryMin' => $settings->cents($restaurant, 'delivery_min') > 0 ? $restaurant->money($settings->cents($restaurant, 'delivery_min') / 100) : null,
+            'taxIncluded' => (bool) $s['prices_include_tax'],
+            'orderUrl' => rtrim($request->getPathInfo(), '/').'/order',
+        ];
     }
 
     private function currentTable(Request $request, Restaurant $restaurant)

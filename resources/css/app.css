@@ -239,3 +239,4 @@
 .menu-img { background: var(--menu-line); }
 .menu-img img { transition: transform .5s ease; }
 .menu-card:hover .menu-img img { transform: scale(1.04); }
+.menu-divide > * + * { border-top: 1px solid var(--menu-line); }

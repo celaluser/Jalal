@@ -40,7 +40,7 @@
     "src": "node_modules/@fontsource-variable/inter/files/inter-vietnamese-wght-normal.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-CLV940fy.css",
+    "file": "assets/app-BxshvSIs.css",
     "name": "app",
     "names": [
       "app.css"
@@ -66,8 +66,14 @@
     "src": "resources/js/app.js",
     "isEntry": true
   },
+  "resources/js/orders.js": {
+    "file": "assets/orders-BPC-mcdh.js",
+    "name": "orders",
+    "src": "resources/js/orders.js",
+    "isEntry": true
+  },
   "resources/js/storefront.js": {
-    "file": "assets/storefront-B2GuEUlB.js",
+    "file": "assets/storefront-U6xXeYtS.js",
     "name": "storefront",
     "src": "resources/js/storefront.js",
     "isEntry": true

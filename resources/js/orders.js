@@ -1,0 +1,122 @@
+// Live order board: polls the feed, rings on new orders, moves orders along with one tap.
+// Works on any shared host: plain polling, no websockets needed.
+
+document.addEventListener('alpine:init', () => {
+    window.Alpine.data('orderBoard', (cfg) => ({
+        orders: cfg.orders,
+        accepting: cfg.accepting,
+        offline: false,
+        sound: (() => { try { return localStorage.getItem('orders.sound') !== 'off'; } catch (e) { return true; } })(),
+        skew: Date.now() - Date.parse(cfg.now),
+        tick: Date.now(),
+        seen: new Set(cfg.orders.map((o) => o.id)),
+        fresh: new Set(),
+        busy: null,
+        toast: '',
+        ctx: null,
+        timer: null,
+
+        init() {
+            this.schedule();
+            setInterval(() => { this.tick = Date.now(); }, 15000);
+            document.addEventListener('visibilitychange', () => { if (!document.hidden) { this.refresh(); } });
+            this.title();
+        },
+
+        // ---- columns ---------------------------------------------------------------------
+        get newOrders() { return this.orders.filter((o) => o.status === 'new'); },
+        get kitchen() { return this.orders.filter((o) => ['accepted', 'preparing'].includes(o.status)); },
+        get ready() { return this.orders.filter((o) => o.status === 'ready'); },
+        get done() { return this.orders.filter((o) => ['completed', 'cancelled'].includes(o.status)).sort((a, b) => b.id - a.id).slice(0, 15); },
+        get openCount() { return this.orders.filter((o) => ['new', 'accepted', 'preparing', 'ready'].includes(o.status)).length; },
+
+        age(o) { return Math.max(0, Math.floor((this.tick - this.skew - Date.parse(o.created)) / 60000)); },
+        late(o) { return ['new', 'accepted', 'preparing'].includes(o.status) && this.age(o) > (o.prep_minutes || 15) + 10; },
+        ageText(o) { const m = this.age(o); return m < 1 ? cfg.t.just_now : cfg.t.minutes_ago.replace(':count', m); },
+        label(o) { return o.forward === 'completed' ? cfg.t['action_completed_' + o.type] : cfg.t['action_' + o.forward]; },
+        where(o) { return o.type === 'dine_in' ? (/^\d+$/.test(o.table || '') ? cfg.t.table.replace(':name', o.table) : (o.table || '?')) : (o.name || cfg.t.guest); },
+
+        // ---- polling ---------------------------------------------------------------------
+        schedule() {
+            clearTimeout(this.timer);
+            this.timer = setTimeout(() => this.refresh(), document.hidden ? cfg.interval * 4 : cfg.interval);
+        },
+        async refresh() {
+            try {
+                const res = await fetch(cfg.feedUrl, { headers: { Accept: 'application/json' } });
+                if (!res.ok) { throw new Error(String(res.status)); }
+                const data = await res.json();
+                this.offline = false;
+                this.skew = Date.now() - Date.parse(data.now);
+                this.accepting = data.accepting;
+                const arrived = data.orders.filter((o) => !this.seen.has(o.id) && o.status === 'new');
+                data.orders.forEach((o) => this.seen.add(o.id));
+                this.orders = data.orders;
+                if (arrived.length) { this.arrived(arrived); }
+                this.title();
+            } catch (e) { this.offline = true; }
+            this.schedule();
+        },
+        arrived(list) {
+            list.forEach((o) => this.fresh.add(o.id));
+            setTimeout(() => list.forEach((o) => this.fresh.delete(o.id)), 12000);
+            this.flash(cfg.t.new_order.replace(':number', '#' + list[0].number));
+            this.beep();
+            if (this.sound === 'notify' || (window.Notification && Notification.permission === 'granted' && document.hidden)) {
+                try { new Notification(cfg.t.new_order.replace(':number', '#' + list[0].number)); } catch (e) { /* ignore */ }
+            }
+        },
+        title() {
+            const n = this.newOrders.length;
+            document.title = (n ? '(' + n + ') ' : '') + cfg.title;
+        },
+
+        // ---- sound -----------------------------------------------------------------------
+        toggleSound() {
+            this.sound = !this.sound;
+            try { localStorage.setItem('orders.sound', this.sound ? 'on' : 'off'); } catch (e) { /* ignore */ }
+            if (this.sound) { this.beep(); if (window.Notification && Notification.permission === 'default') { Notification.requestPermission(); } }
+        },
+        beep() {
+            if (!this.sound) { return; }
+            try {
+                this.ctx ??= new (window.AudioContext || window.webkitAudioContext)();
+                [0, 0.22, 0.44].forEach((delay, i) => {
+                    const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                    osc.type = 'sine'; osc.frequency.value = i === 1 ? 988 : 784;
+                    gain.gain.setValueAtTime(0.0001, this.ctx.currentTime + delay);
+                    gain.gain.exponentialRampToValueAtTime(0.25, this.ctx.currentTime + delay + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + delay + 0.2);
+                    osc.connect(gain).connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + delay); osc.stop(this.ctx.currentTime + delay + 0.22);
+                });
+            } catch (e) { /* audio blocked until the first tap */ }
+        },
+
+        // ---- actions ---------------------------------------------------------------------
+        async post(url, body) {
+            const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf }, body: JSON.stringify(body) });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) { this.flash(data.message || 'Error'); }
+            await this.refresh();
+            return res.ok;
+        },
+        async move(o, status, reason = null) {
+            if (this.busy) { return; }
+            this.busy = o.id;
+            await this.post(cfg.statusUrl + '/' + o.id + '/status', { status, reason });
+            this.busy = null;
+        },
+        cancel(o) {
+            if (!confirm(cfg.t.cancel_confirm)) { return; }
+            const reason = prompt(cfg.t.cancel_reason) ?? '';
+            this.move(o, 'cancelled', reason);
+        },
+        async pay(o, method) { await this.post(cfg.statusUrl + '/' + o.id + '/pay', { method }); },
+        async togglePause() {
+            const res = await fetch(cfg.pauseUrl, { method: 'POST', headers: { Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf } });
+            if (res.ok) { this.accepting = (await res.json()).accepting; }
+        },
+        flash(text) { this.toast = text; clearTimeout(this._t); this._t = setTimeout(() => { this.toast = ''; }, 3500); },
+    }));
+});

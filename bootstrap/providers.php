@@ -9,6 +9,7 @@ use App\Modules\Demo\Providers\DemoServiceProvider;
 use App\Modules\Installer\Providers\InstallerServiceProvider;
 use App\Modules\Licensing\Providers\LicensingServiceProvider;
 use App\Modules\Menu\Providers\MenuServiceProvider;
+use App\Modules\Orders\Providers\OrdersServiceProvider;
 use App\Modules\Storefront\Providers\StorefrontServiceProvider;
 use App\Modules\Support\Providers\SupportServiceProvider;
 use App\Modules\Tables\Providers\TablesServiceProvider;
@@ -26,6 +27,7 @@ return [
     SupportServiceProvider::class,
     MenuServiceProvider::class,
     TablesServiceProvider::class,
+    OrdersServiceProvider::class,
     StorefrontServiceProvider::class,
     AuthServiceProvider::class,
     LicensingServiceProvider::class,

@@ -1,0 +1,72 @@
+<?php
+
+return [
+    // Errors shown to guests and staff
+    'error_closed' => 'We are not taking online orders right now. Please order with the staff.',
+    'error_type_unavailable' => 'This kind of order is not available.',
+    'error_table_required' => 'Please choose your table.',
+    'error_phone_required' => 'Please enter a phone number we can reach you on.',
+    'error_name_required' => 'Please enter your name.',
+    'error_address_required' => 'Please enter the delivery address.',
+    'error_payment_unavailable' => 'Please choose how you will pay.',
+    'error_cart_invalid' => 'Some items in your order are no longer available. Please check your order.',
+    'error_below_minimum' => 'Your order is below the minimum for delivery.',
+    'error_busy' => 'We are very busy right now. Please try again in a moment.',
+    'error_invalid_transition' => 'This order cannot move to that step.',
+    'error_cannot_pay' => 'This order cannot be marked as paid.',
+    'error_cannot_cancel' => 'This order can no longer be cancelled.',
+    'cancelled_by_guest' => 'Cancelled by the guest',
+    'updated' => 'Order updated.',
+
+    // Types, statuses, payment
+    'type_dine_in' => 'Dine in', 'type_takeaway' => 'Takeaway', 'type_delivery' => 'Delivery',
+    'status_new' => 'New', 'status_accepted' => 'Accepted', 'status_preparing' => 'Preparing', 'status_ready' => 'Ready', 'status_completed' => 'Completed', 'status_cancelled' => 'Cancelled',
+    'pay_cash' => 'Cash', 'pay_card' => 'Card', 'paid' => 'Paid', 'unpaid' => 'Unpaid',
+
+    // Staff board
+    'board_title' => 'Live orders', 'board_sub' => 'New orders appear here by themselves and ring when they arrive.',
+    'col_new' => 'New', 'col_kitchen' => 'In the kitchen', 'col_ready' => 'Ready', 'col_done' => 'Done',
+    'empty_col' => 'Nothing here', 'open_count' => ':count open',
+    'sound_on' => 'Sound on', 'sound_off' => 'Sound off', 'notify' => 'Show desktop alerts',
+    'accepting' => 'Accepting orders', 'paused' => 'Orders paused', 'pause' => 'Pause orders', 'resume' => 'Resume orders',
+    'paused_banner' => 'Online ordering is paused. Guests can browse but cannot order.',
+    'new_order' => 'New order :number',
+    'offline' => 'Connection lost. Retrying…',
+    'action_accepted' => 'Accept', 'action_preparing' => 'Start preparing', 'action_ready' => 'Mark ready',
+    'action_completed_dine_in' => 'Served', 'action_completed_takeaway' => 'Picked up', 'action_completed_delivery' => 'Delivered',
+    'cancel' => 'Cancel order', 'cancel_reason' => 'Reason (optional)', 'cancel_confirm' => 'Cancel this order?',
+    'print' => 'Print ticket', 'details' => 'Details', 'mark_paid' => 'Mark paid', 'late' => 'Late',
+    'minutes_ago' => ':count min', 'just_now' => 'now',
+    'note' => 'Note', 'table' => 'Table :name', 'guest' => 'Guest',
+    'history' => 'History', 'items' => 'Items', 'total' => 'Total', 'subtotal' => 'Subtotal', 'service' => 'Service charge', 'delivery_fee' => 'Delivery fee', 'tax' => 'Tax', 'tax_included' => 'incl. tax',
+    'placed_by_guest' => 'Placed by the guest', 'event_placed' => 'Order placed', 'event_payment' => 'Paid with :note',
+    'customer' => 'Customer', 'phone' => 'Phone', 'address' => 'Address', 'source_qr' => 'QR menu', 'source_staff' => 'Staff',
+    'order_number' => 'Order :number', 'back' => 'Back to orders',
+
+    // Settings
+    'settings_title' => 'Ordering', 'settings_sub' => 'Choose what guests can order and how it is priced.',
+    'sec_open' => 'Availability', 'sec_types' => 'Order types', 'sec_pricing' => 'Tax and fees', 'sec_payment' => 'Payment', 'sec_flow' => 'Order flow',
+    'enabled' => 'Accept online orders', 'paused_message' => 'Message when paused (optional)',
+    'dine_in' => 'Dine in (order from the table)', 'takeaway' => 'Takeaway (guest picks up)', 'delivery' => 'Delivery (to an address)',
+    'dine_in_pick_table' => 'Let guests choose their table when they did not scan a table code', 'require_name' => 'Ask dine-in guests for their name',
+    'tax_rate' => 'Tax rate (%)', 'prices_include_tax' => 'Menu prices already include tax', 'service_rate' => 'Service charge for dine-in (%)',
+    'delivery_fee' => 'Delivery fee', 'delivery_min' => 'Minimum order for delivery',
+    'setting_pay_cash' => 'Cash (at the counter or to the courier)', 'setting_pay_card' => 'Card (terminal at the counter or with the courier)',
+    'payment_help' => 'Guests pay on the spot. Online card payment for orders arrives with a later update.',
+    'auto_accept' => 'Accept new orders automatically', 'prep_minutes' => 'Typical preparation time (minutes)', 'allow_cancel' => 'Let guests cancel while the order is still new',
+    'need_type' => 'Turn on at least one order type.', 'need_payment' => 'Turn on at least one way to pay.',
+
+    // Guest checkout and tracking
+    'checkout' => 'Checkout', 'how' => 'How would you like it?', 'your_details' => 'Your details',
+    'name' => 'Your name', 'phone_label' => 'Phone', 'address_label' => 'Delivery address', 'note_label' => 'Note for the restaurant', 'choose_table' => 'Your table',
+    'pay_how' => 'Pay with', 'pay_on_spot_dine_in' => 'You pay at the table or the counter.', 'pay_on_spot_takeaway' => 'You pay when you pick it up.', 'pay_on_spot_delivery' => 'You pay the courier.',
+    'minimum_note' => 'Minimum order for delivery: :amount', 'place' => 'Place order', 'placing' => 'Placing your order…',
+    'order_placed' => 'Order placed!', 'your_number' => 'Your order number', 'we_got_it' => 'We got your order and will start soon.',
+    'track_title' => 'Order :number', 'track_sub' => 'This page updates by itself. Keep it open.',
+    'step_new' => 'Received', 'step_accepted' => 'Accepted', 'step_preparing' => 'Being prepared', 'step_ready' => 'Ready', 'step_completed_dine_in' => 'Served', 'step_completed_takeaway' => 'Picked up', 'step_completed_delivery' => 'Delivered',
+    'msg_new' => 'Waiting for the restaurant to confirm.', 'msg_accepted' => 'The restaurant accepted your order.', 'msg_preparing' => 'Your food is being prepared.',
+    'msg_ready_dine_in' => 'Ready! It is on its way to your table.', 'msg_ready_takeaway' => 'Ready! Come and pick it up.', 'msg_ready_delivery' => 'Ready! The courier is on the way.',
+    'msg_completed' => 'Enjoy your meal!', 'msg_cancelled' => 'This order was cancelled.',
+    'estimated' => 'Ready in about :count min', 'cancel_mine' => 'Cancel my order', 'cancel_mine_confirm' => 'Cancel your order?', 'order_more' => 'Order something else', 'back_to_menu' => 'Back to the menu',
+    'your_items' => 'Your order', 'paid_badge' => 'Paid',
+];

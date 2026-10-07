@@ -32,6 +32,7 @@ class Restaurant extends Model
             'trial_ends_at' => 'datetime',
             'onboarded_at' => 'datetime',
             'menu_locales' => 'array',
+            'order_settings' => 'array',
             'suspended_at' => 'datetime',
         ];
     }

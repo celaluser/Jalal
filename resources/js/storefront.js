@@ -21,6 +21,14 @@ document.addEventListener('alpine:init', () => {
         timer: null,
         toast: '',
         bumped: false,
+        stage: 'cart',
+        form: { type: '', name: '', phone: '', address: '', note: '', table_id: '', payment: '' },
+        errors: {},
+        formError: '',
+        submitting: false,
+        key: '',
+        totals: null,
+        ord: cfg.ordering,
         cfg_diet: cfg.diet,
         cfg_allergen: cfg.allergen,
 
@@ -28,6 +36,9 @@ document.addEventListener('alpine:init', () => {
             this.cart = this.load();
             this.prune();
             this.$watch('cart', () => { this.save(); this.requote(); });
+            this.$watch('form.type', () => { this.errors = {}; this.requote(0); });
+            this.$watch('cartOpen', (v) => { if (!v) { this.stage = 'cart'; } });
+            this.resetForm();
             this.$watch('sheet', (v) => this.lock(v !== null || this.cartOpen));
             this.$watch('cartOpen', (v) => this.lock(v || this.sheet !== null));
             this.$nextTick(() => this.observe());
@@ -198,10 +209,11 @@ document.addEventListener('alpine:init', () => {
                     const res = await fetch(cfg.quoteUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf },
-                        body: JSON.stringify({ lines: this.cart.map((l) => ({ product_id: l.product_id, options: l.options, qty: l.qty, note: l.note })) }),
+                        body: JSON.stringify({ lines: this.cart.map((l) => ({ product_id: l.product_id, options: l.options, qty: l.qty, note: l.note })), type: this.stage === 'checkout' ? this.form.type : undefined }),
                     });
                     if (!res.ok) { throw new Error(String(res.status)); }
                     this.quoted = await res.json();
+                    this.totals = this.quoted.totals || null;
                     this.offline = false;
                 } catch (e) { this.offline = true; }
                 this.quoting = false;
@@ -212,6 +224,67 @@ document.addEventListener('alpine:init', () => {
             try { const raw = JSON.parse(localStorage.getItem(cfg.storageKey) || '[]'); return Array.isArray(raw) ? raw.filter((l) => l && l.product_id && Array.isArray(l.options)) : []; } catch (e) { return []; }
         },
         save() { try { localStorage.setItem(cfg.storageKey, JSON.stringify(this.cart)); } catch (e) { /* private mode */ } },
+
+        // ---- checkout --------------------------------------------------------------------
+        resetForm() {
+            let guest = {};
+            try { guest = JSON.parse(localStorage.getItem('qrmenu.guest') || '{}'); } catch (e) { /* none saved */ }
+            this.form.type = this.ord.table && this.ord.types.includes('dine_in') ? 'dine_in' : (this.ord.types[0] || '');
+            this.form.payment = this.ord.payments[0] || '';
+            this.form.name = guest.name || '';
+            this.form.phone = guest.phone || '';
+            this.form.address = guest.address || '';
+            this.form.table_id = this.ord.table ? this.ord.table.id : (this.ord.tables[0]?.id || '');
+        },
+        startCheckout() {
+            if (!this.ord.accepting || this.hasErrors || !this.cart.length) { return; }
+            this.stage = 'checkout';
+            this.formError = '';
+            this.errors = {};
+            this.key = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2)).replace(/-/g, '');
+            this.requote(0);
+        },
+        get needsContact() { return this.form.type !== 'dine_in'; },
+        validateForm() {
+            const e = {};
+            const f = this.form;
+            if (f.type === 'dine_in' && !this.ord.table && !f.table_id) { e.table_id = cfg.t.table_required; }
+            if ((this.needsContact || this.ord.requireName) && !f.name.trim()) { e.name = cfg.t.name_required; }
+            if (this.needsContact && !/^[0-9+()\-\s.]{6,40}$/.test(f.phone.trim())) { e.phone = cfg.t.phone_required; }
+            if (f.type === 'delivery' && f.address.trim().length < 5) { e.address = cfg.t.address_required; }
+            this.errors = e;
+            return Object.keys(e).length === 0;
+        },
+        async submit() {
+            if (this.submitting || !this.validateForm()) { return; }
+            this.submitting = true;
+            this.formError = '';
+            const f = this.form;
+            try {
+                const res = await fetch(this.ord.orderUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf },
+                    body: JSON.stringify({
+                        type: f.type, table_id: f.type === 'dine_in' ? (this.ord.table?.id || f.table_id || null) : null,
+                        customer_name: f.name, customer_phone: f.phone, delivery_address: f.type === 'delivery' ? f.address : null,
+                        note: f.note, payment_method: f.payment, idempotency_key: this.key,
+                        lines: this.cart.map((l) => ({ product_id: l.product_id, options: l.options, qty: l.qty, note: l.note })),
+                    }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.status === 201) {
+                    try { localStorage.setItem('qrmenu.guest', JSON.stringify({ name: f.name, phone: f.phone, address: f.address })); localStorage.removeItem(cfg.storageKey); } catch (e) { /* ignore */ }
+                    this.cart = [];
+                    window.location.href = data.url;
+                    return;
+                }
+                this.formError = res.status === 429 ? cfg.t.too_many : (data.message || cfg.t.generic_error);
+                if (data.lines?.length) { this.quoted = { ...(this.quoted || {}), lines: data.lines }; this.stage = 'cart'; }
+            } catch (e) {
+                this.formError = cfg.t.generic_error;
+            }
+            this.submitting = false;
+        },
 
         // ---- chrome ----------------------------------------------------------------------
         lock(on) { document.documentElement.classList.toggle('overflow-hidden', on); },

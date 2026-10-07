@@ -186,7 +186,7 @@ describe('table entry', function () {
         $t = sfIn($r, fn () => DiningTable::create(['name' => 'Table 5']));
 
         $this->get('/r/'.$r->slug.'/t/'.$t->token)->assertRedirect(url('/r/'.$r->slug));
-        $page = $this->get('/r/'.$r->slug)->assertOk()->assertSee(__('customer.table', ['name' => 'Table 5']));
+        $page = $this->get('/r/'.$r->slug)->assertOk()->assertSee('Table 5');
 
         expect($page->getContent())->toContain('noindex');
     });
@@ -195,7 +195,7 @@ describe('table entry', function () {
         $r = sfShop();
         sfProduct($r);
 
-        expect($this->get('/r/'.$r->slug)->getContent())->not->toContain('noindex')->not->toContain(__('customer.table', ['name' => '']));
+        expect($this->get('/r/'.$r->slug)->getContent())->not->toContain('noindex')->toContain('table\\u0022:null');
     });
 
     it('keeps the language through the redirect', function () {
@@ -227,7 +227,7 @@ describe('table entry', function () {
 
         sfIn($r, fn () => $t->update(['is_active' => false]));
 
-        $this->get('/r/'.$r->slug)->assertDontSee(__('customer.table', ['name' => 'T9']));
+        $this->get('/r/'.$r->slug)->assertDontSee('>T9<', false);
     });
 
     it('rejects malformed tokens before touching the database', function () {
@@ -257,7 +257,7 @@ describe('restaurant domains', function () {
 
         $this->get('http://subplace.qrmenu.test/')->assertOk()->assertSee('Sub Dish');
         $this->get('http://subplace.qrmenu.test/t/'.$t->token)->assertRedirect('http://subplace.qrmenu.test');
-        $this->get('http://subplace.qrmenu.test/')->assertSee(__('customer.table', ['name' => 'S1']));
+        $this->get('http://subplace.qrmenu.test/')->assertSee('S1');
         $this->postJson('http://subplace.qrmenu.test/cart/quote', ['lines' => [['product_id' => $p->id, 'qty' => 2]]])->assertOk()->assertJsonPath('subtotal_cents', 1600);
     });
 
@@ -454,4 +454,8 @@ describe('server-side cart pricing', function () {
         $res = sfIn($r, fn () => app(CartPricing::class)->quote($r, []));
         expect($res)->toMatchArray(['lines' => [], 'subtotal_cents' => 0, 'valid' => false]);
     });
+});
+
+it('labels tables: bare numbers become "Table N", real names stay as they are', function () {
+    expect(table_label('5'))->toBe('Table 5')->and(table_label('Terrace 2'))->toBe('Terrace 2')->and(table_label('Bar'))->toBe('Bar')->and(table_label(null))->toBe('')->and(table_label(' 12 '))->toBe('Table 12');
 });
