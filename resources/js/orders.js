@@ -119,4 +119,103 @@ document.addEventListener('alpine:init', () => {
         },
         flash(text) { this.toast = text; clearTimeout(this._t); this._t = setTimeout(() => { this.toast = ''; }, 3500); },
     }));
+
+    // Staff order entry: pick dishes, choose where it goes, send it to the kitchen.
+    window.Alpine.data('posApp', (cfg) => ({
+        menu: cfg.menu, tables: cfg.tables, canPay: cfg.canPay, t: cfg.t,
+        cat: 0, q: '', lines: [], sheet: null, drawer: false, done: null, busy: false, error: '',
+        type: 'dine_in', tableId: '', name: '', phone: '', address: '', orderNote: '', paid: false, method: 'cash',
+        fmt: new Intl.NumberFormat(cfg.locale, { style: 'currency', currency: cfg.currency }),
+        key: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(),
+
+        money(v) { return this.fmt.format(v); },
+
+        // ---- menu ------------------------------------------------------------------------
+        get visible() {
+            const q = this.q.trim().toLowerCase();
+            return this.menu
+                .filter((c) => this.cat === 0 || c.id === this.cat)
+                .flatMap((c) => c.products)
+                .filter((p) => !q || p.name.toLowerCase().includes(q));
+        },
+        qtyOf(id) { return this.lines.filter((l) => l.id === id).reduce((n, l) => n + l.qty, 0); },
+
+        pick(p) {
+            if (!p.available) { return; }
+            if (!p.option_groups.length) { this.add(p, [], '', []); return; }
+            const chosen = {};
+            p.option_groups.forEach((g) => {
+                // Required single-choice groups start on their default (or first) option, as on the guest menu.
+                const def = g.options.filter((o) => o.default).map((o) => o.id);
+                chosen[g.id] = def.length ? (g.type === 'single' ? def.slice(0, 1) : def) : (g.type === 'single' && g.required && g.options.length ? [g.options[0].id] : []);
+            });
+            this.sheet = { product: p, chosen, note: '' };
+        },
+        toggle(g, o) {
+            const cur = this.sheet.chosen[g.id];
+            if (g.type === 'single') { this.sheet.chosen[g.id] = [o.id]; return; }
+            if (cur.includes(o.id)) { this.sheet.chosen[g.id] = cur.filter((i) => i !== o.id); return; }
+            if (g.max_select && cur.length >= g.max_select) { this.sheet.chosen[g.id] = [...cur.slice(1), o.id]; return; }
+            this.sheet.chosen[g.id] = [...cur, o.id];
+        },
+        get sheetValid() {
+            return !!this.sheet && this.sheet.product.option_groups.every((g) => !g.required || this.sheet.chosen[g.id].length > 0);
+        },
+        get sheetUnit() {
+            if (!this.sheet) { return 0; }
+            return this.sheet.product.price + this.sheet.product.option_groups.reduce((n, g) => n + g.options.filter((o) => this.sheet.chosen[g.id].includes(o.id)).reduce((m, o) => m + o.price_delta, 0), 0);
+        },
+        commit() {
+            if (!this.sheetValid) { return; }
+            const p = this.sheet.product;
+            const picked = p.option_groups.flatMap((g) => g.options.filter((o) => this.sheet.chosen[g.id].includes(o.id)));
+            this.add(p, picked.map((o) => o.id), this.sheet.note.trim(), picked);
+            this.sheet = null;
+        },
+
+        // ---- order lines -----------------------------------------------------------------
+        add(p, optionIds, note, picked) {
+            const sig = p.id + ':' + [...optionIds].sort().join(',') + ':' + note;
+            const same = this.lines.find((l) => l.sig === sig);
+            if (same) { same.qty = Math.min(same.qty + 1, 50); return; }
+            const unit = p.price + picked.reduce((n, o) => n + o.price_delta, 0);
+            this.lines.push({ key: sig + ':' + Date.now(), sig, id: p.id, name: p.name, options: optionIds, optionNames: picked.map((o) => o.name), note, qty: 1, unit });
+        },
+        bump(i, d) {
+            const l = this.lines[i];
+            l.qty = Math.min(l.qty + d, 50);
+            if (l.qty < 1) { this.lines.splice(i, 1); }
+        },
+        get subtotal() { return this.lines.reduce((n, l) => n + l.unit * l.qty, 0); },
+        get count() { return this.lines.reduce((n, l) => n + l.qty, 0); },
+
+        // ---- sending ---------------------------------------------------------------------
+        async send() {
+            if (this.busy || !this.lines.length) { return; }
+            this.busy = true; this.error = '';
+            try {
+                const res = await fetch(cfg.storeUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': cfg.csrf, 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify({
+                        type: this.type, table_id: this.type === 'dine_in' ? (this.tableId || null) : null,
+                        customer_name: this.name, customer_phone: this.phone, delivery_address: this.address, note: this.orderNote,
+                        paid: this.canPay && this.paid, payment_method: this.method, idempotency_key: this.key,
+                        lines: this.lines.map((l) => ({ product_id: l.id, qty: l.qty, options: l.options, note: l.note })),
+                    }),
+                });
+                const body = await res.json().catch(() => ({}));
+                if (res.ok) { this.done = body; this.drawer = false; return; }
+                this.error = body.message || (body.errors ? Object.values(body.errors)[0][0] : this.t.failed);
+            } catch (e) {
+                this.error = this.t.failed;
+            } finally {
+                this.busy = false;
+            }
+        },
+        reset() {
+            Object.assign(this, { lines: [], done: null, error: '', tableId: '', name: '', phone: '', address: '', orderNote: '', paid: false, q: '' });
+            this.key = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
+        },
+    }));
 });

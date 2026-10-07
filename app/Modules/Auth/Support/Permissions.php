@@ -31,12 +31,12 @@ final class Permissions
         return [
             self::OWNER => ['*'],
             self::MANAGER => [
-                'menu.manage', 'orders.view', 'orders.manage', 'tables.manage', 'tables.view', 'staff.view',
+                'menu.manage', 'orders.view', 'orders.create', 'orders.manage', 'tables.manage', 'tables.view', 'staff.view',
                 'reports.view', 'customers.view', 'marketing.manage', 'settings.view', 'support.manage',
             ],
             self::WAITER => ['orders.view', 'orders.create', 'tables.view'],
             self::KITCHEN => ['orders.view', 'kitchen.view'],
-            self::CASHIER => ['orders.view', 'orders.manage', 'payments.manage', 'tables.view'],
+            self::CASHIER => ['orders.view', 'orders.create', 'orders.manage', 'payments.manage', 'tables.view'],
         ];
     }
 

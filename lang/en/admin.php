@@ -30,7 +30,7 @@ return [
     ],
     'panel' => 'Admin',
     'saved' => 'Saved.',
-    'cancel' => 'Cancel',
+    'cancel' => 'Cancel', 'close' => 'Close',
     'save' => 'Save',
     'edit' => 'Edit',
     'delete' => 'Delete',

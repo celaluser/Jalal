@@ -11,6 +11,7 @@ return [
     'error_payment_unavailable' => 'Please choose how you will pay.',
     'error_cart_invalid' => 'Some items in your order are no longer available. Please check your order.',
     'error_below_minimum' => 'Your order is below the minimum for delivery.',
+    'error_email_invalid' => 'Please enter a valid e-mail address, or leave it empty.',
     'error_busy' => 'We are very busy right now. Please try again in a moment.',
     'error_invalid_transition' => 'This order cannot move to that step.',
     'error_cannot_pay' => 'This order cannot be marked as paid.',
@@ -58,7 +59,7 @@ return [
 
     // Guest checkout and tracking
     'checkout' => 'Checkout', 'how' => 'How would you like it?', 'your_details' => 'Your details',
-    'name' => 'Your name', 'phone_label' => 'Phone', 'address_label' => 'Delivery address', 'note_label' => 'Note for the restaurant', 'choose_table' => 'Your table',
+    'name' => 'Your name', 'phone_label' => 'Phone', 'email' => 'E-mail', 'email_label' => 'E-mail (optional)', 'email_help' => 'We e-mail you when your order is received and when it is ready.', 'address_label' => 'Delivery address', 'note_label' => 'Note for the restaurant', 'choose_table' => 'Your table',
     'pay_how' => 'Pay with', 'pay_on_spot_dine_in' => 'You pay at the table or the counter.', 'pay_on_spot_takeaway' => 'You pay when you pick it up.', 'pay_on_spot_delivery' => 'You pay the courier.',
     'minimum_note' => 'Minimum order for delivery: :amount', 'place' => 'Place order', 'placing' => 'Placing your order…',
     'order_placed' => 'Order placed!', 'your_number' => 'Your order number', 'we_got_it' => 'We got your order and will start soon.',
@@ -69,4 +70,14 @@ return [
     'msg_completed' => 'Enjoy your meal!', 'msg_cancelled' => 'This order was cancelled.',
     'estimated' => 'Ready in about :count min', 'cancel_mine' => 'Cancel my order', 'cancel_mine_confirm' => 'Cancel your order?', 'order_more' => 'Order something else', 'back_to_menu' => 'Back to the menu',
     'your_items' => 'Your order', 'paid_badge' => 'Paid',
+
+    // Staff order entry
+    'pos_title' => 'New order', 'pos_sub' => 'Take an order for a table, a walk-in or a phone call.', 'pos_button' => 'New order',
+    'pos_search' => 'Search dishes', 'pos_all' => 'All', 'pos_empty_menu' => 'Nothing on the menu yet.', 'pos_no_results' => 'No dish matches your search.',
+    'pos_sold_out' => 'Sold out', 'pos_add' => 'Add', 'pos_choose' => 'Choose options', 'pos_required' => 'Required', 'pos_optional' => 'Optional', 'pos_up_to' => 'Up to :count',
+    'pos_add_to_order' => 'Add to order', 'pos_note' => 'Note for the kitchen', 'pos_cart' => 'Order', 'pos_cart_empty' => 'Tap a dish to add it.', 'pos_clear' => 'Clear',
+    'pos_table' => 'Table', 'pos_choose_table' => 'Choose a table', 'pos_no_tables' => 'No tables yet. Add tables first, or use takeaway.', 'pos_customer_name' => 'Name (optional)', 'pos_customer_phone' => 'Phone (optional)', 'pos_address' => 'Delivery address',
+    'pos_order_note' => 'Order note (optional)', 'pos_paid_now' => 'Paid now', 'pos_pay_with' => 'Paid with', 'pos_send' => 'Send to kitchen', 'pos_sending' => 'Sending…', 'pos_total' => 'Total (before fees)',
+    'pos_items' => '{1} 1 item|[2,*] :count items', 'pos_view_order' => 'View order', 'pos_sent' => 'Order :number sent to the kitchen.', 'pos_another' => 'Take another order', 'pos_failed' => 'The order could not be sent. Check your connection and try again.',
+    'pos_fees_note' => 'Service charge and tax are added when the order is placed.',
 ];

@@ -55,6 +55,7 @@
                 <dl class="space-y-2 text-sm">
                     <div class="flex justify-between gap-3"><dt class="text-muted">{{ __('orders.type_'.$order->type) }}</dt><dd class="font-medium">{{ $order->table_name ? table_label($order->table_name) : ($order->customer_name ?: '—') }}</dd></div>
                     @if ($order->table_name && $order->customer_name)<div class="flex justify-between gap-3"><dt class="text-muted">{{ __('orders.guest') }}</dt><dd class="font-medium">{{ $order->customer_name }}</dd></div>@endif
+                    @if ($order->customer_email)<div class="flex justify-between gap-3"><dt class="text-muted">{{ __('orders.email') }}</dt><dd class="break-all font-medium" dir="ltr"><a class="link" href="mailto:{{ $order->customer_email }}">{{ $order->customer_email }}</a></dd></div>@endif
                     @if ($order->customer_phone)<div class="flex justify-between gap-3"><dt class="text-muted">{{ __('orders.phone') }}</dt><dd class="font-medium" dir="ltr"><a class="link" href="tel:{{ $order->customer_phone }}">{{ $order->customer_phone }}</a></dd></div>@endif
                     @if ($order->delivery_address)<div><dt class="text-muted">{{ __('orders.address') }}</dt><dd class="mt-0.5 font-medium">{{ $order->delivery_address }}</dd></div>@endif
                     @if ($order->note)<div><dt class="text-muted">{{ __('orders.note') }}</dt><dd class="mt-0.5 font-medium">{{ $order->note }}</dd></div>@endif

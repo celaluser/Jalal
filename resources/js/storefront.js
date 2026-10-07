@@ -22,7 +22,7 @@ document.addEventListener('alpine:init', () => {
         toast: '',
         bumped: false,
         stage: 'cart',
-        form: { type: '', name: '', phone: '', address: '', note: '', table_id: '', payment: '' },
+        form: { type: '', name: '', phone: '', email: '', address: '', note: '', table_id: '', payment: '' },
         errors: {},
         formError: '',
         submitting: false,
@@ -233,6 +233,7 @@ document.addEventListener('alpine:init', () => {
             this.form.payment = this.ord.payments[0] || '';
             this.form.name = guest.name || '';
             this.form.phone = guest.phone || '';
+            this.form.email = guest.email || '';
             this.form.address = guest.address || '';
             this.form.table_id = this.ord.table ? this.ord.table.id : (this.ord.tables[0]?.id || '');
         },
@@ -251,6 +252,7 @@ document.addEventListener('alpine:init', () => {
             if (f.type === 'dine_in' && !this.ord.table && !f.table_id) { e.table_id = cfg.t.table_required; }
             if ((this.needsContact || this.ord.requireName) && !f.name.trim()) { e.name = cfg.t.name_required; }
             if (this.needsContact && !/^[0-9+()\-\s.]{6,40}$/.test(f.phone.trim())) { e.phone = cfg.t.phone_required; }
+            if (f.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { e.email = cfg.t.email_invalid; }
             if (f.type === 'delivery' && f.address.trim().length < 5) { e.address = cfg.t.address_required; }
             this.errors = e;
             return Object.keys(e).length === 0;
@@ -266,14 +268,14 @@ document.addEventListener('alpine:init', () => {
                     headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf },
                     body: JSON.stringify({
                         type: f.type, table_id: f.type === 'dine_in' ? (this.ord.table?.id || f.table_id || null) : null,
-                        customer_name: f.name, customer_phone: f.phone, delivery_address: f.type === 'delivery' ? f.address : null,
+                        customer_name: f.name, customer_phone: f.phone, customer_email: f.email, delivery_address: f.type === 'delivery' ? f.address : null,
                         note: f.note, payment_method: f.payment, idempotency_key: this.key,
                         lines: this.cart.map((l) => ({ product_id: l.product_id, options: l.options, qty: l.qty, note: l.note })),
                     }),
                 });
                 const data = await res.json().catch(() => ({}));
                 if (res.status === 201) {
-                    try { localStorage.setItem('qrmenu.guest', JSON.stringify({ name: f.name, phone: f.phone, address: f.address })); localStorage.removeItem(cfg.storageKey); } catch (e) { /* ignore */ }
+                    try { localStorage.setItem('qrmenu.guest', JSON.stringify({ name: f.name, phone: f.phone, email: f.email, address: f.address })); localStorage.removeItem(cfg.storageKey); } catch (e) { /* ignore */ }
                     this.cart = [];
                     window.location.href = data.url;
                     return;

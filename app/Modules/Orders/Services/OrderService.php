@@ -32,7 +32,7 @@ class OrderService
     ) {}
 
     /**
-     * @param  array{type: string, lines: array<int, mixed>, table_id?: int|null, customer_name?: ?string, customer_phone?: ?string, delivery_address?: ?string, note?: ?string, payment_method?: ?string, idempotency_key?: ?string, locale?: ?string}  $data
+     * @param  array{type: string, lines: array<int, mixed>, table_id?: int|null, customer_name?: ?string, customer_phone?: ?string, customer_email?: ?string, delivery_address?: ?string, note?: ?string, payment_method?: ?string, idempotency_key?: ?string, locale?: ?string}  $data
      *
      * @throws OrderException
      */
@@ -46,12 +46,15 @@ class OrderService
 
         $settings = $this->settings->for($restaurant);
         $type = (string) ($data['type'] ?? '');
+        // Staff keying in an order at the counter or table are not held to the rules made for guests
+        // (online ordering paused, name/phone required, payment methods offered online).
+        $staff = $source === 'staff';
 
-        if (! $this->settings->accepting($restaurant)) {
+        if (! $staff && ! $this->settings->accepting($restaurant)) {
             throw new OrderException('closed');
         }
 
-        if (! in_array($type, $this->settings->types($restaurant), true)) {
+        if (! in_array($type, $staff ? OrderType::ALL : $this->settings->types($restaurant), true)) {
             throw new OrderException('type_unavailable');
         }
 
@@ -59,12 +62,21 @@ class OrderService
         $phone = $this->clean($data['customer_phone'] ?? null, 40);
         $name = $this->clean($data['customer_name'] ?? null, 80);
         $address = $this->clean($data['delivery_address'] ?? null, 255);
+        $email = $this->clean($data['customer_email'] ?? null, 190);
 
-        if ($type !== OrderType::DINE_IN && ($phone === null || ! preg_match('/^[0-9+()\-\s.]{6,40}$/', $phone))) {
+        if ($email !== null && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new OrderException('email_invalid');
+        }
+
+        if ($phone !== null && ! preg_match('/^[0-9+()\-\s.]{6,40}$/', $phone)) {
             throw new OrderException('phone_required');
         }
 
-        if (($settings['require_name'] || $type !== OrderType::DINE_IN) && $name === null) {
+        if (! $staff && $type !== OrderType::DINE_IN && $phone === null) {
+            throw new OrderException('phone_required');
+        }
+
+        if (! $staff && ($settings['require_name'] || $type !== OrderType::DINE_IN) && $name === null) {
             throw new OrderException('name_required');
         }
 
@@ -74,7 +86,7 @@ class OrderService
 
         $method = (string) ($data['payment_method'] ?? '');
 
-        if (! in_array($method, $this->settings->paymentMethods($restaurant), true)) {
+        if (! in_array($method, $staff ? ['cash', 'card'] : $this->settings->paymentMethods($restaurant), true)) {
             throw new OrderException('payment_unavailable');
         }
 
@@ -84,7 +96,7 @@ class OrderService
             throw new OrderException('cart_invalid', $quote['lines']);
         }
 
-        if ($type === OrderType::DELIVERY && $quote['subtotal_cents'] < $this->settings->cents($restaurant, 'delivery_min')) {
+        if (! $staff && $type === OrderType::DELIVERY && $quote['subtotal_cents'] < $this->settings->cents($restaurant, 'delivery_min')) {
             throw new OrderException('below_minimum');
         }
 
@@ -93,7 +105,7 @@ class OrderService
         $order = $this->store($restaurant, $settings, $quote, $sums, [
             'type' => $type, 'source' => $source, 'idempotency_key' => $key,
             'table_id' => $table?->id, 'table_name' => $table?->name,
-            'customer_name' => $name, 'customer_phone' => $phone, 'delivery_address' => $type === OrderType::DELIVERY ? $address : null,
+            'customer_name' => $name, 'customer_phone' => $phone, 'customer_email' => $email !== null ? mb_strtolower($email) : null, 'delivery_address' => $type === OrderType::DELIVERY ? $address : null,
             'note' => $this->clean($data['note'] ?? null, 300), 'locale' => $data['locale'] ?? app()->getLocale(),
             'payment_method' => $method, 'currency_code' => $restaurant->currency_code,
         ], $by);
@@ -157,7 +169,8 @@ class OrderService
      */
     private function store(Restaurant $restaurant, array $settings, array $quote, array $sums, array $attributes, ?User $by): Order
     {
-        $auto = (bool) $settings['auto_accept'];
+        // An order a staff member typed in is already confirmed by that person.
+        $auto = (bool) $settings['auto_accept'] || ($attributes['source'] ?? '') === 'staff';
 
         // Two orders arriving in the same instant can pick the same number; the unique index catches it and we try the next.
         for ($attempt = 0; $attempt < 5; $attempt++) {

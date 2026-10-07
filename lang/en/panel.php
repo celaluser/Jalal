@@ -6,6 +6,7 @@ return [
         'group_help' => 'Help',
         'dashboard' => 'Dashboard',
         'domains' => 'Domains',
+        'new_order' => 'New order',
         'support' => 'Support',
         'group_menu' => 'Menu',
         'group_orders' => 'Orders',

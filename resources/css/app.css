@@ -149,6 +149,10 @@
     .btn-sm { @apply gap-1.5 rounded-lg px-3 py-1.5 text-[13px]; }
     .btn-lg { @apply rounded-2xl px-6 py-3.5 text-base; }
 
+    /* Filter chips (category tabs in staff order entry) */
+    .chip { @apply inline-flex shrink-0 items-center rounded-full border border-line-strong bg-surface px-3.5 py-1.5 text-sm font-medium text-muted transition hover:text-fg; }
+    .chip-active { @apply border-ink-950 bg-ink-950 text-white hover:text-white dark:border-white dark:bg-white dark:text-ink-950 dark:hover:text-ink-950; }
+
     /* Form controls ---------------------------------------------------- */
     .field {
         @apply block w-full rounded-xl border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-fg shadow-sm transition placeholder:text-ink-400 focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15;

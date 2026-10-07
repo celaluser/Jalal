@@ -39,6 +39,7 @@ class CustomerOrderController extends Controller
             'table_id' => ['nullable', 'integer'],
             'customer_name' => ['nullable', 'string', 'max:80'],
             'customer_phone' => ['nullable', 'string', 'max:40'],
+            'customer_email' => ['nullable', 'string', 'max:190'],
             'delivery_address' => ['nullable', 'string', 'max:255'],
             'note' => ['nullable', 'string', 'max:300'],
             'payment_method' => ['required', Rule::in(['cash', 'card'])],

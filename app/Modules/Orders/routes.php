@@ -4,6 +4,7 @@ use App\Modules\Core\Http\Middleware\SetLocale;
 use App\Modules\Orders\Http\Controllers\CustomerOrderController;
 use App\Modules\Orders\Http\Controllers\OrderBoardController;
 use App\Modules\Orders\Http\Controllers\OrderSettingsController;
+use App\Modules\Orders\Http\Controllers\PosController;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenant;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +29,12 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])-
         Route::get('{order}/ticket', [OrderBoardController::class, 'ticket'])->whereNumber('order')->name('ticket');
         Route::post('{order}/status', [OrderBoardController::class, 'transition'])->whereNumber('order')->name('status');
         Route::post('{order}/pay', [OrderBoardController::class, 'pay'])->whereNumber('order')->name('pay');
+    });
+
+    // Staff order entry for waiters and cashiers.
+    Route::middleware('permission:orders.create|orders.manage')->prefix('orders')->name('orders.pos.')->group(function () {
+        Route::get('new', [PosController::class, 'index'])->name('index');
+        Route::post('new', [PosController::class, 'store'])->middleware('throttle:60,1')->name('store');
     });
 
     Route::post('orders/pause', [OrderBoardController::class, 'pause'])->middleware('permission:orders.manage')->name('orders.pause');

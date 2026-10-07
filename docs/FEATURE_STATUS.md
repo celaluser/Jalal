@@ -8,10 +8,10 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 ## 1. Platform foundation (Phase 1)
 - ✅ Multi-tenant core: one database, every tenant row scoped by restaurant, fail-closed when no tenant is known, cross-tenant isolation tested on every route
 - ✅ Tenant resolution by custom domain, subdomain or `/r/{slug}`
-- ✅ Roles and permissions (super admin, owner, manager, waiter, kitchen, cashier) with per-restaurant teams; custom roles exist in the service layer
+- ✅ Roles and permissions (super admin, owner, manager, waiter, kitchen, cashier) with per-restaurant teams; custom roles are managed by owners (Team module)
 - ✅ Sign-in, registration (creates restaurant + owner), e-mail verification, password reset, 2FA (authenticator app), Google sign-in (admin toggle), reCAPTCHA, rate limits
 - ✅ Settings engine (encrypted secrets), file uploads converted to WebP, translation loader with database overrides
-- 🟡 Languages: English complete; Turkish and Arabic cover sign-in, installer and some screens; the rest falls back to English
+- 🟡 Languages: English complete; Turkish and Arabic cover sign-in, installer, the **whole guest side** (menu, checkout, order tracking, allergen/diet labels) and the new Team/Domains screens' errors; the owner panel falls back to English
 
 ## 2. Installer, licence, updates, demo (Phase 2)
 - ✅ Web installer (requirements check, database test, admin account, wipe-on-failure, lock file), SQLite and MySQL paths
@@ -27,14 +27,14 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ E-mail templates, landing page editor, blog, static pages, sitemap, support tickets, announcements, cookie banner, maintenance mode
 - ✅ System status (scheduler/queue heartbeats), log viewer, database backups with nightly job
 - 🟡 Payment drivers tested with simulated responses only, not against live sandboxes
-- ⬜ Admin UI to set a restaurant's subdomain / custom domain and verify DNS (resolution works, editing screen missing)
+- ✅ Admin can set a restaurant's subdomain / custom domain, run the DNS check or mark it verified by hand (restaurant detail page)
 
 ## 4. Restaurant onboarding and subscription (Phase 4)
 - ✅ Plan choice at sign-up (trial / free / pay after verification), 3-step setup wizard, restaurant profile and branding
 - ✅ Subscription page: usage versus limits, plan switch, checkout with coupon and gateway choice, invoices (PDF), cancel at period end
 - ✅ Warnings: no plan, trial or plan ending, overdue, limits at 80% and 100%
-- ⬜ Owner screens for staff accounts (invite, roles, permissions): backend exists, no UI
-- ⬜ Owner request flow for a custom domain / subdomain
+- ✅ Team: invite by e-mail (person sets own password), change role, switch off (ends sessions), resend, remove, plan staff limit, custom roles with permission picker, owner/self protections
+- ✅ Owner Domains screen: subdomain (reserved names, uniqueness, live preview), custom domain on plans with the feature, TXT-record (or CNAME) verification, platform DNS instructions
 
 ## 5. Menu management (Phase 5)
 - ✅ Categories, products, photos, price and old price, calories, prep time, 14 EU allergens, diet labels, availability switches, featured
@@ -67,7 +67,9 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Guest tracking page with live status, estimated time, cancel while new
 - ✅ Live board for kitchen/waiters/cashiers: polling, sound and desktop alerts, late markers, role-based actions, mark paid, pause ordering, 80 mm ticket print, order detail with history
 - ✅ Ordering settings: types, fees, payment methods, auto-accept, preparation time, guest cancel
-- ⬜ Online card payment for orders, waiter order entry (POS), customer e-mail/SMS notifications, courier tracking, order history reports (Phase 11), branches
+- ✅ Staff order entry (POS) for waiters, cashiers, managers: menu browser with options, table / takeaway / delivery, optional "paid now" for cashiers; server re-prices everything
+- ✅ Optional guest e-mail at checkout: order received, ready, cancelled-by-restaurant e-mails (admin-editable templates; a mail outage never blocks an order)
+- ⬜ Online card payment for orders (not verifiable without live gateway accounts), SMS notifications (needs a provider), courier tracking, order history reports (Phase 11), branches
 
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test

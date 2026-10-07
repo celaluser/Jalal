@@ -13,7 +13,7 @@
         'diet' => collect($dietary)->mapWithKeys(fn ($d) => [$d => __('menu.diet.'.$d)])->all(),
         'allergen' => collect($allergens)->mapWithKeys(fn ($a) => [$a => __('menu.allergen.'.$a)])->all(),
         't' => collect(['sold_out', 'unavailable', 'option_required', 'option_unavailable', 'invalid_option', 'too_many_options', 'quantity'])->mapWithKeys(fn ($k) => [$k => __('customer.error_'.$k)])->all()
-            + collect(['table_required', 'name_required', 'phone_required', 'address_required'])->mapWithKeys(fn ($k) => [$k => __('orders.error_'.$k)])->all()
+            + collect(['table_required', 'name_required', 'phone_required', 'address_required', 'email_invalid'])->mapWithKeys(fn ($k) => [$k => __('orders.error_'.$k)])->all()
             + ['too_many' => __('customer.too_many'), 'generic_error' => __('customer.generic_error')],
     ];
     $ogImage = $logo;
@@ -370,6 +370,12 @@
                         <label class="mb-1 block text-sm font-semibold" for="co-phone">{{ __('orders.phone_label') }}</label>
                         <input id="co-phone" x-model="form.phone" type="tel" inputmode="tel" maxlength="40" autocomplete="tel" class="menu-card w-full px-3 py-2.5" dir="ltr">
                         <p class="mt-1 text-sm text-red-600" x-show="errors.phone" x-text="errors.phone" role="alert"></p>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-semibold" for="co-email">{{ __('orders.email_label') }}</label>
+                        <input id="co-email" x-model="form.email" type="email" inputmode="email" maxlength="190" autocomplete="email" class="menu-card w-full px-3 py-2.5" dir="ltr">
+                        <p class="menu-muted mt-1 text-xs" x-show="!errors.email">{{ __('orders.email_help') }}</p>
+                        <p class="mt-1 text-sm text-red-600" x-show="errors.email" x-text="errors.email" role="alert"></p>
                     </div>
                     <div x-show="form.type === 'delivery'">
                         <label class="mb-1 block text-sm font-semibold" for="co-address">{{ __('orders.address_label') }}</label>
