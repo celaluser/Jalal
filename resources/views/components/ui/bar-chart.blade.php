@@ -17,7 +17,7 @@
 <figure class="viz-chart" x-data="{ i: null }" aria-labelledby="{{ $id }}-t">
     <figcaption id="{{ $id }}-t" class="mb-2 text-sm font-semibold">{{ $title }}</figcaption>
     <div class="relative">
-        <svg viewBox="0 0 {{ $w }} {{ $h }}" class="h-auto w-full" role="img" aria-label="{{ $title }}">
+        <svg dir="ltr" viewBox="0 0 {{ $w }} {{ $h }}" class="h-auto w-full" role="img" aria-label="{{ $title }}">
             @foreach ($scale['ticks'] as $tick)
                 <line x1="{{ $left }}" x2="{{ $w - $right }}" y1="{{ $y($tick) }}" y2="{{ $y($tick) }}" stroke="var(--viz-grid)" stroke-width="1"/>
                 <text x="{{ $left - 6 }}" y="{{ $y($tick) + 4 }}" text-anchor="end" font-size="13" fill="var(--viz-muted)" style="font-variant-numeric: tabular-nums">{{ number_format($tick) }}</text>

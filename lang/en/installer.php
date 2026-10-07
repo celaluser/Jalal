@@ -8,6 +8,8 @@ return [
     'step_database' => 'Database',
     'step_admin' => 'Admin account',
     'step_finish' => 'Finish',
+    'requirements_help' => 'Your server must meet these requirements before installation can continue.',
+    'admin_help' => 'This account becomes the platform owner (super admin).',
     'next' => 'Continue',
     'recheck' => 'Check again',
     'requirements_failed' => 'Some requirements are not met. Fix them and check again.',

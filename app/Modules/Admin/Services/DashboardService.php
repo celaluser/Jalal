@@ -5,8 +5,10 @@ namespace App\Modules\Admin\Services;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Models\Subscription;
 use App\Modules\Core\Services\SettingsService;
+use App\Modules\Support\Models\Ticket;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class DashboardService
@@ -33,6 +35,26 @@ class DashboardService
             'new_30d' => Restaurant::where('created_at', '>=', now()->subDays(30))->count(),
             'mrr' => $this->mrr(),
         ];
+    }
+
+    /**
+     * @return Collection<int, Restaurant>
+     */
+    public function latestRestaurants(int $limit = 5)
+    {
+        return Restaurant::with('owner')->latest('id')->limit($limit)->get();
+    }
+
+    /**
+     * Tickets waiting for the support team (open = the restaurant wrote last).
+     *
+     * @return array{count: int, latest: Collection<int, Ticket>}
+     */
+    public function openTickets(int $limit = 5): array
+    {
+        $open = Ticket::allTenants()->where('status', 'open');
+
+        return ['count' => (clone $open)->count(), 'latest' => (clone $open)->latest('last_reply_at')->limit($limit)->get()];
     }
 
     /**

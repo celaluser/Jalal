@@ -2,6 +2,7 @@
 
 namespace App\Modules\Tenancy\Providers;
 
+use App\Modules\Core\Support\RestaurantNav;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenant;
 use App\Modules\Tenancy\Http\Middleware\SetTenantFromUser;
@@ -16,6 +17,9 @@ class TenancyServiceProvider extends ServiceProvider
     public function boot(Router $router): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
+        $this->loadViewsFrom(__DIR__.'/../Resources/views', 'tenancy');
+
+        RestaurantNav::add('main', 'panel.nav.dashboard', 'dashboard', icon: 'grid');
 
         $router->aliasMiddleware('tenant.resolve', ResolveTenant::class);
         $router->aliasMiddleware('tenant.user', SetTenantFromUser::class);

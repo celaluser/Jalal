@@ -25,7 +25,9 @@ return [
         'pages' => 'Pages',
         'updates' => 'Updates',
     ],
+    'panel' => 'Admin',
     'saved' => 'Saved.',
+    'cancel' => 'Cancel',
     'save' => 'Save',
     'edit' => 'Edit',
     'delete' => 'Delete',
@@ -39,6 +41,12 @@ return [
     'empty' => 'Nothing here yet.',
     'chart' => ['table_view' => 'View as table'],
     'dashboard' => [
+        'welcome' => 'Welcome back, :name',
+        'subtitle' => 'Here is how the platform is doing.',
+        'mrr_hint' => 'Monthly plans in full, yearly plans divided by 12.',
+        'latest_restaurants' => 'Newest restaurants',
+        'open_tickets' => 'Waiting for support',
+        'no_tickets' => 'No open tickets. Nice.',
         'mrr' => 'Monthly recurring revenue',
         'restaurants' => 'Restaurants',
         'active_subscriptions' => 'Paying subscriptions',
@@ -49,6 +57,7 @@ return [
         'suspended_note' => ':count restaurant(s) are suspended.',
     ],
     'restaurants' => [
+        'description' => 'Every restaurant on the platform. Open one to manage its plan, staff and access.',
         'search_placeholder' => 'Name, slug or owner email',
         'name' => 'Restaurant',
         'owner' => 'Owner',
@@ -83,6 +92,10 @@ return [
         'already' => 'Finish the current impersonation first.',
     ],
     'plans' => [
+        'description' => 'Plans define price, limits and features. Active plans appear on your pricing page.',
+        'basics' => 'Plan details',
+        'empty_title' => 'No plans yet',
+        'empty_text' => 'Create your first plan so restaurants can subscribe.',
         'new' => 'New plan',
         'name' => 'Name',
         'slug' => 'Slug',
@@ -114,6 +127,7 @@ return [
         'deleted' => 'Plan deleted.',
     ],
     'subscriptions' => [
+        'description' => 'Every plan a restaurant has had. Renew, cancel or assign plans manually.',
         'period' => 'Period',
         'ends' => 'ends',
         'cancels' => 'ends at period end',
@@ -133,6 +147,7 @@ return [
         'status_expired' => 'Expired',
     ],
     'invoices' => [
+        'description' => 'Invoices generated for plan payments. Mark bank transfers as paid to activate the plan.',
         'mark_paid' => 'Mark paid',
         'void' => 'Void',
         'marked_paid' => 'Invoice marked as paid.',
@@ -140,6 +155,9 @@ return [
         'cannot_void_paid' => 'A paid invoice cannot be voided.',
     ],
     'coupons' => [
+        'description' => 'Discount codes restaurants can apply when subscribing.',
+        'empty_title' => 'No coupons yet',
+        'empty_text' => 'Create a code to offer a discount on any plan.',
         'new' => 'New coupon',
         'code' => 'Code',
         'type' => 'Type',
@@ -156,6 +174,7 @@ return [
         'deleted' => 'Coupon deleted.',
     ],
     'billing' => [
+        'description' => 'Currency, tax and the seller details printed on every invoice.',
         'tax' => 'Currency & tax',
         'currency' => 'Platform currency',
         'tax_name' => 'Tax name (e.g. VAT)',
@@ -167,6 +186,7 @@ return [
         'company_tax_id' => 'Tax ID',
     ],
     'settings' => [
+        'default_description' => 'Platform-wide options. Changes apply immediately.',
         'sections' => 'Settings sections',
         'remove_image' => 'Remove current image',
         'general' => [
@@ -231,6 +251,10 @@ return [
         'reset' => 'Reset to default text', 'reset_done' => 'Reset to the default text.', 'test_failed' => 'The test e-mail was not sent (the template may be switched off, or SMTP failed).',
     ],
     'cms' => [
+        'pages_description' => 'Static pages such as terms and privacy. Pages marked for the footer are linked on every public page.',
+        'pages_empty' => 'No pages yet', 'pages_empty_text' => 'Add your privacy policy and terms of service.',
+        'blog_description' => 'Articles for your public blog. Schedule posts by choosing a future date.',
+        'posts_empty' => 'No articles yet', 'posts_empty_text' => 'Write your first article to attract visitors.',
         'deleted' => 'Deleted.', 'title' => 'Title', 'subtitle' => 'Subtitle', 'text' => 'Text', 'slug' => 'URL slug', 'language' => 'Language', 'body' => 'Content',
         'hero' => 'Hero section', 'cta_label' => 'Main button text', 'secondary_label' => 'Second button text (scrolls to pricing)',
         'features' => 'Feature cards', 'add_feature' => 'Add feature', 'faq' => 'FAQ', 'add_faq' => 'Add question', 'question' => 'Question', 'answer' => 'Answer',
@@ -242,8 +266,11 @@ return [
         'show_in_footer' => 'Link in footer', 'meta_description' => 'Meta description (SEO)', 'excerpt' => 'Short summary', 'cover' => 'Cover image', 'publish_date' => 'Publish date',
         'markdown_help' => 'Markdown: ## Heading, **bold**, [link](https://...), - list. Raw HTML is removed.',
     ],
-    'tickets' => ['reopen' => 'Reopen ticket', 'reopened' => 'Ticket reopened.'],
+    'tickets' => ['description' => 'Questions from restaurants. Tickets waiting for you are listed first.', 'details' => 'Details', 'opened_by' => 'Opened by', 'opened' => 'Opened', 'reopen' => 'Reopen ticket', 'reopened' => 'Ticket reopened.'],
     'announcements' => [
+        'description' => 'Notices shown at the top of every restaurant panel.',
+        'empty_title' => 'No announcements',
+        'empty_text' => 'Tell restaurants about maintenance, new features or good news.',
         'new' => 'New announcement', 'level' => 'Type', 'level_info' => 'Information', 'level_success' => 'Good news', 'level_warning' => 'Warning',
         'window' => 'Shown from / until', 'live' => 'Live', 'ended' => 'Ended', 'body' => 'Message (optional)', 'starts' => 'Show from', 'ends' => 'Show until',
         'dismissible' => 'Restaurants can dismiss it',

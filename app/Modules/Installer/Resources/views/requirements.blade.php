@@ -1,17 +1,21 @@
 <x-installer::layout :step="$step">
-    <h2 class="mb-3 text-lg font-semibold">{{ __('installer.step_requirements') }}</h2>
-    <ul class="mb-5 divide-y divide-gray-100 text-sm dark:divide-gray-800">
+    <h2 class="display text-2xl font-semibold">{{ __('installer.step_requirements') }}</h2>
+    <p class="mt-1 text-sm text-muted">{{ __('installer.requirements_help') }}</p>
+    <ul class="mt-5 divide-y divide-line overflow-hidden rounded-xl border border-line text-sm">
         @foreach ($checks as $check)
-            <li class="flex justify-between py-1.5">
+            <li class="flex items-center justify-between gap-3 px-4 py-2.5">
                 <span>{{ $check['label'] }}</span>
-                <span @class(['font-medium', 'text-green-600' => $check['ok'], 'text-red-600' => ! $check['ok']])>{{ $check['ok'] ? '✓' : '✗' }} {{ $check['detail'] }}</span>
+                @if ($check['ok'])<span class="flex items-center gap-1.5 font-medium text-accent-700 dark:text-accent-300"><x-ui.icon name="check-circle" size="4" />{{ $check['detail'] }}</span>
+                @else<span class="flex items-center gap-1.5 font-medium text-red-600 dark:text-red-400"><x-ui.icon name="alert" size="4" />{{ $check['detail'] }}</span>@endif
             </li>
         @endforeach
     </ul>
-    @if ($passes)
-        <a href="{{ route('install.license') }}" class="block rounded-lg bg-brand-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-brand-700">{{ __('installer.next') }}</a>
-    @else
-        <x-ui.alert type="error">{{ __('installer.requirements_failed') }}</x-ui.alert>
-        <a href="{{ route('install.welcome') }}" class="block rounded-lg bg-gray-100 px-4 py-2.5 text-center text-sm font-semibold dark:bg-gray-800">{{ __('installer.recheck') }}</a>
-    @endif
+    <div class="mt-6">
+        @if ($passes)
+            <a href="{{ route('install.license') }}" class="btn btn-primary btn-lg w-full">{{ __('installer.next') }}<x-ui.icon name="arrow-right" size="5" class="rtl:rotate-180" /></a>
+        @else
+            <x-ui.alert type="error" class="mb-4">{{ __('installer.requirements_failed') }}</x-ui.alert>
+            <a href="{{ route('install.welcome') }}" class="btn btn-secondary w-full"><x-ui.icon name="refresh" size="4" />{{ __('installer.recheck') }}</a>
+        @endif
+    </div>
 </x-installer::layout>

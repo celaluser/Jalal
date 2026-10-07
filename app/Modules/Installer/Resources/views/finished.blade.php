@@ -1,5 +1,8 @@
 <x-installer::layout :step="$step">
-    <h2 class="mb-2 text-lg font-semibold">{{ __('installer.finished') }}</h2>
-    <p class="mb-4 text-sm text-gray-500">{{ __('installer.finished_help') }}</p>
-    <a href="{{ url('/login') }}" class="block rounded-lg bg-brand-600 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-brand-700">{{ __('installer.go_to_login') }}</a>
+    <div class="py-6 text-center">
+        <span class="mx-auto grid size-16 place-items-center rounded-2xl bg-accent-50 text-accent-700 dark:bg-accent-900/40 dark:text-accent-200"><x-ui.icon name="check-circle" size="8" /></span>
+        <h2 class="display mt-5 text-2xl font-semibold">{{ __('installer.finished') }}</h2>
+        <p class="mx-auto mt-2 max-w-sm text-sm text-muted">{{ __('installer.finished_help') }}</p>
+        <a href="{{ url('/login') }}" class="btn btn-primary btn-lg mt-6">{{ __('installer.go_to_login') }}<x-ui.icon name="arrow-right" size="5" class="rtl:rotate-180" /></a>
+    </div>
 </x-installer::layout>

@@ -45,8 +45,14 @@ describe('landing page', function () {
         Plan::create(['name' => 'Starter', 'slug' => 'starter', 'interval' => 'monthly', 'price' => 19, 'currency_code' => 'USD', 'trial_days' => 14, 'limits' => ['products' => 50, 'tables' => null], 'features' => ['custom_domain' => true]]);
         Plan::create(['name' => 'Hidden', 'slug' => 'hidden', 'interval' => 'monthly', 'price' => 5, 'currency_code' => 'USD', 'is_active' => false]);
 
-        $this->get('/')->assertSee('Starter')->assertSee('19.00')->assertSee('14-day free trial')->assertSee('Custom domain')->assertSee('Unlimited')
+        $this->get('/')->assertSee('Starter')->assertSeeInOrder(['Starter', '19', 'USD'])->assertSee('14-day free trial')->assertSee('Custom domain')->assertSee('Unlimited')
             ->assertSee('register?plan=starter', false)->assertDontSee('Hidden');
+    });
+
+    it('shows fractional prices exactly, never rounded', function () {
+        Plan::create(['name' => 'Odd', 'slug' => 'odd', 'interval' => 'monthly', 'price' => 29.9, 'currency_code' => 'USD']);
+
+        $this->get('/')->assertSee('29.90');
     });
 
     it('points the buttons to login when registration is closed', function () {

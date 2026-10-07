@@ -1,23 +1,25 @@
 <x-layouts.admin :title="__('admin.nav.plans')">
-    <div class="mb-4 flex justify-end"><a href="{{ route('admin.plans.create') }}" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">{{ __('admin.plans.new') }}</a></div>
-    <x-ui.card class="overflow-x-auto">
-        <table class="w-full min-w-[560px] text-sm">
-            <thead class="text-gray-500"><tr><th class="py-2 text-start">{{ __('admin.plans.name') }}</th><th class="text-start">{{ __('admin.plans.price') }}</th><th class="text-start">{{ __('admin.plans.trial') }}</th><th class="text-start">{{ __('admin.plans.subscribers') }}</th><th class="text-start">{{ __('admin.status') }}</th><th></th></tr></thead>
-            <tbody>
-            @forelse ($plans as $plan)
-                <tr class="border-t border-gray-100 dark:border-gray-800">
-                    <td class="py-2 font-medium">{{ $plan->name }}@if ($plan->is_featured) <span class="text-xs text-brand-600">★</span>@endif</td>
-                    <td>{{ $plan->interval === 'free' ? __('billing.interval_free') : number_format((float) $plan->price, 2).' '.$plan->currency_code.' / '.__('billing.interval_'.$plan->interval) }}</td>
-                    <td>{{ $plan->trial_days ?: '—' }}</td>
-                    <td>{{ $plan->subscriptions_count }}</td>
-                    <td>{{ $plan->is_active ? __('admin.active') : __('admin.inactive') }}</td>
-                    <td class="text-end"><a class="text-brand-600 hover:underline" href="{{ route('admin.plans.edit', $plan) }}">{{ __('admin.edit') }}</a>
-                        <form method="POST" action="{{ route('admin.plans.destroy', $plan) }}" class="inline" onsubmit="return confirm('{{ __('admin.confirm') }}')">@csrf @method('DELETE')<button class="ms-2 text-red-600 hover:underline">{{ __('admin.delete') }}</button></form></td>
-                </tr>
-            @empty
-                <tr><td colspan="6" class="py-4 text-gray-500">{{ __('admin.empty') }}</td></tr>
-            @endforelse
-            </tbody>
-        </table>
-    </x-ui.card>
+    <x-ui.page-header :title="__('admin.nav.plans')" :description="__('admin.plans.description')">
+        <x-slot:actions><a href="{{ route('admin.plans.create') }}" class="btn btn-primary"><x-ui.icon name="plus" size="4" />{{ __('admin.plans.new') }}</a></x-slot:actions>
+    </x-ui.page-header>
+    <x-ui.table>
+        <thead><tr><th>{{ __('admin.plans.name') }}</th><th>{{ __('admin.plans.price') }}</th><th>{{ __('admin.plans.trial') }}</th><th>{{ __('admin.plans.subscribers') }}</th><th>{{ __('admin.status') }}</th><th></th></tr></thead>
+        <tbody>
+        @forelse ($plans as $plan)
+            <tr>
+                <td><span class="font-medium">{{ $plan->name }}</span> @if ($plan->is_featured)<x-ui.badge tone="warning">{{ __('admin.plans.featured') }}</x-ui.badge>@endif<span class="block text-xs text-muted">{{ $plan->slug }}</span></td>
+                <td class="tnum">{{ $plan->interval === 'free' ? __('billing.interval_free') : number_format((float) $plan->price, 2).' '.$plan->currency_code.' / '.__('billing.interval_'.$plan->interval) }}</td>
+                <td class="tnum">{{ $plan->trial_days ?: '—' }}</td>
+                <td class="tnum">{{ $plan->subscriptions_count }}</td>
+                <td><x-ui.status :value="$plan->is_active ? 'active' : 'inactive'" :label="$plan->is_active ? __('admin.active') : __('admin.inactive')" /></td>
+                <td class="whitespace-nowrap text-end">
+                    <a class="btn btn-ghost btn-sm" href="{{ route('admin.plans.edit', $plan) }}"><x-ui.icon name="pen" size="4" />{{ __('admin.edit') }}</a>
+                    <form method="POST" action="{{ route('admin.plans.destroy', $plan) }}" class="inline" onsubmit="return confirm('{{ __('admin.confirm') }}')">@csrf @method('DELETE')<button class="btn btn-ghost btn-sm text-red-600 dark:text-red-400" aria-label="{{ __('admin.delete') }}"><x-ui.icon name="trash" size="4" /></button></form>
+                </td>
+            </tr>
+        @empty
+            <tr class="hover:!bg-transparent"><td colspan="6"><x-ui.empty icon="layers" :title="__('admin.plans.empty_title')" :text="__('admin.plans.empty_text')"><a href="{{ route('admin.plans.create') }}" class="btn btn-primary">{{ __('admin.plans.new') }}</a></x-ui.empty></td></tr>
+        @endforelse
+        </tbody>
+    </x-ui.table>
 </x-layouts.admin>

@@ -1,32 +1,34 @@
 <x-layouts.admin :title="$ticket->subject">
-    <div class="mx-auto max-w-3xl space-y-4">
-        <a href="{{ route('admin.tickets.index') }}" class="text-sm text-brand-600 hover:underline">← {{ __('admin.nav.tickets') }}</a>
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-xl font-semibold">{{ $ticket->subject }}</h1>
-                <p class="text-sm text-gray-500">
-                    @if ($restaurant)<a class="text-brand-600 hover:underline" href="{{ route('admin.restaurants.show', $restaurant->id) }}">{{ $restaurant->name }}</a>@endif
-                    · {{ $ticket->user?->name }} · {{ __('support.priority_'.$ticket->priority) }}
-                </p>
-            </div>
-            <span class="rounded-full bg-gray-200 px-3 py-1 text-xs dark:bg-gray-800">{{ __('support.status_'.$ticket->status) }}</span>
+    <x-ui.page-header :title="$ticket->subject" :back="['url' => route('admin.tickets.index'), 'label' => __('admin.nav.tickets')]">
+        <x-slot:actions><x-ui.status :value="$ticket->status" :label="__('support.status_'.$ticket->status)" /></x-slot:actions>
+    </x-ui.page-header>
+    <div class="grid gap-5 lg:grid-cols-3">
+        <div class="space-y-5 lg:col-span-2">
+            @include('support::thread', ['ticket' => $ticket])
+            <form method="POST" action="{{ route('admin.tickets.reply', $ticket->id) }}">
+                @csrf
+                <x-ui.card class="space-y-3">
+                    <label for="message" class="block text-sm font-medium">{{ __('support.your_reply') }}</label>
+                    <textarea id="message" name="message" rows="5" required class="field">{{ old('message') }}</textarea>
+                    @error('message')<p class="text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
+                    <div class="flex gap-2">
+                        <x-ui.button :block="false" icon="arrow-right">{{ __('support.send') }}</x-ui.button>
+                        @if ($ticket->isClosed())
+                            <x-ui.button variant="secondary" :block="false" formaction="{{ route('admin.tickets.reopen', $ticket->id) }}" formnovalidate>{{ __('admin.tickets.reopen') }}</x-ui.button>
+                        @else
+                            <x-ui.button variant="secondary" :block="false" formaction="{{ route('admin.tickets.close', $ticket->id) }}" formnovalidate>{{ __('support.close') }}</x-ui.button>
+                        @endif
+                    </div>
+                </x-ui.card>
+            </form>
         </div>
-        @include('support::thread', ['ticket' => $ticket])
-        <form method="POST" action="{{ route('admin.tickets.reply', $ticket->id) }}">
-            @csrf
-            <x-ui.card class="space-y-3">
-                <label for="message" class="block text-sm font-medium">{{ __('support.your_reply') }}</label>
-                <textarea id="message" name="message" rows="5" required class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-950">{{ old('message') }}</textarea>
-                @error('message')<p class="text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
-                <div class="flex gap-2">
-                    <x-ui.button class="!w-auto">{{ __('support.send') }}</x-ui.button>
-                    @if ($ticket->isClosed())
-                        <x-ui.button variant="secondary" class="!w-auto" formaction="{{ route('admin.tickets.reopen', $ticket->id) }}" formnovalidate>{{ __('admin.tickets.reopen') }}</x-ui.button>
-                    @else
-                        <x-ui.button variant="secondary" class="!w-auto" formaction="{{ route('admin.tickets.close', $ticket->id) }}" formnovalidate>{{ __('support.close') }}</x-ui.button>
-                    @endif
-                </div>
-            </x-ui.card>
-        </form>
+        <x-ui.card :title="__('admin.tickets.details')">
+            <dl class="space-y-3 text-sm">
+                <div><dt class="eyebrow">{{ __('admin.restaurants.name') }}</dt><dd class="mt-0.5">@if ($restaurant)<a class="link" href="{{ route('admin.restaurants.show', $restaurant->id) }}">{{ $restaurant->name }}</a>@endif</dd></div>
+                <div><dt class="eyebrow">{{ __('admin.tickets.opened_by') }}</dt><dd class="mt-0.5">{{ $ticket->user?->name }}<span class="block text-xs text-muted">{{ $ticket->user?->email }}</span></dd></div>
+                <div><dt class="eyebrow">{{ __('support.priority') }}</dt><dd class="mt-0.5">{{ __('support.priority_'.$ticket->priority) }}</dd></div>
+                <div><dt class="eyebrow">{{ __('admin.tickets.opened') }}</dt><dd class="mt-0.5">{{ $ticket->created_at->toDayDateTimeString() }}</dd></div>
+            </dl>
+        </x-ui.card>
     </div>
 </x-layouts.admin>

@@ -5,6 +5,7 @@ return [
     'current_version' => 'Installed version: :version',
     'upload' => 'Upload an update package',
     'upload_help' => 'Only upload packages obtained from the vendor. Packages are signature-checked before anything is changed.',
+    'choose_file' => 'Choose the update package',
     'check_package' => 'Check package',
     'history' => 'Update history',
     'version' => 'Version',

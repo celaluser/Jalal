@@ -1,11 +1,9 @@
-<x-layouts.guest :title="__('auth.forgot_password')">
-    <h1 class="mb-2 text-xl font-semibold">{{ __('auth.forgot_password') }}</h1>
-    <p class="mb-4 text-sm text-gray-500">{{ __('auth.forgot_help') }}</p>
-    @if (session('status'))<x-ui.alert>{{ session('status') }}</x-ui.alert>@endif
+<x-layouts.guest :title="__('auth.forgot_password')" :heading="__('auth.forgot_password')" :subheading="__('auth.forgot_help')">
     <form method="POST" action="{{ route('password.email') }}" class="space-y-4">
         @csrf
         <x-ui.input name="email" type="email" :label="__('auth.email')" required autofocus />
         <x-recaptcha />
-        <x-ui.button>{{ __('auth.send_reset_link') }}</x-ui.button>
+        <x-ui.button size="lg">{{ __('auth.send_reset_link') }}</x-ui.button>
     </form>
+    <p class="text-center text-sm"><a class="link" href="{{ route('login') }}">← {{ __('auth.login') }}</a></p>
 </x-layouts.guest>

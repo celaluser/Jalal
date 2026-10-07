@@ -8,6 +8,8 @@ return [
     'step_database' => 'Veritabanı',
     'step_admin' => 'Yönetici hesabı',
     'step_finish' => 'Bitiş',
+    'requirements_help' => 'Kuruluma devam edebilmek için sunucunuz bu gereksinimleri karşılamalı.',
+    'admin_help' => 'Bu hesap platform sahibi (süper yönetici) olur.',
     'next' => 'Devam',
     'recheck' => 'Tekrar kontrol et',
     'requirements_failed' => 'Bazı gereksinimler karşılanmıyor. Düzeltip tekrar kontrol edin.',
