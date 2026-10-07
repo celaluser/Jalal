@@ -76,6 +76,27 @@ class Restaurant extends Model
         return $currency ? $currency->format($amount) : number_format((float) $amount, 2);
     }
 
+    /**
+     * Address customers use: verified custom domain, then subdomain, then the always-working /r/{slug}.
+     * Honors the platform switches so a disabled feature never produces a dead link.
+     */
+    public function publicUrl(string $path = ''): string
+    {
+        $path = ltrim($path, '/');
+        $secure = str_starts_with((string) config('app.url'), 'https');
+        $scheme = $secure ? 'https' : 'http';
+
+        if (config('tenancy.custom_domains_enabled') && $this->custom_domain && $this->domain_verified_at) {
+            return "{$scheme}://{$this->custom_domain}".($path !== '' ? "/{$path}" : '');
+        }
+
+        if (config('tenancy.subdomains_enabled') && config('tenancy.base_domain') && $this->subdomain) {
+            return "{$scheme}://{$this->subdomain}.".config('tenancy.base_domain').($path !== '' ? "/{$path}" : '');
+        }
+
+        return url('/'.config('tenancy.path_prefix').'/'.$this->slug.($path !== '' ? "/{$path}" : ''));
+    }
+
     public function isOnboarded(): bool
     {
         return $this->onboarded_at !== null;

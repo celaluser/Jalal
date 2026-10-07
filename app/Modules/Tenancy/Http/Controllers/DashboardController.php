@@ -29,7 +29,7 @@ class DashboardController extends Controller
             'restaurant' => $restaurant,
             'subscription' => $subscription,
             'plan' => $subscription?->plan,
-            'menuUrl' => $restaurant ? url('/r/'.$restaurant->slug) : null,
+            'menuUrl' => $restaurant ? $restaurant->publicUrl() : null,
             'limits' => Plan::LIMITS,
             'features' => Plan::FEATURES,
         ]);

@@ -46,4 +46,16 @@ return [
         'nuts' => 'Tree nuts', 'celery' => 'Celery', 'mustard' => 'Mustard', 'sesame' => 'Sesame', 'sulphites' => 'Sulphites', 'lupin' => 'Lupin', 'molluscs' => 'Molluscs',
     ],
     'diet' => ['vegetarian' => 'Vegetarian', 'vegan' => 'Vegan', 'halal' => 'Halal', 'kosher' => 'Kosher', 'gluten_free' => 'Gluten-free', 'spicy' => 'Spicy'],
+    'appearance' => [
+        'title' => 'Appearance', 'subtitle' => 'Choose how your menu looks to customers.',
+        'theme' => 'Theme', 'font' => 'Font', 'layout' => 'Product layout', 'radius' => 'Corners', 'show_images' => 'Show product photos',
+        'hide_credit' => 'Hide "Powered by" line', 'hide_credit_locked' => 'Available on plans with branding removal.',
+        'brand_note' => 'Buttons and highlights use your brand colour. Change it in Restaurant profile.',
+        'preview' => 'Live preview',
+        'themes' => ['classic' => 'Classic', 'modern' => 'Modern', 'midnight' => 'Midnight', 'fresh' => 'Fresh', 'minimal' => 'Minimal'],
+        'fonts' => ['sans' => 'Clean (Inter)', 'display' => 'Friendly (Bricolage)', 'serif' => 'Elegant (serif)'],
+        'layouts' => ['list' => 'List', 'cards' => 'Cards', 'grid' => 'Grid'],
+        'radii' => ['sharp' => 'Sharp', 'soft' => 'Soft', 'round' => 'Round'],
+        'sample_item' => 'Sample dish', 'sample_text' => 'A short, tasty description.', 'add' => 'Add',
+    ],
 ];

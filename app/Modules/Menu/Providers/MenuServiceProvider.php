@@ -19,6 +19,8 @@ class MenuServiceProvider extends ServiceProvider
         RestaurantNav::add('menu', 'panel.nav.menu', 'menu.index', 'menu.index|menu.categories.*|menu.products.*', icon: 'store', can: 'menu.manage');
         RestaurantNav::add('menu', 'panel.nav.options', 'menu.option-groups.index', 'menu.option-groups.*', icon: 'sliders', can: 'menu.manage');
 
+        RestaurantNav::add('settings', 'panel.nav.appearance', 'appearance.edit', icon: 'layout', can: 'settings.manage');
+
         // Plan usage: these counters feed the bars and warnings on the subscription page.
         UsageRegistry::register('products', fn () => Product::count());
         UsageRegistry::register('categories', fn () => Category::count());

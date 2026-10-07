@@ -13,6 +13,8 @@ return [
         'group_settings' => 'Settings',
         'menu' => 'Menu',
         'options' => 'Options & extras',
+        'appearance' => 'Appearance',
+        'tables' => 'Tables & QR',
         'restaurant' => 'Restaurant profile',
         'subscription' => 'Subscription',
     ],

@@ -28,7 +28,7 @@ class OnboardingController extends Controller
             'step' => $step,
             'restaurant' => $restaurant,
             'profile' => $this->profile,
-            'menuUrl' => url('/r/'.$restaurant->slug),
+            'menuUrl' => $restaurant->publicUrl(),
             'plan' => $subscriptions->current($restaurant)?->plan,
         ]);
     }

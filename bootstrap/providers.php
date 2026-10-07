@@ -10,6 +10,7 @@ use App\Modules\Installer\Providers\InstallerServiceProvider;
 use App\Modules\Licensing\Providers\LicensingServiceProvider;
 use App\Modules\Menu\Providers\MenuServiceProvider;
 use App\Modules\Support\Providers\SupportServiceProvider;
+use App\Modules\Tables\Providers\TablesServiceProvider;
 use App\Modules\Tenancy\Providers\TenancyServiceProvider;
 use App\Modules\Updater\Providers\UpdaterServiceProvider;
 use App\Providers\AppServiceProvider;
@@ -23,6 +24,7 @@ return [
     CmsServiceProvider::class,
     SupportServiceProvider::class,
     MenuServiceProvider::class,
+    TablesServiceProvider::class,
     AuthServiceProvider::class,
     LicensingServiceProvider::class,
     InstallerServiceProvider::class,

@@ -31,7 +31,7 @@ final class Permissions
         return [
             self::OWNER => ['*'],
             self::MANAGER => [
-                'menu.manage', 'orders.view', 'orders.manage', 'tables.manage', 'staff.view',
+                'menu.manage', 'orders.view', 'orders.manage', 'tables.manage', 'tables.view', 'staff.view',
                 'reports.view', 'customers.view', 'marketing.manage', 'settings.view', 'support.manage',
             ],
             self::WAITER => ['orders.view', 'orders.create', 'tables.view'],

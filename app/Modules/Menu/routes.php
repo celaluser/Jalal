@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Core\Http\Middleware\SetLocale;
+use App\Modules\Menu\Http\Controllers\AppearanceController;
 use App\Modules\Menu\Http\Controllers\CategoryController;
 use App\Modules\Menu\Http\Controllers\MenuController;
 use App\Modules\Menu\Http\Controllers\OptionGroupController;
@@ -21,3 +22,8 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
 
         Route::post('reorder/{type}', ReorderController::class)->where('type', 'categories|products|options|option-groups')->name('reorder');
     });
+
+Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', 'permission:settings.manage'])->group(function () {
+    Route::get('/appearance', [AppearanceController::class, 'edit'])->name('appearance.edit');
+    Route::put('/appearance', [AppearanceController::class, 'update'])->name('appearance.update');
+});
