@@ -9,6 +9,7 @@ use App\Modules\Menu\Models\OptionGroup;
 use App\Modules\Menu\Models\Product;
 use App\Modules\Menu\Services\MenuImage;
 use App\Modules\Menu\Services\MenuService;
+use App\Modules\Storefront\Services\MenuCache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -157,5 +158,6 @@ class ProductController extends Controller
     {
         $ids = array_values(array_unique(array_map('intval', $request->input('option_groups', []))));
         $product->optionGroups()->sync(collect($ids)->mapWithKeys(fn ($id, $i) => [$id => ['sort' => $i]])->all());
+        MenuCache::bump($product->restaurant_id); // pivot changes fire no model events
     }
 }

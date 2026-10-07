@@ -202,3 +202,25 @@
 .article pre { background: var(--color-ink-950); color: #eceef2; padding: 1.1em 1.25em; border-radius: 1rem; overflow-x: auto; }
 .article pre code { background: none; padding: 0; }
 .article hr { border-color: var(--line); margin-block: 2.5em; }
+
+/*
+ * Customer menu. Colours, radius and font come from the restaurant's theme (ThemeRegistry::css()),
+ * so these classes never hard-code a palette.
+ */
+.menu-page { background: var(--menu-bg); color: var(--menu-fg); font-family: var(--menu-font); -webkit-font-smoothing: antialiased; }
+.menu-surface { background: var(--menu-surface); }
+.menu-card { background: var(--menu-surface); border: 1px solid var(--menu-line); border-radius: var(--menu-radius); }
+.menu-line { border-color: var(--menu-line); }
+.menu-muted { color: var(--menu-muted); }
+.menu-accent { background: var(--menu-accent); color: var(--menu-accent-fg); }
+.menu-accent-text { color: var(--menu-accent); }
+.menu-btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; border-radius: var(--menu-radius); padding: .625rem 1rem; font-weight: 600; font-size: .9rem; background: var(--menu-accent); color: var(--menu-accent-fg); transition: filter .15s, opacity .15s; }
+.menu-btn:hover:not(:disabled) { filter: brightness(1.06); }
+.menu-btn:disabled { opacity: .45; cursor: not-allowed; }
+.menu-btn-quiet { background: transparent; color: var(--menu-fg); border: 1px solid var(--menu-line); }
+.menu-chip { display: inline-flex; align-items: center; gap: .35rem; border-radius: 999px; border: 1px solid var(--menu-line); padding: .35rem .8rem; font-size: .8rem; font-weight: 500; white-space: nowrap; background: var(--menu-surface); }
+.menu-chip[aria-pressed='true'], .menu-chip[aria-current='true'] { background: var(--menu-fg); color: var(--menu-bg); border-color: var(--menu-fg); }
+.menu-radius { border-radius: var(--menu-radius); }
+.menu-page :focus-visible { outline: 2px solid var(--menu-accent); outline-offset: 2px; }
+.menu-scroll::-webkit-scrollbar { display: none; }
+.menu-scroll { scrollbar-width: none; }

@@ -8,6 +8,7 @@ use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\Option;
 use App\Modules\Menu\Models\OptionGroup;
 use App\Modules\Menu\Models\Product;
+use App\Modules\Storefront\Services\MenuCache;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -49,6 +50,8 @@ class MenuService
                 $class::whereKey($id)->update(['sort' => $position + 1]);
             }
         });
+
+        MenuCache::bump($this->tenant->id()); // query-builder updates fire no model events
     }
 
     /** A copy placed right after the original, hidden until the owner has reviewed it. */
@@ -63,6 +66,7 @@ class MenuService
 
             Product::where('category_id', $product->category_id)->where('sort', '>=', $copy->sort)->where('id', '!=', $copy->id)->increment('sort');
             $copy->optionGroups()->sync($product->optionGroups->mapWithKeys(fn ($g) => [$g->id => ['sort' => $g->pivot->sort]])->all());
+            MenuCache::bump($product->restaurant_id);
 
             return $copy;
         });

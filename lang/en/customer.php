@@ -1,0 +1,24 @@
+<?php
+
+return [
+    'meta_description' => 'Menu of :name. Browse dishes, filter by diet and allergens, and build your order.',
+    'table' => 'Table :name', 'table_invalid' => 'This table code is no longer valid. You can still browse the menu.',
+    'language' => 'Language', 'search' => 'Search the menu', 'search_placeholder' => 'Search dishes', 'clear' => 'Clear',
+    'filters' => 'Filters', 'diet' => 'Diet', 'avoid_allergens' => 'Hide dishes containing', 'reset_filters' => 'Reset filters',
+    'no_results_title' => 'Nothing matches', 'no_results_text' => 'Try a different word or clear some filters.',
+    'empty_title' => 'The menu is being prepared', 'empty_text' => 'Please check back soon.',
+    'sold_out' => 'Sold out', 'featured' => 'Popular', 'add' => 'Add', 'choose' => 'Choose',
+    'calories' => ':count kcal', 'minutes' => ':count min', 'contains' => 'Contains', 'on_sale' => 'Offer',
+    'required' => 'Required', 'optional' => 'Optional', 'choose_one' => 'Choose 1', 'choose_up_to' => 'Choose up to :count',
+    'quantity' => 'Quantity', 'increase' => 'Increase quantity', 'decrease' => 'Decrease quantity', 'note' => 'Note for the kitchen', 'note_placeholder' => 'No onions, extra sauce…',
+    'add_to_cart' => 'Add to order', 'update_cart' => 'Update order', 'close' => 'Close',
+    'cart' => 'Your order', 'view_cart' => 'View order', 'items' => '{1} 1 item|[2,*] :count items', 'subtotal' => 'Subtotal', 'remove' => 'Remove', 'edit' => 'Edit',
+    'cart_empty_title' => 'Your order is empty', 'cart_empty_text' => 'Add dishes from the menu.',
+    'checking' => 'Checking prices…', 'offline_total' => 'Prices will be confirmed when you order.',
+    'place_order' => 'Place order', 'ordering_soon' => 'Online ordering opens soon. Show this list to your server.',
+    'error_sold_out' => 'This item is sold out.', 'error_unavailable' => 'This item is no longer on the menu.', 'error_option_required' => 'Choose an option.',
+    'error_option_unavailable' => 'An option is unavailable.', 'error_invalid_option' => 'An option is no longer available.', 'error_too_many_options' => 'Too many options chosen.', 'error_quantity' => 'Check the quantity.',
+    'fix_cart' => 'Some items need your attention before you can order.',
+    'unavailable_title' => 'This menu is taking a break', 'unavailable_text' => 'The restaurant\'s online menu is temporarily unavailable. Please ask the staff for a printed menu.',
+    'powered_by' => 'Powered by :name',
+];

@@ -8,7 +8,10 @@ use App\Modules\Cms\Models\BlogPost;
 use App\Modules\Cms\Models\Page;
 use App\Modules\Cms\Services\LandingContent;
 use App\Modules\Core\Services\SettingsService;
+use App\Modules\Storefront\Http\Controllers\PublicMenuController;
+use App\Modules\Tenancy\Services\TenantResolver;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
 
@@ -18,8 +21,13 @@ use Illuminate\View\View;
  */
 class SiteController extends Controller
 {
-    public function landing(LandingContent $landing, SettingsService $settings): View
+    public function landing(Request $request, LandingContent $landing, SettingsService $settings, TenantResolver $tenants): View|Response
     {
+        // A restaurant's own domain shows its menu instead of the SaaS landing page.
+        if ($restaurant = $tenants->fromHost($request)) {
+            return app(PublicMenuController::class)->host($request, $restaurant);
+        }
+
         return view('cms::site.landing', [
             'c' => $landing->for(app()->getLocale()),
             'plans' => Plan::active()->get(),

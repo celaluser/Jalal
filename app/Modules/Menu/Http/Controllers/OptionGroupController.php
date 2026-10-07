@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Menu\Models\Option;
 use App\Modules\Menu\Models\OptionGroup;
 use App\Modules\Menu\Services\MenuService;
+use App\Modules\Storefront\Services\MenuCache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -126,5 +127,6 @@ class OptionGroupController extends Controller
         }
 
         $group->options()->whereNotIn('id', $keep)->delete();
+        MenuCache::bump($group->restaurant_id); // bulk delete fires no model events
     }
 }
