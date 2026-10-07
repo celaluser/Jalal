@@ -5,6 +5,7 @@ return [
         'group_main' => 'Overview',
         'group_help' => 'Help',
         'dashboard' => 'Dashboard',
+        'domains' => 'Domains',
         'support' => 'Support',
         'group_menu' => 'Menu',
         'group_orders' => 'Orders',

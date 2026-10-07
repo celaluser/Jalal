@@ -17,6 +17,21 @@
                 </form>
             </x-ui.card>
 
+            <x-ui.card :title="__('domains.title')">
+                <form method="POST" action="{{ route('admin.restaurants.domain', $restaurant->id) }}" class="grid gap-4 sm:grid-cols-2">
+                    @csrf @method('PUT')
+                    @error('domain')<div class="sm:col-span-2"><x-ui.alert type="error">{{ $message }}</x-ui.alert></div>@enderror
+                    <x-ui.input name="subdomain" :label="__('domains.subdomain')" :value="$restaurant->subdomain" />
+                    <x-ui.input name="custom_domain" :label="__('domains.custom_domain')" :value="$restaurant->custom_domain" />
+                    <label class="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="verified" value="1" @checked($restaurant->domain_verified_at) class="size-4 accent-[var(--color-accent-600)]"> {{ __('domains.verified_manual') }}</label>
+                    <div class="flex flex-wrap gap-2 sm:col-span-2">
+                        <x-ui.button :block="false">{{ __('admin.save') }}</x-ui.button>
+                        @if ($restaurant->custom_domain)<button type="submit" form="verify-domain" class="btn btn-secondary">{{ __('domains.check_dns') }}</button>@endif
+                    </div>
+                </form>
+                @if ($restaurant->custom_domain)<form id="verify-domain" method="POST" action="{{ route('admin.restaurants.domain.verify', $restaurant->id) }}">@csrf</form>@endif
+            </x-ui.card>
+
             <x-ui.card :title="__('admin.restaurants.subscription')" :description="$subscription ? $subscription->plan->name.' · '.__('admin.subscriptions.status_'.$subscription->status).($subscription->ends_at ? ' · '.__('admin.subscriptions.ends').' '.$subscription->ends_at->toDateString() : '') : __('admin.restaurants.no_subscription')">
                 <form method="POST" action="{{ route('admin.subscriptions.store') }}" class="grid items-end gap-4 sm:grid-cols-4">
                     @csrf

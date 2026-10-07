@@ -32,6 +32,8 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
         Route::get('restaurants', [RestaurantController::class, 'index'])->name('restaurants.index');
         Route::get('restaurants/{restaurant}', [RestaurantController::class, 'show'])->name('restaurants.show');
         Route::put('restaurants/{restaurant}', [RestaurantController::class, 'update'])->name('restaurants.update');
+        Route::put('restaurants/{restaurant}/domain', [RestaurantController::class, 'domain'])->name('restaurants.domain');
+        Route::post('restaurants/{restaurant}/domain/verify', [RestaurantController::class, 'verifyDomain'])->name('restaurants.domain.verify');
         Route::post('restaurants/{restaurant}/suspend', [RestaurantController::class, 'suspend'])->name('restaurants.suspend');
         Route::post('restaurants/{restaurant}/unsuspend', [RestaurantController::class, 'unsuspend'])->name('restaurants.unsuspend');
         Route::delete('restaurants/{restaurant}', [RestaurantController::class, 'destroy'])->name('restaurants.destroy');

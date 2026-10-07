@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Core\Http\Middleware\SetLocale;
+use App\Modules\Tenancy\Http\Controllers\DomainController;
 use App\Modules\Tenancy\Http\Controllers\OnboardingController;
 use App\Modules\Tenancy\Http\Controllers\RestaurantSettingsController;
 use Illuminate\Support\Facades\Route;
@@ -14,4 +15,9 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
     Route::get('/settings/restaurant', [RestaurantSettingsController::class, 'edit'])->name('restaurant.settings');
     Route::put('/settings/restaurant/profile', [RestaurantSettingsController::class, 'updateProfile'])->name('restaurant.settings.profile');
     Route::post('/settings/restaurant/branding', [RestaurantSettingsController::class, 'updateBranding'])->middleware('throttle:20,1')->name('restaurant.settings.branding');
+
+    Route::get('/settings/domains', [DomainController::class, 'index'])->name('domains.index');
+    Route::put('/settings/domains/subdomain', [DomainController::class, 'subdomain'])->middleware('throttle:20,1')->name('domains.subdomain');
+    Route::put('/settings/domains/custom', [DomainController::class, 'customDomain'])->middleware('throttle:20,1')->name('domains.custom');
+    Route::post('/settings/domains/verify', [DomainController::class, 'verify'])->middleware('throttle:10,1')->name('domains.verify');
 });

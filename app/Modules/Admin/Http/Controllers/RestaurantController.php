@@ -8,10 +8,12 @@ use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Models\Subscription;
 use App\Modules\Billing\Services\SubscriptionService;
 use App\Modules\Tenancy\Models\Restaurant;
+use App\Modules\Tenancy\Services\DomainService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use InvalidArgumentException;
 
 class RestaurantController extends Controller
 {
@@ -72,6 +74,30 @@ class RestaurantController extends Controller
         $restaurant->update($data);
 
         return back()->with('status', __('admin.saved'));
+    }
+
+    /** Platform owner override: set or fix an address, and mark it verified by hand (e.g. after checking DNS elsewhere). */
+    public function domain(Request $request, Restaurant $restaurant, DomainService $domains): RedirectResponse
+    {
+        $data = $request->validate(['subdomain' => ['nullable', 'string', 'max:40'], 'custom_domain' => ['nullable', 'string', 'max:255'], 'verified' => ['nullable', 'boolean']]);
+
+        try {
+            $domains->setSubdomain($restaurant, $data['subdomain'] ?? null, force: true);
+            $domains->setCustomDomain($restaurant, $data['custom_domain'] ?? null, force: true);
+        } catch (InvalidArgumentException $e) {
+            return back()->withInput()->withErrors(['domain' => __('domains.error_'.$e->getMessage())]);
+        }
+
+        if ($restaurant->custom_domain) {
+            $request->boolean('verified') ? $restaurant->forceFill(['domain_verified_at' => $restaurant->domain_verified_at ?? now()])->save() : $domains->unverify($restaurant);
+        }
+
+        return back()->with('status', __('admin.saved'));
+    }
+
+    public function verifyDomain(Restaurant $restaurant, DomainService $domains): RedirectResponse
+    {
+        return $domains->verify($restaurant) ? back()->with('status', __('domains.verified_now')) : back()->withErrors(['domain' => __('domains.not_found_yet')]);
     }
 
     public function suspend(Restaurant $restaurant): RedirectResponse
