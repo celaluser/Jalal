@@ -32,3 +32,12 @@
         @error('locale')<p class="mt-1.5 text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
     </div>
 </div>
+<fieldset>
+    <legend class="mb-1.5 text-sm font-medium">{{ __('onboarding.menu_languages') }}</legend>
+    <div class="flex flex-wrap gap-x-5 gap-y-2">
+        @foreach ($profile->languages() as $code => $label)
+            <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="menu_locales[]" value="{{ $code }}" class="check" @checked(in_array($code, old('menu_locales', $restaurant->menuLocales())))>{{ $label }}</label>
+        @endforeach
+    </div>
+    <p class="mt-1.5 text-xs text-muted">{{ __('onboarding.menu_languages_hint') }}</p>
+</fieldset>

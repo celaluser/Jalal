@@ -17,6 +17,7 @@ abstract class NavRegistry
 
     /**
      * @param  array<string, string>  $params  route parameters when the target needs them
+     * @param  string|null  $active  route pattern(s) marking the entry as current; separate several with |
      * @param  string|null  $can  permission required to see the entry
      */
     public static function add(string $group, string $labelKey, string $route, ?string $active = null, array $params = [], ?string $icon = null, ?string $can = null): void
@@ -29,7 +30,8 @@ abstract class NavRegistry
      */
     public static function groups(): array
     {
-        return static::$groups;
+        // Sections nobody has added to (yet) are not shown.
+        return array_filter(static::$groups);
     }
 
     public static function flush(): void

@@ -3,6 +3,7 @@
 namespace App\Modules\Tenancy\Models;
 
 use App\Models\User;
+use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Models\Media;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +31,7 @@ class Restaurant extends Model
             'domain_verified_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'onboarded_at' => 'datetime',
+            'menu_locales' => 'array',
             'suspended_at' => 'datetime',
         ];
     }
@@ -54,6 +56,24 @@ class Restaurant extends Model
         $color = $this->branding['color'] ?? null;
 
         return is_string($color) && preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? $color : '#ffb020';
+    }
+
+    /**
+     * Languages customers can pick on the menu, default language first.
+     *
+     * @return list<string>
+     */
+    public function menuLocales(): array
+    {
+        return array_values(array_unique(array_merge([$this->locale ?: config('app.default_locale', 'en')], (array) $this->menu_locales)));
+    }
+
+    /** Format a price with the restaurant's currency (symbol, position, separators). */
+    public function money(float|int|string $amount): string
+    {
+        $currency = $this->currency_code ? Currency::where('code', $this->currency_code)->first() : null;
+
+        return $currency ? $currency->format($amount) : number_format((float) $amount, 2);
     }
 
     public function isOnboarded(): bool

@@ -31,6 +31,8 @@ class RestaurantProfile
             'currency_code' => ['nullable', Rule::in($this->currencies()->keys()->all())],
             'timezone' => ['required', Rule::in(DateTimeZone::listIdentifiers())],
             'locale' => ['required', Rule::in($this->languages()->keys()->all())],
+            'menu_locales' => ['nullable', 'array'],
+            'menu_locales.*' => ['string', Rule::in($this->languages()->keys()->all())],
         ];
     }
 
@@ -47,7 +49,11 @@ class RestaurantProfile
     /** @param array<string, mixed> $data validated with profileRules() */
     public function saveProfile(Restaurant $restaurant, array $data): void
     {
-        $restaurant->update(array_intersect_key($data, $this->profileRules()));
+        $attributes = array_intersect_key($data, $this->profileRules());
+        // The default language is always offered to customers.
+        $attributes['menu_locales'] = array_values(array_unique(array_merge([$data['locale']], $data['menu_locales'] ?? [])));
+
+        $restaurant->update($attributes);
     }
 
     /** @param array<string, mixed> $data validated with brandingRules() */

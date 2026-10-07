@@ -27,4 +27,6 @@ return [
     'welcome_done' => 'You are all set. Welcome aboard!',
     'settings_title' => 'Restaurant profile',
     'settings_sub' => 'Details and branding of your restaurant.',
+    'menu_languages' => 'Menu languages',
+    'menu_languages_hint' => 'Customers can switch between these languages. Your menu language is always included.',
 ];
