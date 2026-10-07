@@ -90,8 +90,48 @@
                     </li>
                 </template>
             </ul>
+            <p class="menu-accent-text mt-3 flex justify-between text-sm font-semibold" x-show="s.discount" x-cloak><span x-text="@js(__('marketing.promo_discount')) + ' · ' + (s.discount ? s.discount.code : '')"></span><span class="tnum" x-text="s.discount ? '−' + s.discount.amount : ''"></span></p>
             <div class="menu-line mt-3 flex items-baseline justify-between border-t pt-3 text-lg font-bold"><span>{{ __('orders.total') }}</span><span class="tnum" x-text="s.total"></span></div>
             <p class="mt-2 text-sm"><span class="rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="s.paid ? 'menu-accent' : 'menu-surface border menu-line'" x-text="s.paid ? @js(__('orders.paid')) : @js(__('orders.unpaid'))"></span></p>
+        </section>
+
+        {{-- Loyalty reward earned by this order --}}
+        <section class="menu-card p-5 text-center" x-show="s.reward" x-cloak>
+            <p class="display text-xl font-bold">{{ __('marketing.reward_earned') }}</p>
+            <p class="menu-muted mt-1 text-sm">{{ __('marketing.reward_earned_text') }}</p>
+            <p class="menu-accent mx-auto mt-4 inline-block rounded-xl px-5 py-3 font-mono text-xl font-bold tracking-widest" dir="ltr" x-text="s.reward ? s.reward.code : ''"></p>
+            <p class="mt-2 text-sm font-semibold menu-accent-text" x-text="s.reward ? s.reward.text : ''"></p>
+            <p class="menu-muted mt-1 text-xs" x-text="s.reward ? @js(__('marketing.reward_valid_until', ['date' => ':date'])).replace(':date', s.reward.until) : ''"></p>
+        </section>
+
+        {{-- Feedback --}}
+        @if (session('review_thanks'))<p class="menu-card menu-accent-text p-4 text-center font-semibold" role="status">{{ __('marketing.rate_thanks') }}</p>@endif
+        <section class="menu-card p-5" x-show="s.review && (s.review.open || s.review.rating)" x-cloak x-data="{ rating: 0 }">
+            <template x-if="s.review && s.review.open">
+                <form method="POST" action="{{ $reviewUrl }}" class="space-y-3">
+                    @csrf
+                    <div><h2 class="display text-xl font-bold">{{ __('marketing.rate_title') }}</h2><p class="menu-muted text-sm">{{ __('marketing.rate_sub') }}</p></div>
+                    @if ($errors->has('review'))<p class="text-sm font-medium text-red-600" role="alert">{{ $errors->first('review') }}</p>@endif
+                    <div class="flex justify-center gap-1" role="radiogroup" aria-label="{{ __('marketing.rate_title') }}">
+                        @for ($i = 1; $i <= 5; $i++)
+                            <button type="button" role="radio" :aria-checked="rating === {{ $i }}" aria-label="{{ trans_choice('marketing.stars', $i, ['count' => $i]) }}" class="menu-accent-text p-1 transition active:scale-90" x-on:click="rating = {{ $i }}">
+                                <svg class="size-9" :class="rating >= {{ $i }} ? 'fill-current' : 'fill-none opacity-40'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>
+                            </button>
+                        @endfor
+                    </div>
+                    <input type="hidden" name="rating" :value="rating">
+                    <textarea name="comment" rows="3" maxlength="1000" class="menu-card w-full px-3 py-2.5" placeholder="{{ __('marketing.rate_comment') }}" aria-label="{{ __('marketing.rate_comment') }}"></textarea>
+                    <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="is_public" value="1" checked class="mt-0.5 size-4 shrink-0 accent-[var(--menu-accent)]"><span>{{ __('marketing.rate_public') }}</span></label>
+                    <button class="menu-btn w-full !py-3" :disabled="!rating">{{ __('marketing.rate_send') }}</button>
+                </form>
+            </template>
+            <template x-if="s.review && !s.review.open && s.review.rating">
+                <div>
+                    <p class="font-bold">{{ __('marketing.rate_yours') }}</p>
+                    <p class="menu-accent-text mt-1 text-2xl tracking-wider" aria-hidden="true" x-text="'★'.repeat(s.review.rating) + '☆'.repeat(5 - s.review.rating)"></p>
+                    <div class="menu-line mt-3 border-t pt-3 text-sm" x-show="s.review.reply"><p class="menu-muted text-xs font-semibold uppercase">{{ __('marketing.rate_reply') }}</p><p x-text="s.review.reply"></p></div>
+                </div>
+            </template>
         </section>
 
         <a href="{{ $menuUrl }}" class="menu-btn w-full !py-3.5" x-show="!s.open || true">{{ __('orders.order_more') }}</a>

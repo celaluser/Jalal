@@ -47,6 +47,7 @@
                         <h1 class="display truncate text-2xl font-bold leading-tight">{{ $restaurant->name }}</h1>
                         @if ($table)<p class="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-black/15 px-2.5 py-0.5 text-sm font-semibold"><x-ui.icon name="qr" size="4" />{{ table_label($table['name']) }}</p>
                         @elseif ($restaurant->city)<p class="truncate text-sm opacity-80">{{ $restaurant->city }}</p>@endif
+                        @if ($rating)<p class="mt-1 inline-flex items-center gap-1 text-sm font-semibold" aria-label="{{ trans_choice('marketing.review_count', $rating['count'], ['count' => $rating['count']]) }}, {{ number_format($rating['average'], 1) }}"><svg class="size-4 fill-current" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><span class="tnum">{{ number_format($rating['average'], 1) }}</span><span class="font-normal opacity-80">({{ $rating['count'] }})</span></p>@endif
                     </div>
                 </div>
                 @if (count($languages) > 1)
@@ -376,6 +377,10 @@
                         <input id="co-email" x-model="form.email" type="email" inputmode="email" maxlength="190" autocomplete="email" class="menu-card w-full px-3 py-2.5" dir="ltr">
                         <p class="menu-muted mt-1 text-xs" x-show="!errors.email">{{ __('orders.email_help') }}</p>
                         <p class="mt-1 text-sm text-red-600" x-show="errors.email" x-text="errors.email" role="alert"></p>
+                        <label class="mt-2 flex items-start gap-2 text-sm" x-show="form.email.trim().length > 3" x-cloak>
+                            <input type="checkbox" x-model="form.marketing" class="mt-0.5 size-4 shrink-0 accent-[var(--menu-accent)]">
+                            <span>{{ __('marketing.opt_in', ['name' => $restaurant->name]) }}</span>
+                        </label>
                     </div>
                     <div x-show="form.type === 'delivery'">
                         <label class="mb-1 block text-sm font-semibold" for="co-address">{{ __('orders.address_label') }}</label>
@@ -400,8 +405,19 @@
                     </fieldset>
                 </div>
 
+                <div class="mt-5" x-show="ord.promos" x-cloak>
+                    <label class="mb-1 block text-sm font-semibold" for="co-promo">{{ __('marketing.promo_field') }}</label>
+                    <div class="flex gap-2" x-show="!(promo && promo.valid)">
+                        <input id="co-promo" x-model="promoInput" x-on:keydown.enter.prevent="applyPromo()" maxlength="40" autocomplete="off" autocapitalize="characters" spellcheck="false" class="menu-card min-w-0 flex-1 px-3 py-2.5 uppercase" dir="ltr">
+                        <button type="button" class="menu-card px-4 text-sm font-semibold" x-on:click="applyPromo()" :disabled="!promoInput.trim()">{{ __('marketing.promo_apply') }}</button>
+                    </div>
+                    <p class="mt-1.5 text-sm text-red-600" x-show="promo && !promo.valid" x-text="promo ? promo.message : ''" role="alert"></p>
+                    <p class="mt-1.5 flex items-center justify-between gap-2 text-sm font-medium menu-accent-text" x-show="promo && promo.valid"><span x-text="promo ? promo.message : ''"></span><button type="button" class="menu-muted text-xs underline" x-on:click="clearPromo()">{{ __('marketing.promo_remove') }}</button></p>
+                </div>
+
                 <dl class="menu-line mt-5 space-y-1.5 border-t pt-4 text-sm tnum">
                     <div class="flex justify-between"><dt class="menu-muted">{{ __('customer.subtotal') }}</dt><dd x-text="totals ? totals.subtotal : subtotal"></dd></div>
+                    <div class="flex justify-between font-medium menu-accent-text" x-show="totals && totals.raw.discount > 0"><dt>{{ __('marketing.promo_discount') }}</dt><dd x-text="totals ? '−' + totals.discount : ''"></dd></div>
                     <div class="flex justify-between" x-show="totals && totals.raw.service > 0"><dt class="menu-muted">{{ __('orders.service') }}</dt><dd x-text="totals ? totals.service : ''"></dd></div>
                     <div class="flex justify-between" x-show="totals && totals.raw.delivery > 0"><dt class="menu-muted">{{ __('orders.delivery_fee') }}</dt><dd x-text="totals ? totals.delivery : ''"></dd></div>
                     <div class="flex justify-between" x-show="totals && totals.raw.tax > 0"><dt class="menu-muted">{{ __('orders.tax') }}<span x-show="ord.taxIncluded"> ({{ __('orders.tax_included') }})</span></dt><dd x-text="totals ? totals.tax : ''"></dd></div>

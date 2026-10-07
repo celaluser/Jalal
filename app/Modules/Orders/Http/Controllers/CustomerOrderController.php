@@ -4,6 +4,8 @@ namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Core\Tenancy\TenantContext;
+use App\Modules\Marketing\Services\LoyaltyService;
+use App\Modules\Marketing\Services\ReviewService;
 use App\Modules\Menu\Services\ThemeRegistry;
 use App\Modules\Orders\Exceptions\OrderException;
 use App\Modules\Orders\Models\Order;
@@ -40,6 +42,8 @@ class CustomerOrderController extends Controller
             'customer_name' => ['nullable', 'string', 'max:80'],
             'customer_phone' => ['nullable', 'string', 'max:40'],
             'customer_email' => ['nullable', 'string', 'max:190'],
+            'marketing_opt_in' => ['nullable', 'boolean'],
+            'promo_code' => ['nullable', 'string', 'max:40'],
             'delivery_address' => ['nullable', 'string', 'max:255'],
             'note' => ['nullable', 'string', 'max:300'],
             'payment_method' => ['required', Rule::in(['cash', 'card'])],
@@ -80,12 +84,15 @@ class CustomerOrderController extends Controller
             'statusUrl' => $this->statusUrl($request, $order).'/status',
             'cancelUrl' => $this->statusUrl($request, $order).'/cancel',
             'canCancel' => $this->canCancel($order),
+            'reviewUrl' => $this->statusUrl($request, $order).'/review',
             'money' => fn (int $cents) => $restaurant->money($cents / 100),
         ]);
     }
 
     public function status(Request $request): JsonResponse
     {
+        app()->setLocale($this->locales->resolve($request, $this->tenant->get()));
+
         return response()->json($this->state($this->find($request)))->header('Cache-Control', 'no-store');
     }
 
@@ -114,6 +121,26 @@ class CustomerOrderController extends Controller
             'paid' => $order->isPaid(), 'can_cancel' => $this->canCancel($order),
             'items' => $order->items->map(fn ($i) => ['name' => $i->name, 'qty' => $i->qty, 'options' => $i->optionsLabel(), 'total' => $order->restaurant->money($i->total_cents / 100)])->all(),
             'total' => $order->restaurant->money($order->total_cents / 100),
+            'discount' => $order->discount_cents ? ['code' => $order->promo_code, 'amount' => $order->restaurant->money($order->discount_cents / 100)] : null,
+        ] + $this->afterMeal($order);
+    }
+
+    /** Loyalty reward and feedback form, offered once the meal is done. @return array<string, mixed> */
+    private function afterMeal(Order $order): array
+    {
+        if ($order->status !== OrderStatus::COMPLETED) {
+            return ['reward' => null, 'review' => null];
+        }
+
+        $restaurant = $order->restaurant;
+        $loyalty = app(LoyaltyService::class);
+        $reviews = app(ReviewService::class);
+        $reward = $loyalty->rewardFor($order);
+        $review = $reviews->forOrder($order);
+
+        return [
+            'reward' => $reward ? ['code' => $reward->code, 'text' => $loyalty->describe($restaurant, $reward), 'until' => $reward->ends_at?->toFormattedDateString()] : null,
+            'review' => ['open' => $reviews->canReview($restaurant, $order), 'rating' => $review?->rating, 'reply' => $review?->reply],
         ];
     }
 

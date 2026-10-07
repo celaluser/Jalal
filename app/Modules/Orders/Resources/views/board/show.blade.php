@@ -24,6 +24,7 @@
                 </ul>
                 <dl class="mt-4 space-y-1.5 border-t border-line pt-4 text-sm tnum">
                     <div class="flex justify-between"><dt class="text-muted">{{ __('orders.subtotal') }}</dt><dd><bdi>{{ $money($order->subtotal_cents) }}</bdi></dd></div>
+                    @if ($order->discount_cents)<div class="flex justify-between text-accent-700 dark:text-accent-300"><dt>{{ __('marketing.promo_discount') }} · <span class="font-mono" dir="ltr">{{ $order->promo_code }}</span></dt><dd><bdi>−{{ $money($order->discount_cents) }}</bdi></dd></div>@endif
                     @if ($order->service_cents)<div class="flex justify-between"><dt class="text-muted">{{ __('orders.service') }}</dt><dd><bdi>{{ $money($order->service_cents) }}</bdi></dd></div>@endif
                     @if ($order->delivery_cents)<div class="flex justify-between"><dt class="text-muted">{{ __('orders.delivery_fee') }}</dt><dd><bdi>{{ $money($order->delivery_cents) }}</bdi></dd></div>@endif
                     @if ($order->tax_cents)<div class="flex justify-between"><dt class="text-muted">{{ __('orders.tax') }}</dt><dd><bdi>{{ $money($order->tax_cents) }}</bdi></dd></div>@endif

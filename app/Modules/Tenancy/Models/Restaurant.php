@@ -33,6 +33,7 @@ class Restaurant extends Model
             'onboarded_at' => 'datetime',
             'menu_locales' => 'array',
             'order_settings' => 'array',
+            'marketing_settings' => 'array',
             'suspended_at' => 'datetime',
         ];
     }

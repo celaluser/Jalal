@@ -84,7 +84,8 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ 548 feature tests (Pest), Pint code style, verified in a real browser (Playwright) for the main flows
 
 ## Not started (original plan)
-- ⬜ **Phase 10** marketing and CRM: customer records, loyalty, coupons for guests, feedback and reviews, campaigns
+- ✅ **Phase 10** marketing and CRM: customer records built from orders (search, filters, CSV export with formula protection, notes, erasure on request), restaurant promo codes applied at checkout (percent/fixed, minimum, dates, usage limits, previewed live), loyalty rewards (single-use code per guest after every Nth completed order, shown on the order page and e-mailed), guest ratings with staff replies and low-rating alerts, average rating on the menu, e-mail campaigns to opted-in guests (queued, daily cap, signed one-click unsubscribe, consent rechecked at send time)
+  - 🟡 Marketing mail uses your SMTP account; keep the per-restaurant daily cap modest on shared hosting. No SMS/WhatsApp campaigns
 - ⬜ **Phase 11** analytics: sales, best sellers, hours, exports
 - ⬜ **Phase 12** add-on infrastructure
 - ⬜ **Phase 13** security, performance and compliance pass (data export/erasure, audit log, security headers, load checks)

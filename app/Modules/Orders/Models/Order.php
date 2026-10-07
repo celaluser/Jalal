@@ -18,7 +18,7 @@ class Order extends Model
     {
         return [
             'accepted_at' => 'datetime', 'ready_at' => 'datetime', 'completed_at' => 'datetime', 'cancelled_at' => 'datetime', 'paid_at' => 'datetime',
-            'subtotal_cents' => 'integer', 'service_cents' => 'integer', 'delivery_cents' => 'integer', 'tax_cents' => 'integer', 'total_cents' => 'integer',
+            'subtotal_cents' => 'integer', 'discount_cents' => 'integer', 'marketing_opt_in' => 'boolean', 'service_cents' => 'integer', 'delivery_cents' => 'integer', 'tax_cents' => 'integer', 'total_cents' => 'integer',
         ];
     }
 

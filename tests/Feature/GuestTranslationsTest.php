@@ -67,3 +67,16 @@ it('shows the public menu in the guest’s language', function () {
     $this->withHeader('Accept-Language', 'tr')->get("/r/{$r->slug}")->assertOk()->assertSee('Yemek ara')->assertSee('Kereviz')->assertSee('lang="tr"', false);
     $this->withHeader('Accept-Language', 'ar')->get("/r/{$r->slug}")->assertOk()->assertSee('ابحث عن طبق')->assertSee('الكرفس')->assertSee('dir="rtl"', false);
 });
+
+it('translates the guest-facing marketing strings with matching placeholders', function (string $locale) {
+    $en = Arr::dot(require base_path('lang/en/marketing.php'));
+    $other = Arr::dot(require base_path("lang/{$locale}/marketing.php"));
+
+    foreach ($other as $key => $text) {
+        expect($en)->toHaveKey($key);
+        preg_match_all('/:[a-z_]+/', $en[$key], $a);
+        preg_match_all('/:[a-z_]+/', $text, $b);
+        expect($b[0])->toEqualCanonicalizing($a[0], "placeholders differ in {$locale} marketing.{$key}");
+    }
+    expect($other)->toHaveKeys(['opt_in', 'promo_field', 'rate_title', 'unsub_button', 'reward_earned']);
+})->with(['tr', 'ar']);

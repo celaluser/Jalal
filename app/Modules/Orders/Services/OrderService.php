@@ -3,6 +3,8 @@
 namespace App\Modules\Orders\Services;
 
 use App\Models\User;
+use App\Modules\Marketing\Models\PromoCode;
+use App\Modules\Marketing\Services\PromoService;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Events\OrderStatusChanged;
 use App\Modules\Orders\Exceptions\OrderException;
@@ -29,10 +31,11 @@ class OrderService
         private readonly CartPricing $pricing,
         private readonly OrderSettings $settings,
         private readonly OrderTotals $totals,
+        private readonly PromoService $promos,
     ) {}
 
     /**
-     * @param  array{type: string, lines: array<int, mixed>, table_id?: int|null, customer_name?: ?string, customer_phone?: ?string, customer_email?: ?string, delivery_address?: ?string, note?: ?string, payment_method?: ?string, idempotency_key?: ?string, locale?: ?string}  $data
+     * @param  array{type: string, lines: array<int, mixed>, table_id?: int|null, customer_name?: ?string, customer_phone?: ?string, customer_email?: ?string, marketing_opt_in?: bool, promo_code?: ?string, delivery_address?: ?string, note?: ?string, payment_method?: ?string, idempotency_key?: ?string, locale?: ?string}  $data
      *
      * @throws OrderException
      */
@@ -100,7 +103,14 @@ class OrderService
             throw new OrderException('below_minimum');
         }
 
-        $sums = $this->totals->compute($quote['subtotal_cents'], $type, $settings);
+        $promo = null;
+        $discount = 0;
+
+        if (! empty($data['promo_code'])) {
+            ['promo' => $promo, 'discount_cents' => $discount] = $this->promos->apply($restaurant, (string) $data['promo_code'], $quote['subtotal_cents'], $email, $phone);
+        }
+
+        $sums = $this->totals->compute($quote['subtotal_cents'], $type, $settings, $discount);
 
         $order = $this->store($restaurant, $settings, $quote, $sums, [
             'type' => $type, 'source' => $source, 'idempotency_key' => $key,
@@ -108,7 +118,8 @@ class OrderService
             'customer_name' => $name, 'customer_phone' => $phone, 'customer_email' => $email !== null ? mb_strtolower($email) : null, 'delivery_address' => $type === OrderType::DELIVERY ? $address : null,
             'note' => $this->clean($data['note'] ?? null, 300), 'locale' => $data['locale'] ?? app()->getLocale(),
             'payment_method' => $method, 'currency_code' => $restaurant->currency_code,
-        ], $by);
+            'marketing_opt_in' => $email !== null && ! empty($data['marketing_opt_in']), 'promo_code' => $promo?->code,
+        ], $by, $promo);
 
         event(new OrderPlaced($order));
 
@@ -167,7 +178,7 @@ class OrderService
      * @param  array{subtotal: int, service: int, delivery: int, tax: int, total: int}  $sums
      * @param  array<string, mixed>  $attributes
      */
-    private function store(Restaurant $restaurant, array $settings, array $quote, array $sums, array $attributes, ?User $by): Order
+    private function store(Restaurant $restaurant, array $settings, array $quote, array $sums, array $attributes, ?User $by, ?PromoCode $promo = null): Order
     {
         // An order a staff member typed in is already confirmed by that person.
         $auto = (bool) $settings['auto_accept'] || ($attributes['source'] ?? '') === 'staff';
@@ -175,17 +186,22 @@ class OrderService
         // Two orders arriving in the same instant can pick the same number; the unique index catches it and we try the next.
         for ($attempt = 0; $attempt < 5; $attempt++) {
             try {
-                return DB::transaction(function () use ($settings, $quote, $sums, $attributes, $by, $auto) {
+                return DB::transaction(function () use ($settings, $quote, $sums, $attributes, $by, $auto, $promo) {
                     $order = new Order($attributes);
                     $order->forceFill([
                         'number' => (int) Order::max('number') > 0 ? (int) Order::max('number') + 1 : 1001,
                         'token' => Str::lower(Str::random(24)),
                         'status' => $auto ? OrderStatus::ACCEPTED : OrderStatus::NEW,
-                        'subtotal_cents' => $sums['subtotal'], 'service_cents' => $sums['service'], 'delivery_cents' => $sums['delivery'],
+                        'subtotal_cents' => $sums['subtotal'], 'discount_cents' => $sums['discount'], 'service_cents' => $sums['service'], 'delivery_cents' => $sums['delivery'],
                         'tax_cents' => $sums['tax'], 'total_cents' => $sums['total'],
                         'prep_minutes' => (int) $settings['prep_minutes'], 'accepted_at' => $auto ? now() : null,
                     ]);
                     $order->save();
+
+                    // Taken inside the transaction: if the last use went to someone else a moment ago, nothing is saved.
+                    if ($promo && ! $this->promos->redeem($promo)) {
+                        throw new OrderException('promo_used');
+                    }
 
                     foreach ($quote['lines'] as $line) {
                         $order->items()->create([

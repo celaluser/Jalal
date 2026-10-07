@@ -6,7 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Modules\Billing\Services\LimitGuard;
 use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Tenancy\TenantContext;
+use App\Modules\Marketing\Models\PromoCode;
+use App\Modules\Marketing\Services\MarketingSettings;
+use App\Modules\Marketing\Services\PromoService;
+use App\Modules\Marketing\Services\ReviewService;
 use App\Modules\Menu\Services\ThemeRegistry;
+use App\Modules\Orders\Exceptions\OrderException;
 use App\Modules\Orders\Services\OrderSettings;
 use App\Modules\Orders\Services\OrderTotals;
 use App\Modules\Orders\Support\OrderType;
@@ -63,6 +68,7 @@ class PublicMenuController extends Controller
             // A table link is personal to that table's guests: keep it out of search results.
             'noindex' => $table !== null,
             'ordering' => $this->ordering($restaurant, $table, $request),
+            'rating' => $this->rating($restaurant),
         ]);
 
         // Remember a language the guest explicitly picked (and only a valid one).
@@ -104,18 +110,46 @@ class PublicMenuController extends Controller
         $restaurant = $this->tenant->get();
         abort_if($this->limits->plan($restaurant) === null, 503);
 
-        $data = $request->validate(['lines' => ['required', 'array', 'max:'.CartPricing::MAX_LINES], 'type' => ['nullable', 'in:'.implode(',', OrderType::ALL)]]);
+        $data = $request->validate([
+            'lines' => ['required', 'array', 'max:'.CartPricing::MAX_LINES], 'type' => ['nullable', 'in:'.implode(',', OrderType::ALL)],
+            'promo_code' => ['nullable', 'string', 'max:40'], 'customer_email' => ['nullable', 'string', 'max:190'], 'customer_phone' => ['nullable', 'string', 'max:40'],
+        ]);
         app()->setLocale($this->locales->resolve($request, $restaurant));
 
         $quote = $pricing->quote($restaurant, $data['lines']);
 
         // With an order type chosen, also show what the order will cost in full.
         if (! empty($data['type'])) {
-            $sums = app(OrderTotals::class)->compute($quote['subtotal_cents'], $data['type'], app(OrderSettings::class)->for($restaurant));
+            $discount = 0;
+
+            // A promo code is checked here exactly as the order will check it, so the guest sees the real price.
+            if (! empty($data['promo_code']) && $quote['valid']) {
+                try {
+                    $applied = app(PromoService::class)->apply($restaurant, $data['promo_code'], $quote['subtotal_cents'], $data['customer_email'] ?? null, $data['customer_phone'] ?? null);
+                    $discount = $applied['discount_cents'];
+                    $quote['promo'] = ['valid' => true, 'code' => $applied['promo']->code, 'message' => __('marketing.promo_applied', ['code' => $applied['promo']->code, 'amount' => $restaurant->money($discount / 100)])];
+                } catch (OrderException $e) {
+                    $quote['promo'] = ['valid' => false, 'code' => PromoCode::normalize($data['promo_code']), 'message' => __('orders.error_'.$e->reason)];
+                }
+            }
+
+            $sums = app(OrderTotals::class)->compute($quote['subtotal_cents'], $data['type'], app(OrderSettings::class)->for($restaurant), $discount);
             $quote['totals'] = collect($sums)->map(fn ($c) => $restaurant->money($c / 100))->all() + ['raw' => $sums];
         }
 
         return response()->json($quote);
+    }
+
+    /** Average rating shown under the name, once enough guests have rated (a lone review is not a rating). @return array{average: float, count: int}|null */
+    private function rating(Restaurant $restaurant): ?array
+    {
+        if (! app(MarketingSettings::class)->get($restaurant, 'show_rating')) {
+            return null;
+        }
+
+        $summary = $this->tenant->runAs($restaurant, fn () => app(ReviewService::class)->summary(public: true));
+
+        return $summary['count'] >= 3 ? ['average' => $summary['average'], 'count' => $summary['count']] : null;
     }
 
     /** What the checkout needs to know about this restaurant's ordering rules. @return array<string, mixed> */
@@ -135,6 +169,7 @@ class PublicMenuController extends Controller
             'requireName' => (bool) $s['require_name'],
             'deliveryMin' => $settings->cents($restaurant, 'delivery_min') > 0 ? $restaurant->money($settings->cents($restaurant, 'delivery_min') / 100) : null,
             'taxIncluded' => (bool) $s['prices_include_tax'],
+            'promos' => PromoCode::where('is_active', true)->exists() || (bool) app(MarketingSettings::class)->get($restaurant, 'loyalty_enabled'),
             'orderUrl' => rtrim($request->getPathInfo(), '/').'/order',
         ];
     }

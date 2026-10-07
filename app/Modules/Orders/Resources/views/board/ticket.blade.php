@@ -33,6 +33,7 @@
     @endforeach
     <hr>
     @if ($order->note)<p class="note">{{ __('orders.note') }}: {{ $order->note }}</p><hr>@endif
+    @if ($order->discount_cents)<div class="row"><span>{{ __('marketing.promo_discount') }} {{ $order->promo_code }}</span><span>-{{ $money($order->discount_cents) }}</span></div>@endif
     @if ($order->service_cents)<div class="row"><span>{{ __('orders.service') }}</span><span>{{ $money($order->service_cents) }}</span></div>@endif
     @if ($order->delivery_cents)<div class="row"><span>{{ __('orders.delivery_fee') }}</span><span>{{ $money($order->delivery_cents) }}</span></div>@endif
     @if ($order->tax_cents)<div class="row"><span>{{ __('orders.tax') }}</span><span>{{ $money($order->tax_cents) }}</span></div>@endif

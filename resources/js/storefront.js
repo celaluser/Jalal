@@ -16,13 +16,14 @@ document.addEventListener('alpine:init', () => {
         cartOpen: false,
         cart: [],
         quoted: null,
+        promoInput: '',
         quoting: false,
         offline: false,
         timer: null,
         toast: '',
         bumped: false,
         stage: 'cart',
-        form: { type: '', name: '', phone: '', email: '', address: '', note: '', table_id: '', payment: '' },
+        form: { type: '', name: '', phone: '', email: '', promo: '', marketing: false, address: '', note: '', table_id: '', payment: '' },
         errors: {},
         formError: '',
         submitting: false,
@@ -202,14 +203,19 @@ document.addEventListener('alpine:init', () => {
         },
         requote(delay = 300) {
             clearTimeout(this.timer);
-            if (!this.cart.length) { this.quoted = null; return; }
+            if (!this.cart.length) { this.quoted = null; this.totals = null; return; }
             this.quoting = true;
             this.timer = setTimeout(async () => {
                 try {
                     const res = await fetch(cfg.quoteUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf },
-                        body: JSON.stringify({ lines: this.cart.map((l) => ({ product_id: l.product_id, options: l.options, qty: l.qty, note: l.note })), type: this.stage === 'checkout' ? this.form.type : undefined }),
+                        body: JSON.stringify({
+                            lines: this.cart.map((l) => ({ product_id: l.product_id, options: l.options, qty: l.qty, note: l.note })),
+                            type: this.stage === 'checkout' ? this.form.type : undefined,
+                            promo_code: this.stage === 'checkout' && this.form.promo ? this.form.promo : undefined,
+                            customer_email: this.form.email || undefined, customer_phone: this.form.phone || undefined,
+                        }),
                     });
                     if (!res.ok) { throw new Error(String(res.status)); }
                     this.quoted = await res.json();
@@ -245,6 +251,10 @@ document.addEventListener('alpine:init', () => {
             this.key = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2)).replace(/-/g, '');
             this.requote(0);
         },
+        // Promo codes: the server decides whether a code is good and how much it takes off.
+        applyPromo() { this.form.promo = this.promoInput.trim(); this.requote(0); },
+        clearPromo() { this.form.promo = ''; this.promoInput = ''; this.requote(0); },
+        get promo() { return this.quoted?.promo || null; },
         get needsContact() { return this.form.type !== 'dine_in'; },
         validateForm() {
             const e = {};
@@ -268,7 +278,7 @@ document.addEventListener('alpine:init', () => {
                     headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf },
                     body: JSON.stringify({
                         type: f.type, table_id: f.type === 'dine_in' ? (this.ord.table?.id || f.table_id || null) : null,
-                        customer_name: f.name, customer_phone: f.phone, customer_email: f.email, delivery_address: f.type === 'delivery' ? f.address : null,
+                        customer_name: f.name, customer_phone: f.phone, customer_email: f.email, marketing_opt_in: !!f.email.trim() && f.marketing, promo_code: f.promo || null, delivery_address: f.type === 'delivery' ? f.address : null,
                         note: f.note, payment_method: f.payment, idempotency_key: this.key,
                         lines: this.cart.map((l) => ({ product_id: l.product_id, options: l.options, qty: l.qty, note: l.note })),
                     }),

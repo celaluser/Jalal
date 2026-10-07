@@ -14,6 +14,7 @@ return [
     'error_email_invalid' => 'Geçerli bir e-posta adresi girin ya da boş bırakın.',
     'error_busy' => 'Şu anda çok yoğunuz. Lütfen biraz sonra tekrar deneyin.',
     'error_cannot_cancel' => 'Bu sipariş artık iptal edilemez.',
+    'error_promo_invalid' => 'Bu kod geçerli değil.', 'error_promo_expired' => 'Bu kodun süresi dolmuş ya da henüz başlamamış.', 'error_promo_used' => 'Bu kodun kullanım hakkı bitti.', 'error_promo_min' => 'Siparişiniz bu kod için asgari tutarın altında.',
     'cancelled_by_guest' => 'Misafir tarafından iptal edildi',
 
     'type_dine_in' => 'Masada', 'type_takeaway' => 'Gel-al', 'type_delivery' => 'Eve teslimat',

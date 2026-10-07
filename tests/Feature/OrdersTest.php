@@ -221,7 +221,7 @@ describe('placing an order', function () {
     it('computes totals exactly', function (int $subtotal, string $type, array $settings, array $expected) {
         $settings = array_replace(OrderSettings::DEFAULTS, $settings);
 
-        expect(app(OrderTotals::class)->compute($subtotal, $type, $settings))->toBe($expected);
+        expect(app(OrderTotals::class)->compute($subtotal, $type, $settings))->toEqual(['discount' => 0] + $expected);
     })->with([
         'nothing extra' => [1000, 'dine_in', [], ['subtotal' => 1000, 'service' => 0, 'delivery' => 0, 'tax' => 0, 'total' => 1000]],
         'tax included' => [1100, 'takeaway', ['tax_rate' => '10', 'prices_include_tax' => true], ['subtotal' => 1100, 'service' => 0, 'delivery' => 0, 'tax' => 100, 'total' => 1100]],
