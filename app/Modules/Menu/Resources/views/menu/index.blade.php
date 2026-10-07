@@ -64,7 +64,7 @@
                                     <li data-id="{{ $product->id }}" x-ref="p{{ $product->id }}" class="flex items-center gap-3 p-3 ps-2">
                                         <button type="button" data-handle class="grid size-8 shrink-0 cursor-grab place-items-center rounded-lg text-muted hover:bg-surface-2 active:cursor-grabbing" aria-label="{{ __('menu.drag') }}"><x-ui.icon name="menu" size="4" /></button>
                                         <div class="size-14 shrink-0 overflow-hidden rounded-xl bg-surface-2 ring-1 ring-line">
-                                            @if ($product->image)<img src="{{ $product->image->url() }}" alt="" class="size-full object-cover" loading="lazy">@else<span class="grid size-full place-items-center text-muted"><x-ui.icon name="image" size="5" /></span>@endif
+                                            <img src="{{ $product->pictureUrl() }}" alt="" class="size-full object-cover" loading="lazy">
                                         </div>
                                         <div class="min-w-0 flex-1">
                                             <a href="{{ route('menu.products.edit', $product) }}" class="block truncate font-semibold hover:underline {{ $product->is_active ? '' : 'text-muted' }}">{{ $product->tr('name', null, $restaurant->locale) }}</a>

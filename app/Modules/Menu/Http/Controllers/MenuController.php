@@ -22,7 +22,7 @@ class MenuController extends Controller
             'restaurant' => $restaurant,
             'categories' => $categories,
             'current' => $current,
-            'products' => $current ? Product::with('image')->where('category_id', $current->id)->orderBy('sort')->orderBy('id')->get() : collect(),
+            'products' => $current ? Product::with(['image', 'category'])->where('category_id', $current->id)->orderBy('sort')->orderBy('id')->get() : collect(),
             'productLimit' => $limits->limit($restaurant, 'products'),
             'categoryLimit' => $limits->limit($restaurant, 'categories'),
             'productCount' => Product::count(),

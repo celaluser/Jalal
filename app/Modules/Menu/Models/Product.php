@@ -5,6 +5,7 @@ namespace App\Modules\Menu\Models;
 use App\Modules\Core\Models\Concerns\HasTranslations;
 use App\Modules\Core\Models\Media;
 use App\Modules\Core\Tenancy\BelongsToRestaurant;
+use App\Modules\Menu\Support\DishArt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -40,6 +41,12 @@ class Product extends Model
     public function optionGroups(): BelongsToMany
     {
         return $this->belongsToMany(OptionGroup::class, 'option_group_product')->withPivot('sort')->orderByPivot('sort');
+    }
+
+    /** The dish photo, or the matching illustration when there is none. */
+    public function pictureUrl(): string
+    {
+        return $this->image?->url() ?? DishArt::url($this->tr('name'), (string) $this->category?->tr('name'));
     }
 
     public function isOnSale(): bool

@@ -20,6 +20,7 @@ document.addEventListener('alpine:init', () => {
         offline: false,
         timer: null,
         toast: '',
+        bumped: false,
         cfg_diet: cfg.diet,
         cfg_allergen: cfg.allergen,
 
@@ -84,11 +85,46 @@ document.addEventListener('alpine:init', () => {
             this.sheet = { product, selected, qty: edit?.qty ?? 1, note: edit?.note ?? '', editKey: edit?.key ?? null, showErrors: false };
             this.$nextTick(() => this.$refs.sheetClose?.focus());
         },
-        quickAdd(product) {
+        quickAdd(product, event = null) {
             if (!product.available) { return; }
             if (product.option_groups.length) { this.open(product); return; }
             this.push({ product_id: product.id, options: [], qty: 1, note: '', name: product.name, labels: [], unit_cents: this.cents(product.price) });
             this.flash(product.name);
+            this.fly(event?.currentTarget);
+        },
+        pic(p) { return p.image || p.art; },
+        // A little dot flies from the tapped button to the cart bar: feedback that the dish was added.
+        fly(from) {
+            this.bumped = true;
+            setTimeout(() => { this.bumped = false; }, 420);
+            if (!from || matchMedia('(prefers-reduced-motion: reduce)').matches || !from.animate) { return; }
+            const a = from.getBoundingClientRect();
+            const bar = document.querySelector('[data-cart-bar]');
+            const b = bar ? bar.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight - 40, width: 0, height: 0 };
+            const dot = document.createElement('span');
+            dot.style.cssText = 'position:fixed;z-index:70;width:16px;height:16px;border-radius:999px;pointer-events:none;background:var(--menu-accent);left:0;top:0';
+            document.body.appendChild(dot);
+            const x1 = a.left + a.width / 2 - 8, y1 = a.top + a.height / 2 - 8;
+            const x2 = b.left + b.width / 2 - 8, y2 = b.top + b.height / 2 - 8;
+            dot.animate([
+                { transform: `translate(${x1}px, ${y1}px) scale(1)`, opacity: 1 },
+                { transform: `translate(${(x1 + x2) / 2}px, ${Math.min(y1, y2) - 70}px) scale(1.15)`, opacity: 1, offset: 0.5 },
+                { transform: `translate(${x2}px, ${y2}px) scale(.3)`, opacity: 0.2 },
+            ], { duration: 560, easing: 'cubic-bezier(.3,.7,.4,1)' }).onfinish = () => dot.remove();
+        },
+        get featured() {
+            return this.tree.flatMap((c) => c.products).filter((p) => p.featured && p.available).slice(0, 8);
+        },
+        // Dishes from other parts of the menu that go with what is in the cart. Only items that can be added in one tap.
+        get suggestions() {
+            const inCart = new Set(this.cart.map((l) => l.product_id));
+            const catOf = new Map(this.tree.flatMap((c) => c.products.map((p) => [p.id, c.id])));
+            const cartCats = new Set(this.cart.map((l) => catOf.get(l.product_id)));
+            return this.tree
+                .flatMap((c) => c.products.map((p) => ({ ...p, cat: c.id })))
+                .filter((p) => p.available && !inCart.has(p.id) && !p.option_groups.some((g) => g.required))
+                .sort((a, b) => (cartCats.has(a.cat) - cartCats.has(b.cat)) || (b.featured - a.featured) || (a.price - b.price))
+                .slice(0, 4);
         },
         pick(group, option) {
             const list = this.sheet.selected[group.id];
@@ -115,6 +151,7 @@ document.addEventListener('alpine:init', () => {
             this.push(line);
             this.sheet = null;
             this.flash(line.name);
+            this.fly(null);
         },
 
         // ---- cart ------------------------------------------------------------------------

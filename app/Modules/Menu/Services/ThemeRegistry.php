@@ -58,6 +58,7 @@ class ThemeRegistry
         $s = $this->settings($restaurant);
         $theme = $this->themes()[$s['theme']];
         $accent = $restaurant->brandColor();
+        $inkOnAccent = QrStyle::contrast($accent, '#0f1115') >= QrStyle::contrast($accent, '#ffffff');
 
         return [
             '--menu-bg' => $theme['bg'],
@@ -67,7 +68,9 @@ class ThemeRegistry
             '--menu-line' => $theme['line'],
             '--menu-accent' => $accent,
             // Text on a brand-coloured button: whichever of ink/white reads better.
-            '--menu-accent-fg' => QrStyle::contrast($accent, '#0f1115') >= QrStyle::contrast($accent, '#ffffff') ? '#0f1115' : '#ffffff',
+            '--menu-accent-fg' => $inkOnAccent ? '#0f1115' : '#ffffff',
+            // Second shade for gradients: lighter under dark text, darker under white text, so contrast holds on both ends.
+            '--menu-accent-2' => $this->mix($accent, $inkOnAccent ? '#ffffff' : '#000000', $inkOnAccent ? .38 : .3),
             '--menu-radius' => config('themes.radii')[$s['radius']],
             '--menu-font' => config('themes.fonts')[$s['font']],
         ];
@@ -115,5 +118,13 @@ class ThemeRegistry
     private function pick(mixed $value, array $allowed, string $fallback): string
     {
         return is_string($value) && in_array($value, $allowed, true) ? $value : $fallback;
+    }
+
+    /** Blend two #rrggbb colours: $amount of $with into $base. */
+    private function mix(string $base, string $with, float $amount): string
+    {
+        [$a, $b] = [QrStyle::rgb($base), QrStyle::rgb($with)];
+
+        return sprintf('#%02x%02x%02x', ...array_map(fn ($i) => (int) round($a[$i] + ($b[$i] - $a[$i]) * $amount), [0, 1, 2]));
     }
 }

@@ -8,6 +8,7 @@ use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\Option;
 use App\Modules\Menu\Models\OptionGroup;
 use App\Modules\Menu\Models\Product;
+use App\Modules\Menu\Support\DishArt;
 use App\Modules\Storefront\Services\MenuCache;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Support\Facades\DB;
@@ -98,6 +99,8 @@ class MenuService
                         'price' => (float) $p->price,
                         'compare_price' => $p->isOnSale() ? (float) $p->compare_price : null,
                         'image' => $p->image?->url(),
+                        // Illustration shown when the dish has no photo of its own.
+                        'art' => DishArt::url($p->tr('name', $locale, $default), $c->tr('name', $locale, $default)),
                         'available' => $p->is_available,
                         'featured' => $p->is_featured,
                         'calories' => $p->calories,
