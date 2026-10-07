@@ -5,12 +5,16 @@
             <div class="flex items-center gap-4 text-sm">
                 <x-ui.language-switcher />
                 <button type="button" x-on:click="toggle()" class="text-gray-500 hover:text-gray-900 dark:hover:text-gray-100">{{ __('ui.toggle_theme') }}</button>
+ @can('support.manage')<a href="{{ route('support.index') }}" class="text-gray-500 hover:text-gray-900 dark:hover:text-gray-100">{{ __('support.title') }}</a>@endcan
                 <a href="{{ route('two-factor.show') }}" class="text-gray-500 hover:text-gray-900 dark:hover:text-gray-100">{{ __('ui.security') }}</a>
                 <form method="POST" action="{{ route('logout') }}">@csrf
                     <button class="text-gray-500 hover:text-gray-900 dark:hover:text-gray-100">{{ __('ui.logout') }}</button>
                 </form>
             </div>
         </header>
-        <main class="mx-auto w-full max-w-5xl flex-1 p-4 sm:p-6">{{ $slot }}</main>
+        <main class="mx-auto w-full max-w-5xl flex-1 space-y-4 p-4 sm:p-6">
+            <x-announcements />
+            {{ $slot }}
+        </main>
     </div>
 </x-layouts.base>

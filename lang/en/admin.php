@@ -18,6 +18,8 @@ return [
         'payments' => 'Payment gateways',
         'settings' => 'Settings',
         'email_templates' => 'E-mail templates',
+        'tickets' => 'Support tickets',
+        'announcements' => 'Announcements',
         'landing' => 'Landing page',
         'blog' => 'Blog',
         'pages' => 'Pages',
@@ -239,6 +241,12 @@ return [
         'new_page' => 'New page', 'new_post' => 'New article', 'published' => 'Published', 'draft' => 'Draft', 'scheduled' => 'Scheduled', 'footer' => 'footer',
         'show_in_footer' => 'Link in footer', 'meta_description' => 'Meta description (SEO)', 'excerpt' => 'Short summary', 'cover' => 'Cover image', 'publish_date' => 'Publish date',
         'markdown_help' => 'Markdown: ## Heading, **bold**, [link](https://...), - list. Raw HTML is removed.',
+    ],
+    'tickets' => ['reopen' => 'Reopen ticket', 'reopened' => 'Ticket reopened.'],
+    'announcements' => [
+        'new' => 'New announcement', 'level' => 'Type', 'level_info' => 'Information', 'level_success' => 'Good news', 'level_warning' => 'Warning',
+        'window' => 'Shown from / until', 'live' => 'Live', 'ended' => 'Ended', 'body' => 'Message (optional)', 'starts' => 'Show from', 'ends' => 'Show until',
+        'dismissible' => 'Restaurants can dismiss it',
     ],
     'payments' => [
         'help' => 'Customers pay for their subscription through the gateways you enable here. Paste each gateway\'s webhook URL into its dashboard. Secret keys are stored encrypted and never shown again; leave a secret field empty to keep the saved value.',

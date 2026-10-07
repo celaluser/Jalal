@@ -73,6 +73,22 @@ final class EmailTemplateRegistry
                 'subject' => 'Payment received: invoice {{invoice_number}}',
                 'body' => "Hi {{name}},\n\nThank you! We received your payment of **{{total}}** for **{{plan}}** ({{restaurant}}).\n\nYour invoice {{invoice_number}} is attached as a PDF.",
             ],
+            'ticket_new' => [
+                'label' => 'New support ticket (to support team)',
+                'required' => false,
+                'variables' => ['restaurant', 'subject', 'message', 'ticket_url', 'app_name'],
+                'sample' => ['restaurant' => 'Bella Italia', 'subject' => 'Cannot add a table', 'message' => 'I get an error when adding table 12.', 'ticket_url' => 'https://example.com/admin/tickets/1', 'app_name' => 'QR Menu'],
+                'subject' => 'New ticket from {{restaurant}}: {{subject}}',
+                'body' => "**{{restaurant}}** opened a support ticket.\n\n> {{message}}\n\n[Open the ticket]({{ticket_url}})",
+            ],
+            'ticket_reply' => [
+                'label' => 'Support reply (to restaurant)',
+                'required' => false,
+                'variables' => ['name', 'subject', 'message', 'ticket_url', 'app_name'],
+                'sample' => ['name' => 'Ada', 'subject' => 'Cannot add a table', 'message' => 'Thanks, this is fixed now.', 'ticket_url' => 'https://example.com/support/1', 'app_name' => 'QR Menu'],
+                'subject' => 'Re: {{subject}}',
+                'body' => "Hi {{name}},\n\nOur support team replied to your ticket **{{subject}}**:\n\n> {{message}}\n\n[View the conversation]({{ticket_url}})",
+            ],
             'subscription_expiring' => [
                 'label' => 'Subscription ending soon',
                 'required' => false,

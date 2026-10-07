@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Admin\Http\Controllers\AnnouncementController;
 use App\Modules\Admin\Http\Controllers\BillingSettingsController;
 use App\Modules\Admin\Http\Controllers\BlogPostController;
 use App\Modules\Admin\Http\Controllers\CouponController;
@@ -14,6 +15,7 @@ use App\Modules\Admin\Http\Controllers\PlanController;
 use App\Modules\Admin\Http\Controllers\RestaurantController;
 use App\Modules\Admin\Http\Controllers\SettingsController;
 use App\Modules\Admin\Http\Controllers\SubscriptionController;
+use App\Modules\Admin\Http\Controllers\TicketController;
 use App\Modules\Core\Http\Middleware\SetLocale;
 use Illuminate\Support\Facades\Route;
 
@@ -55,6 +57,13 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
         Route::put('settings/{section}', [SettingsController::class, 'update'])->name('settings.section.update')
             ->where('section', 'general|seo|security|auth|mail|domains|ai|realtime|storage');
         Route::post('settings/mail/test', [SettingsController::class, 'testMail'])->middleware('throttle:5,1')->name('settings.mail.test');
+
+        Route::get('tickets', [TicketController::class, 'index'])->name('tickets.index');
+        Route::get('tickets/{ticket}', [TicketController::class, 'show'])->whereNumber('ticket')->name('tickets.show');
+        Route::post('tickets/{ticket}/reply', [TicketController::class, 'reply'])->whereNumber('ticket')->name('tickets.reply');
+        Route::post('tickets/{ticket}/close', [TicketController::class, 'close'])->whereNumber('ticket')->name('tickets.close');
+        Route::post('tickets/{ticket}/reopen', [TicketController::class, 'reopen'])->whereNumber('ticket')->name('tickets.reopen');
+        Route::resource('announcements', AnnouncementController::class)->except('show');
 
         Route::get('landing', [LandingPageController::class, 'edit'])->name('landing.edit');
         Route::put('landing', [LandingPageController::class, 'update'])->name('landing.update');

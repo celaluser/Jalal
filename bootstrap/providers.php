@@ -8,6 +8,7 @@ use App\Modules\Core\Providers\CoreServiceProvider;
 use App\Modules\Demo\Providers\DemoServiceProvider;
 use App\Modules\Installer\Providers\InstallerServiceProvider;
 use App\Modules\Licensing\Providers\LicensingServiceProvider;
+use App\Modules\Support\Providers\SupportServiceProvider;
 use App\Modules\Tenancy\Providers\TenancyServiceProvider;
 use App\Modules\Updater\Providers\UpdaterServiceProvider;
 use App\Providers\AppServiceProvider;
@@ -19,6 +20,7 @@ return [
     BillingServiceProvider::class,
     AdminServiceProvider::class,
     CmsServiceProvider::class,
+    SupportServiceProvider::class,
     AuthServiceProvider::class,
     LicensingServiceProvider::class,
     InstallerServiceProvider::class,
