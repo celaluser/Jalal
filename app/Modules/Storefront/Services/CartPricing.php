@@ -72,8 +72,10 @@ class CartPricing
 
         $base['name'] = $product->tr('name', $locale, $restaurant->locale);
 
-        if (! $product->is_available) {
+        if (! $product->canBeOrdered()) {
             $errors[] = 'sold_out';
+        } elseif ($product->tracksStock() && $qty > $product->stock_qty) {
+            $errors[] = 'stock_limit'; // asked for more than is left
         }
 
         $chosen = collect(is_array($line['options'] ?? null) ? $line['options'] : [])->map(fn ($id) => $this->id($id))->filter()->unique()->values();

@@ -81,6 +81,12 @@
                     <x-ui.input name="prep_minutes" type="number" min="0" inputmode="numeric" :label="__('menu.prep_minutes')" :value="$product->prep_minutes" />
                 </div>
             </x-ui.card>
+            <x-ui.card :title="__('menu.section_stock')" :description="__('menu.stock_help')">
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <x-ui.input name="stock_qty" type="number" min="0" inputmode="numeric" :label="__('menu.stock_qty')" :value="$product->stock_qty" :hint="__('menu.stock_qty_hint')" />
+                    <x-ui.input name="low_stock_at" type="number" min="0" inputmode="numeric" :label="__('menu.low_stock_at')" :value="$product->low_stock_at" :hint="__('menu.low_stock_hint')" />
+                </div>
+            </x-ui.card>
             <x-ui.card :title="__('menu.section_visibility')">
                 <div class="space-y-3">
                     <x-ui.checkbox name="is_active" :label="__('menu.is_active')" :checked="$product->is_active" />

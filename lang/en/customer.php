@@ -16,7 +16,7 @@ return [
     'cart_empty_title' => 'Your order is empty', 'cart_empty_text' => 'Add dishes from the menu.',
     'checking' => 'Checking prices…', 'offline_total' => 'Prices will be confirmed when you order.',
     'place_order' => 'Place order', 'ordering_soon' => 'Online ordering opens soon. Show this list to your server.',
-    'error_sold_out' => 'This item is sold out.', 'error_unavailable' => 'This item is no longer on the menu.', 'error_option_required' => 'Choose an option.',
+    'error_sold_out' => 'This item is sold out.', 'error_stock_limit' => 'Not enough portions left.', 'error_unavailable' => 'This item is no longer on the menu.', 'error_option_required' => 'Choose an option.',
     'error_option_unavailable' => 'An option is unavailable.', 'error_invalid_option' => 'An option is no longer available.', 'error_too_many_options' => 'Too many options chosen.', 'error_quantity' => 'Check the quantity.',
     'fix_cart' => 'Some items need your attention before you can order.',
     'unavailable_title' => 'This menu is taking a break', 'unavailable_text' => 'The restaurant\'s online menu is temporarily unavailable. Please ask the staff for a printed menu.',

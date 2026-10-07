@@ -58,4 +58,14 @@ return [
         'radii' => ['sharp' => 'Sharp', 'soft' => 'Soft', 'round' => 'Round'],
         'sample_item' => 'Sample dish', 'sample_text' => 'A short, tasty description.', 'add' => 'Add',
     ],
+
+    // Stock and prices
+    'section_stock' => 'Stock', 'stock_help' => 'Optional. Count portions and the dish sells out by itself.', 'stock_qty' => 'Portions in stock', 'stock_qty_hint' => 'Leave empty to not track stock.',
+    'low_stock_at' => 'Warn when this few are left', 'low_stock_hint' => 'Shows a warning in your menu list.',
+    'out_of_stock' => 'Out of stock', 'low_stock' => 'Only :count left', 'in_stock' => ':count in stock',
+    'stock_prices' => 'Stock & prices', 'stock_title' => 'Stock & prices', 'stock_sub' => 'Change prices and portions for the whole menu in one place.',
+    'stock_col_dish' => 'Dish', 'stock_col_price' => 'Price', 'stock_col_stock' => 'Stock', 'stock_col_warn' => 'Warn at', 'stock_col_on' => 'On sale today', 'stock_untracked' => 'Not tracked',
+    'stock_saved' => 'Prices and stock saved.', 'stock_tip' => 'Stock goes down with every order and comes back when an order is cancelled.',
+    'adjust_title' => 'Change all prices', 'adjust_sub' => 'Raise or lower prices by a percentage, for one category or the whole menu.', 'adjust_percent' => 'Change by (%)', 'adjust_percent_hint' => 'Use a minus sign to lower prices, for example -10.',
+    'adjust_scope' => 'Applies to', 'adjust_all' => 'The whole menu', 'adjust_apply' => 'Apply', 'adjust_confirm' => 'Change these prices now?', 'adjust_done' => ':count prices changed.', 'export_csv' => 'Export CSV',
 ];

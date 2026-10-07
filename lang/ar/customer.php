@@ -16,7 +16,7 @@ return [
     'cart_empty_title' => 'طلبك فارغ', 'cart_empty_text' => 'أضف أطباقًا من القائمة.',
     'checking' => 'جارٍ التحقق من الأسعار…', 'offline_total' => 'سيتم تأكيد الأسعار عند إرسال الطلب.',
     'place_order' => 'أرسل الطلب', 'ordering_soon' => 'الطلب عبر الإنترنت سيبدأ قريبًا. اعرض هذه القائمة على النادل.',
-    'error_sold_out' => 'نفدت كمية هذا العنصر.', 'error_unavailable' => 'هذا العنصر لم يعد في القائمة.', 'error_option_required' => 'اختر أحد الخيارات.',
+    'error_sold_out' => 'نفدت كمية هذا العنصر.', 'error_stock_limit' => 'لا توجد حصص كافية.', 'error_unavailable' => 'هذا العنصر لم يعد في القائمة.', 'error_option_required' => 'اختر أحد الخيارات.',
     'error_option_unavailable' => 'أحد الخيارات غير متاح.', 'error_invalid_option' => 'أحد الخيارات لم يعد متاحًا.', 'error_too_many_options' => 'عدد الخيارات المحددة كبير جدًا.', 'error_quantity' => 'تحقق من الكمية.',
     'fix_cart' => 'تحتاج بعض العناصر إلى انتباهك قبل أن تتمكن من الطلب.',
     'unavailable_title' => 'هذه القائمة في استراحة قصيرة', 'unavailable_text' => 'قائمة المطعم عبر الإنترنت غير متاحة مؤقتًا. يُرجى طلب قائمة مطبوعة من الموظفين.',

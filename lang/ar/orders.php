@@ -15,6 +15,7 @@ return [
     'error_busy' => 'لدينا ضغط كبير الآن. يُرجى المحاولة بعد قليل.',
     'error_cannot_cancel' => 'لم يعد بالإمكان إلغاء هذا الطلب.',
     'error_promo_invalid' => 'هذا الرمز غير صالح.', 'error_promo_expired' => 'انتهت صلاحية هذا الرمز أو لم تبدأ بعد.', 'error_promo_used' => 'تم استنفاد استخدامات هذا الرمز.', 'error_promo_min' => 'طلبك أقل من الحد الأدنى لهذا الرمز.',
+    'error_out_of_stock' => 'عذرًا، نفد أحد الأطباق للتو. يُرجى مراجعة طلبك.',
     'cancelled_by_guest' => 'أُلغي من قبل الضيف',
 
     'type_dine_in' => 'تناول في المطعم', 'type_takeaway' => 'استلام', 'type_delivery' => 'توصيل',

@@ -41,7 +41,8 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Option groups (single/multiple, required, max, price per option), reusable across products
 - ✅ Per-language names and descriptions with tabs, drag-and-drop order (and keyboard buttons), duplicate product
 - ✅ Plan limits enforced; usage shown on the subscription page
-- ⬜ CSV import/export, bulk edit, scheduled availability (e.g. breakfast only), product photo gallery, nutrition beyond calories
+- ✅ Stock tracking (portions count down with orders, return on cancel, auto sold-out, low-stock warning), one-screen prices & stock editor, percentage price change, CSV export of the menu
+- ⬜ CSV import, scheduled availability (e.g. breakfast only), scheduled availability (e.g. breakfast only), product photo gallery, nutrition beyond calories
 
 ## 6. Tables and QR codes (Phase 6)
 - ✅ Areas and tables (single and bulk), unguessable table tokens with regenerate

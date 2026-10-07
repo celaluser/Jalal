@@ -101,7 +101,7 @@ class MenuService
                         'image' => $p->image?->url(),
                         // Illustration shown when the dish has no photo of its own.
                         'art' => DishArt::url($p->tr('name', $locale, $default), $c->tr('name', $locale, $default)),
-                        'available' => $p->is_available,
+                        'available' => $p->canBeOrdered(),
                         'featured' => $p->is_featured,
                         'calories' => $p->calories,
                         'prep_minutes' => $p->prep_minutes,

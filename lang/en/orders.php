@@ -13,6 +13,7 @@ return [
     'error_below_minimum' => 'Your order is below the minimum for delivery.',
     'error_email_invalid' => 'Please enter a valid e-mail address, or leave it empty.',
     'error_promo_invalid' => 'This code is not valid.', 'error_promo_expired' => 'This code has expired or has not started yet.', 'error_promo_used' => 'This code has already been used up.', 'error_promo_min' => 'Your order is below the minimum for this code.',
+    'error_out_of_stock' => 'Sorry, one of the dishes just ran out. Please check your order.',
     'error_busy' => 'We are very busy right now. Please try again in a moment.',
     'error_invalid_transition' => 'This order cannot move to that step.',
     'error_cannot_pay' => 'This order cannot be marked as paid.',

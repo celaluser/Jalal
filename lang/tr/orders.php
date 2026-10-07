@@ -15,6 +15,7 @@ return [
     'error_busy' => 'Şu anda çok yoğunuz. Lütfen biraz sonra tekrar deneyin.',
     'error_cannot_cancel' => 'Bu sipariş artık iptal edilemez.',
     'error_promo_invalid' => 'Bu kod geçerli değil.', 'error_promo_expired' => 'Bu kodun süresi dolmuş ya da henüz başlamamış.', 'error_promo_used' => 'Bu kodun kullanım hakkı bitti.', 'error_promo_min' => 'Siparişiniz bu kod için asgari tutarın altında.',
+    'error_out_of_stock' => 'Üzgünüz, yemeklerden biri az önce tükendi. Lütfen siparişinizi kontrol edin.',
     'cancelled_by_guest' => 'Misafir tarafından iptal edildi',
 
     'type_dine_in' => 'Masada', 'type_takeaway' => 'Gel-al', 'type_delivery' => 'Eve teslimat',

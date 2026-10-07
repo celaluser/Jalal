@@ -3,8 +3,10 @@
 namespace App\Modules\Orders\Services;
 
 use App\Models\User;
+use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Marketing\Models\PromoCode;
 use App\Modules\Marketing\Services\PromoService;
+use App\Modules\Menu\Models\Product;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Events\OrderStatusChanged;
 use App\Modules\Orders\Exceptions\OrderException;
@@ -13,6 +15,7 @@ use App\Modules\Orders\Models\OrderEvent;
 use App\Modules\Orders\Support\OrderStatus;
 use App\Modules\Orders\Support\OrderType;
 use App\Modules\Storefront\Services\CartPricing;
+use App\Modules\Storefront\Services\MenuCache;
 use App\Modules\Tables\Models\DiningTable;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -148,6 +151,11 @@ class OrderService
             };
 
             $order->save();
+
+            if ($to === OrderStatus::CANCELLED) {
+                $this->returnStock($order);
+            }
+
             $this->log($order, 'status', $from, $to, $reason, $by);
         });
 
@@ -203,6 +211,8 @@ class OrderService
                         throw new OrderException('promo_used');
                     }
 
+                    $this->takeStock($quote['lines']);
+
                     foreach ($quote['lines'] as $line) {
                         $order->items()->create([
                             'product_id' => $line['product_id'], 'name' => $line['name'],
@@ -231,6 +241,49 @@ class OrderService
     }
 
     /** @param array<string, mixed> $settings */
+    /**
+     * Counts the portions of every tracked dish off the stock. A dish that ran out while the guest was deciding
+     * fails the whole order (rolled back with it) rather than being sold twice.
+     *
+     * @param  list<array<string, mixed>>  $lines
+     *
+     * @throws OrderException
+     */
+    private function takeStock(array $lines): void
+    {
+        $wanted = [];
+
+        foreach ($lines as $line) {
+            $wanted[$line['product_id']] = ($wanted[$line['product_id']] ?? 0) + $line['qty'];
+        }
+
+        $touched = false;
+
+        foreach (Product::whereIn('id', array_keys($wanted))->whereNotNull('stock_qty')->pluck('id') as $id) {
+            $taken = Product::whereKey($id)->where('stock_qty', '>=', $wanted[$id])->decrement('stock_qty', $wanted[$id]);
+
+            if ($taken !== 1) {
+                throw new OrderException('out_of_stock');
+            }
+
+            $touched = true;
+        }
+
+        if ($touched) {
+            DB::afterCommit(fn () => MenuCache::bump(app(TenantContext::class)->id()));
+        }
+    }
+
+    /** A cancelled order gives its portions back. */
+    private function returnStock(Order $order): void
+    {
+        foreach ($order->items()->get()->groupBy('product_id') as $productId => $items) {
+            Product::whereKey($productId)->whereNotNull('stock_qty')->increment('stock_qty', (int) $items->sum('qty'));
+        }
+
+        DB::afterCommit(fn () => MenuCache::bump($order->restaurant_id));
+    }
+
     private function resolveTable(string $type, array $data, array $settings): ?DiningTable
     {
         if ($type !== OrderType::DINE_IN) {

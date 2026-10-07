@@ -16,7 +16,7 @@ return [
     'cart_empty_title' => 'Siparişiniz boş', 'cart_empty_text' => 'Menüden yemek ekleyin.',
     'checking' => 'Fiyatlar kontrol ediliyor…', 'offline_total' => 'Fiyatlar sipariş verirken kesinleşir.',
     'place_order' => 'Sipariş ver', 'ordering_soon' => 'Online sipariş yakında açılıyor. Bu listeyi garsona gösterin.',
-    'error_sold_out' => 'Bu ürün tükendi.', 'error_unavailable' => 'Bu ürün artık menüde yok.', 'error_option_required' => 'Bir seçenek belirleyin.',
+    'error_sold_out' => 'Bu ürün tükendi.', 'error_stock_limit' => 'Yeterli porsiyon kalmadı.', 'error_unavailable' => 'Bu ürün artık menüde yok.', 'error_option_required' => 'Bir seçenek belirleyin.',
     'error_option_unavailable' => 'Bir seçenek mevcut değil.', 'error_invalid_option' => 'Bir seçenek artık mevcut değil.', 'error_too_many_options' => 'Çok fazla seçenek seçildi.', 'error_quantity' => 'Adedi kontrol edin.',
     'fix_cart' => 'Sipariş verebilmeniz için bazı ürünlerin düzeltilmesi gerekiyor.',
     'unavailable_title' => 'Bu menü kısa bir mola verdi', 'unavailable_text' => 'Restoranın online menüsü geçici olarak kullanılamıyor. Lütfen personelden basılı menü isteyin.',

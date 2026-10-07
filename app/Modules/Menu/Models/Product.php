@@ -49,6 +49,28 @@ class Product extends Model
         return $this->image?->url() ?? DishArt::url($this->tr('name'), (string) $this->category?->tr('name'));
     }
 
+    public function tracksStock(): bool
+    {
+        return $this->stock_qty !== null;
+    }
+
+    /** False once a tracked dish has run out. */
+    public function inStock(): bool
+    {
+        return ! $this->tracksStock() || $this->stock_qty > 0;
+    }
+
+    /** Orderable right now: switched on by hand and not run out. */
+    public function canBeOrdered(): bool
+    {
+        return $this->is_available && $this->inStock();
+    }
+
+    public function isLowStock(): bool
+    {
+        return $this->tracksStock() && $this->stock_qty > 0 && $this->low_stock_at !== null && $this->stock_qty <= $this->low_stock_at;
+    }
+
     public function isOnSale(): bool
     {
         return $this->compare_price !== null && (float) $this->compare_price > (float) $this->price;

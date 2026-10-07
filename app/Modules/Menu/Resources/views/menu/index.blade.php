@@ -1,6 +1,7 @@
 <x-layouts.app :title="__('menu.title')">
     <x-ui.page-header :title="__('menu.title')" :description="__('menu.subtitle')">
         <x-slot:actions>
+            <a href="{{ route('menu.stock.index') }}" class="btn btn-secondary"><x-ui.icon name="sliders" size="4" />{{ __('menu.stock_prices') }}</a>
             <a href="{{ route('ai.import') }}" class="btn btn-secondary"><x-ui.icon name="sparkles" size="4" />{{ __('ai.button_import') }}</a>
             <a href="{{ route('menu.categories.create') }}" class="btn btn-secondary"><x-ui.icon name="plus" size="4" />{{ __('menu.add_category') }}</a>
             @if ($categories->isNotEmpty())<a href="{{ route('menu.products.create', ['category' => $current?->id]) }}" class="btn btn-primary"><x-ui.icon name="plus" size="4" />{{ __('menu.add_product') }}</a>@endif
@@ -72,7 +73,10 @@
                                             <p class="tnum mt-0.5 text-sm"><bdi class="font-medium">{{ $restaurant->money($product->price) }}</bdi>@if ($product->isOnSale()) <bdi class="text-muted line-through">{{ $restaurant->money($product->compare_price) }}</bdi>@endif</p>
                                             <div class="mt-1 flex flex-wrap gap-1.5">
                                                 @unless ($product->is_active)<x-ui.badge>{{ __('menu.hidden') }}</x-ui.badge>@endunless
-                                                @unless ($product->is_available)<x-ui.badge tone="danger">{{ __('menu.sold_out') }}</x-ui.badge>@endunless
+                                                @if (! $product->is_available)<x-ui.badge tone="danger">{{ __('menu.sold_out') }}</x-ui.badge>
+                                                @elseif (! $product->inStock())<x-ui.badge tone="danger">{{ __('menu.out_of_stock') }}</x-ui.badge>
+                                                @elseif ($product->isLowStock())<x-ui.badge tone="warning" dot>{{ __('menu.low_stock', ['count' => $product->stock_qty]) }}</x-ui.badge>
+                                                @elseif ($product->tracksStock())<x-ui.badge>{{ __('menu.in_stock', ['count' => $product->stock_qty]) }}</x-ui.badge>@endif
                                                 @if ($product->is_featured)<x-ui.badge tone="warning">{{ __('menu.featured') }}</x-ui.badge>@endif
                                             </div>
                                         </div>
