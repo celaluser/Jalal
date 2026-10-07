@@ -7,3 +7,7 @@ Schedule::command('demo:reset')->dailyAt('04:00')->when(fn () => config('demo.en
 
 Schedule::command('billing:expire')->dailyAt('02:30');
 Schedule::command('billing:remind')->dailyAt('09:00');
+
+// Heartbeat for the System page, and a daily database backup (newest 7 are kept).
+Schedule::command('system:heartbeat')->everyMinute();
+Schedule::command('system:backup --keep=7')->dailyAt('03:30');

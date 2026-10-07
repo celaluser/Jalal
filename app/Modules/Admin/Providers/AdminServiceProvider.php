@@ -2,7 +2,10 @@
 
 namespace App\Modules\Admin\Providers;
 
+use App\Modules\Admin\Services\SystemInfo;
 use App\Modules\Admin\Support\AdminNav;
+use Illuminate\Queue\Events\JobProcessed;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
 class AdminServiceProvider extends ServiceProvider
@@ -11,6 +14,9 @@ class AdminServiceProvider extends ServiceProvider
     {
         $this->loadRoutesFrom(__DIR__.'/../routes.php');
         $this->loadViewsFrom(__DIR__.'/../Resources/views', 'admin');
+
+        // A processed job proves the queue worker is alive; the System page reads this heartbeat.
+        Event::listen(JobProcessed::class, fn () => SystemInfo::beat(SystemInfo::QUEUE_KEY));
 
         $nav = [
             ['platform', 'dashboard', 'admin.dashboard', 'admin.dashboard', [], 'grid'],
@@ -28,6 +34,9 @@ class AdminServiceProvider extends ServiceProvider
             ['content', 'pages', 'admin.pages.index', 'admin.pages.*', [], 'file-text'],
             ['system', 'email_templates', 'admin.email-templates.index', 'admin.email-templates.*', [], 'mail'],
             ['system', 'settings', 'admin.settings.section', 'admin.settings.section*', ['section' => 'general'], 'sliders'],
+            ['system', 'system_status', 'admin.system.index', 'admin.system.index', [], 'activity'],
+            ['system', 'logs', 'admin.system.logs', 'admin.system.logs*', [], 'file-text'],
+            ['system', 'backups', 'admin.system.backups', 'admin.system.backups*', [], 'download'],
             ['system', 'updates', 'admin.updates.index', 'admin.updates.*', [], 'refresh'],
         ];
 

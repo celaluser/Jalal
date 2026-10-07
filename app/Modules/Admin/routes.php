@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Admin\Http\Controllers\AnnouncementController;
+use App\Modules\Admin\Http\Controllers\BackupController;
 use App\Modules\Admin\Http\Controllers\BillingSettingsController;
 use App\Modules\Admin\Http\Controllers\BlogPostController;
 use App\Modules\Admin\Http\Controllers\CouponController;
@@ -9,12 +10,14 @@ use App\Modules\Admin\Http\Controllers\EmailTemplateController;
 use App\Modules\Admin\Http\Controllers\ImpersonationController;
 use App\Modules\Admin\Http\Controllers\InvoiceController;
 use App\Modules\Admin\Http\Controllers\LandingPageController;
+use App\Modules\Admin\Http\Controllers\LogController;
 use App\Modules\Admin\Http\Controllers\PageController;
 use App\Modules\Admin\Http\Controllers\PaymentSettingsController;
 use App\Modules\Admin\Http\Controllers\PlanController;
 use App\Modules\Admin\Http\Controllers\RestaurantController;
 use App\Modules\Admin\Http\Controllers\SettingsController;
 use App\Modules\Admin\Http\Controllers\SubscriptionController;
+use App\Modules\Admin\Http\Controllers\SystemController;
 use App\Modules\Admin\Http\Controllers\TicketController;
 use App\Modules\Core\Http\Middleware\SetLocale;
 use Illuminate\Support\Facades\Route;
@@ -46,6 +49,15 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
         Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
         Route::post('invoices/{invoice}/paid', [InvoiceController::class, 'markPaid'])->name('invoices.paid');
         Route::post('invoices/{invoice}/void', [InvoiceController::class, 'void'])->name('invoices.void');
+
+        Route::get('system', [SystemController::class, 'index'])->name('system.index');
+        Route::post('system/clear/{action}', [SystemController::class, 'clear'])->name('system.clear');
+        Route::get('system/logs', [LogController::class, 'index'])->name('system.logs');
+        Route::delete('system/logs', [LogController::class, 'clear'])->name('system.logs.clear');
+        Route::get('system/backups', [BackupController::class, 'index'])->name('system.backups');
+        Route::post('system/backups', [BackupController::class, 'store'])->name('system.backups.store');
+        Route::get('system/backups/{name}', [BackupController::class, 'download'])->name('system.backups.download');
+        Route::delete('system/backups/{name}', [BackupController::class, 'destroy'])->name('system.backups.destroy');
 
         Route::resource('coupons', CouponController::class)->except('show');
 
