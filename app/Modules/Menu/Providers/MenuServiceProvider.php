@@ -4,6 +4,8 @@ namespace App\Modules\Menu\Providers;
 
 use App\Modules\Billing\Support\UsageRegistry;
 use App\Modules\Core\Support\RestaurantNav;
+use App\Modules\Demo\Support\DemoDataRegistry;
+use App\Modules\Menu\Database\Seeders\MenuDemoSeeder;
 use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\Product;
 use Illuminate\Support\ServiceProvider;
@@ -20,6 +22,8 @@ class MenuServiceProvider extends ServiceProvider
         RestaurantNav::add('menu', 'panel.nav.options', 'menu.option-groups.index', 'menu.option-groups.*', icon: 'sliders', can: 'menu.manage');
 
         RestaurantNav::add('settings', 'panel.nav.appearance', 'appearance.edit', icon: 'layout', can: 'settings.manage');
+
+        DemoDataRegistry::register(MenuDemoSeeder::class);
 
         // Plan usage: these counters feed the bars and warnings on the subscription page.
         UsageRegistry::register('products', fn () => Product::count());

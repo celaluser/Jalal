@@ -4,6 +4,8 @@ use App\Models\User;
 use App\Modules\Auth\Support\Permissions;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Demo\Support\DemoDataRegistry;
+use App\Modules\Menu\Services\MenuService;
+use App\Modules\Tables\Models\DiningTable;
 use App\Modules\Tenancy\Models\Restaurant;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Database\Seeder;
@@ -79,4 +81,20 @@ it('refuses demo:reset outside demo mode so a real install can never be wiped', 
 
     $this->artisan('demo:reset')->assertFailed();
     expect(User::count())->toBe(1);
+});
+
+it('seeds every demo restaurant with a live menu, tables and an active plan', function () {
+    $this->seed(DemoSeeder::class);
+
+    foreach (DemoSeeder::RESTAURANTS as $data) {
+        $page = $this->get('/r/'.$data['slug'])->assertOk()->assertDontSee(__('customer.unavailable_title'));
+        $restaurant = Restaurant::where('slug', $data['slug'])->first();
+        $tree = app(MenuService::class)->tree($restaurant);
+
+        expect(count($tree))->toBeGreaterThanOrEqual(3)
+            ->and(collect($tree)->flatMap(fn ($c) => $c['products'])->count())->toBeGreaterThanOrEqual(8)
+            ->and(collect($tree)->flatMap(fn ($c) => $c['products'])->contains(fn ($p) => $p['featured']))->toBeTrue()
+            ->and(app(TenantContext::class)->runAs($restaurant, fn () => DiningTable::count()))->toBe(8)
+            ->and($restaurant->isOnboarded())->toBeTrue();
+    }
 });
