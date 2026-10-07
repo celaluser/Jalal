@@ -9,14 +9,18 @@
 
     @error('limit')<x-ui.alert type="warning" class="mb-4"><span class="flex flex-wrap items-center justify-between gap-2"><span>{{ $message }}</span><a class="font-semibold underline" href="{{ route('billing.index') }}">{{ __('menu.upgrade') }}</a></span></x-ui.alert>@enderror
 
-    <form method="POST" enctype="multipart/form-data" action="{{ $product->exists ? route('menu.products.update', $product) : route('menu.products.store') }}" class="grid gap-5 lg:grid-cols-3">
+    <form method="POST" enctype="multipart/form-data" action="{{ $product->exists ? route('menu.products.update', $product) : route('menu.products.store') }}" class="grid gap-5 lg:grid-cols-3" x-data="aiTools(@js($ai))">
         @csrf @if ($product->exists) @method('PUT') @endif
 
         <div class="space-y-5 lg:col-span-2">
             <x-ui.card :title="__('menu.section_basics')">
                 <div class="space-y-5">
                     <x-ui.translatable name="name" :label="__('menu.name')" :locales="$locales" :values="$product->name ?? []" required />
-                    <x-ui.translatable name="description" :label="__('menu.description')" :locales="$locales" :values="$product->description ?? []" textarea :maxlength="1000" />
+                    <div>
+                        <x-ui.translatable name="description" :label="__('menu.description')" :locales="$locales" :values="$product->description ?? []" textarea :maxlength="1000" />
+                        @include('ai::buttons', ['mode' => 'description'])
+                        @include('ai::buttons', ['mode' => 'translate'])
+                    </div>
                     @include('menu::partials.image', ['model' => $product])
                 </div>
             </x-ui.card>
@@ -36,6 +40,7 @@
                     <fieldset>
                         <legend class="mb-1 text-sm font-medium">{{ __('menu.allergens') }}</legend>
                         <p class="mb-2 text-xs text-muted">{{ __('menu.allergens_help') }}</p>
+                        @include('ai::buttons', ['mode' => 'tags'])
                         <div class="grid gap-x-4 gap-y-2 sm:grid-cols-2 md:grid-cols-3">
                             @foreach ($allergens as $key)
                                 <label class="flex cursor-pointer items-center gap-2 text-sm"><input type="checkbox" name="allergens[]" value="{{ $key }}" class="check" @checked(in_array($key, old('allergens', $product->allergens ?? [])))>{{ __('menu.allergen.'.$key) }}</label>

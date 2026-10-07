@@ -3,6 +3,7 @@
 namespace App\Modules\Menu\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Ai\Services\AiPanel;
 use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Services\MenuImage;
 use App\Modules\Menu\Services\MenuService;
@@ -16,7 +17,7 @@ class CategoryController extends Controller
 
     public function create(Request $request): View
     {
-        return view('menu::categories.form', ['category' => new Category(['is_active' => true]), 'locales' => $request->user()->restaurant->menuLocales()]);
+        return view('menu::categories.form', ['category' => new Category(['is_active' => true]), 'locales' => $request->user()->restaurant->menuLocales(), 'ai' => app(AiPanel::class)->for($request->user()->restaurant)]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -35,7 +36,7 @@ class CategoryController extends Controller
 
     public function edit(Request $request, Category $category): View
     {
-        return view('menu::categories.form', ['category' => $category, 'locales' => $request->user()->restaurant->menuLocales()]);
+        return view('menu::categories.form', ['category' => $category, 'locales' => $request->user()->restaurant->menuLocales(), 'ai' => app(AiPanel::class)->for($request->user()->restaurant)]);
     }
 
     public function update(Request $request, Category $category): RedirectResponse

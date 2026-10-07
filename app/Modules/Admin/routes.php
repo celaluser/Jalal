@@ -68,6 +68,7 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
             ->where('section', 'general|seo|security|auth|mail|domains|ai|realtime|storage');
         Route::put('settings/{section}', [SettingsController::class, 'update'])->name('settings.section.update')
             ->where('section', 'general|seo|security|auth|mail|domains|ai|realtime|storage');
+        Route::post('settings/ai/test', [SettingsController::class, 'testAi'])->middleware('throttle:5,1')->name('settings.ai.test');
         Route::post('settings/mail/test', [SettingsController::class, 'testMail'])->middleware('throttle:5,1')->name('settings.mail.test');
 
         Route::get('tickets', [TicketController::class, 'index'])->name('tickets.index');

@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Admin\Providers\AdminServiceProvider;
+use App\Modules\Ai\Providers\AiServiceProvider;
 use App\Modules\Auth\Providers\AuthServiceProvider;
 use App\Modules\Billing\Providers\BillingServiceProvider;
 use App\Modules\Cms\Providers\CmsServiceProvider;
@@ -28,6 +29,7 @@ return [
     MenuServiceProvider::class,
     TablesServiceProvider::class,
     OrdersServiceProvider::class,
+    AiServiceProvider::class,
     StorefrontServiceProvider::class,
     AuthServiceProvider::class,
     LicensingServiceProvider::class,

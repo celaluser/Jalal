@@ -1,6 +1,7 @@
 <x-layouts.app :title="__('menu.title')">
     <x-ui.page-header :title="__('menu.title')" :description="__('menu.subtitle')">
         <x-slot:actions>
+            <a href="{{ route('ai.import') }}" class="btn btn-secondary"><x-ui.icon name="sparkles" size="4" />{{ __('ai.button_import') }}</a>
             <a href="{{ route('menu.categories.create') }}" class="btn btn-secondary"><x-ui.icon name="plus" size="4" />{{ __('menu.add_category') }}</a>
             @if ($categories->isNotEmpty())<a href="{{ route('menu.products.create', ['category' => $current?->id]) }}" class="btn btn-primary"><x-ui.icon name="plus" size="4" />{{ __('menu.add_product') }}</a>@endif
         </x-slot:actions>

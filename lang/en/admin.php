@@ -235,6 +235,7 @@ return [
             'provider' => 'Active provider', 'openai_key' => 'OpenAI API key', 'openai_model' => 'OpenAI model',
             'anthropic_key' => 'Anthropic API key', 'anthropic_model' => 'Anthropic model', 'gemini_key' => 'Gemini API key', 'gemini_model' => 'Gemini model',
             'cost_menu_import' => 'Credits: menu import', 'cost_description' => 'Credits: product description', 'cost_translation' => 'Credits: translation (per item)',
+            'test' => 'Test the connection', 'test_ok' => 'The AI provider answered (:tokens tokens).', 'test_failed' => 'The AI provider could not be reached: :error',
             'cost_allergens' => 'Credits: allergen suggestion', 'cost_review_reply' => 'Credits: review reply', 'cost_insights' => 'Credits: sales insights',
         ],
         'realtime' => [

@@ -3,6 +3,7 @@
 namespace App\Modules\Menu\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Ai\Services\AiPanel;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\OptionGroup;
@@ -109,6 +110,7 @@ class ProductController extends Controller
             'selectedGroups' => $product->exists ? $product->optionGroups->pluck('id')->all() : [],
             'allergens' => config('menu.allergens'),
             'dietary' => config('menu.dietary'),
+            'ai' => app(AiPanel::class)->for($request->user()->restaurant),
         ];
     }
 

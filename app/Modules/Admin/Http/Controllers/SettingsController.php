@@ -4,6 +4,8 @@ namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Admin\Settings\SettingsSchema;
+use App\Modules\Ai\Exceptions\AiException;
+use App\Modules\Ai\Services\AiManager;
 use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Models\Language;
 use App\Modules\Core\Services\FileUploader;
@@ -97,6 +99,18 @@ class SettingsController extends Controller
         $this->runtime->apply();
 
         return back()->with('status', __('admin.saved'));
+    }
+
+    /** One tiny request to the chosen AI provider so the admin can check the key and model. Not charged to anyone. */
+    public function testAi(AiManager $ai): RedirectResponse
+    {
+        try {
+            $answer = $ai->provider()->complete('Reply with this JSON and nothing else: {"ok": true}', 'ping', 30);
+        } catch (AiException $e) {
+            return back()->withErrors(['ai' => __('admin.settings.ai.test_failed', ['error' => $e->reason === 'not_configured' ? __('ai.error_not_configured') : $e->getMessage()])]);
+        }
+
+        return back()->with('status', __('admin.settings.ai.test_ok', ['tokens' => $answer->inputTokens + $answer->outputTokens]));
     }
 
     /** Sends a message through the configured SMTP settings so the admin can verify them. */

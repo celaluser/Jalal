@@ -9,6 +9,7 @@
         </nav>
         <div class="max-w-2xl space-y-5">
             @error('mail')<x-ui.alert type="error">{{ $message }}</x-ui.alert>@enderror
+            @error('ai')<x-ui.alert type="error">{{ $message }}</x-ui.alert>@enderror
             <form method="POST" action="{{ route('admin.settings.section.update', $section) }}" enctype="multipart/form-data">
                 @csrf @method('PUT')
                 <x-ui.card :title="__($schema['title'])" class="space-y-5">
@@ -73,6 +74,9 @@
             @if ($section === 'mail')
                 {{-- Own form: the settings form above spoofs PUT, this route is POST --}}
                 <form method="POST" action="{{ route('admin.settings.mail.test') }}">@csrf<x-ui.button variant="secondary" :block="false" icon="mail">{{ __('admin.settings.mail.send_test') }}</x-ui.button></form>
+            @endif
+            @if ($section === 'ai')
+                <form method="POST" action="{{ route('admin.settings.ai.test') }}">@csrf<x-ui.button variant="secondary" :block="false" icon="sparkles">{{ __('admin.settings.ai.test') }}</x-ui.button></form>
             @endif
         </div>
     </div>
