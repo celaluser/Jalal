@@ -30,11 +30,17 @@ class Autopilot extends Command
             foreach ($restaurants as $restaurant) {
                 $s = $settings->for($restaurant);
 
-                if (! $s['autopilot_winback'] || $restaurant->isSuspended()) {
+                if ($restaurant->isSuspended() || (! $s['autopilot_winback'] && ! $s['autopilot_birthday'])) {
                     continue;
                 }
 
                 $tenant->runAs($restaurant, function () use ($restaurant, $s, &$sent) {
+                    $sent += $s['autopilot_birthday'] ? $this->birthdays($restaurant, $s) : 0;
+
+                    if (! $s['autopilot_winback']) {
+                        return;
+                    }
+
                     $lapsed = Customer::where('marketing_opt_in', true)->whereNull('unsubscribed_at')->whereNotNull('email')
                         ->where('last_order_at', '<', now()->subDays((int) $s['autopilot_days']))
                         ->where(fn ($q) => $q->whereNull('winback_at')->orWhere('winback_at', '<', now()->subDays(90)))
@@ -59,5 +65,28 @@ class Autopilot extends Command
         $this->info("Sent {$sent} win-back message(s).");
 
         return self::SUCCESS;
+    }
+
+    /** Today's birthdays: one personal single-use code each, once per year, only for guests who agreed to marketing. */
+    private function birthdays(Restaurant $restaurant, array $s): int
+    {
+        $today = now();
+        $sent = 0;
+
+        foreach (Customer::where('marketing_opt_in', true)->whereNull('unsubscribed_at')->whereNotNull('email')->where('birth_month', $today->month)->where('birth_day', $today->day)
+            ->where(fn ($q) => $q->whereNull('birthday_year')->orWhere('birthday_year', '<', $today->year))->limit(200)->get() as $customer) {
+            $promo = PromoCode::create([
+                'code' => 'BIRTHDAY-'.strtoupper(Str::random(6)), 'description' => 'Birthday', 'type' => PromoCode::PERCENT, 'value' => (int) $s['birthday_percent'],
+                'max_uses' => 1, 'ends_at' => now()->addDays(7), 'customer_id' => $customer->id,
+            ]);
+            $customer->forceFill(['birthday_year' => $today->year])->save();
+            SafeMail::send($customer->email, new TemplatedMail('birthday', [
+                'name' => $customer->name ?: '', 'restaurant' => $restaurant->name, 'code' => $promo->code, 'reward' => __('marketing.reward_percent', ['value' => $promo->value]),
+                'expires' => $promo->ends_at->toFormattedDateString(), 'menu_url' => $restaurant->publicUrl(),
+            ], $customer->locale));
+            $sent++;
+        }
+
+        return $sent;
     }
 }

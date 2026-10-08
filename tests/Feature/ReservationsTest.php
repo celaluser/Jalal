@@ -204,3 +204,21 @@ it('reminds guests once, only for confirmed bookings inside the window', functio
     $sent = Mail::sent(TemplatedMail::class)->filter(fn ($m) => $m->templateKey === 'reservation_reminder');
     expect($sent)->toHaveCount(1)->and($sent->first()->hasTo('soon@example.com'))->toBeTrue();
 });
+
+it('also texts the reminder to guests with only a phone number, in their language, once', function () {
+    Mail::fake();
+    $m = app(\App\Modules\Messaging\Services\MessagingManager::class);
+    $m->save($m->find('twilio'), ['account_sid' => 'AC1', 'auth_token' => 'tok', 'from' => '+15550001111']);
+    $m->choose('sms', 'twilio');
+    \Illuminate\Support\Facades\Http::swap(new \Illuminate\Http\Client\Factory);
+    \Illuminate\Support\Facades\Http::fake(['api.twilio.com/*' => \Illuminate\Support\Facades\Http::response(['sid' => 'SM1'], 201)]);
+
+    [$r] = rsShop(['remind_hours' => 3, 'auto_confirm' => true, 'lead_minutes' => 0]);
+    app(TenantContext::class)->runAs($r, fn () => (new Reservation(['name' => 'Tuna', 'phone' => '+90 532 111 22 33', 'party_size' => 4, 'starts_at' => now()->addHour()->toDateTimeString(), 'duration_minutes' => 90, 'status' => 'confirmed', 'locale' => 'tr']))->forceFill(['token' => Str::lower(Str::random(24))])->save());
+    $this->artisan('reservations:remind')->assertSuccessful();
+    $this->artisan('reservations:remind')->assertSuccessful();
+
+    \Illuminate\Support\Facades\Http::assertSentCount(1);
+    \Illuminate\Support\Facades\Http::assertSent(fn ($q) => $q['To'] === '+905321112233' && str_contains($q['Body'], 'hatırlatma') && str_contains($q['Body'], '4 kişilik'));
+    Mail::assertNothingSent();
+});

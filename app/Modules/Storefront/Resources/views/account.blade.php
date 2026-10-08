@@ -34,6 +34,14 @@
                 <label class="block text-sm font-medium" for="phone">{{ __('orders.phone') }}</label>
                 <input id="phone" name="phone" value="{{ old('phone', $customer->phone) }}" maxlength="40" inputmode="tel" class="w-full rounded-xl border bg-transparent px-3 py-2.5 menu-line">
                 @error('phone')<p class="text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
+                <fieldset class="space-y-1.5"><legend class="block text-sm font-medium">{{ __('customer.birthday') }}</legend>
+                    <div class="grid grid-cols-2 gap-2">
+                        <select name="birth_month" aria-label="{{ __('customer.birth_month') }}" class="w-full rounded-xl border bg-transparent px-3 py-2.5 menu-line"><option value="">–</option>@foreach (range(1, 12) as $m)<option value="{{ $m }}" @selected((int) old('birth_month', $customer->birth_month) === $m)>{{ \Carbon\Carbon::create(2000, $m, 1)->locale($locale)->translatedFormat('F') }}</option>@endforeach</select>
+                        <select name="birth_day" aria-label="{{ __('customer.birth_day') }}" class="w-full rounded-xl border bg-transparent px-3 py-2.5 menu-line"><option value="">–</option>@foreach (range(1, 31) as $d)<option value="{{ $d }}" @selected((int) old('birth_day', $customer->birth_day) === $d)>{{ $d }}</option>@endforeach</select>
+                    </div>
+                    <p class="menu-muted text-xs">{{ __('customer.birthday_help') }}</p>
+                    @error('birth_day')<p class="text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
+                </fieldset>
                 <button class="menu-btn w-full">{{ __('admin.save') }}</button>
             </form>
 

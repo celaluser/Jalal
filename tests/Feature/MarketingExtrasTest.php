@@ -341,3 +341,49 @@ describe('pixels, link page, flyer and website button', function () {
         $this->actingAs(gxUser($r, 'waiter'))->get(route('marketing.flyer'))->assertForbidden();
     });
 });
+
+describe('birthdays', function () {
+    it('lets a guest save day and month, never the year, and rejects impossible dates', function () {
+        [$r] = gxShop();
+        $c = gxCustomer($r, ['email' => 'bday@example.com']);
+        $session = [\App\Modules\Storefront\Http\Controllers\AccountController::sessionKey($r->id) => $c->id];
+
+        $this->withSession($session)->put("/r/{$r->slug}/account", ['name' => 'Ada', 'birth_month' => 2, 'birth_day' => 29])->assertSessionHasNoErrors();
+        expect($c->fresh()->only(['birth_month', 'birth_day']))->toBe(['birth_month' => 2, 'birth_day' => 29]);
+        $this->withSession($session)->put("/r/{$r->slug}/account", ['birth_month' => 4, 'birth_day' => 31])->assertSessionHasErrors('birth_day');
+        $this->withSession($session)->put("/r/{$r->slug}/account", ['birth_month' => 4])->assertSessionHasErrors('birth_day');
+        $this->withSession($session)->put("/r/{$r->slug}/account", ['name' => 'Ada'])->assertSessionHasNoErrors(); // clearing both is fine
+        expect($c->fresh()->birth_month)->toBeNull();
+    });
+
+    it('selects guests with a birthday this month for a campaign', function () {
+        [$r] = gxShop();
+        $in = gxCustomer($r, ['birth_month' => now()->month, 'birth_day' => 3]);
+        gxCustomer($r, ['birth_month' => now()->addMonth()->month, 'birth_day' => 3]);
+        gxCustomer($r);
+        $ids = gxIn($r, fn () => app(CampaignService::class)->audience(new Campaign(['channel' => 'email', 'segment' => 'birthday', 'min_orders' => 0]), $r)->pluck('id')->all());
+        expect($ids)->toBe([$in->id]);
+    });
+
+    it('sends one personal code on the birthday, once a year, only with consent', function () {
+        [$r] = gxShop(['autopilot_birthday' => true, 'birthday_percent' => 20]);
+        $today = gxCustomer($r, ['birth_month' => now()->month, 'birth_day' => now()->day]);
+        gxCustomer($r, ['birth_month' => now()->month, 'birth_day' => now()->day, 'marketing_opt_in' => false]);
+        gxCustomer($r, ['birth_month' => now()->month, 'birth_day' => now()->day, 'unsubscribed_at' => now()]);
+        gxCustomer($r, ['birth_month' => now()->addMonth()->month, 'birth_day' => now()->day]);
+
+        $this->artisan('marketing:autopilot')->assertSuccessful();
+        $this->artisan('marketing:autopilot')->assertSuccessful();
+
+        Mail::assertSent(TemplatedMail::class, 1);
+        $promo = gxIn($r, fn () => PromoCode::where('customer_id', $today->id)->first());
+        expect($promo->value)->toBe(20)->and($promo->code)->toStartWith('BIRTHDAY-')->and($promo->max_uses)->toBe(1)->and($today->fresh()->birthday_year)->toBe(now()->year);
+    });
+
+    it('does nothing when the restaurant has not switched it on', function () {
+        [$r] = gxShop();
+        gxCustomer($r, ['birth_month' => now()->month, 'birth_day' => now()->day]);
+        $this->artisan('marketing:autopilot')->assertSuccessful();
+        Mail::assertNothingSent();
+    });
+});

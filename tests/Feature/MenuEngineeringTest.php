@@ -114,3 +114,48 @@ describe('weekly digest', function () {
         Mail::assertSent(TemplatedMail::class, fn ($m) => $m->hasTo($owner->email));
     });
 });
+
+describe('team and tables report', function () {
+    it('counts what each signed-in person did and how tables turn over', function () {
+        [$r, $d] = meShop();
+        $ana = User::factory()->create(['restaurant_id' => $r->id, 'name' => 'Ana']);
+        $bob = User::factory()->create(['restaurant_id' => $r->id, 'name' => 'Bob']);
+        $table = app(TenantContext::class)->runAs($r, fn () => \App\Modules\Tables\Models\DiningTable::create(['name' => 'T7']));
+        $place = fn () => app(TenantContext::class)->runAs($r, fn () => app(OrderService::class)->place($r, ['type' => 'dine_in', 'table_id' => $table->id, 'payment_method' => 'cash', 'customer_name' => 'G', 'customer_phone' => '+1 555 111 2222', 'lines' => [['product_id' => $d['star']->id, 'qty' => 1]]]));
+        $o1 = $place();
+        $o2 = $place();
+        app(TenantContext::class)->runAs($r, function () use ($o1, $o2, $ana, $bob) {
+            $svc = app(OrderService::class);
+            $svc->transition($o1, 'accepted', $ana);
+            $svc->transition($o1, 'preparing', $ana);
+            $svc->transition($o1, 'ready', $ana);
+            $svc->transition($o1, 'completed', $ana);
+            $svc->transition($o2, 'accepted', $bob);
+            $svc->transition($o2, 'cancelled', $bob, 'test');
+            \App\Modules\Orders\Models\Order::whereKey($o1->id)->update(['created_at' => now()->subMinutes(50), 'completed_at' => now()]);
+        });
+
+        $data = app(TenantContext::class)->runAs($r, fn () => app(\App\Modules\Analytics\Services\OperationsReport::class)->build($r, app(ReportService::class)->period($r, '30')));
+        $ana = collect($data['staff'])->firstWhere('name', 'Ana');
+        $bob = collect($data['staff'])->firstWhere('name', 'Bob');
+        expect($ana)->toMatchArray(['accepted' => 1, 'ready' => 1, 'completed' => 1, 'cancelled' => 0])->and($bob)->toMatchArray(['accepted' => 1, 'cancelled' => 1, 'completed' => 0])
+            ->and($data['tables'])->toHaveCount(1)->and($data['tables'][0])->toMatchArray(['table' => 'T7', 'orders' => 1, 'revenue' => 1000, 'avg_minutes' => 50]);
+    });
+
+    it('is shown to owners with the analytics feature only', function () {
+        [$r] = meShop();
+        $u = User::factory()->create(['restaurant_id' => $r->id]);
+        $reg = app(PermissionRegistrar::class);
+        $reg->setPermissionsTeamId($r->id);
+        $u->assignRole('restaurant_owner');
+        $reg->setPermissionsTeamId(config('tenancy.platform_team_id'));
+        $this->actingAs($u)->get(route('reports.operations'))->assertOk()->assertSee('Team & tables')->assertSee('No team activity');
+
+        [$basic] = meShop(false);
+        $b = User::factory()->create(['restaurant_id' => $basic->id]);
+        $reg->setPermissionsTeamId($basic->id);
+        $b->assignRole('restaurant_owner');
+        $reg->setPermissionsTeamId(config('tenancy.platform_team_id'));
+        $this->actingAs($b)->get(route('reports.operations'))->assertForbidden();
+    });
+});

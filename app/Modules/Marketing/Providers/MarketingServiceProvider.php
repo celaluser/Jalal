@@ -60,6 +60,13 @@ class MarketingServiceProvider extends ServiceProvider
             'subject' => '{{restaurant}} misses you: {{reward}}',
             'body' => "Hi {{name}},\n\nIt has been a while since your last order at **{{restaurant}}**. Here is **{{reward}}** to welcome you back:\n\n**{{code}}**\n\nEnter it at checkout before {{expires}}. It works once and only for you.\n\n[Order now]({{menu_url}})",
         ]);
+        EmailTemplateRegistry::register('birthday', [
+            'label' => 'Birthday treat (guest)', 'required' => false,
+            'variables' => ['name', 'restaurant', 'code', 'reward', 'expires', 'menu_url'],
+            'sample' => ['name' => 'Sam', 'restaurant' => 'Bella Italia', 'code' => 'BIRTHDAY-4KQ9ZD', 'reward' => '15% off', 'expires' => 'Dec 31, 2026', 'menu_url' => 'https://example.com/r/bella'],
+            'subject' => 'Happy birthday from {{restaurant}}!',
+            'body' => "Happy birthday, {{name}}!\n\nTo celebrate, here is **{{reward}}** at **{{restaurant}}**:\n\n**{{code}}**\n\nEnter it at checkout before {{expires}}. It works once and only for you.\n\n[Order now]({{menu_url}})",
+        ]);
         EmailTemplateRegistry::register('gift_card', [
             'label' => 'Gift card (recipient)', 'required' => false,
             'variables' => ['restaurant', 'code', 'amount', 'note', 'menu_url'],

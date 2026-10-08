@@ -15,4 +15,5 @@ return [
     'rules' => 'Rules', 'slot_minutes' => 'Time between slots (minutes)', 'duration' => 'How long a table is held (minutes)', 'max_party' => 'Largest party', 'lead' => 'Shortest notice (minutes)', 'days_ahead' => 'How many days ahead',
     'max_covers' => 'Seats at once', 'max_covers_hint' => 'Used only when you have not set up tables.', 'remind' => 'Reminder e-mail (hours before)', 'remind_hint' => '0 switches reminders off.',
     'reserve_link' => 'Reserve a table',
+    'sms_reminder' => 'Reminder from :restaurant: your table for :party is on :when. Change or cancel: :url',
 ];

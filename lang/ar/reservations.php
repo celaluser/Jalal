@@ -7,4 +7,5 @@ return [
     'your_booking' => 'حجزك', 'pending_text' => 'سنؤكد حجزك قريبًا.', 'cancel' => 'إلغاء الحجز', 'cancel_confirm' => 'هل تريد إلغاء هذا الحجز؟',
     'error_not_available' => 'هذا الوقت لم يعد متاحًا. اختر وقتًا آخر.', 'error_contact_required' => 'يرجى ترك رقم هاتف أو بريد إلكتروني.', 'error_cannot_cancel' => 'لم يعد بالإمكان إلغاء هذا الحجز.',
     'reserve_link' => 'احجز طاولة',
+    'sms_reminder' => 'تذكير من :restaurant: طاولتك لـ :party أشخاص في :when. للتعديل أو الإلغاء: :url',
 ];

@@ -7,4 +7,5 @@ return [
     'your_booking' => 'Rezervasyonunuz', 'pending_text' => 'Rezervasyonunuzu kısa süre içinde onaylayacağız.', 'cancel' => 'Rezervasyonu iptal et', 'cancel_confirm' => 'Bu rezervasyon iptal edilsin mi?',
     'error_not_available' => 'Bu saat artık boş değil. Lütfen başka bir saat seçin.', 'error_contact_required' => 'Lütfen bir telefon numarası veya e-posta bırakın.', 'error_cannot_cancel' => 'Bu rezervasyon artık iptal edilemez.',
     'reserve_link' => 'Masa ayırt',
+    'sms_reminder' => ':restaurant hatırlatma: :party kişilik masanız :when. Değiştirmek veya iptal için: :url',
 ];

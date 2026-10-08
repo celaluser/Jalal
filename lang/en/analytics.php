@@ -20,4 +20,9 @@ return [
     'food_cost' => 'Food cost :percent% of sales (dishes with a cost price)', 'thresholds' => 'Popular from :pop sold · profitable from :margin per portion',
     'eng_dishes' => 'Dishes by profit', 'dish' => 'Dish', 'sold' => 'Sold', 'unit_margin' => 'Per portion', 'margin' => 'Profit', 'class' => 'Class', 'by_category' => 'Sales by category',
     'no_cost' => '{1} :count dish has no cost price and is not classified|[2,*] :count dishes have no cost price and are not classified',
+    'ops_title' => 'Team & tables', 'ops_sub' => 'What your team did and how fast tables turn, :from – :to.',
+    'ops_staff' => 'Team activity', 'ops_staff_help' => 'Counts what each signed-in person did with orders. Automatic steps and guest actions are not included.', 'ops_no_staff' => 'No team activity in this period',
+    'ops_person' => 'Person', 'ops_accepted' => 'Accepted', 'ops_ready' => 'Marked ready', 'ops_completed' => 'Completed', 'ops_cancelled' => 'Cancelled', 'ops_accept_time' => 'Avg. time to accept',
+    'ops_tables' => 'Table turnover', 'ops_tables_help' => 'Finished dine-in orders per table. Minutes = from order to completed, a stand-in for how long the table was busy.', 'ops_no_tables' => 'No finished dine-in orders in this period',
+    'ops_table' => 'Table', 'ops_minutes' => 'Avg. minutes',
 ];

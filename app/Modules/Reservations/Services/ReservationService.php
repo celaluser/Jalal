@@ -4,6 +4,7 @@ namespace App\Modules\Reservations\Services;
 
 use App\Modules\Core\Mail\SafeMail;
 use App\Modules\Core\Mail\TemplatedMail;
+use App\Modules\Messaging\Services\Messenger;
 use App\Modules\Reservations\Events\ReservationBooked;
 use App\Modules\Reservations\Events\ReservationStatusChanged;
 use App\Modules\Reservations\Models\Reservation;
@@ -106,6 +107,25 @@ class ReservationService
         }
 
         return $this->setStatus($restaurant, $res, 'cancelled');
+    }
+
+    /** A text-message reminder (SMS or WhatsApp, whichever the platform has set up). Silent when there is no provider, no number or no allowance left. */
+    public function sms(Restaurant $restaurant, Reservation $res): void
+    {
+        if (! $res->phone) {
+            return;
+        }
+
+        $messenger = app(Messenger::class);
+        $channel = $messenger->available('whatsapp') ? 'whatsapp' : ($messenger->available('sms') ? 'sms' : null);
+
+        if (! $channel) {
+            return;
+        }
+
+        $when = $res->starts_at->setTimezone($this->availability->zone($restaurant))->isoFormat('dddd D MMMM, HH:mm');
+        $text = trans('reservations.sms_reminder', ['restaurant' => $restaurant->name, 'when' => $when, 'party' => $res->party_size, 'url' => $restaurant->publicUrl('reserve/'.$res->token)], $res->locale ?: $restaurant->locale);
+        $messenger->send($restaurant, $channel, (string) $res->phone, $text, 'reservation');
     }
 
     public function mail(Restaurant $restaurant, Reservation $res, string $template): void

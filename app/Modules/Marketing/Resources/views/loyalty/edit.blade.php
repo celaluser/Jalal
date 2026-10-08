@@ -49,6 +49,8 @@
                 <x-ui.checkbox name="nps_enabled" :label="__('marketing.nps_enabled')" :checked="$s['nps_enabled']" />
                 <x-ui.checkbox name="autopilot_winback" :label="__('marketing.autopilot_winback')" :checked="$s['autopilot_winback']" />
                 <p class="-mt-3 text-xs text-muted">{{ __('marketing.autopilot_help') }}</p>
+                <x-ui.checkbox name="autopilot_birthday" :label="__('marketing.autopilot_birthday')" :checked="$s['autopilot_birthday']" />
+                <x-ui.input name="birthday_percent" type="number" min="1" max="100" :value="$s['birthday_percent']" :label="__('marketing.birthday_percent')" />
                 <div class="grid gap-4 sm:grid-cols-2">
                     <x-ui.input name="autopilot_days" type="number" min="7" max="365" :value="$s['autopilot_days']" :label="__('marketing.autopilot_days')" />
                     <x-ui.input name="autopilot_percent" type="number" min="1" max="100" :value="$s['autopilot_percent']" :label="__('marketing.autopilot_percent')" />

@@ -39,6 +39,16 @@ class ReportController extends Controller
         return view('analytics::menu', ['restaurant' => $restaurant, 'period' => $period, 'data' => $engineering->build($restaurant, $period)]);
     }
 
+    /** Team activity and table turnover (needs the analytics feature). */
+    public function operations(Request $request, \App\Modules\Analytics\Services\OperationsReport $operations): View
+    {
+        $restaurant = $request->user()->restaurant;
+        abort_unless($this->limits->hasFeature($restaurant, 'analytics'), 403);
+        $period = $this->reports->period($restaurant, in_array($request->query('range'), ['7', '30', '90'], true) ? $request->query('range') : '30');
+
+        return view('analytics::operations', ['restaurant' => $restaurant, 'period' => $period, 'data' => $operations->build($restaurant, $period)]);
+    }
+
     public function menuExport(Request $request, MenuEngineering $engineering): StreamedResponse
     {
         $restaurant = $request->user()->restaurant;

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 /** Guest groups for campaigns, and the loyalty tier a guest has reached (by number of orders). */
 class Segments
 {
-    public const ALL = ['all', 'new', 'regulars', 'vip', 'lapsed'];
+    public const ALL = ['all', 'new', 'regulars', 'vip', 'lapsed', 'birthday'];
 
     public function __construct(private readonly MarketingSettings $settings) {}
 
@@ -20,6 +20,7 @@ class Segments
             'new' => $query->where('orders_count', '<=', 1),
             'regulars' => $query->where('orders_count', '>=', (int) $s['tier_silver']),
             'vip' => $query->where('orders_count', '>=', (int) $s['tier_gold']),
+            'birthday' => $query->where('birth_month', (int) now()->month), // everyone with a birthday this month
             'lapsed' => $query->where('last_order_at', '<', now()->subDays((int) $s['autopilot_days'])),
             default => $query,
         };

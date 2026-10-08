@@ -29,9 +29,10 @@ class SendReminders extends Command
                 }
 
                 $tenant->runAs($restaurant, function () use ($restaurant, $hours, $service, &$sent) {
-                    foreach (Reservation::where('status', 'confirmed')->whereNull('reminded_at')->whereNotNull('email')->where('starts_at', '>', now())->where('starts_at', '<=', now()->addHours($hours))->limit(100)->get() as $res) {
+                    foreach (Reservation::where('status', 'confirmed')->whereNull('reminded_at')->where(fn ($q) => $q->whereNotNull('email')->orWhereNotNull('phone'))->where('starts_at', '>', now())->where('starts_at', '<=', now()->addHours($hours))->limit(100)->get() as $res) {
                         $res->forceFill(['reminded_at' => now()])->save();
                         $service->mail($restaurant, $res, 'reservation_reminder');
+                        $service->sms($restaurant, $res);
                         $sent++;
                     }
                 });

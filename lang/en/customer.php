@@ -40,4 +40,5 @@ return [
     'about_menu' => 'View the menu & order', 'about_call' => 'Call', 'about_directions' => 'Directions', 'about_us' => 'About us', 'about_hours' => 'Opening hours', 'about_contact' => 'Find us', 'about_follow' => 'Follow us', 'about_website' => 'Website',
     'about_day_0' => 'Monday', 'about_day_1' => 'Tuesday', 'about_day_2' => 'Wednesday', 'about_day_3' => 'Thursday', 'about_day_4' => 'Friday', 'about_day_5' => 'Saturday', 'about_day_6' => 'Sunday',
     'account_export' => 'Download my data', 'consent_title' => 'Cookies', 'consent_text' => 'May we use advertising cookies to measure our campaigns? The menu works the same either way.', 'consent_accept' => 'Accept', 'consent_decline' => 'No thanks',
+    'birthday' => 'Birthday (optional)', 'birth_month' => 'Month', 'birth_day' => 'Day', 'birthday_help' => 'Only day and month, never the year. We may send you a birthday treat if you agreed to hear from us.', 'birthday_invalid' => 'Please pick a real day and month.',
 ];

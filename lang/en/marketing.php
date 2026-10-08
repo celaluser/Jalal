@@ -109,4 +109,5 @@ return [
     'weekly_digest' => 'E-mail me a summary of last week every Monday',
     'privacy_section' => 'Privacy', 'retention_months' => 'Erase guest personal data after (months)',
     'retention_help' => '0 keeps everything. Otherwise, guests who have not ordered for this long are deleted and their name, phone, e-mail and address are removed from old orders. The orders themselves (amounts, dishes) stay for your books.',
+    'segment_birthday' => 'Birthday this month', 'autopilot_birthday' => 'Autopilot: birthday treat', 'birthday_percent' => 'Birthday discount (%)',
 ];

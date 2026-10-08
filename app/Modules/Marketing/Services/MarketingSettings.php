@@ -29,6 +29,8 @@ class MarketingSettings
         'autopilot_percent' => 15,
         'retention_months' => 0,         // 0 = keep guest data; otherwise personal data of guests quiet for this long is erased
         'weekly_digest' => true,         // Monday e-mail with last week's numbers, to the owner
+        'autopilot_birthday' => false,   // a birthday treat (personal single-use code) on the guest's birthday
+        'birthday_percent' => 15,
         'nps_enabled' => true,           // the 0-10 "would you recommend us" question next to the stars
         'pixel_meta' => '',              // tracking ids; loaded on the guest menu unless the guest sends Do Not Track
         'pixel_ga' => '',
@@ -86,6 +88,7 @@ class MarketingSettings
             'calling_code' => ['nullable', 'regex:/^\+?\d{1,4}$/'],
             'tier_silver' => ['sometimes', 'required', 'integer', 'min:2', 'max:500'], 'tier_gold' => ['sometimes', 'required', 'integer', 'gt:tier_silver', 'max:1000'],
             'autopilot_winback' => ['nullable', 'boolean'], 'autopilot_days' => ['sometimes', 'required', 'integer', 'min:7', 'max:365'], 'autopilot_percent' => ['sometimes', 'required', 'integer', 'min:1', 'max:100'],
+            'autopilot_birthday' => ['nullable', 'boolean'], 'birthday_percent' => ['sometimes', 'required', 'integer', 'min:1', 'max:100'],
             'nps_enabled' => ['nullable', 'boolean'], 'weekly_digest' => ['nullable', 'boolean'], 'retention_months' => ['nullable', 'integer', 'min:0', 'max:120'],
             'pixel_meta' => ['nullable', 'regex:/^\d{5,20}$/'], 'pixel_ga' => ['nullable', 'regex:/^(G|GT|AW)-[A-Z0-9]{4,15}$/'], 'pixel_tiktok' => ['nullable', 'regex:/^[A-Z0-9]{8,30}$/'],
             'link_phone' => ['nullable', 'regex:/^\+?[\d\s()-]{6,25}$/'], 'link_whatsapp' => ['nullable', 'regex:/^\+?\d{7,15}$/'],

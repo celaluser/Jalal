@@ -124,7 +124,7 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Online booking page with live free times (opening hours, slot length, stay length, largest party, notice, days ahead), table-aware or seats-at-once capacity, manual or automatic confirmation
 - ✅ Guest private link to view/cancel; e-mails for received, confirmed, cancelled and a reminder before the visit (editable templates)
 - ✅ Staff day view: confirm, assign a table (smallest fitting one is picked), seat, finish, no-show, take phone bookings (even into a full slot, on purpose)
-- 🟡 Plan feature `reservations` gates it; no deposit/prepayment and no SMS reminders yet
+- 🟡 Plan feature `reservations` gates it; no deposit/prepayment. SMS/WhatsApp reminders go out with the e-mail reminder when a provider is set up (tested with faked HTTP)
 
 ## 9i. Marketing growth (v2 gap work)
 
@@ -136,7 +136,8 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ **NPS**: optional 0-10 question next to the stars, score and breakdown on the reviews page.
 - ✅ **Ad pixels** (Meta, Google tag, TikTok): ids validated by pattern, loaded on the guest menu only when the guest does not send Do Not Track. This is not a full cookie-consent banner.
 - ✅ **Link-in-bio page** (`/links`), **printable A5 flyer** with the menu QR, **website button** script (`/widget.js`) and iframe snippet, **promo templates** (welcome, weekend, big order, flash sale).
-- 🔴 Not built: birthday campaigns (no birthday field), segment builder with free rules, A/B testing, automatic send-time optimisation.
+- ✅ **Birthdays** (day and month only, never the year): guests add it on their account page; segment "birthday this month"; optional autopilot sends one personal code on the day, once a year, only with marketing consent
+- 🔴 Not built: segment builder with free rules, A/B testing, automatic send-time optimisation.
 
 ## 9j. Mini website and SEO (v2 gap work)
 
@@ -151,7 +152,8 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ **Menu engineering** (`/reports/menu`, plan feature `analytics`): stars / plowhorses / puzzles / dogs from popularity and margin, food-cost %, sales by category, CSV export
 - ✅ **Weekly digest** e-mail to the owner every Monday (orders, revenue vs. the week before, best sellers); owner can switch it off
 - 🟡 Margins use the dish's own cost price; extras and sizes are not costed, and dishes without a cost price are listed but not classified
-- 🔴 Not built: staff performance, table turnover, forecasting, scheduled custom reports
+- ✅ **Team & tables** page (`/reports/operations`): per person accepted/ready/completed/cancelled and average time to accept (signed-in actions only), table turnover (orders, revenue, average ticket, minutes from order to completed)
+- 🔴 Not built: forecasting, scheduled custom reports; table minutes are a stand-in (order to completed), not seat time
 
 ## 9l. REST API and webhooks (v2 gap work)
 
@@ -159,7 +161,8 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ **REST API v1**: menu (read, change price/availability/stock), orders (list, show, change status); documented in `docs/API.md`
 - ✅ **Webhooks**: `order.created`, `order.status_changed`, `order.paid`; HMAC-SHA256 signed with timestamp, queued with retries, delivery log, test button, auto-off after 15 failures in a row; SSRF guard (public HTTPS only, no redirects)
 - 🟡 Zapier/Make/n8n work through webhooks + API; no certified connector apps
-- 🔴 Not built: creating orders via API, customers/reservations/payments endpoints, reservation webhooks, OpenAPI file
+- ✅ Also: place orders (with Idempotency-Key), reservations (list, book, change status), customers (read), `reservation.created` / `reservation.status_changed` webhooks, OpenAPI file at `/api/v1/openapi.json`
+- 🔴 Not built: payments endpoints, creating customers, changing menu structure through the API
 - Tested with faked HTTP only; receivers' behaviour on real networks is untested
 
 ## 9m. Add-on system (v2 gap work)
