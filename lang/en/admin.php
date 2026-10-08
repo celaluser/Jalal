@@ -137,6 +137,7 @@ return [
         'feature_reservations' => 'Table reservations',
         'feature_analytics' => 'Analytics',
         'feature_remove_branding' => 'Remove "Powered by"',
+        'feature_api' => 'REST API & webhooks',
         'deactivated_instead' => 'This plan has subscribers, so it was deactivated instead of deleted.',
         'deleted' => 'Plan deleted.',
     ],

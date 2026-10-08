@@ -17,6 +17,7 @@ return [
         'pricing' => 'Happy hour',
         'gifts' => 'Gift cards',
         'site' => 'Website & SEO',
+        'integrations' => 'API & webhooks',
         'loyalty' => 'Loyalty & reviews',
         'support' => 'Support',
         'group_menu' => 'Menu',

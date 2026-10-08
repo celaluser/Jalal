@@ -153,6 +153,15 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - 🟡 Margins use the dish's own cost price; extras and sizes are not costed, and dishes without a cost price are listed but not classified
 - 🔴 Not built: staff performance, table turnover, forecasting, scheduled custom reports
 
+## 9l. REST API and webhooks (v2 gap work)
+
+- ✅ Plan feature `api`; **API tokens** (own implementation, no Sanctum): hashed, abilities, expiry, revoke, per-token rate limit
+- ✅ **REST API v1**: menu (read, change price/availability/stock), orders (list, show, change status); documented in `docs/API.md`
+- ✅ **Webhooks**: `order.created`, `order.status_changed`, `order.paid`; HMAC-SHA256 signed with timestamp, queued with retries, delivery log, test button, auto-off after 15 failures in a row; SSRF guard (public HTTPS only, no redirects)
+- 🟡 Zapier/Make/n8n work through webhooks + API; no certified connector apps
+- 🔴 Not built: creating orders via API, customers/reservations/payments endpoints, reservation webhooks, OpenAPI file
+- Tested with faked HTTP only; receivers' behaviour on real networks is untested
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)
