@@ -54,8 +54,15 @@ class SiteController extends Controller
         return view('cms::site.page', ['page' => $this->findBySlug(Page::published(), $slug)]);
     }
 
-    public function sitemap(): Response
+    public function sitemap(Request $request, TenantResolver $tenants): Response
     {
+        // A restaurant's own domain has its own sitemap.
+        if ($restaurant = $tenants->fromHost($request)) {
+            app(\App\Modules\Core\Tenancy\TenantContext::class)->set($restaurant);
+
+            return app(\App\Modules\Storefront\Http\Controllers\SiteController::class)->sitemap();
+        }
+
         $default = config('app.default_locale');
         $url = fn (string $path, string $locale) => url($path).($locale === $default ? '' : '?lang='.$locale);
 

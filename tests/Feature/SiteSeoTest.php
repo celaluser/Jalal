@@ -79,3 +79,12 @@ it('is edited by marketing staff, validated, and kept per restaurant', function 
     $this->actingAs($owner)->put(route('site.update'), ['seo_title' => ['en' => str_repeat('a', 71)]])->assertSessionHasErrors('seo_title.en');
     $this->actingAs(seoUser($r, 'waiter'))->get(route('site.edit'))->assertForbidden();
 });
+
+it('serves the sitemap on a restaurant subdomain and keeps the platform sitemap on the main domain', function () {
+    config(['tenancy.subdomains_enabled' => true, 'tenancy.base_domain' => 'menus.test']);
+    $r = seoShop(['site_enabled' => true]);
+    $r->update(['subdomain' => 'seobistro']);
+    $xml = $this->get('http://seobistro.menus.test/sitemap.xml')->assertOk()->getContent();
+    expect($xml)->toContain('seobistro.menus.test')->toContain('/about</loc>');
+    $this->get('http://localhost/sitemap.xml')->assertOk()->assertSee('/blog', false);
+});

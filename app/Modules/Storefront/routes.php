@@ -19,7 +19,6 @@ $pwa = function () {
     Route::get('pwa-icon-{size}.png', [PwaController::class, 'icon'])->whereNumber('size')->name('pwa.icon');
     Route::get('sw.js', [PwaController::class, 'worker'])->name('pwa.worker');
     Route::get('about', [SiteController::class, 'about'])->name('about');
-    Route::get('sitemap.xml', [SiteController::class, 'sitemap'])->name('sitemap');
     Route::post('assistant', [AssistantController::class, 'ask'])->middleware('throttle:10,1')->name('assistant');
 
     // Optional guest account (e-mail sign-in link, no password).
@@ -35,6 +34,7 @@ $pwa = function () {
 Route::middleware(['web', SetLocale::class, ResolveTenant::class])
     ->prefix(config('tenancy.path_prefix').'/{restaurant}')->name('storefront.')->where(['restaurant' => '[A-Za-z0-9-]+'])->group(function () use ($pwa) {
         Route::get('/', [PublicMenuController::class, 'show'])->name('menu');
+        Route::get('sitemap.xml', [SiteController::class, 'sitemap'])->name('sitemap');
         Route::get('t/{token}', [PublicMenuController::class, 'table'])->where('token', '[a-z0-9]{6,32}')->name('table');
         Route::post('cart/quote', [PublicMenuController::class, 'quote'])->middleware('throttle:60,1')->name('quote');
         $pwa();
