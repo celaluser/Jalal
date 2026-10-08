@@ -19,7 +19,7 @@ class PseudoCron
     {
         $installed = config('installer.force_installed') || is_file((string) config('installer.lock_file'));
 
-        if ($installed && $request->isMethod('GET') && ! $request->is('install*', 'cron/*', 'livewire/*', 'up')) {
+        if (! app()->runningUnitTests() && $installed && $request->isMethod('GET') && ! $request->is('install*', 'cron/*', 'livewire/*', 'up')) {
             app(WebCron::class)->maybeRunAfterResponse();
         }
     }

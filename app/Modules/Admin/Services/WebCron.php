@@ -4,6 +4,7 @@ namespace App\Modules\Admin\Services;
 
 use App\Modules\Core\Services\SettingsService;
 use Illuminate\Console\Scheduling\CallbackEvent;
+use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -86,6 +87,11 @@ class WebCron
         $done = [];
 
         try {
+            // In a web request the console side is not loaded, so the schedule (routes/console.php) is not defined yet.
+            $kernel = app(ConsoleKernel::class);
+            $kernel->bootstrap();
+            $kernel->all();
+
             foreach (app(Schedule::class)->dueEvents(app()) as $event) {
                 if ($event instanceof CallbackEvent) {
                     $event->run(app());

@@ -234,3 +234,62 @@ describe('panel', function () {
         $this->actingAs($owner)->post(route('integrations.tokens.store'), ['name' => 'x', 'abilities' => ['menu:read']])->assertForbidden();
     });
 });
+
+describe('orders, reservations and customers through the api', function () {
+    it('places an order with guest rules, once per idempotency key', function () {
+        [$r, $p] = apShop();
+        $h = ['Authorization' => 'Bearer '.apToken($r), 'Idempotency-Key' => 'abc-123'];
+        $body = ['type' => 'takeaway', 'payment_method' => 'cash', 'customer_name' => 'Api Guest', 'customer_phone' => '+1 555 000 1111', 'lines' => [['product_id' => $p->id, 'qty' => 3]]];
+        $first = $this->postJson('/api/v1/orders', $body, $h)->assertCreated()->assertJsonPath('order.total_cents', 3000)->assertJsonPath('order.source', 'api')->json('order.id');
+        $this->postJson('/api/v1/orders', $body, $h)->assertCreated()->assertJsonPath('order.id', $first);
+        expect(app(TenantContext::class)->runAs($r, fn () => Order::count()))->toBe(1);
+
+        $this->postJson('/api/v1/orders', ['type' => 'takeaway', 'lines' => [['product_id' => 999999, 'qty' => 1]], 'customer_name' => 'x', 'customer_phone' => '+1 555 000 1111'], ['Authorization' => $h['Authorization']])->assertUnprocessable();
+        $this->postJson('/api/v1/orders', ['type' => 'teleport', 'lines' => []], ['Authorization' => $h['Authorization']])->assertUnprocessable();
+        $this->postJson('/api/v1/orders', $body, ['Authorization' => 'Bearer '.apToken($r, ['orders:read'])])->assertForbidden();
+    });
+
+    it('books, lists and moves reservations, and tells webhooks about them', function () {
+        Http::swap(new Factory);
+        Http::fake(['8.8.8.8/*' => Http::response('ok', 200)]);
+        [$r] = apShop();
+        app(\App\Modules\Core\Services\SettingsService::class)->set('reservations.config', json_encode(['enabled' => true, 'auto_confirm' => false]), $r->id);
+        $hook = app(TenantContext::class)->runAs($r, function () {
+            $e = new WebhookEndpoint(['url' => 'https://8.8.8.8/hook', 'events' => ['reservation.created', 'reservation.status_changed']]);
+            $e->secret = 'whsec_t';
+            $e->save();
+
+            return $e;
+        });
+        $h = ['Authorization' => 'Bearer '.apToken($r, ['reservations:read', 'reservations:write'])];
+        $date = now()->addDays(2)->format('Y-m-d');
+
+        $res = $this->postJson('/api/v1/reservations', ['name' => 'Rita', 'phone' => '+1 555 222 3333', 'party_size' => 2, 'date' => $date, 'time' => '19:00'], $h);
+        $id = $res->assertCreated()->json('reservation.id');
+        $this->getJson('/api/v1/reservations', $h)->assertOk()->assertJsonPath('data.0.id', $id);
+        $this->postJson("/api/v1/reservations/{$id}/status", ['status' => 'confirmed'], $h)->assertOk()->assertJsonPath('reservation.status', 'confirmed');
+        $this->postJson("/api/v1/reservations/{$id}/status", ['status' => 'pending'], $h)->assertUnprocessable();
+        Http::assertSent(fn ($q) => ($q->header('X-Webhook-Event')[0] ?? '') === 'reservation.created');
+        Http::assertSent(fn ($q) => ($q->header('X-Webhook-Event')[0] ?? '') === 'reservation.status_changed');
+    });
+
+    it('lists and searches customers of this restaurant only', function () {
+        [$r] = apShop();
+        [$other] = apShop();
+        app(TenantContext::class)->runAs($r, fn () => \App\Modules\Marketing\Models\Customer::create(['name' => 'Alice Smith', 'email' => 'alice@example.com', 'marketing_opt_in' => true]));
+        app(TenantContext::class)->runAs($other, fn () => \App\Modules\Marketing\Models\Customer::create(['name' => 'Alice Other', 'email' => 'other@example.com']));
+        $h = ['Authorization' => 'Bearer '.apToken($r)];
+        $this->getJson('/api/v1/customers', $h)->assertForbidden(); // default test token has no customers:read
+        $h = ['Authorization' => 'Bearer '.apToken($r, ['customers:read'])];
+        $this->getJson('/api/v1/customers?q=alice', $h)->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.email', 'alice@example.com');
+    });
+
+    it('publishes an OpenAPI description that lists every route', function () {
+        $spec = $this->getJson('/api/v1/openapi.json')->assertOk()->json();
+        expect($spec['openapi'])->toStartWith('3.')->and(array_keys($spec['paths']))->toContain('/orders', '/reservations', '/customers', '/products/{id}');
+        $routes = collect(app('router')->getRoutes()->getRoutes())->filter(fn ($r) => str_starts_with($r->uri(), 'api/v1/') && $r->uri() !== 'api/v1/openapi.json')->map(fn ($r) => preg_replace('#^api/v1#', '', preg_replace('/\{(\w+)\}/', '{id}', $r->uri())));
+        foreach ($routes as $uri) {
+            expect($spec['paths'])->toHaveKey($uri === '' ? '/' : $uri);
+        }
+    });
+});

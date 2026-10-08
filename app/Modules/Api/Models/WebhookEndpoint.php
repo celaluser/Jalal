@@ -10,7 +10,7 @@ class WebhookEndpoint extends Model
 {
     use BelongsToRestaurant;
 
-    public const EVENTS = ['order.created', 'order.status_changed', 'order.paid'];
+    public const EVENTS = ['order.created', 'order.status_changed', 'order.paid', 'reservation.created', 'reservation.status_changed'];
 
     /** Consecutive failed deliveries after which an endpoint is switched off. */
     public const MAX_FAILURES = 15;

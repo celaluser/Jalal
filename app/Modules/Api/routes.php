@@ -8,12 +8,18 @@ use Illuminate\Support\Facades\Route;
 // REST API v1. Token auth, no session or CSRF. A generous per-IP cap runs before authentication (against guessing),
 // then a per-token cap.
 Route::middleware(['throttle:300,1'])->prefix('api/v1')->name('api.')->group(function () {
+    Route::get('openapi.json', [ApiController::class, 'openapi'])->name('openapi');
     Route::middleware(['api.token', 'throttle:api-token'])->group(function () {
         Route::get('me', [ApiController::class, 'me'])->name('me');
         Route::get('menu', [ApiController::class, 'menu'])->middleware('api.token:menu:read')->name('menu');
         Route::patch('products/{product}', [ApiController::class, 'updateProduct'])->whereNumber('product')->middleware('api.token:menu:write')->name('products.update');
         Route::get('orders', [ApiController::class, 'orders'])->middleware('api.token:orders:read')->name('orders');
         Route::get('orders/{order}', [ApiController::class, 'order'])->whereNumber('order')->middleware('api.token:orders:read')->name('orders.show');
+        Route::post('orders', [ApiController::class, 'createOrder'])->middleware('api.token:orders:write')->name('orders.store');
+        Route::get('reservations', [ApiController::class, 'reservations'])->middleware('api.token:reservations:read')->name('reservations');
+        Route::post('reservations', [ApiController::class, 'createReservation'])->middleware('api.token:reservations:write')->name('reservations.store');
+        Route::post('reservations/{reservation}/status', [ApiController::class, 'reservationStatus'])->whereNumber('reservation')->middleware('api.token:reservations:write')->name('reservations.status');
+        Route::get('customers', [ApiController::class, 'customers'])->middleware('api.token:customers:read')->name('customers');
         Route::post('orders/{order}/status', [ApiController::class, 'orderStatus'])->whereNumber('order')->middleware('api.token:orders:write')->name('orders.status');
     });
 });

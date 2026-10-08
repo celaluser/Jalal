@@ -2,9 +2,11 @@
 
 namespace App\Modules\Api\Services;
 
+use App\Modules\Marketing\Models\Customer;
 use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\Product;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Reservations\Models\Reservation;
 
 /** The JSON shape of orders and dishes in the API and in webhooks. Money is always in minor units (cents). */
 class ApiResources
@@ -31,6 +33,25 @@ class ApiResources
         }
 
         return $data;
+    }
+
+    /** @return array<string, mixed> */
+    public function reservation(Reservation $r): array
+    {
+        return [
+            'id' => $r->id, 'status' => $r->status, 'name' => $r->name, 'phone' => $r->phone, 'email' => $r->email, 'party_size' => $r->party_size,
+            'starts_at' => $r->starts_at?->toIso8601String(), 'duration_minutes' => $r->duration_minutes, 'table_id' => $r->table_id, 'note' => $r->note, 'source' => $r->source,
+            'created_at' => $r->created_at?->toIso8601String(),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public function customer(Customer $c): array
+    {
+        return [
+            'id' => $c->id, 'name' => $c->name, 'email' => $c->email, 'phone' => $c->phone, 'orders_count' => $c->orders_count, 'total_cents' => $c->total_cents,
+            'marketing_opt_in' => (bool) $c->marketing_opt_in, 'first_order_at' => $c->first_order_at?->toIso8601String(), 'last_order_at' => $c->last_order_at?->toIso8601String(),
+        ];
     }
 
     /** @return array<string, mixed> */

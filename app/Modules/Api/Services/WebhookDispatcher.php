@@ -10,6 +10,9 @@ use App\Modules\Orders\Events\OrderPaid;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Events\OrderStatusChanged;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Reservations\Events\ReservationBooked;
+use App\Modules\Reservations\Events\ReservationStatusChanged;
+use App\Modules\Reservations\Models\Reservation;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Str;
@@ -25,6 +28,8 @@ class WebhookDispatcher
         $events->listen(OrderPlaced::class, fn (OrderPlaced $e) => $this->order('order.created', $e->order));
         $events->listen(OrderStatusChanged::class, fn (OrderStatusChanged $e) => $this->order('order.status_changed', $e->order, ['previous_status' => $e->from]));
         $events->listen(OrderPaid::class, fn (OrderPaid $e) => $this->order('order.paid', $e->order));
+        $events->listen(ReservationBooked::class, fn (ReservationBooked $e) => $this->reservation('reservation.created', $e->reservation));
+        $events->listen(ReservationStatusChanged::class, fn (ReservationStatusChanged $e) => $this->reservation('reservation.status_changed', $e->reservation, ['previous_status' => $e->from]));
     }
 
     /** @param array<string, mixed> $extra */
@@ -33,6 +38,16 @@ class WebhookDispatcher
         try {
             $order->loadMissing('items');
             $this->send($order->restaurant_id, $event, ['order' => $this->resources->order($order)] + $extra);
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /** @param array<string, mixed> $extra */
+    public function reservation(string $event, Reservation $reservation, array $extra = []): void
+    {
+        try {
+            $this->send($reservation->restaurant_id, $event, ['reservation' => $this->resources->reservation($reservation)] + $extra);
         } catch (Throwable $e) {
             report($e);
         }

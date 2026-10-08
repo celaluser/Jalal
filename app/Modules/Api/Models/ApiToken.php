@@ -9,7 +9,7 @@ class ApiToken extends Model
 {
     use BelongsToRestaurant;
 
-    public const ABILITIES = ['menu:read', 'menu:write', 'orders:read', 'orders:write'];
+    public const ABILITIES = ['menu:read', 'menu:write', 'orders:read', 'orders:write', 'reservations:read', 'reservations:write', 'customers:read'];
 
     protected $guarded = ['id', 'restaurant_id', 'token_hash'];
 

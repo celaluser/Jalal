@@ -9,7 +9,8 @@ All money values are integers in minor units (cents). All requests and responses
 Authorization: Bearer qrm_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-A token belongs to one restaurant and carries abilities: `menu:read`, `menu:write`, `orders:read`, `orders:write`.
+A token belongs to one restaurant and carries abilities: `menu:read`, `menu:write`, `orders:read`, `orders:write`, `reservations:read`, `reservations:write`, `customers:read`.
+The machine-readable description (OpenAPI 3) is at `/api/v1/openapi.json` and in `docs/openapi.json`; import it into Postman, Insomnia or a code generator.
 Tokens are shown once, stored hashed, can expire, and can be revoked at any time.
 Limits: 120 requests per minute per token (and 300 per minute per IP). Exceeding it returns `429`.
 Errors: `401` bad/expired token, `403` missing ability or plan without API, `404` not found (also for other restaurants' data), `422` validation.
@@ -23,6 +24,11 @@ Errors: `401` bad/expired token, `403` missing ability or plan without API, `404
 | PATCH | `/products/{id}` | `menu:write` | Any of `price`, `is_available`, `is_active`, `stock_qty` |
 | GET | `/orders` | `orders:read` | Filters `status`, `since` (date), `per_page` (1-100); paginated |
 | GET | `/orders/{id}` | `orders:read` | Includes items and customer |
+| POST | `/orders` | `orders:write` | Places an order with the guest-menu rules (type, `lines[]` with `product_id`, `qty`, `options`, `variant_id`, optional customer fields, `promo_code`). Send an `Idempotency-Key` header so a retry never creates a second order |
+| GET | `/reservations` | `reservations:read` | Filters `status`, `from`, `to` |
+| POST | `/reservations` | `reservations:write` | `name`, `party_size`, `date`, `time` (+ phone/e-mail); must fit a free slot |
+| POST | `/reservations/{id}/status` | `reservations:write` | `confirmed`, `seated`, `completed`, `cancelled`, `no_show` |
+| GET | `/customers` | `customers:read` | Search with `q`; paginated |
 | POST | `/orders/{id}/status` | `orders:write` | Body `status` (`accepted`, `preparing`, `ready`, `completed`, `cancelled`), optional `reason`. Same rules as the panel; invalid moves return `422` with `code` |
 
 Example:
@@ -34,7 +40,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -d status=accepted https://exampl
 
 ## Webhooks
 
-Events: `order.created`, `order.status_changed` (adds `previous_status`), `order.paid`, plus `ping` for the Send test button.
+Events: `order.created`, `order.status_changed` (adds `previous_status`), `order.paid`, `reservation.created`, `reservation.status_changed` (adds `previous_status`), plus `ping` for the Send test button.
 Body:
 
 ```json
@@ -58,4 +64,4 @@ Use *Webhooks* as the trigger (paste a "catch hook" URL from the tool) and the A
 
 ## Not available
 
-Creating orders through the API, customers, reservations and payments endpoints, and reservation webhooks.
+Payments endpoints, creating or editing customers, and menu structure changes (categories, new dishes) through the API.

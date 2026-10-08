@@ -4,6 +4,8 @@ namespace App\Modules\Reservations\Services;
 
 use App\Modules\Core\Mail\SafeMail;
 use App\Modules\Core\Mail\TemplatedMail;
+use App\Modules\Reservations\Events\ReservationBooked;
+use App\Modules\Reservations\Events\ReservationStatusChanged;
 use App\Modules\Reservations\Models\Reservation;
 use App\Modules\Tenancy\Models\Restaurant;
 use Carbon\CarbonImmutable;
@@ -54,6 +56,7 @@ class ReservationService
         }
 
         $this->mail($restaurant, $res, $res->status === 'confirmed' ? 'reservation_confirmed' : 'reservation_received');
+        event(new ReservationBooked($res));
 
         return $res;
     }
@@ -64,8 +67,10 @@ class ReservationService
             throw new InvalidArgumentException('invalid_transition');
         }
 
+        $from = $res->status;
         $res->update(['status' => 'confirmed', 'table_id' => $tableId ?? $res->table_id ?? $this->availability->pickTable($restaurant, $res)?->id]);
         $this->mail($restaurant, $res, 'reservation_confirmed');
+        event(new ReservationStatusChanged($res, $from, 'confirmed'));
 
         return $res;
     }
@@ -82,7 +87,9 @@ class ReservationService
             return $this->confirm($restaurant, $res);
         }
 
+        $from = $res->status;
         $res->update(['status' => $to]);
+        event(new ReservationStatusChanged($res, $from, $to));
 
         if ($to === 'cancelled') {
             $this->mail($restaurant, $res, 'reservation_cancelled');
