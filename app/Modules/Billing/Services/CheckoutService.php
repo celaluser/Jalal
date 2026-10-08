@@ -22,6 +22,7 @@ class CheckoutService
         private readonly InvoiceService $invoices,
         private readonly CouponService $coupons,
         private readonly PaymentProcessor $processor,
+        private readonly ProrationService $proration,
     ) {}
 
     /**
@@ -32,7 +33,7 @@ class CheckoutService
     public function start(Restaurant $restaurant, Plan $plan, string $gatewayCode, ?string $couponCode = null): array
     {
         $coupon = $couponCode ? $this->coupons->validate($couponCode, $plan) : null;
-        $invoice = $this->invoices->create($restaurant, $plan, null, $coupon);
+        $invoice = $this->invoices->create($restaurant, $plan, null, $coupon, $this->proration->credit($restaurant, $plan));
 
         // Free plan or a coupon covering everything: no gateway involved.
         if ($invoice->status === 'paid') {

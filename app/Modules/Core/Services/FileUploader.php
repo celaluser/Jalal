@@ -48,6 +48,7 @@ class FileUploader
         $disk = $this->disk();
 
         $width = $height = null;
+        $hasThumb = false;
 
         if ($isImage) {
             $image = Image::decodePath($file->getRealPath());
@@ -58,6 +59,14 @@ class FileUploader
             $path = $folder.'/'.Str::uuid().'.webp';
             $contents = (string) $image->encodeUsingFormat(Format::WEBP, quality: (int) $this->settings->get('storage.image_quality', 82));
             Storage::disk($disk)->put($path, $contents, 'public');
+
+            // Lists and cards load a small copy; the full image is for the detail view.
+            if ($image->width() > Media::THUMB_SIZE || $image->height() > Media::THUMB_SIZE) {
+                $thumb = Image::decodePath($file->getRealPath())->scaleDown(width: Media::THUMB_SIZE, height: Media::THUMB_SIZE);
+                Storage::disk($disk)->put(Media::thumbPath($path), (string) $thumb->encodeUsingFormat(Format::WEBP, quality: 78), 'public');
+                $hasThumb = true;
+            }
+
             $mime = 'image/webp';
             $size = strlen($contents);
         } else {
@@ -75,12 +84,13 @@ class FileUploader
             'size' => $size,
             'width' => $width,
             'height' => $height,
+            'has_thumb' => $hasThumb,
         ]);
     }
 
     public function delete(Media $media): void
     {
-        Storage::disk($media->disk)->delete($media->path);
+        Storage::disk($media->disk)->delete(array_filter([$media->path, $media->has_thumb ? Media::thumbPath($media->path) : null]));
         $media->delete();
     }
 }

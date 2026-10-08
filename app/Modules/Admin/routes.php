@@ -5,11 +5,13 @@ use App\Modules\Admin\Http\Controllers\BackupController;
 use App\Modules\Admin\Http\Controllers\BillingSettingsController;
 use App\Modules\Admin\Http\Controllers\BlogPostController;
 use App\Modules\Admin\Http\Controllers\CouponController;
+use App\Modules\Admin\Http\Controllers\CurrencyController;
 use App\Modules\Admin\Http\Controllers\DashboardController;
 use App\Modules\Admin\Http\Controllers\EmailTemplateController;
 use App\Modules\Admin\Http\Controllers\ImpersonationController;
 use App\Modules\Admin\Http\Controllers\InvoiceController;
 use App\Modules\Admin\Http\Controllers\LandingPageController;
+use App\Modules\Admin\Http\Controllers\LanguageController;
 use App\Modules\Admin\Http\Controllers\LogController;
 use App\Modules\Admin\Http\Controllers\PageController;
 use App\Modules\Admin\Http\Controllers\PaymentSettingsController;
@@ -19,6 +21,7 @@ use App\Modules\Admin\Http\Controllers\SettingsController;
 use App\Modules\Admin\Http\Controllers\SubscriptionController;
 use App\Modules\Admin\Http\Controllers\SystemController;
 use App\Modules\Admin\Http\Controllers\TicketController;
+use App\Modules\Admin\Http\Controllers\TranslationController;
 use App\Modules\Core\Http\Middleware\SetLocale;
 use Illuminate\Support\Facades\Route;
 
@@ -60,6 +63,17 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
         Route::post('system/backups', [BackupController::class, 'store'])->name('system.backups.store');
         Route::get('system/backups/{name}', [BackupController::class, 'download'])->name('system.backups.download');
         Route::delete('system/backups/{name}', [BackupController::class, 'destroy'])->name('system.backups.destroy');
+
+        Route::get('languages', [LanguageController::class, 'index'])->name('languages.index');
+        Route::post('languages', [LanguageController::class, 'store'])->name('languages.store');
+        Route::put('languages/{language}', [LanguageController::class, 'update'])->name('languages.update');
+        Route::post('languages/{language}/default', [LanguageController::class, 'makeDefault'])->name('languages.default');
+        Route::get('currencies', [CurrencyController::class, 'index'])->name('currencies.index');
+        Route::post('currencies', [CurrencyController::class, 'store'])->name('currencies.store');
+        Route::put('currencies/{currency}', [CurrencyController::class, 'update'])->name('currencies.update');
+        Route::get('translations', [TranslationController::class, 'index'])->name('translations.index');
+        Route::put('translations', [TranslationController::class, 'update'])->name('translations.update');
+        Route::delete('translations', [TranslationController::class, 'reset'])->name('translations.reset');
 
         Route::resource('coupons', CouponController::class)->except('show');
 

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Menu\Models;
 
+use App\Modules\Activity\Support\LogsActivity;
 use App\Modules\Core\Models\Concerns\HasTranslations;
 use App\Modules\Core\Models\Media;
 use App\Modules\Core\Tenancy\BelongsToRestaurant;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Category extends Model
 {
-    use BelongsToRestaurant, HasTranslations;
+    use BelongsToRestaurant, HasTranslations, LogsActivity;
 
     protected $guarded = ['id', 'restaurant_id'];
 

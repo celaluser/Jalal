@@ -98,7 +98,8 @@ class MenuService
                         'description' => $p->tr('description', $locale, $default),
                         'price' => (float) $p->price,
                         'compare_price' => $p->isOnSale() ? (float) $p->compare_price : null,
-                        'image' => $p->image?->url(),
+                        'image' => $p->image?->thumbUrl(),
+                        'image_full' => $p->image?->url(),
                         // Illustration shown when the dish has no photo of its own.
                         'art' => DishArt::url($p->tr('name', $locale, $default), $c->tr('name', $locale, $default)),
                         'available' => $p->canBeOrdered(),

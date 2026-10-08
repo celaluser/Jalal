@@ -33,6 +33,10 @@
             </div>
         </x-ui.card>
 
+        <x-ui.card :title="__('marketing.messages_section')">
+            <x-ui.input name="calling_code" :value="$s['calling_code']" :label="__('marketing.calling_code')" :hint="__('marketing.calling_code_help')" placeholder="90" dir="ltr" />
+        </x-ui.card>
+
         <x-ui.card :title="__('marketing.email_section')">
             <x-ui.input name="campaign_daily_cap" type="number" min="1" :max="$ceiling" :value="$s['campaign_daily_cap']" :label="__('marketing.daily_cap')" :hint="__('marketing.daily_cap_help', ['max' => $ceiling])" />
         </x-ui.card>

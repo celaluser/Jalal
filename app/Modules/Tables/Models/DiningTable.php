@@ -2,6 +2,7 @@
 
 namespace App\Modules\Tables\Models;
 
+use App\Modules\Activity\Support\LogsActivity;
 use App\Modules\Core\Tenancy\BelongsToRestaurant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,7 @@ use Illuminate\Support\Str;
 
 class DiningTable extends Model
 {
-    use BelongsToRestaurant;
+    use BelongsToRestaurant, LogsActivity;
 
     protected $table = 'dining_tables';
 

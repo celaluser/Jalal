@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Cms\Models\LandingPage;
 use App\Modules\Cms\Services\LandingContent;
 use App\Modules\Core\Models\Language;
+use App\Modules\Core\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -20,6 +21,7 @@ class LandingPageController extends Controller
         return view('admin::cms.landing', [
             'locales' => $locales,
             'locale' => $locale,
+            'theme' => platform_setting('site.landing_theme', 'aurora'),
             'c' => $landing->editable($locale),
             'translated' => LandingPage::where('locale', $locale)->exists(),
         ]);
@@ -29,6 +31,7 @@ class LandingPageController extends Controller
     {
         $data = $request->validate([
             'locale' => ['required', 'string', 'max:12', 'exists:languages,code'],
+            'theme' => ['nullable', 'in:aurora,midnight,clean'],
             'hero.title' => ['required', 'string', 'max:150'],
             'hero.subtitle' => ['nullable', 'string', 'max:400'],
             'hero.cta_label' => ['required', 'string', 'max:50'],
@@ -61,6 +64,10 @@ class LandingPageController extends Controller
             'faq' => $this->rows($data['faq'] ?? [], ['question', 'answer'], ['question', 'answer']),
             'testimonials' => $this->rows($data['testimonials'] ?? [], ['name', 'role', 'quote'], ['name', 'quote']),
         ];
+
+        if (! empty($data['theme'])) {
+            app(SettingsService::class)->set('site.landing_theme', $data['theme']);
+        }
 
         LandingPage::updateOrCreate(['locale' => $data['locale']], ['content' => $content]);
 

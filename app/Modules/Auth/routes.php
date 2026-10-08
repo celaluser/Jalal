@@ -5,6 +5,7 @@ use App\Modules\Auth\Http\Controllers\GoogleController;
 use App\Modules\Auth\Http\Controllers\LoginController;
 use App\Modules\Auth\Http\Controllers\PasswordResetController;
 use App\Modules\Auth\Http\Controllers\RegisterController;
+use App\Modules\Auth\Http\Controllers\SocialController;
 use App\Modules\Auth\Http\Controllers\TwoFactorController;
 use App\Modules\Core\Http\Middleware\SetLocale;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +28,10 @@ Route::middleware(['web', SetLocale::class])->group(function () {
 
         Route::get('/auth/google', [GoogleController::class, 'redirect'])->name('google.redirect');
         Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('google.callback');
+
+        Route::get('/auth/social/{provider}', [SocialController::class, 'redirect'])->whereIn('provider', ['facebook', 'apple'])->name('social.redirect');
+        // Apple posts the result back from its own site, so this one cannot carry a CSRF token (its state is signed instead).
+        Route::match(['get', 'post'], '/auth/social/{provider}/callback', [SocialController::class, 'callback'])->whereIn('provider', ['facebook', 'apple'])->name('social.callback');
     });
 
     Route::middleware('auth')->group(function () {

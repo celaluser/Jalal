@@ -21,6 +21,7 @@ return [
     'send_reset_link' => 'Send reset link',
     'reset_password' => 'Reset password',
     'login_with_google' => 'Continue with Google',
+    'social_failed' => ':provider sign-in failed. Please try again.', 'social_no_account' => 'No account matches this :provider identity. Please register first.', 'login_with_facebook' => 'Continue with Facebook', 'login_with_apple' => 'Continue with Apple',
     'google_failed' => 'Google sign-in failed. Please try again.',
     'google_no_account' => 'No account matches this Google address. Please register first.',
     'verify_email' => 'Verify your email address',

@@ -2,27 +2,32 @@
     $seoTitle = platform_setting('seo.meta_title');
     $icons = ['qr', 'zap', 'languages', 'sparkles', 'smartphone', 'shield', 'globe', 'receipt'];
     $primaryUrl = $registration ? route('register') : route('login');
+    // Look of the top of the page, chosen by the platform owner: aurora (default), midnight (dark hero) or clean (centred, no phone).
+    $theme = in_array($t = platform_setting('site.landing_theme'), ['aurora', 'midnight', 'clean'], true) ? $t : 'aurora';
+    $dark = $theme === 'midnight';
+    $mutedCls = $dark ? 'text-ink-300' : 'text-muted';
 @endphp
 <x-layouts.site :title="$seoTitle" :description="$c['hero']['subtitle']">
     {{-- Hero --------------------------------------------------------------- --}}
-    <section class="relative overflow-hidden">
+    <section @class(['relative overflow-hidden', 'bg-ink-950 text-white' => $dark]) data-landing-theme="{{ $theme }}">
         <div class="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(60%_60%_at_70%_0%,color-mix(in_oklab,var(--color-brand-400)_28%,transparent),transparent)]"></div>
         <x-ui.qr-pattern class="pointer-events-none absolute -start-24 top-24 hidden size-[26rem] text-ink-900/[0.022] dark:text-white/[0.025] lg:block" :cells="25" :seed="4" />
-        <div class="relative mx-auto grid max-w-6xl items-center gap-14 px-4 pb-20 pt-14 sm:px-6 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:pb-28">
+        <div @class(['relative mx-auto grid max-w-6xl items-center gap-14 px-4 pb-20 pt-14 sm:px-6 sm:pt-20 lg:pb-28', 'lg:grid-cols-[1.05fr_0.95fr]' => $theme !== 'clean', 'max-w-3xl text-center' => $theme === 'clean'])>
             <div class="rise">
                 <span class="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold shadow-sm"><span class="size-1.5 rounded-full bg-accent-500"></span>{{ __('site.hero.eyebrow') }}</span>
                 <h1 class="display mt-6 text-[2.75rem] font-semibold leading-[1.02] sm:text-6xl lg:text-[4.25rem]">{{ $c['hero']['title'] }}</h1>
-                <p class="mt-6 max-w-xl text-lg leading-relaxed text-muted">{{ $c['hero']['subtitle'] }}</p>
-                <div class="mt-9 flex flex-wrap gap-3">
+                <p @class(['mt-6 max-w-xl text-lg leading-relaxed', $mutedCls, 'mx-auto' => $theme === 'clean'])>{{ $c['hero']['subtitle'] }}</p>
+                <div @class(['mt-9 flex flex-wrap gap-3', 'justify-center' => $theme === 'clean'])>
                     <a href="{{ $primaryUrl }}" class="btn btn-primary btn-lg">{{ $c['hero']['cta_label'] }}<x-ui.icon name="arrow-right" size="5" class="rtl:rotate-180" /></a>
                     @if (! empty($c['hero']['secondary_label']))<a href="#pricing" class="btn btn-secondary btn-lg">{{ $c['hero']['secondary_label'] }}</a>@endif
                 </div>
-                <ul class="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
+                <ul @class(['mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm', $mutedCls, 'justify-center' => $theme === 'clean'])>
                     @foreach (['no_card', 'cancel', 'setup'] as $point)<li class="flex items-center gap-2"><x-ui.icon name="check" size="4" class="text-accent-600" />{{ __('site.hero.'.$point) }}</li>@endforeach
                 </ul>
             </div>
 
             {{-- Decorative product preview --}}
+            @if ($theme !== 'clean')
             <div class="relative mx-auto w-full max-w-md" aria-hidden="true">
                 <div class="absolute inset-6 -z-10 rounded-[3rem] bg-brand-500/20 blur-3xl"></div>
                 <div class="relative mx-auto w-[17.5rem] rounded-[2.6rem] border-[9px] border-ink-950 bg-surface shadow-pop dark:border-ink-800">
@@ -52,6 +57,7 @@
                     <p class="mt-1.5 text-center text-[10px] font-semibold uppercase tracking-wider text-muted">{{ __('site.mock.scan') }}</p>
                 </div>
             </div>
+            @endif
         </div>
     </section>
 

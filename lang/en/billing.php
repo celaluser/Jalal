@@ -17,6 +17,8 @@ return [
     'interval_monthly' => 'monthly',
     'interval_yearly' => 'yearly',
     'interval_lifetime' => 'lifetime',
+    'referral_credit' => 'Credit for restaurants you referred',
+    'proration_credit' => 'Credit for the unused time on your current plan',
     'interval_free' => 'free',
     'status_open' => 'open',
     'status_paid' => 'paid',

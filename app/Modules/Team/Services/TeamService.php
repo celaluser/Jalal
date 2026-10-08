@@ -3,6 +3,7 @@
 namespace App\Modules\Team\Services;
 
 use App\Models\User;
+use App\Modules\Activity\Services\ActivityLogger;
 use App\Modules\Auth\Support\Permissions;
 use App\Modules\Billing\Services\LimitGuard;
 use App\Modules\Core\Mail\SafeMail;
@@ -24,7 +25,7 @@ use Spatie\Permission\PermissionRegistrar;
 class TeamService
 {
     /** Roles that can be given to staff. The owner role belongs to the account holder only. */
-    public const ASSIGNABLE = [Permissions::MANAGER, Permissions::WAITER, Permissions::KITCHEN, Permissions::CASHIER];
+    public const ASSIGNABLE = [Permissions::MANAGER, Permissions::WAITER, Permissions::KITCHEN, Permissions::CASHIER, Permissions::BAR, Permissions::DELIVERY];
 
     public function __construct(private readonly LimitGuard $limits) {}
 
@@ -78,6 +79,7 @@ class TeamService
         });
 
         $this->sendInvitation($user, $by);
+        app(ActivityLogger::class)->record('invited', $user, ['role' => [null, $role]], restaurantId: $restaurant->id);
 
         return $user;
     }
@@ -99,6 +101,7 @@ class TeamService
         $this->assertManageable($user, $by);
         $this->assertRole($restaurant, $role);
         $this->assign($restaurant, $user, $role);
+        app(ActivityLogger::class)->record('role changed', $user, ['role' => [null, $role]], restaurantId: $restaurant->id);
     }
 
     /** @throws InvalidArgumentException */
@@ -106,6 +109,7 @@ class TeamService
     {
         $this->assertManageable($user, $by);
         $user->forceFill(['disabled_at' => $disabled ? now() : null])->save();
+        app(ActivityLogger::class)->record($disabled ? 'switched off' : 'switched on', $user, restaurantId: $user->restaurant_id);
 
         if ($disabled) {
             // End every session of that person on the spot.
@@ -117,6 +121,7 @@ class TeamService
     public function remove(Restaurant $restaurant, User $user, User $by): void
     {
         $this->assertManageable($user, $by);
+        app(ActivityLogger::class)->record('removed', $user, restaurantId: $restaurant->id);
 
         DB::transaction(function () use ($restaurant, $user) {
             $this->inTeam($restaurant, fn () => $user->syncRoles([]));

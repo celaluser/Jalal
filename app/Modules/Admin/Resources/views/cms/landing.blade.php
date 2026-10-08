@@ -13,6 +13,16 @@
             @csrf @method('PUT')
             <input type="hidden" name="locale" value="{{ $locale }}">
 
+            <x-ui.card :title="__('admin.cms.theme')" :description="__('admin.cms.theme_help')">
+                <div class="grid gap-3 sm:grid-cols-3">
+                    @foreach (['aurora', 'midnight', 'clean'] as $t)
+                        <label class="flex cursor-pointer flex-col gap-2 rounded-xl border border-line-strong p-3 has-[:checked]:border-accent-600 has-[:checked]:bg-accent-50 dark:has-[:checked]:bg-accent-900/20">
+                            <span class="flex items-center gap-2 text-sm font-semibold"><input type="radio" name="theme" value="{{ $t }}" @checked($theme === $t) class="size-4 accent-[var(--color-accent-600)]">{{ __('admin.cms.theme_'.$t) }}</span>
+                            <span class="text-xs text-muted">{{ __('admin.cms.theme_'.$t.'_text') }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </x-ui.card>
             <x-ui.card :title="__('admin.cms.hero')">
                 <div class="space-y-4">
                     <x-ui.input name="hero[title]" :label="__('admin.cms.title')" :value="$c['hero']['title']" required />

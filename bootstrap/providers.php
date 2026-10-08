@@ -1,6 +1,8 @@
 <?php
 
+use App\Modules\Activity\Providers\ActivityServiceProvider;
 use App\Modules\Admin\Providers\AdminServiceProvider;
+use App\Modules\Affiliate\Providers\AffiliateServiceProvider;
 use App\Modules\Ai\Providers\AiServiceProvider;
 use App\Modules\Analytics\Providers\AnalyticsServiceProvider;
 use App\Modules\Auth\Providers\AuthServiceProvider;
@@ -12,6 +14,7 @@ use App\Modules\Installer\Providers\InstallerServiceProvider;
 use App\Modules\Licensing\Providers\LicensingServiceProvider;
 use App\Modules\Marketing\Providers\MarketingServiceProvider;
 use App\Modules\Menu\Providers\MenuServiceProvider;
+use App\Modules\Messaging\Providers\MessagingServiceProvider;
 use App\Modules\Orders\Providers\OrdersServiceProvider;
 use App\Modules\Storefront\Providers\StorefrontServiceProvider;
 use App\Modules\Support\Providers\SupportServiceProvider;
@@ -26,6 +29,7 @@ return [
     CoreServiceProvider::class,
     TenancyServiceProvider::class,
     BillingServiceProvider::class,
+    AffiliateServiceProvider::class,
     AdminServiceProvider::class,
     CmsServiceProvider::class,
     SupportServiceProvider::class,
@@ -33,6 +37,8 @@ return [
     TablesServiceProvider::class,
     OrdersServiceProvider::class,
     MarketingServiceProvider::class,
+    ActivityServiceProvider::class,
+    MessagingServiceProvider::class,
     AnalyticsServiceProvider::class,
     AiServiceProvider::class,
     TeamServiceProvider::class,

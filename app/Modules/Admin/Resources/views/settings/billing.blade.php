@@ -8,6 +8,9 @@
                 <x-ui.input name="tax_name" :label="__('admin.billing.tax_name')" :value="old('tax_name', $values['billing.tax_name'] ?? 'VAT')" />
                 <x-ui.input name="tax_rate" type="number" step="0.01" min="0" max="100" :label="__('admin.billing.tax_rate')" :value="old('tax_rate', $values['billing.tax_rate'] ?? 0)" required />
                 <div class="flex items-end pb-2.5"><x-ui.checkbox name="prices_include_tax" :label="__('admin.billing.prices_include_tax')" :checked="$values['billing.prices_include_tax']" /></div>
+                <div class="flex items-end pb-2.5"><x-ui.checkbox name="affiliate_enabled" :label="__('admin.billing.affiliate_enabled')" :checked="$values['affiliate.enabled']" /></div>
+                <x-ui.input name="affiliate_percent" type="number" step="0.5" min="0" max="100" :label="__('admin.billing.affiliate_percent')" :value="$values['affiliate.percent']" />
+                <div class="flex items-end pb-2.5"><x-ui.checkbox name="proration" :label="__('admin.billing.proration')" :checked="$values['billing.proration']" /></div>
             </div>
         </x-ui.card>
         <x-ui.card :title="__('admin.billing.company')">

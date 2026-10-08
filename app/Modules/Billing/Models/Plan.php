@@ -15,7 +15,7 @@ class Plan extends Model
     public const INTERVALS = ['monthly', 'yearly', 'lifetime', 'free'];
 
     /** Countable limits. A null value means unlimited. */
-    public const LIMITS = ['branches', 'tables', 'products', 'categories', 'staff', 'ai_credits'];
+    public const LIMITS = ['branches', 'tables', 'products', 'categories', 'staff', 'ai_credits', 'messages'];
 
     /** On/off feature switches. */
     public const FEATURES = ['custom_domain', 'whatsapp_orders', 'online_payments', 'reservations', 'analytics', 'remove_branding'];

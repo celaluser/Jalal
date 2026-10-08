@@ -20,8 +20,12 @@ final class Permissions
 
     public const CASHIER = 'cashier';
 
+    public const BAR = 'bar';
+
+    public const DELIVERY = 'delivery';
+
     /** @var list<string> */
-    public const RESTAURANT_ROLES = [self::OWNER, self::MANAGER, self::WAITER, self::KITCHEN, self::CASHIER];
+    public const RESTAURANT_ROLES = [self::OWNER, self::MANAGER, self::WAITER, self::KITCHEN, self::CASHIER, self::BAR, self::DELIVERY];
 
     /**
      * @return array<string, list<string>> role => permissions ('*' = every restaurant permission)
@@ -37,6 +41,8 @@ final class Permissions
             self::WAITER => ['orders.view', 'orders.create', 'tables.view'],
             self::KITCHEN => ['orders.view', 'kitchen.view'],
             self::CASHIER => ['orders.view', 'orders.create', 'orders.manage', 'payments.manage', 'tables.view'],
+            self::BAR => ['orders.view', 'kitchen.view'],
+            self::DELIVERY => ['delivery.view'],
         ];
     }
 
@@ -49,7 +55,7 @@ final class Permissions
             'menu.manage', 'orders.view', 'orders.create', 'orders.manage', 'tables.view', 'tables.manage',
             'staff.view', 'staff.manage', 'roles.manage', 'reports.view', 'customers.view', 'customers.manage',
             'marketing.manage', 'settings.view', 'settings.manage', 'payments.manage', 'kitchen.view',
-            'billing.manage', 'support.manage',
+            'billing.manage', 'support.manage', 'activity.view', 'delivery.view', 'delivery.manage',
         ];
     }
 

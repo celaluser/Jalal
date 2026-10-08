@@ -2,13 +2,14 @@
 
 namespace App\Modules\Marketing\Models;
 
+use App\Modules\Activity\Support\LogsActivity;
 use App\Modules\Core\Tenancy\BelongsToRestaurant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PromoCode extends Model
 {
-    use BelongsToRestaurant;
+    use BelongsToRestaurant, LogsActivity;
 
     public const PERCENT = 'percent';
 

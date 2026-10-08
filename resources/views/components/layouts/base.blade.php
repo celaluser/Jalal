@@ -23,6 +23,7 @@
     <x-brand-style />
     @livewireStyles
     @stack('head')
+    @if ($customCss = platform_setting('general.custom_css'))<style>{!! str_ireplace('</style', '', $customCss) !!}</style>@endif
 </head>
 <body class="min-h-screen bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
     @if (config('demo.enabled'))
@@ -40,5 +41,6 @@
     <x-cookie-banner />
     @livewireScripts
     @stack('scripts')
+    @if ($customJs = platform_setting('general.custom_js'))<script>{!! str_ireplace('</script', '<\/script', $customJs) !!}</script>@endif
 </body>
 </html>

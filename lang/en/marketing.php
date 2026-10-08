@@ -46,6 +46,7 @@ return [
     'loyalty_section' => 'Loyalty reward', 'loyalty_enabled' => 'Reward regular guests', 'loyalty_enabled_help' => 'After every Nth completed order the guest earns a single-use promo code that only they can use. It appears on their order page and in an e-mail.',
     'loyalty_every' => 'Reward after every … completed orders', 'loyalty_type' => 'Reward', 'loyalty_value' => 'Value', 'loyalty_percent_hint' => 'Percent of the order', 'loyalty_fixed_hint' => 'Amount in your currency', 'loyalty_valid' => 'Valid for (days)',
     'reviews_section' => 'Reviews', 'reviews_enabled' => 'Ask guests to rate completed orders', 'review_email' => 'Also ask by e-mail when the guest left an address', 'show_rating' => 'Show the average rating on the public menu',
+    'messages_section' => 'Text messages', 'calling_code' => 'Country calling code', 'calling_code_help' => 'Used to send SMS and WhatsApp to guests who typed a local number, for example 90 for Turkey. Leave empty to message only numbers that start with +.',
     'email_section' => 'E-mail sending', 'daily_cap' => 'Campaign e-mails per day', 'daily_cap_help' => 'The platform allows at most :max per restaurant per day. Keeps your mail account in good standing.',
     'reward_earned' => 'You earned a reward!', 'reward_earned_text' => 'Thank you for ordering again and again. Use this code on your next order:', 'reward_valid_until' => 'Valid until :date, once, only for you.',
     'there' => 'there',

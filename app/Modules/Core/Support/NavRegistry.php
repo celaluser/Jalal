@@ -19,10 +19,11 @@ abstract class NavRegistry
      * @param  array<string, string>  $params  route parameters when the target needs them
      * @param  string|null  $active  route pattern(s) marking the entry as current; separate several with |
      * @param  string|null  $can  permission required to see the entry
+     * @param  \Closure|null  $when  extra condition checked every time the menu is drawn (a switch in settings, a plan feature)
      */
-    public static function add(string $group, string $labelKey, string $route, ?string $active = null, array $params = [], ?string $icon = null, ?string $can = null): void
+    public static function add(string $group, string $labelKey, string $route, ?string $active = null, array $params = [], ?string $icon = null, ?string $can = null, ?\Closure $when = null): void
     {
-        static::$groups[$group][] = ['label' => $labelKey, 'route' => $route, 'active' => $active ?? $route, 'params' => $params, 'icon' => $icon, 'can' => $can];
+        static::$groups[$group][] = ['label' => $labelKey, 'route' => $route, 'active' => $active ?? $route, 'params' => $params, 'icon' => $icon, 'can' => $can, 'when' => $when];
     }
 
     /**
@@ -30,8 +31,8 @@ abstract class NavRegistry
      */
     public static function groups(): array
     {
-        // Sections nobody has added to (yet) are not shown.
-        return array_filter(static::$groups);
+        // Sections nobody has added to (yet) are not shown, nor are entries whose condition is false right now.
+        return array_filter(array_map(fn (array $items) => array_values(array_filter($items, fn (array $i) => ($i['when'] ?? null) === null || ($i['when'])())), static::$groups));
     }
 
     public static function flush(): void

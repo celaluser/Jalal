@@ -18,7 +18,7 @@ return [
     'built_in' => 'Built-in roles', 'custom_roles' => 'Your roles', 'new_role' => 'New role', 'edit_role' => 'Edit role', 'role_name' => 'Role name', 'role_permissions' => 'What this role can do',
     'role_created' => 'Role created.', 'role_deleted' => 'Role deleted.', 'role_in_use' => 'People still have this role. Give them another role first.',
     'role_users' => '{0} Nobody has this role|{1} 1 person|[2,*] :count people', 'no_custom' => 'No custom roles yet.',
-    'role_manager' => 'Manager', 'role_waiter' => 'Waiter', 'role_kitchen' => 'Kitchen', 'role_cashier' => 'Cashier',
-    'role_manager_text' => 'Runs the menu, tables, orders and reports.', 'role_waiter_text' => 'Sees orders and tables.', 'role_kitchen_text' => 'Prepares orders: marks them preparing and ready.', 'role_cashier_text' => 'Takes payments and manages orders.',
-    'perm_group' => ['menu' => 'Menu', 'orders' => 'Orders', 'tables' => 'Tables', 'staff' => 'Team', 'roles' => 'Roles', 'reports' => 'Reports', 'customers' => 'Customers', 'marketing' => 'Marketing', 'settings' => 'Settings', 'payments' => 'Payments', 'kitchen' => 'Kitchen', 'billing' => 'Subscription', 'support' => 'Support'],
+    'role_manager' => 'Manager', 'role_waiter' => 'Waiter', 'role_kitchen' => 'Kitchen', 'role_cashier' => 'Cashier', 'role_bar' => 'Bar', 'role_delivery' => 'Courier',
+    'role_manager_text' => 'Runs the menu, tables, orders and reports.', 'role_waiter_text' => 'Sees orders and tables.', 'role_kitchen_text' => 'Prepares orders: marks them preparing and ready.', 'role_cashier_text' => 'Takes payments and manages orders.', 'role_bar_text' => 'Prepares drinks: sees the bar station on the kitchen screen.', 'role_delivery_text' => 'Sees and delivers the orders assigned to them.',
+    'perm_group' => ['menu' => 'Menu', 'orders' => 'Orders', 'tables' => 'Tables', 'staff' => 'Team', 'roles' => 'Roles', 'reports' => 'Reports', 'customers' => 'Customers', 'marketing' => 'Marketing', 'settings' => 'Settings', 'payments' => 'Payments', 'kitchen' => 'Kitchen', 'billing' => 'Subscription', 'support' => 'Support', 'activity' => 'Activity log', 'delivery' => 'Delivery'],
 ];

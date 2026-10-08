@@ -2,6 +2,7 @@
 
 namespace App\Modules\Orders\Services;
 
+use App\Modules\Activity\Services\ActivityLogger;
 use App\Modules\Orders\Support\OrderType;
 use App\Modules\Tenancy\Models\Restaurant;
 
@@ -80,7 +81,9 @@ class OrderSettings
             };
         }
 
+        $before = $this->for($restaurant);
         $restaurant->update(['order_settings' => $clean]);
+        app(ActivityLogger::class)->record('updated', $restaurant, collect($clean)->filter(fn ($v, $k) => ($before[$k] ?? null) != $v)->map(fn ($v, $k) => [$before[$k] ?? null, $v])->all(), 'Ordering settings');
     }
 
     /** @return array<string, array<int, mixed>> */

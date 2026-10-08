@@ -105,6 +105,8 @@ document.addEventListener('alpine:init', () => {
             this.fly(event?.currentTarget);
         },
         pic(p) { return p.image || p.art; },
+        // The detail sheet shows the full-size photo.
+        big(p) { return p.image_full || p.image || p.art; },
         // A little dot flies from the tapped button to the cart bar: feedback that the dish was added.
         fly(from) {
             this.bumped = true;

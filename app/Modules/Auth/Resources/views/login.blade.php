@@ -17,6 +17,13 @@
             {{ __('auth.login_with_google') }}
         </a>
     @endif
+    @php($social = app(\App\Modules\Core\Services\SettingsService::class))
+    @if ($social->get('auth.facebook_enabled') || $social->get('auth.apple_enabled'))
+        <div class="grid gap-2">
+            @if ($social->get('auth.facebook_enabled'))<a href="{{ route('social.redirect', 'facebook') }}" class="btn btn-secondary w-full"><svg class="size-4" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1877F2" d="M24 12a12 12 0 1 0-13.9 11.9v-8.4H7.1V12h3V9.4c0-3 1.8-4.7 4.5-4.7 1.3 0 2.7.2 2.7.2v3h-1.5c-1.5 0-2 .9-2 1.9V12h3.4l-.5 3.5h-2.9v8.4A12 12 0 0 0 24 12z"/></svg>{{ __('auth.login_with_facebook') }}</a>@endif
+            @if ($social->get('auth.apple_enabled'))<a href="{{ route('social.redirect', 'apple') }}" class="btn btn-secondary w-full"><svg class="size-4 fill-current" viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.7c0-2.4 2-3.5 2.1-3.6-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.8.9s-2-.9-3.3-.9C6 7.1 4.4 8.1 3.5 9.600c-1.800 3.100-.5 7.700 1.300 10.200.9 1.200 1.900 2.600 3.200 2.500 1.300-.1 1.800-.8 3.300-.8s2 .8 3.300.8 2.200-1.200 3.100-2.400c1-1.400 1.400-2.800 1.400-2.900-.1 0-2.700-1-2.700-4.300zM13.900 5.400c.7-.8 1.200-2 1-3.100-1 0-2.200.7-2.900 1.500-.6.700-1.200 1.900-1 3 1.100.1 2.200-.6 2.900-1.400z"/></svg>{{ __('auth.login_with_apple') }}</a>@endif
+        </div>
+    @endif
     @if (Route::has('register'))
         <p class="text-center text-sm text-muted">{{ __('auth.no_account') }} <a class="link" href="{{ route('register') }}">{{ __('auth.register') }}</a></p>
     @endif

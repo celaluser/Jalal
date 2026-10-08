@@ -2,6 +2,7 @@
 
 namespace App\Modules\Marketing\Services;
 
+use App\Modules\Activity\Services\ActivityLogger;
 use App\Modules\Tenancy\Models\Restaurant;
 
 /** The restaurant's marketing options: loyalty reward, reviews and the campaign sending cap. */
@@ -17,6 +18,7 @@ class MarketingSettings
         'review_request_email' => true,
         'show_rating' => true,           // average rating on the public menu
         'campaign_daily_cap' => 200,
+        'calling_code' => '',            // country code for local phone numbers, e.g. 90
     ];
 
     /** @return array<string, mixed> */
@@ -52,6 +54,7 @@ class MarketingSettings
         }
 
         $restaurant->update(['marketing_settings' => $clean]);
+        app(ActivityLogger::class)->record('updated', $restaurant, [], 'Marketing settings');
     }
 
     /** @return array<string, array<int, mixed>> */
@@ -64,6 +67,7 @@ class MarketingSettings
             'loyalty_reward_value' => ['required', 'numeric', 'min:0.01', 'max:99999'],
             'loyalty_valid_days' => ['required', 'integer', 'min:1', 'max:365'],
             'reviews_enabled' => ['nullable', 'boolean'], 'review_request_email' => ['nullable', 'boolean'], 'show_rating' => ['nullable', 'boolean'],
+            'calling_code' => ['nullable', 'regex:/^\+?\d{1,4}$/'],
             'campaign_daily_cap' => ['required', 'integer', 'min:1', 'max:'.max(1, (int) config('marketing.daily_email_cap'))],
         ];
     }

@@ -40,7 +40,7 @@
     "src": "node_modules/@fontsource-variable/inter/files/inter-vietnamese-wght-normal.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-CBw9OjDC.css",
+    "file": "assets/app-BiJpc_m7.css",
     "name": "app",
     "names": [
       "app.css"
@@ -73,7 +73,7 @@
     "isEntry": true
   },
   "resources/js/storefront.js": {
-    "file": "assets/storefront-BCo8puwA.js",
+    "file": "assets/storefront-Bub6Nbtr.js",
     "name": "storefront",
     "src": "resources/js/storefront.js",
     "isEntry": true

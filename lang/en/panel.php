@@ -8,6 +8,8 @@ return [
         'domains' => 'Domains',
         'new_order' => 'New order',
         'reports' => 'Reports',
+        'activity' => 'Activity log',
+        'referrals' => 'Refer a restaurant',
         'customers' => 'Customers',
         'reviews' => 'Reviews',
         'promos' => 'Promo codes',

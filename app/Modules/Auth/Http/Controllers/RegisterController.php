@@ -4,6 +4,7 @@ namespace App\Modules\Auth\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Affiliate\Services\AffiliateService;
 use App\Modules\Auth\Support\Permissions;
 use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Services\PlanOnboarding;
@@ -35,6 +36,11 @@ class RegisterController extends Controller
         $plans = Plan::active()->get();
         $selected = $plans->firstWhere('slug', old('plan', $request->query('plan'))) ?? $this->onboarding->defaultPlan();
 
+        // A referral link: remember who sent this visitor until they sign up.
+        if ($ref = $request->query('ref')) {
+            $request->session()->put('referral_code', Str::upper(Str::limit(preg_replace('/[^A-Za-z0-9]/', '', (string) $ref), 12, '')));
+        }
+
         return view('auth-module::register', ['plans' => $plans, 'selected' => $selected]);
     }
 
@@ -52,7 +58,7 @@ class RegisterController extends Controller
 
         $plan = ! empty($data['plan']) ? Plan::active()->where('slug', $data['plan'])->first() : null;
 
-        [$user, $plan, $outcome] = DB::transaction(function () use ($data, $plan) {
+        [$user, $plan, $outcome] = DB::transaction(function () use ($data, $plan, $request) {
             $restaurant = Restaurant::create([
                 'name' => $data['restaurant_name'],
                 'slug' => $this->uniqueSlug($data['restaurant_name']),
@@ -73,6 +79,8 @@ class RegisterController extends Controller
 
             app(PermissionRegistrar::class)->setPermissionsTeamId($restaurant->id);
             $user->assignRole(Permissions::OWNER);
+
+            app(AffiliateService::class)->attach($restaurant, $request->session()->pull('referral_code'));
 
             $outcome = $plan ? $this->onboarding->activate($restaurant, $plan) : null;
 

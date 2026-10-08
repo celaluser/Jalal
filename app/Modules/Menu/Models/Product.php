@@ -2,6 +2,7 @@
 
 namespace App\Modules\Menu\Models;
 
+use App\Modules\Activity\Support\LogsActivity;
 use App\Modules\Core\Models\Concerns\HasTranslations;
 use App\Modules\Core\Models\Media;
 use App\Modules\Core\Tenancy\BelongsToRestaurant;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Product extends Model
 {
-    use BelongsToRestaurant, HasTranslations;
+    use BelongsToRestaurant, HasTranslations, LogsActivity;
 
     /** Switches that can be flipped from the list without opening the edit form. */
     public const TOGGLES = ['is_active', 'is_available', 'is_featured'];
@@ -46,7 +47,7 @@ class Product extends Model
     /** The dish photo, or the matching illustration when there is none. */
     public function pictureUrl(): string
     {
-        return $this->image?->url() ?? DishArt::url($this->tr('name'), (string) $this->category?->tr('name'));
+        return $this->image?->thumbUrl() ?? DishArt::url($this->tr('name'), (string) $this->category?->tr('name'));
     }
 
     public function tracksStock(): bool

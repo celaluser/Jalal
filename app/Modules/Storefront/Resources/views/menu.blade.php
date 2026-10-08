@@ -223,7 +223,7 @@
             <div class="menu-page relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[1.5rem] shadow-2xl sm:rounded-[1.5rem]" style="border-radius: min(var(--menu-radius) * 1.6, 1.75rem) min(var(--menu-radius) * 1.6, 1.75rem) 0 0">
                 <button type="button" x-ref="sheetClose" x-on:click="sheet = null" class="menu-card absolute end-3 top-3 z-10 grid size-9 place-items-center" aria-label="{{ __('customer.close') }}"><x-ui.icon name="x" size="5" /></button>
                 <div class="overflow-y-auto">
-                    <div class="menu-img aspect-[16/10] w-full"><img :src="pic(sheet.product)" alt="" class="size-full object-cover"></div>
+                    <div class="menu-img aspect-[16/10] w-full"><img :src="big(sheet.product)" alt="" class="size-full object-cover"></div>
                     <div class="p-5">
                         <h2 class="display pe-10 text-2xl font-bold leading-tight" x-text="sheet.product.name"></h2>
                         <p class="tnum mt-1 text-lg font-bold"><span x-text="money(cents(sheet.product.price))"></span> <s class="menu-muted ms-1 text-sm font-normal" x-show="sheet.product.compare_price" x-text="sheet.product.compare_price ? money(cents(sheet.product.compare_price)) : ''"></s></p>
