@@ -1,7 +1,7 @@
 @php
     $t = collect(['new', 'accepted', 'preparing', 'ready'])->mapWithKeys(fn ($k) => ['step_'.$k => __('orders.step_'.$k)])->all()
         + ['step_completed' => __('orders.step_completed_'.$order->type), 'msg_new' => __('orders.msg_new'), 'msg_accepted' => __('orders.msg_accepted'), 'msg_preparing' => __('orders.msg_preparing'),
-           'msg_ready' => __('orders.msg_ready_'.$order->type), 'msg_completed' => __('orders.msg_completed'), 'msg_cancelled' => __('orders.msg_cancelled'), 'estimated' => __('orders.estimated'), 'cancel_confirm' => __('orders.cancel_mine_confirm')];
+           'msg_ready' => __('orders.msg_ready_'.$order->type), 'msg_completed' => __('orders.msg_completed'), 'msg_cancelled' => __('orders.msg_cancelled'), 'estimated' => __('orders.estimated'), 'cancel_confirm' => __('orders.cancel_mine_confirm'), 'msg_on_the_way' => __('orders.msg_on_the_way'), 'push_on' => __('orders.push_on'), 'push_denied' => __('orders.push_denied')];
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', $locale) }}" dir="{{ $dir }}">
@@ -20,7 +20,20 @@
                 s: cfg.state, now: Date.now(), timer: null, busy: false,
                 init() { setInterval(() => { this.now = Date.now(); }, 15000); this.poll(); },
                 get stepIndex() { return this.s.status === 'cancelled' ? -1 : this.s.steps.indexOf(this.s.status); },
-                get message() { return cfg.t['msg_' + this.s.status]; },
+                get message() { return this.s.dispatched && this.s.status === 'ready' ? cfg.t.msg_on_the_way : cfg.t['msg_' + this.s.status]; },
+                pushMsg: '',
+                async enablePush() {
+                    try {
+                        if (!('serviceWorker' in navigator) || !('PushManager' in window)) { this.pushMsg = cfg.t.push_denied; return; }
+                        if ((await Notification.requestPermission()) !== 'granted') { this.pushMsg = cfg.t.push_denied; return; }
+                        const reg = await navigator.serviceWorker.register(cfg.workerUrl).then(() => navigator.serviceWorker.ready);
+                        const raw = atob(this.s.push_key.replace(/-/g, '+').replace(/_/g, '/'));
+                        const key = Uint8Array.from(raw, (c) => c.charCodeAt(0));
+                        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+                        const res = await fetch(cfg.pushUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf }, body: JSON.stringify(sub.toJSON()) });
+                        if (res.ok) { this.s.push_key = null; this.pushMsg = cfg.t.push_on; } else { this.pushMsg = cfg.t.push_denied; }
+                    } catch (e) { this.pushMsg = cfg.t.push_denied; }
+                },
                 get minutesLeft() { return this.s.eta ? Math.max(0, Math.ceil((Date.parse(this.s.eta) - this.now) / 60000)) : null; },
                 stepLabel(step) { return cfg.t['step_' + step]; },
                 poll() {
@@ -42,7 +55,7 @@
     </script>
     @livewireStyles
 </head>
-<body class="menu-page min-h-screen pb-10" x-data="orderStatus(@js(['state' => $state, 'statusUrl' => $statusUrl, 'cancelUrl' => $cancelUrl, 'csrf' => csrf_token(), 't' => $t]))">
+<body class="menu-page min-h-screen pb-10" x-data="orderStatus(@js(['state' => $state, 'statusUrl' => $statusUrl, 'cancelUrl' => $cancelUrl, 'csrf' => csrf_token(), 't' => $t, 'pushUrl' => $pushUrl, 'workerUrl' => $workerUrl]))">
     <header class="menu-hero">
         <div class="mx-auto max-w-xl px-4 pb-16 pt-6 text-center">
             <p class="text-sm font-semibold opacity-90">{{ $restaurant->name }}</p>
@@ -72,6 +85,12 @@
                 </template>
             </ol>
 
+            <p class="menu-muted mt-3 text-sm" x-show="s.scheduled" x-text="@js(__('orders.scheduled_for', ['time' => ':t'])).replace(':t', s.scheduled)"></p>
+            <p class="menu-muted mt-1 text-sm" x-show="s.vehicle" x-text="@js(__('orders.vehicle')) + ': ' + s.vehicle"></p>
+            <p class="menu-muted mt-1 text-sm" x-show="s.room" x-text="@js(__('orders.room')) + ' ' + s.room"></p>
+            <button type="button" class="menu-btn menu-btn-quiet mt-4 w-full" x-show="s.push_key && s.open" x-cloak x-on:click="enablePush()">🔔 {{ __('orders.enable_push') }}</button>
+            <p class="mt-2 text-sm font-medium" x-show="pushMsg" x-text="pushMsg" role="status"></p>
+
             @if ($canCancel)
                 <button type="button" class="menu-btn menu-btn-quiet mt-5 w-full" x-show="s.can_cancel" x-on:click="cancel()" :disabled="busy">{{ __('orders.cancel_mine') }}</button>
             @else
@@ -90,6 +109,7 @@
                     </li>
                 </template>
             </ul>
+            <p class="menu-muted mt-3 flex justify-between text-sm" x-show="s.packaging" x-cloak><span>{{ __('orders.packaging') }}</span><span class="tnum" x-text="s.packaging"></span></p>
             <p class="menu-accent-text mt-3 flex justify-between text-sm font-semibold" x-show="s.discount" x-cloak><span x-text="@js(__('marketing.promo_discount')) + ' · ' + (s.discount ? s.discount.code : '')"></span><span class="tnum" x-text="s.discount ? '−' + s.discount.amount : ''"></span></p>
             <div class="menu-line mt-3 flex items-baseline justify-between border-t pt-3 text-lg font-bold"><span>{{ __('orders.total') }}</span><span class="tnum" x-text="s.total"></span></div>
             <p class="mt-2 text-sm"><span class="rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="s.paid ? 'menu-accent' : 'menu-surface border menu-line'" x-text="s.paid ? @js(__('orders.paid')) : @js(__('orders.unpaid'))"></span></p>
@@ -134,7 +154,8 @@
             </template>
         </section>
 
-        <a href="{{ $menuUrl }}" class="menu-btn w-full !py-3.5" x-show="!s.open || true">{{ __('orders.order_more') }}</a>
+        <a href="{{ $reorderUrl }}" class="menu-btn menu-btn-quiet w-full !py-3.5" x-show="!s.open" x-cloak>{{ __('orders.order_again') }}</a>
+        <a href="{{ $menuUrl }}" class="menu-btn w-full !py-3.5">{{ __('orders.order_more') }}</a>
     </main>
     @livewireScripts
 </body>

@@ -57,9 +57,9 @@
                     </div>
 
                     <div class="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3">
-                        <div class="grid grid-cols-3 gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup">
-                            @foreach (['dine_in', 'takeaway', 'delivery'] as $type)
-                                <button type="button" role="radio" :aria-checked="type === '{{ $type }}'" class="rounded-lg px-2 py-2 text-sm font-medium transition" :class="type === '{{ $type }}' ? 'bg-surface shadow-sm' : 'text-muted'" x-on:click="type = '{{ $type }}'">{{ __('orders.type_'.$type) }}</button>
+                        <div class="flex flex-wrap gap-1 rounded-xl bg-surface-2 p-1" role="radiogroup">
+                            @foreach (\App\Modules\Orders\Support\OrderType::ALL as $type)
+                                <button type="button" role="radio" :aria-checked="type === '{{ $type }}'" class="min-w-[30%] flex-1 rounded-lg px-2 py-2 text-sm font-medium transition" :class="type === '{{ $type }}' ? 'bg-surface shadow-sm' : 'text-muted'" x-on:click="type = '{{ $type }}'">{{ __('orders.type_'.$type) }}</button>
                             @endforeach
                         </div>
 
@@ -74,7 +74,14 @@
                         <div x-show="type !== 'dine_in'" x-cloak class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                             <input class="field" x-model="name" maxlength="80" placeholder="{{ __('orders.pos_customer_name') }}" aria-label="{{ __('orders.pos_customer_name') }}" autocomplete="off">
                             <input class="field" x-model="phone" maxlength="40" inputmode="tel" placeholder="{{ __('orders.pos_customer_phone') }}" aria-label="{{ __('orders.pos_customer_phone') }}" autocomplete="off" dir="ltr">
+                            <input x-show="type === 'curbside'" class="field sm:col-span-2 lg:col-span-1" x-model="vehicle" maxlength="80" placeholder="{{ __('orders.vehicle_label') }}" aria-label="{{ __('orders.vehicle_label') }}" autocomplete="off">
+                            <input x-show="type === 'room_service'" class="field sm:col-span-2 lg:col-span-1" x-model="room" maxlength="30" placeholder="{{ __('orders.room_label') }}" aria-label="{{ __('orders.room_label') }}" autocomplete="off">
                             <input x-show="type === 'delivery'" class="field sm:col-span-2 lg:col-span-1" x-model="address" maxlength="255" placeholder="{{ __('orders.pos_address') }}" aria-label="{{ __('orders.pos_address') }}" autocomplete="off">
+                        </div>
+
+                        <div>
+                            <label for="pos-when" class="mb-1.5 block text-sm font-medium">{{ __('orders.schedule_later') }}</label>
+                            <input id="pos-when" type="datetime-local" class="field" x-model="scheduledFor">
                         </div>
 
                         <p x-show="!lines.length" class="rounded-xl border border-dashed border-line-strong px-4 py-6 text-center text-sm text-muted">{{ __('orders.pos_cart_empty') }}</p>

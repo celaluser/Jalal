@@ -25,7 +25,7 @@ document.addEventListener('alpine:init', () => {
         toast: '',
         bumped: false,
         stage: 'cart',
-        form: { type: '', name: '', phone: '', email: '', promo: '', marketing: false, address: '', note: '', table_id: '', payment: '' },
+        form: { type: '', name: '', phone: '', email: '', promo: '', marketing: false, address: '', note: '', table_id: '', payment: '', vehicle: '', room: '', later: false, when: '', notify: '' },
         errors: {},
         formError: '',
         submitting: false,
@@ -53,11 +53,13 @@ document.addEventListener('alpine:init', () => {
         banners: cfg.banners.filter((b) => !b.popup),
         popup: null,
         installEvent: null,
+        tab: null,
 
         init() {
             if (cfg.kiosk) { this.startKiosk(); }
             this.restorePrefs();
             this.initPwa();
+            this.maybeReorder();
             this.showPopup();
             ['spice', 'favOnly', 'sort', 'curCode'].forEach((k) => this.$watch(k, () => this.savePrefs()));
             ['diet', 'avoid', 'favs', 'a11y'].forEach((k) => this.$watch(k, () => this.savePrefs(), { deep: true }));
@@ -143,6 +145,35 @@ document.addEventListener('alpine:init', () => {
             root.toggleAttribute('data-menu-large', this.a11y.large);
             root.toggleAttribute('data-menu-contrast', this.a11y.contrast);
             root.toggleAttribute('data-menu-calm', this.a11y.calm);
+        },
+
+        // ---- at the table ----------------------------------------------------------------
+        async askService(kind) {
+            try {
+                const res = await fetch(this.ord.requestUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf }, body: JSON.stringify({ kind }) });
+                const data = await res.json().catch(() => ({}));
+                this.flash(res.ok ? (data.message || 'OK') : (res.status === 429 ? cfg.t.too_many : cfg.t.generic_error));
+            } catch (e) { this.flash(cfg.t.generic_error); }
+        },
+        async openTab() {
+            try { const res = await fetch(this.ord.tabUrl, { headers: { Accept: 'application/json' } }); if (res.ok) { this.tab = await res.json(); } } catch (e) { this.flash(cfg.t.generic_error); }
+        },
+        // "Order again": ?reorder=<order token> puts that order's dishes back in the cart. Unavailable dishes are dropped, prices come from the server.
+        async maybeReorder() {
+            const token = new URLSearchParams(location.search).get('reorder');
+            if (!token || !/^[a-z0-9]{24}$/.test(token)) { return; }
+            try {
+                const res = await fetch(cfg.orderBase + '/order/' + token + '/reorder', { headers: { Accept: 'application/json' } });
+                if (!res.ok) { return; }
+                const products = new Map(this.tree.flatMap((c) => c.products).map((p) => [p.id, p]));
+                const lines = (await res.json()).lines.filter((l) => products.has(l.product_id) && products.get(l.product_id).available);
+                const dropped = (await Promise.resolve(0), lines.length);
+                this.cart = [];
+                lines.forEach((l) => { const p = products.get(l.product_id); this.push({ product_id: l.product_id, variant_id: l.variant_id, combo: l.combo, options: l.options, qty: l.qty, note: l.note || '', name: p.name, labels: [], unit_cents: this.cents(p.price) }); });
+                history.replaceState(null, '', location.pathname);
+                if (this.cart.length) { this.cartOpen = true; this.flash(cfg.t.reorder_done); }
+                void dropped;
+            } catch (e) { /* the menu simply opens as usual */ }
         },
 
         // ---- install as an app, and the pop-up banner ------------------------------------
@@ -388,7 +419,14 @@ document.addEventListener('alpine:init', () => {
         applyPromo() { this.form.promo = this.promoInput.trim(); this.requote(0); },
         clearPromo() { this.form.promo = ''; this.promoInput = ''; this.requote(0); },
         get promo() { return this.quoted?.promo || null; },
-        get needsContact() { return this.form.type !== 'dine_in'; },
+        // Where the kitchen cannot just walk over: it needs a phone number to reach the guest. Room service reaches them in the room.
+        get needsContact() { return ['takeaway', 'delivery', 'curbside'].includes(this.form.type); },
+        get overMax() { return this.ord.maxItems > 0 && this.cart.reduce((n, l) => n + l.qty, 0) > this.ord.maxItems; },
+        get notifyLabels() { return cfg.notifyLabels; },
+        // Browser local time for the picker, as 'YYYY-MM-DDTHH:mm'.
+        localStamp(d) { const p = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); },
+        get whenMin() { return this.ord.schedule ? this.localStamp(new Date(Date.now() + this.ord.schedule.lead * 60000)) : ''; },
+        get whenMax() { return this.ord.schedule ? this.localStamp(new Date(Date.now() + this.ord.schedule.days * 86400000)) : ''; },
         validateForm() {
             const e = {};
             const f = this.form;
@@ -397,6 +435,10 @@ document.addEventListener('alpine:init', () => {
             if (this.needsContact && !/^[0-9+()\-\s.]{6,40}$/.test(f.phone.trim())) { e.phone = cfg.t.phone_required; }
             if (f.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { e.email = cfg.t.email_invalid; }
             if (f.type === 'delivery' && f.address.trim().length < 5) { e.address = cfg.t.address_required; }
+            if (f.type === 'curbside' && !f.vehicle.trim()) { e.vehicle = cfg.t.vehicle_required; }
+            if (f.type === 'room_service' && !f.room.trim()) { e.room = cfg.t.room_required; }
+            if (this.ord.schedule && f.later && (!f.when || f.when < this.whenMin || f.when > this.whenMax)) { e.when = cfg.t.schedule_invalid; }
+            if (this.overMax) { e.max = cfg.t.too_many_items; }
             this.errors = e;
             return Object.keys(e).length === 0;
         },
@@ -412,6 +454,8 @@ document.addEventListener('alpine:init', () => {
                     body: JSON.stringify({
                         type: f.type, table_id: f.type === 'dine_in' ? (this.ord.table?.id || f.table_id || null) : null,
                         customer_name: f.name, customer_phone: f.phone, customer_email: f.email, marketing_opt_in: !!f.email.trim() && f.marketing, promo_code: f.promo || null, delivery_address: f.type === 'delivery' ? f.address : null,
+                        vehicle: f.type === 'curbside' ? f.vehicle : null, room: f.type === 'room_service' ? f.room : null,
+                        scheduled_for: this.ord.schedule && f.later && f.when ? new Date(f.when).toISOString() : null, notify: f.notify || null,
                         note: f.note, payment_method: f.payment, idempotency_key: this.key, kiosk: cfg.kiosk ? 1 : undefined,
                         lines: this.cart.map((l) => ({ product_id: l.product_id, variant_id: l.variant_id || null, combo: l.combo || undefined, options: l.options, qty: l.qty, note: l.note })),
                     }),

@@ -15,9 +15,12 @@ use App\Modules\Marketing\Services\PromoService;
 use App\Modules\Marketing\Services\ReviewService;
 use App\Modules\Menu\Services\MenuAvailability;
 use App\Modules\Menu\Services\ThemeRegistry;
+use App\Modules\Messaging\Services\Messenger;
 use App\Modules\Orders\Exceptions\OrderException;
 use App\Modules\Orders\Services\OrderSettings;
 use App\Modules\Orders\Services\OrderTotals;
+use App\Modules\Orders\Services\PushNotifier;
+use App\Modules\Orders\Services\WaitEstimate;
 use App\Modules\Orders\Support\OrderType;
 use App\Modules\Storefront\Services\CartPricing;
 use App\Modules\Storefront\Services\MenuCache;
@@ -154,7 +157,7 @@ class PublicMenuController extends Controller
                 }
             }
 
-            $sums = app(OrderTotals::class)->compute($quote['subtotal_cents'], $data['type'], app(OrderSettings::class)->for($restaurant), $discount);
+            $sums = app(OrderTotals::class)->compute($quote['subtotal_cents'], $data['type'], app(OrderSettings::class)->for($restaurant), $discount, (int) collect($quote['lines'])->sum('qty'));
             $quote['totals'] = collect($sums)->map(fn ($c) => $restaurant->money($c / 100))->all() + ['raw' => $sums];
         }
 
@@ -192,6 +195,18 @@ class PublicMenuController extends Controller
             'taxIncluded' => (bool) $s['prices_include_tax'],
             'promos' => PromoCode::where('is_active', true)->exists() || (bool) app(MarketingSettings::class)->get($restaurant, 'loyalty_enabled'),
             'orderUrl' => rtrim($request->getPathInfo(), '/').'/order',
+            'wait' => app(WaitEstimate::class)->for($restaurant)['minutes'],
+            'maxItems' => (int) $s['max_items'],
+            'schedule' => $s['schedule_orders'] ? ['lead' => (int) $s['schedule_lead'], 'days' => (int) $s['schedule_days'], 'tz' => $restaurant->timezone ?: 'UTC'] : null,
+            // Ways a guest can ask to be told when the order is ready. SMS/WhatsApp only if a provider is set up.
+            'notify' => array_values(array_filter([
+                $s['notify_sms'] && app(Messenger::class)->available('sms') ? 'sms' : null,
+                $s['notify_whatsapp'] && app(Messenger::class)->available('whatsapp') ? 'whatsapp' : null,
+                $s['notify_push'] && app(PushNotifier::class)->configured() ? 'push' : null,
+            ])),
+            'pushKey' => $s['notify_push'] ? app(PushNotifier::class)->publicKey() : null,
+            'requestUrl' => $table ? rtrim($request->getPathInfo(), '/').'/request' : null,
+            'tabUrl' => $table ? rtrim($request->getPathInfo(), '/').'/tab' : null,
         ];
     }
 

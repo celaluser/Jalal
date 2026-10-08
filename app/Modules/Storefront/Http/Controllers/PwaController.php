@@ -53,6 +53,17 @@ const OFFLINE = '<!doctype html><meta charset="utf-8"><meta name="viewport" cont
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith('menu-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())));
 
+self.addEventListener('push', (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (e) { /* plain text */ }
+  event.waitUntil(self.registration.showNotification(d.title || 'Order update', { body: d.body || '', data: { url: d.url || BASE + '/' }, tag: 'order' }));
+});
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || BASE + '/';
+  event.waitUntil(self.clients.matchAll({ type: 'window' }).then((all) => { for (const c of all) { if (c.url === url && 'focus' in c) { return c.focus(); } } return self.clients.openWindow(url); }));
+});
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);

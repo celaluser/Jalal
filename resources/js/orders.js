@@ -4,6 +4,8 @@
 document.addEventListener('alpine:init', () => {
     window.Alpine.data('orderBoard', (cfg) => ({
         orders: cfg.orders,
+        requests: cfg.requests || [],
+        t: cfg.t,
         accepting: cfg.accepting,
         offline: false,
         sound: (() => { try { return localStorage.getItem('orders.sound') !== 'off'; } catch (e) { return true; } })(),
@@ -34,7 +36,8 @@ document.addEventListener('alpine:init', () => {
         late(o) { return ['new', 'accepted', 'preparing'].includes(o.status) && this.age(o) > (o.prep_minutes || 15) + 10; },
         ageText(o) { const m = this.age(o); return m < 1 ? cfg.t.just_now : cfg.t.minutes_ago.replace(':count', m); },
         label(o) { return o.forward === 'completed' ? cfg.t['action_completed_' + o.type] : cfg.t['action_' + o.forward]; },
-        where(o) { return o.type === 'dine_in' ? (/^\d+$/.test(o.table || '') ? cfg.t.table.replace(':name', o.table) : (o.table || '?')) : (o.name || cfg.t.guest); },
+        typeLabel(o) { return cfg.t['type_' + o.type] || o.type; },
+        where(o) { return o.type === 'dine_in' ? (/^\d+$/.test(o.table || '') ? cfg.t.table.replace(':name', o.table) : (o.table || '?')) : (o.type === 'room_service' && o.room ? cfg.t.room + ' ' + o.room : (o.name || cfg.t.guest)); },
 
         // ---- polling ---------------------------------------------------------------------
         schedule() {
@@ -52,6 +55,7 @@ document.addEventListener('alpine:init', () => {
                 const arrived = data.orders.filter((o) => !this.seen.has(o.id) && o.status === 'new');
                 data.orders.forEach((o) => this.seen.add(o.id));
                 this.orders = data.orders;
+                this.requests = data.requests || [];
                 if (arrived.length) { this.arrived(arrived); }
                 this.title();
             } catch (e) { this.offline = true; }
@@ -112,6 +116,8 @@ document.addEventListener('alpine:init', () => {
             const reason = prompt(cfg.t.cancel_reason) ?? '';
             this.move(o, 'cancelled', reason);
         },
+        async dispatch(o) { if (this.busy) { return; } this.busy = o.id; await this.post(cfg.statusUrl + '/' + o.id + '/dispatch', {}); this.busy = null; },
+        async requestDone(r) { await this.post(cfg.statusUrl + '/requests/' + r.id + '/done', {}); },
         async pay(o, method) { await this.post(cfg.statusUrl + '/' + o.id + '/pay', { method }); },
         async togglePause() {
             const res = await fetch(cfg.pauseUrl, { method: 'POST', headers: { Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf } });
@@ -124,7 +130,7 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('posApp', (cfg) => ({
         menu: cfg.menu, tables: cfg.tables, canPay: cfg.canPay, t: cfg.t,
         cat: 0, q: '', lines: [], sheet: null, drawer: false, done: null, busy: false, error: '',
-        type: 'dine_in', tableId: cfg.preselect && cfg.tables.some((t) => t.id === cfg.preselect) ? cfg.preselect : '', name: '', phone: '', address: '', orderNote: '', paid: false, method: 'cash',
+        type: 'dine_in', tableId: cfg.preselect && cfg.tables.some((t) => t.id === cfg.preselect) ? cfg.preselect : '', name: '', phone: '', address: '', vehicle: '', room: '', scheduledFor: '', orderNote: '', paid: false, method: 'cash',
         fmt: new Intl.NumberFormat(cfg.locale, { style: 'currency', currency: cfg.currency }),
         key: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(),
 
@@ -207,7 +213,7 @@ document.addEventListener('alpine:init', () => {
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': cfg.csrf, 'X-Requested-With': 'XMLHttpRequest' },
                     body: JSON.stringify({
                         type: this.type, table_id: this.type === 'dine_in' ? (this.tableId || null) : null,
-                        customer_name: this.name, customer_phone: this.phone, delivery_address: this.address, note: this.orderNote,
+                        customer_name: this.name, customer_phone: this.phone, delivery_address: this.address, vehicle: this.vehicle, room: this.room, scheduled_for: this.scheduledFor ? new Date(this.scheduledFor).toISOString() : null, note: this.orderNote,
                         paid: this.canPay && this.paid, payment_method: this.method, idempotency_key: this.key,
                         lines: this.lines.map((l) => ({ product_id: l.id, variant_id: l.variant_id || null, combo: l.combo || undefined, qty: l.qty, options: l.options, note: l.note })),
                     }),
@@ -222,7 +228,7 @@ document.addEventListener('alpine:init', () => {
             }
         },
         reset() {
-            Object.assign(this, { lines: [], done: null, error: '', tableId: '', name: '', phone: '', address: '', orderNote: '', paid: false, q: '' });
+            Object.assign(this, { lines: [], done: null, error: '', tableId: '', name: '', phone: '', address: '', vehicle: '', room: '', scheduledFor: '', orderNote: '', paid: false, q: '' });
             this.key = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
         },
     }));

@@ -12,6 +12,7 @@ use App\Modules\Orders\Exceptions\OrderException;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\OrderService;
 use App\Modules\Orders\Services\OrderSettings;
+use App\Modules\Orders\Services\PushNotifier;
 use App\Modules\Orders\Support\OrderStatus;
 use App\Modules\Orders\Support\OrderType;
 use App\Modules\Storefront\Services\MenuLocale;
@@ -46,6 +47,10 @@ class CustomerOrderController extends Controller
             'marketing_opt_in' => ['nullable', 'boolean'],
             'promo_code' => ['nullable', 'string', 'max:40'],
             'delivery_address' => ['nullable', 'string', 'max:255'],
+            'vehicle' => ['nullable', 'string', 'max:80'],
+            'room' => ['nullable', 'string', 'max:30'],
+            'scheduled_for' => ['nullable', 'date'],
+            'notify' => ['nullable', Rule::in(['sms', 'whatsapp', 'push'])],
             'note' => ['nullable', 'string', 'max:300'],
             'payment_method' => ['required', Rule::in(['cash', 'card'])],
             'idempotency_key' => ['nullable', 'string', 'max:64'],
@@ -95,6 +100,9 @@ class CustomerOrderController extends Controller
             'cancelUrl' => $this->statusUrl($request, $order).'/cancel',
             'canCancel' => $this->canCancel($order),
             'reviewUrl' => $this->statusUrl($request, $order).'/review',
+            'pushUrl' => $this->statusUrl($request, $order).'/push',
+            'workerUrl' => $this->menuUrl($request).'/sw.js',
+            'reorderUrl' => $this->menuUrl($request).'?reorder='.$order->token,
             'money' => fn (int $cents) => $restaurant->money($cents / 100),
         ]);
     }
@@ -129,6 +137,11 @@ class CustomerOrderController extends Controller
             'steps' => OrderStatus::FLOW, 'prep_minutes' => $order->prep_minutes,
             'eta' => $order->accepted_at && $order->isOpen() ? $order->accepted_at->copy()->addMinutes((int) $order->prep_minutes)->toIso8601String() : null,
             'paid' => $order->isPaid(), 'can_cancel' => $this->canCancel($order),
+            'dispatched' => $order->dispatched_at !== null, 'scheduled' => $order->scheduled_for ? $order->scheduled_for->setTimezone($order->restaurant->timezone ?: 'UTC')->isoFormat('ddd, LT') : null,
+            'vehicle' => $order->vehicle, 'room' => $order->room,
+            'packaging' => $order->packaging_cents > 0 ? $order->restaurant->money($order->packaging_cents / 100) : null,
+            // Offer browser notifications while the order is open and the guest did not choose a channel yet.
+            'push_key' => $order->isOpen() && $order->notify_channel !== 'push' && ($this->settings->for($order->restaurant)['notify_push'] ?? false) ? app(PushNotifier::class)->publicKey() : null,
             'items' => $order->items->map(fn ($i) => ['name' => $i->name, 'qty' => $i->qty, 'options' => $i->optionsLabel(), 'total' => $order->restaurant->money($i->total_cents / 100)])->all(),
             'total' => $order->restaurant->money($order->total_cents / 100),
             'discount' => $order->discount_cents ? ['code' => $order->promo_code, 'amount' => $order->restaurant->money($order->discount_cents / 100)] : null,

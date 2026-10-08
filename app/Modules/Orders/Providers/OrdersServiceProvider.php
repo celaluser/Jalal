@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Providers;
 
 use App\Modules\Core\Mail\EmailTemplateRegistry;
 use App\Modules\Core\Support\RestaurantNav;
+use App\Modules\Orders\Listeners\NotifyGuest;
 use App\Modules\Orders\Listeners\SendOrderEmails;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
@@ -21,6 +22,7 @@ class OrdersServiceProvider extends ServiceProvider
         RestaurantNav::add('settings', 'panel.nav.ordering', 'orders.settings', icon: 'sliders', can: 'settings.manage');
 
         Event::subscribe(SendOrderEmails::class);
+        Event::subscribe(NotifyGuest::class);
         $this->registerEmailTemplates();
     }
 

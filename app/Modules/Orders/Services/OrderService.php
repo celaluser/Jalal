@@ -9,6 +9,7 @@ use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Marketing\Models\PromoCode;
 use App\Modules\Marketing\Services\PromoService;
 use App\Modules\Menu\Models\Product;
+use App\Modules\Orders\Events\OrderDispatched;
 use App\Modules\Orders\Events\OrderPlaced;
 use App\Modules\Orders\Events\OrderStatusChanged;
 use App\Modules\Orders\Exceptions\OrderException;
@@ -20,6 +21,7 @@ use App\Modules\Storefront\Services\CartPricing;
 use App\Modules\Storefront\Services\MenuCache;
 use App\Modules\Tables\Models\DiningTable;
 use App\Modules\Tenancy\Models\Restaurant;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -81,9 +83,22 @@ class OrderService
             throw new OrderException('phone_required');
         }
 
-        if (! $staff && $type !== OrderType::DINE_IN && $phone === null) {
+        if (! $staff && in_array($type, OrderType::NEEDS_PHONE, true) && $phone === null) {
             throw new OrderException('phone_required');
         }
+
+        $vehicle = $type === OrderType::CURBSIDE ? $this->clean($data['vehicle'] ?? null, 80) : null;
+        $room = $type === OrderType::ROOM_SERVICE ? $this->clean($data['room'] ?? null, 30) : null;
+
+        if ($type === OrderType::CURBSIDE && $vehicle === null) {
+            throw new OrderException('vehicle_required');
+        }
+
+        if ($type === OrderType::ROOM_SERVICE && $room === null) {
+            throw new OrderException('room_required');
+        }
+
+        $scheduledFor = $this->resolveSchedule($restaurant, $settings, $data['scheduled_for'] ?? null, $staff);
 
         if (! $staff && ($settings['require_name'] || $type !== OrderType::DINE_IN) && $name === null) {
             throw new OrderException('name_required');
@@ -105,6 +120,12 @@ class OrderService
             throw new OrderException('cart_invalid', $quote['lines']);
         }
 
+        $itemCount = (int) collect($quote['lines'])->sum('qty');
+
+        if (! $staff && (int) $settings['max_items'] > 0 && $itemCount > (int) $settings['max_items']) {
+            throw new OrderException('too_many_items');
+        }
+
         if (! $staff && $type === OrderType::DELIVERY && $quote['subtotal_cents'] < $this->settings->cents($restaurant, 'delivery_min')) {
             throw new OrderException('below_minimum');
         }
@@ -116,7 +137,8 @@ class OrderService
             ['promo' => $promo, 'discount_cents' => $discount] = $this->promos->apply($restaurant, (string) $data['promo_code'], $quote['subtotal_cents'], $email, $phone);
         }
 
-        $sums = $this->totals->compute($quote['subtotal_cents'], $type, $settings, $discount);
+        $sums = $this->totals->compute($quote['subtotal_cents'], $type, $settings, $discount, $itemCount);
+        $tab = $type === OrderType::DINE_IN && $table ? $this->openTab($table) : null;
 
         $order = $this->store($restaurant, $settings, $quote, $sums, [
             'type' => $type, 'source' => $source, 'idempotency_key' => $key, 'branch_id' => $branch?->id,
@@ -125,7 +147,15 @@ class OrderService
             'note' => $this->clean($data['note'] ?? null, 300), 'locale' => $data['locale'] ?? app()->getLocale(),
             'payment_method' => $method, 'currency_code' => $restaurant->currency_code,
             'marketing_opt_in' => $email !== null && ! empty($data['marketing_opt_in']), 'promo_code' => $promo?->code,
+            'vehicle' => $vehicle, 'room' => $room, 'scheduled_for' => $scheduledFor, 'tab_id' => $tab?->tab_id ?? $tab?->id,
+            'notify_channel' => $this->notifyChannel($settings, $data['notify'] ?? null, $phone),
+            'prep_minutes' => $scheduledFor ? (int) $settings['prep_minutes'] : app(WaitEstimate::class)->for($restaurant)['minutes'],
         ], $by, $promo);
+
+        // The first order of a table sitting becomes the head of its tab once a second one joins it.
+        if ($tab && $tab->tab_id === null) {
+            $tab->forceFill(['tab_id' => $tab->id])->saveQuietly();
+        }
 
         event(new OrderPlaced($order));
 
@@ -167,6 +197,20 @@ class OrderService
         return $order;
     }
 
+    /** Delivery order leaves with the courier. Does not change the status: it is still "ready" until it is handed over. @throws OrderException */
+    public function dispatch(Order $order, ?User $by = null): Order
+    {
+        if ($order->type !== OrderType::DELIVERY || $order->status !== OrderStatus::READY || $order->dispatched_at !== null) {
+            throw new OrderException('invalid_transition');
+        }
+
+        $order->forceFill(['dispatched_at' => now()])->save();
+        $this->log($order, 'dispatched', null, null, null, $by);
+        event(new OrderDispatched($order));
+
+        return $order;
+    }
+
     /** Record that the guest paid on the spot (cash or card terminal). */
     public function markPaid(Order $order, string $method, ?User $by = null): Order
     {
@@ -204,8 +248,8 @@ class OrderService
                         'token' => Str::lower(Str::random(24)),
                         'status' => $auto ? OrderStatus::ACCEPTED : OrderStatus::NEW,
                         'subtotal_cents' => $sums['subtotal'], 'discount_cents' => $sums['discount'], 'service_cents' => $sums['service'], 'delivery_cents' => $sums['delivery'],
-                        'tax_cents' => $sums['tax'], 'total_cents' => $sums['total'],
-                        'prep_minutes' => (int) $settings['prep_minutes'], 'accepted_at' => $auto ? now() : null,
+                        'tax_cents' => $sums['tax'], 'total_cents' => $sums['total'], 'packaging_cents' => $sums['packaging'],
+                        'prep_minutes' => (int) ($attributes['prep_minutes'] ?? $settings['prep_minutes']), 'accepted_at' => $auto ? now() : null,
                     ]);
                     $order->save();
 
@@ -216,9 +260,12 @@ class OrderService
 
                     $this->takeStock($quote['lines'], $attributes['branch_id'] ?? null);
 
+                    $stations = Product::whereIn('id', collect($quote['lines'])->pluck('product_id'))->pluck('station', 'id');
+
                     foreach ($quote['lines'] as $line) {
                         $order->items()->create([
-                            'product_id' => $line['product_id'], 'name' => $line['name'],
+                            'product_id' => $line['product_id'], 'name' => $line['name'], 'station' => $stations[$line['product_id']] ?? null,
+                            'reorder' => ['variant_id' => $line['variant_id'] ?? null, 'combo' => collect($line['options'])->whereNotNull('combo_product')->mapWithKeys(fn ($o) => [$o['slot'] ?? 0 => $o['combo_product']])->filter(fn ($v, $k) => $k)->all(), 'options' => collect($line['options'])->whereNull('combo_product')->pluck('id')->values()->all()],
                             'options' => array_map(fn ($o) => ['group' => $o['group'], 'name' => $o['name'], 'price_delta_cents' => $o['price_delta_cents']] + (isset($o['combo_product']) ? ['combo_product' => $o['combo_product']] : []), $line['options']),
                             'note' => $line['note'] !== '' ? $line['note'] : null, 'qty' => $line['qty'], 'unit_cents' => $line['unit_cents'], 'total_cents' => $line['total_cents'],
                         ]);
@@ -344,6 +391,49 @@ class OrderService
         }
 
         return $branch;
+    }
+
+    /** A pre-order time inside the allowed window, as a UTC moment; null for "as soon as possible". @throws OrderException schedule_invalid */
+    private function resolveSchedule(Restaurant $restaurant, array $settings, mixed $input, bool $staff): ?CarbonImmutable
+    {
+        if ($input === null || $input === '') {
+            return null;
+        }
+
+        if (! $staff && ! $settings['schedule_orders']) {
+            throw new OrderException('schedule_invalid');
+        }
+
+        try {
+            $at = CarbonImmutable::parse((string) $input)->utc();
+        } catch (\Throwable) {
+            throw new OrderException('schedule_invalid');
+        }
+
+        $lead = $staff ? 0 : (int) $settings['schedule_lead'];
+
+        if ($at->lt(now()->addMinutes($lead)->subMinute()) || $at->gt(now()->addDays((int) $settings['schedule_days'])->endOfDay())) {
+            throw new OrderException('schedule_invalid');
+        }
+
+        return $at;
+    }
+
+    /** The unpaid order that heads the table's current sitting, so a later order joins its tab. */
+    private function openTab(DiningTable $table): ?Order
+    {
+        return Order::where('table_id', $table->id)->whereNull('paid_at')->where('status', '!=', OrderStatus::CANCELLED)->where('created_at', '>=', now()->subHours(6))->orderBy('id')->first();
+    }
+
+    /** How the guest asked to be told, only if the restaurant offers it and a number is there for sms/whatsapp. */
+    private function notifyChannel(array $settings, mixed $wanted, ?string $phone): ?string
+    {
+        return match (true) {
+            $wanted === 'sms' && $settings['notify_sms'] && $phone !== null => 'sms',
+            $wanted === 'whatsapp' && $settings['notify_whatsapp'] && $phone !== null => 'whatsapp',
+            $wanted === 'push' && $settings['notify_push'] => 'push',
+            default => null,
+        };
     }
 
     private function resolveTable(string $type, array $data, array $settings): ?DiningTable

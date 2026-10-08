@@ -13,6 +13,8 @@
         'kiosk' => $kiosk,
         'banners' => $banners,
         'account' => $account,
+        'orderBase' => $base,
+        'notifyLabels' => ['sms' => __('orders.notify_sms'), 'whatsapp' => __('orders.notify_whatsapp'), 'push' => __('orders.notify_push')],
         'currencies' => $currencies,
         'prefsKey' => 'qrmenu.prefs.'.$restaurant->id,
         'pwa' => $kiosk ? null : ['worker' => $base.'/sw.js'],
@@ -23,8 +25,8 @@
         'nutrient' => collect(['protein', 'carbs', 'fat', 'fiber', 'sugar', 'sodium'])->mapWithKeys(fn ($n) => [$n => __('menu.nutrient_'.$n)])->all(),
         'allergen' => collect($allergens)->mapWithKeys(fn ($a) => [$a => __('menu.allergen.'.$a)])->all(),
         't' => collect(['sold_out', 'unavailable', 'not_for_type', 'stock_limit', 'variant_required', 'combo_required', 'option_required', 'option_unavailable', 'invalid_option', 'too_many_options', 'quantity'])->mapWithKeys(fn ($k) => [$k => __('customer.error_'.$k)])->all()
-            + collect(['table_required', 'name_required', 'phone_required', 'address_required', 'email_invalid'])->mapWithKeys(fn ($k) => [$k => __('orders.error_'.$k)])->all()
-            + ['from_price' => __('customer.from_price'), 'too_many' => __('customer.too_many'), 'generic_error' => __('customer.generic_error')],
+            + collect(['table_required', 'name_required', 'phone_required', 'address_required', 'email_invalid', 'vehicle_required', 'room_required', 'too_many_items', 'schedule_invalid'])->mapWithKeys(fn ($k) => [$k => __('orders.error_'.$k)])->all()
+            + ['reorder_done' => __('orders.reorder_unavailable'), 'from_price' => __('customer.from_price'), 'too_many' => __('customer.too_many'), 'generic_error' => __('customer.generic_error')],
     ];
     $ogImage = $logo;
 @endphp
@@ -164,6 +166,32 @@
                 </div>
             </div>
             <button type="button" class="text-sm font-medium underline underline-offset-2" x-show="hasFilters" x-on:click="resetFilters()">{{ __('customer.reset_filters') }}</button>
+        </div>
+    </div>
+
+    {{-- At the table: ask for service and see the shared bill --}}
+    <section class="mx-auto mt-4 max-w-3xl px-4" x-show="ord.requestUrl" x-cloak aria-label="{{ __('orders.requests') }}">
+        <div class="menu-scroll flex gap-2 overflow-x-auto pb-1">
+            <button type="button" class="menu-chip !px-3.5 !py-1.5 !text-sm !font-semibold" x-on:click="askService('waiter')">🙋 {{ __('orders.call_waiter') }}</button>
+            <button type="button" class="menu-chip !px-3.5 !py-1.5 !text-sm !font-semibold" x-on:click="askService('bill')">🧾 {{ __('orders.ask_bill') }}</button>
+            <button type="button" class="menu-chip !px-3.5 !py-1.5 !text-sm !font-semibold" x-on:click="askService('water')">💧 {{ __('orders.ask_water') }}</button>
+            <button type="button" class="menu-chip !px-3.5 !py-1.5 !text-sm !font-semibold" x-on:click="openTab()">🍽 {{ __('orders.tab_title') }}</button>
+        </div>
+    </section>
+
+    {{-- Shared table bill --}}
+    <div x-show="tab" x-cloak x-transition.opacity class="fixed inset-0 z-50 grid place-items-end bg-black/50 sm:place-items-center" x-on:click.self="tab = null" role="dialog" aria-modal="true" aria-label="{{ __('orders.tab_title') }}">
+        <div class="menu-page w-full max-w-lg overflow-hidden rounded-t-3xl p-5 shadow-2xl sm:rounded-3xl">
+            <div class="flex items-start justify-between gap-3"><div><h2 class="display text-xl font-bold">{{ __('orders.tab_title') }} · <span x-text="tab ? tab.table : ''"></span></h2><p class="menu-muted text-sm">{{ __('orders.tab_text') }}</p></div>
+                <button type="button" class="menu-card grid size-9 shrink-0 place-items-center" x-on:click="tab = null" aria-label="{{ __('customer.close') }}"><x-ui.icon name="x" size="5" /></button></div>
+            <p class="menu-muted mt-5 text-center" x-show="tab && !tab.orders.length">{{ __('orders.tab_empty') }}</p>
+            <ul class="mt-4 max-h-[50vh] space-y-3 overflow-y-auto">
+                <template x-for="o in (tab ? tab.orders : [])" :key="o.number">
+                    <li class="menu-card p-3"><p class="flex justify-between font-semibold"><span x-text="'#' + o.number"></span><span class="tnum" x-text="o.total"></span></p>
+                        <p class="menu-muted text-sm" x-text="o.items.join(', ')"></p></li>
+                </template>
+            </ul>
+            <p class="menu-line mt-4 flex justify-between border-t pt-3 text-lg font-bold" x-show="tab && tab.orders.length"><span>{{ __('orders.tab_total') }}</span><span class="tnum" x-text="tab ? tab.total : ''"></span></p>
         </div>
     </div>
 
@@ -519,7 +547,7 @@
                 <fieldset>
                     <legend class="mb-2 font-semibold">{{ __('orders.how') }}</legend>
                     <div class="grid gap-2" :class="ord.types.length > 2 ? 'grid-cols-3' : (ord.types.length === 2 ? 'grid-cols-2' : 'grid-cols-1')">
-                        @foreach (['dine_in' => 'qr', 'takeaway' => 'smartphone', 'delivery' => 'store'] as $type => $icon)
+                        @foreach (['dine_in' => 'qr', 'takeaway' => 'smartphone', 'delivery' => 'store', 'curbside' => 'car', 'room_service' => 'bed'] as $type => $icon)
                             <label x-show="ord.types.includes('{{ $type }}')" class="menu-card flex cursor-pointer flex-col items-center gap-1 px-2 py-3 text-center text-sm font-semibold" :style="form.type === '{{ $type }}' ? 'border-color: var(--menu-accent); box-shadow: 0 0 0 2px var(--menu-accent)' : ''">
                                 <input type="radio" name="otype" value="{{ $type }}" x-model="form.type" class="sr-only">
                                 <x-ui.icon name="{{ $icon }}" size="5" />{{ __('orders.type_'.$type) }}
@@ -556,6 +584,32 @@
                             <span>{{ __('marketing.opt_in', ['name' => $restaurant->name]) }}</span>
                         </label>
                     </div>
+                    <div x-show="form.type === 'curbside'" x-cloak>
+                        <label class="mb-1 block text-sm font-semibold" for="co-vehicle">{{ __('orders.vehicle_label') }}</label>
+                        <input id="co-vehicle" x-model="form.vehicle" maxlength="80" class="menu-card w-full px-3 py-2.5">
+                        <p class="mt-1 text-sm text-red-600" x-show="errors.vehicle" x-text="errors.vehicle" role="alert"></p>
+                    </div>
+                    <div x-show="form.type === 'room_service'" x-cloak>
+                        <label class="mb-1 block text-sm font-semibold" for="co-room">{{ __('orders.room_label') }}</label>
+                        <input id="co-room" x-model="form.room" maxlength="30" class="menu-card w-full px-3 py-2.5">
+                        <p class="mt-1 text-sm text-red-600" x-show="errors.room" x-text="errors.room" role="alert"></p>
+                    </div>
+                    <div x-show="ord.schedule" x-cloak>
+                        <p class="mb-1 text-sm font-semibold">{{ __('orders.schedule_when') }}</p>
+                        <div class="flex gap-2">
+                            <label class="menu-card flex flex-1 cursor-pointer items-center justify-center px-3 py-2.5 text-sm font-semibold" :style="!form.later ? 'border-color: var(--menu-accent)' : ''"><input type="radio" name="when-mode" class="sr-only" :checked="!form.later" x-on:change="form.later = false">{{ __('orders.schedule_asap') }}</label>
+                            <label class="menu-card flex flex-1 cursor-pointer items-center justify-center px-3 py-2.5 text-sm font-semibold" :style="form.later ? 'border-color: var(--menu-accent)' : ''"><input type="radio" name="when-mode" class="sr-only" :checked="form.later" x-on:change="form.later = true">{{ __('orders.schedule_later') }}</label>
+                        </div>
+                        <input type="datetime-local" x-show="form.later" x-cloak x-model="form.when" :min="whenMin" :max="whenMax" class="menu-card mt-2 w-full px-3 py-2.5" aria-label="{{ __('orders.schedule_later') }}">
+                        <p class="mt-1 text-sm text-red-600" x-show="errors.when" x-text="errors.when" role="alert"></p>
+                    </div>
+                    <div x-show="ord.notify.length" x-cloak>
+                        <label class="mb-1 block text-sm font-semibold" for="co-notify">{{ __('orders.notify_me') }}</label>
+                        <select id="co-notify" x-model="form.notify" class="menu-card w-full px-3 py-2.5">
+                            <option value="">{{ __('orders.notify_none') }}</option>
+                            <template x-for="n in ord.notify" :key="n"><option :value="n" x-text="notifyLabels[n]"></option></template>
+                        </select>
+                    </div>
                     <div x-show="form.type === 'delivery'">
                         <label class="mb-1 block text-sm font-semibold" for="co-address">{{ __('orders.address_label') }}</label>
                         <textarea id="co-address" x-model="form.address" rows="2" maxlength="255" autocomplete="street-address" class="menu-card w-full px-3 py-2.5"></textarea>
@@ -575,7 +629,7 @@
                                 </label>
                             @endforeach
                         </div>
-                        <p class="menu-muted mt-1.5 text-xs" x-text="@js(['dine_in' => __('orders.pay_on_spot_dine_in'), 'takeaway' => __('orders.pay_on_spot_takeaway'), 'delivery' => __('orders.pay_on_spot_delivery')])[form.type]"></p>
+                        <p class="menu-muted mt-1.5 text-xs" x-text="@js(['dine_in' => __('orders.pay_on_spot_dine_in'), 'takeaway' => __('orders.pay_on_spot_takeaway'), 'delivery' => __('orders.pay_on_spot_delivery'), 'curbside' => __('orders.pay_on_spot_curbside'), 'room_service' => __('orders.pay_on_spot_room_service')])[form.type]"></p>
                     </fieldset>
                 </div>
 
@@ -589,10 +643,14 @@
                     <p class="mt-1.5 flex items-center justify-between gap-2 text-sm font-medium menu-accent-text" x-show="promo && promo.valid"><span x-text="promo ? promo.message : ''"></span><button type="button" class="menu-muted text-xs underline" x-on:click="clearPromo()">{{ __('marketing.promo_remove') }}</button></p>
                 </div>
 
+                <p class="menu-muted mt-4 text-sm" x-show="ord.wait && !form.later" x-text="@js(__('orders.wait_now', ['minutes' => ':n'])).replace(':n', ord.wait)"></p>
+                <p class="menu-muted mt-1 text-xs" x-show="ord.maxItems > 0" x-text="@js(__('orders.max_items_note', ['count' => ':n'])).replace(':n', ord.maxItems)"></p>
+                <p class="mt-1 text-sm text-red-600" x-show="overMax" x-text="@js(__('orders.max_items_over', ['count' => ':n'])).replace(':n', ord.maxItems)" role="alert"></p>
                 <dl class="menu-line mt-5 space-y-1.5 border-t pt-4 text-sm tnum">
                     <div class="flex justify-between"><dt class="menu-muted">{{ __('customer.subtotal') }}</dt><dd x-text="totals ? totals.subtotal : subtotal"></dd></div>
                     <div class="flex justify-between font-medium menu-accent-text" x-show="totals && totals.raw.discount > 0"><dt>{{ __('marketing.promo_discount') }}</dt><dd x-text="totals ? '−' + totals.discount : ''"></dd></div>
                     <div class="flex justify-between" x-show="totals && totals.raw.service > 0"><dt class="menu-muted">{{ __('orders.service') }}</dt><dd x-text="totals ? totals.service : ''"></dd></div>
+                    <div class="flex justify-between" x-show="totals && totals.raw.packaging > 0"><dt class="menu-muted">{{ __('orders.packaging') }}</dt><dd x-text="totals ? totals.packaging : ''"></dd></div>
                     <div class="flex justify-between" x-show="totals && totals.raw.delivery > 0"><dt class="menu-muted">{{ __('orders.delivery_fee') }}</dt><dd x-text="totals ? totals.delivery : ''"></dd></div>
                     <div class="flex justify-between" x-show="totals && totals.raw.tax > 0"><dt class="menu-muted">{{ __('orders.tax') }}<span x-show="ord.taxIncluded"> ({{ __('orders.tax_included') }})</span></dt><dd x-text="totals ? totals.tax : ''"></dd></div>
                 </dl>

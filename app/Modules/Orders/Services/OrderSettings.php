@@ -19,6 +19,8 @@ class OrderSettings
         'dine_in' => true,
         'takeaway' => true,
         'delivery' => false,
+        'curbside' => false,
+        'room_service' => false,
         'dine_in_pick_table' => true,
         'require_name' => false,
         'tax_rate' => '0',
@@ -26,6 +28,17 @@ class OrderSettings
         'service_rate' => '0',
         'delivery_fee' => '0',
         'delivery_min' => '0',
+        'packaging_fee' => '0',
+        'packaging_per_item' => '0',
+        'schedule_orders' => false,
+        'schedule_lead' => 30,
+        'schedule_days' => 2,
+        'max_items' => 0,
+        'wait_per_order' => 0,
+        'stations' => '',
+        'notify_sms' => false,
+        'notify_whatsapp' => false,
+        'notify_push' => false,
         'pay_cash' => true,
         'pay_card' => true,
         'auto_accept' => false,
@@ -47,6 +60,12 @@ class OrderSettings
         $s = $this->for($restaurant);
 
         return array_values(array_filter(OrderType::ALL, fn ($t) => (bool) $s[$t]));
+    }
+
+    /** @return list<string> the restaurant's preparation stations (kitchen, bar...), empty when it does not use them */
+    public function stations(Restaurant $restaurant): array
+    {
+        return collect(explode(',', (string) $this->for($restaurant)['stations']))->map(fn ($s) => mb_substr(trim($s), 0, 30))->filter()->unique()->take(12)->values()->all();
     }
 
     /** @return list<string> payment methods accepted on the spot */
@@ -93,11 +112,15 @@ class OrderSettings
 
         return [
             'enabled' => ['nullable', 'boolean'], 'paused_message' => ['nullable', 'string', 'max:200'],
-            'dine_in' => ['nullable', 'boolean'], 'takeaway' => ['nullable', 'boolean'], 'delivery' => ['nullable', 'boolean'],
+            'dine_in' => ['nullable', 'boolean'], 'takeaway' => ['nullable', 'boolean'], 'delivery' => ['nullable', 'boolean'], 'curbside' => ['nullable', 'boolean'], 'room_service' => ['nullable', 'boolean'],
             'dine_in_pick_table' => ['nullable', 'boolean'], 'require_name' => ['nullable', 'boolean'],
             'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'], 'prices_include_tax' => ['nullable', 'boolean'],
             'service_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'delivery_fee' => $money, 'delivery_min' => $money,
+            'delivery_fee' => $money, 'delivery_min' => $money, 'packaging_fee' => $money, 'packaging_per_item' => $money,
+            'schedule_orders' => ['nullable', 'boolean'], 'schedule_lead' => ['nullable', 'integer', 'min:0', 'max:1440'], 'schedule_days' => ['nullable', 'integer', 'min:1', 'max:30'],
+            'max_items' => ['nullable', 'integer', 'min:0', 'max:500'], 'wait_per_order' => ['nullable', 'integer', 'min:0', 'max:30'],
+            'stations' => ['nullable', 'string', 'max:200', 'regex:/^[\pL\pN ,&\-]*$/u'],
+            'notify_sms' => ['nullable', 'boolean'], 'notify_whatsapp' => ['nullable', 'boolean'], 'notify_push' => ['nullable', 'boolean'],
             'pay_cash' => ['nullable', 'boolean'], 'pay_card' => ['nullable', 'boolean'],
             'auto_accept' => ['nullable', 'boolean'], 'prep_minutes' => ['nullable', 'integer', 'min:1', 'max:240'],
             'allow_cancel' => ['nullable', 'boolean'],

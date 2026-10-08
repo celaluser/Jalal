@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Orders\Services\OrderSettings;
+use App\Modules\Orders\Support\OrderType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -24,7 +25,7 @@ class OrderSettingsController extends Controller
         $data = $request->validate($this->settings->rules());
 
         // Guests must be able to order somehow: at least one order type and one way to pay.
-        if (empty($data['dine_in']) && empty($data['takeaway']) && empty($data['delivery'])) {
+        if (! collect(OrderType::ALL)->contains(fn ($t) => ! empty($data[$t]))) {
             return back()->withInput()->withErrors(['dine_in' => __('orders.need_type')]);
         }
 

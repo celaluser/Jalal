@@ -12,6 +12,7 @@ use App\Modules\Menu\Services\MenuImage;
 use App\Modules\Menu\Services\MenuService;
 use App\Modules\Menu\Services\ProductMedia;
 use App\Modules\Menu\Support\Schedule;
+use App\Modules\Orders\Services\OrderSettings;
 use App\Modules\Storefront\Services\MenuCache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -165,6 +166,7 @@ class ProductController extends Controller
             }],
             'portion_size' => ['nullable', 'string', 'max:60'],
             'spice_level' => ['nullable', 'integer', 'between:0,3'],
+            'station' => ['nullable', 'string', 'max:30'],
             'nutrition' => ['nullable', 'array'],
             'nutrition.*' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'badges' => ['nullable', 'array'],
@@ -203,6 +205,8 @@ class ProductController extends Controller
             'video_url' => $request->filled('video_url') ? trim($request->input('video_url')) : null,
             'portion_size' => $request->filled('portion_size') ? trim($request->input('portion_size')) : null,
             'spice_level' => (int) $request->input('spice_level', 0),
+            // Only a station the restaurant has listed counts; anything else is cleared.
+            'station' => in_array($request->input('station'), app(OrderSettings::class)->stations($request->user()->restaurant), true) ? $request->input('station') : null,
             'nutrition' => collect($request->input('nutrition', []))->only(Product::NUTRIENTS)->filter(fn ($v) => $v !== null && $v !== '')->map(fn ($v) => (float) $v)->all() ?: null,
             'badges' => array_values(array_intersect(Product::BADGES, (array) $request->input('badges', []))) ?: null,
             'limited_until' => $request->filled('limited_until') ? $request->input('limited_until') : null,

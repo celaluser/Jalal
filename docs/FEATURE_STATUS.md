@@ -93,6 +93,16 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Optional guest account: e-mailed sign-in link, order history, saved details, self-service erasure; the form never reveals which e-mails have ordered
 - 🟡 Currency rates are typed in by the platform admin (no automatic rate feed); the service worker was tested for what it serves, not in a live browser install
 
+## 9e. Ordering extras (v2 gap work)
+- ✅ New order types: curbside pickup (car details) and room service (room number); packaging fee (per order and per item) on packed orders
+- ✅ Pre-orders for a later time (lead time and days ahead set by the owner), item limit per guest order, waiting time that grows with the kitchen queue
+- ✅ Shared table tab: every order of a table sitting is on one bill that all guests can see (no personal data shown)
+- ✅ "Call the waiter / bill / water" requests from the guest menu, shown live on the order board
+- ✅ Prep list (batching) that adds up open orders, with preparation stations (kitchen, bar…) set per dish
+- ✅ "Order again" from a finished order; "On the way" step for deliveries
+- ✅ Guest notifications when the order is ready / on the way: browser push (own VAPID keys, made on first use), SMS and WhatsApp through the messaging providers
+- 🟡 Browser push, SMS and WhatsApp were tested against fakes only (no real push service or provider account)
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)

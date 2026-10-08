@@ -7,9 +7,11 @@ use App\Models\User;
 use App\Modules\Branches\Services\BranchContext;
 use App\Modules\Orders\Exceptions\OrderException;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Models\ServiceRequest;
 use App\Modules\Orders\Services\OrderService;
 use App\Modules\Orders\Services\OrderSettings;
 use App\Modules\Orders\Support\OrderStatus;
+use App\Modules\Orders\Support\OrderType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -58,6 +60,7 @@ class OrderBoardController extends Controller
         return response()->json([
             'orders' => $orders->map(fn (Order $o) => $this->present($o, $user))->all(),
             'open' => $orders->filter->isOpen()->count(),
+            'requests' => ServiceRequest::where('status', 'open')->orderBy('id')->limit(50)->get()->map(fn ($r) => ['id' => $r->id, 'table' => table_label($r->table_name ?? '?'), 'kind' => $r->kind, 'note' => $r->note, 'created' => $r->created_at->toIso8601String()])->all(),
             'accepting' => $this->settings->accepting($restaurant),
             'now' => now()->toIso8601String(),
         ])->header('Cache-Control', 'no-store');
@@ -105,6 +108,62 @@ class OrderBoardController extends Controller
         return $this->done($request, $order);
     }
 
+    /** A delivery leaves with the courier. Guests who asked to be told hear that it is on the way. */
+    public function dispatch(Request $request, Order $order): JsonResponse|RedirectResponse
+    {
+        abort_unless($request->user()->canAny(['orders.manage', 'delivery.view']), 403);
+
+        try {
+            $this->orders->dispatch($order, $request->user());
+        } catch (OrderException $e) {
+            return $this->failed($request, $e);
+        }
+
+        return $this->done($request, $order);
+    }
+
+    public function requestDone(Request $request, int $serviceRequest): JsonResponse|RedirectResponse
+    {
+        abort_unless($request->user()->canAny(['orders.view', 'orders.manage']), 403);
+        ServiceRequest::findOrFail($serviceRequest)->update(['status' => 'done', 'done_at' => now(), 'done_by' => $request->user()->id]);
+
+        return $request->expectsJson() ? response()->json(['ok' => true]) : back();
+    }
+
+    /**
+     * Batching: everything still to cook, added up across orders — "7 × Margherita" — so the kitchen makes it in one go.
+     * Dishes with different options are kept apart; each row lists the orders it belongs to.
+     */
+    public function batch(Request $request): View
+    {
+        $restaurant = $request->user()->restaurant;
+        $stations = $this->settings->stations($restaurant);
+        $station = in_array($request->query('station'), $stations, true) ? $request->query('station') : null;
+        $branchId = app(BranchContext::class)->currentId($request->user());
+
+        $orders = Order::with('items')->whereIn('status', [OrderStatus::NEW, OrderStatus::ACCEPTED, OrderStatus::PREPARING])
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))->orderBy('id')->get();
+
+        $rows = [];
+
+        foreach ($orders as $order) {
+            foreach ($order->items as $item) {
+                if ($station && $item->station !== $station) {
+                    continue;
+                }
+
+                $key = $item->product_id.'|'.$item->name.'|'.$item->optionsLabel().'|'.($item->note ?? '');
+                $rows[$key] ??= ['name' => $item->name, 'options' => $item->optionsLabel(), 'note' => $item->note, 'station' => $item->station, 'qty' => 0, 'orders' => []];
+                $rows[$key]['qty'] += $item->qty;
+                $rows[$key]['orders'][$order->number] = true;
+            }
+        }
+
+        $rows = collect($rows)->map(fn ($r) => $r + ['numbers' => array_keys($r['orders'])])->sortByDesc('qty')->values();
+
+        return view('orders::board.batch', ['rows' => $rows, 'stations' => $stations, 'station' => $station, 'orderCount' => $orders->count()]);
+    }
+
     /** Pause or resume online ordering ("kitchen is overloaded"). */
     public function pause(Request $request): JsonResponse|RedirectResponse
     {
@@ -148,6 +207,12 @@ class OrderBoardController extends Controller
             'items' => $o->items->map(fn ($i) => ['qty' => $i->qty, 'name' => $i->name, 'options' => $i->optionsLabel(), 'note' => $i->note])->all(),
             'allowed' => $this->allowed($user, $o),
             'forward' => OrderStatus::forward($o->status),
+            'vehicle' => $o->vehicle, 'room' => $o->room, 'scheduled' => $o->scheduled_for?->toIso8601String(),
+            'packaging' => $o->packaging_cents > 0 ? $money($o->packaging_cents) : null,
+            'dispatched' => $o->dispatched_at !== null,
+            // The courier button: a delivery that is ready to go and has not left yet.
+            'can_dispatch' => $o->type === OrderType::DELIVERY && $o->status === OrderStatus::READY && $o->dispatched_at === null && $user->canAny(['orders.manage', 'delivery.view']),
+            'tab' => $o->tab_id !== null,
         ];
     }
 

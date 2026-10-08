@@ -141,7 +141,7 @@ class CartPricing
                 $delta = (int) round((float) $item->price_delta * 100);
                 $unit += $delta;
                 $comboProducts[] = $item->product_id;
-                $comboPicked[] = ['id' => $item->product_id, 'combo_product' => $item->product_id, 'group' => $slot->tr('name', $locale, $restaurant->locale), 'name' => $item->dish->tr('name', $locale, $restaurant->locale), 'price_delta_cents' => $delta];
+                $comboPicked[] = ['id' => $item->product_id, 'combo_product' => $item->product_id, 'slot' => $slot->id, 'group' => $slot->tr('name', $locale, $restaurant->locale), 'name' => $item->dish->tr('name', $locale, $restaurant->locale), 'price_delta_cents' => $delta];
             }
         }
 
