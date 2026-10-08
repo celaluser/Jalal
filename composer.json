@@ -82,12 +82,21 @@
         ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
-        ]
+        ],
+        "pre-autoload-dump": "Aws\\Script\\Composer\\Composer::removeUnusedServices"
     },
     "extra": {
         "laravel": {
             "dont-discover": []
-        }
+        },
+        "aws/aws-sdk-php": [
+            "S3",
+            "Sts",
+            "Sso",
+            "SsoOidc",
+            "Ses",
+            "SesV2"
+        ]
     },
     "config": {
         "optimize-autoloader": true,
