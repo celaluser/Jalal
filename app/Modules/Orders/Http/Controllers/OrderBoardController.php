@@ -14,6 +14,7 @@ use App\Modules\Orders\Services\OrderSettings;
 use App\Modules\Orders\Services\PaymentLedger;
 use App\Modules\Orders\Support\OrderStatus;
 use App\Modules\Orders\Support\OrderType;
+use App\Modules\Tables\Models\DiningTable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,6 +44,7 @@ class OrderBoardController extends Controller
                 'canPay' => $request->user()->canAny(['orders.manage', 'payments.manage']),
                 'canCancel' => $request->user()->can('orders.manage'),
                 'interval' => 4000,
+                'alertAfter' => (int) $this->settings->for($restaurant)['alert_unaccepted'],
             ],
         ]);
     }
@@ -76,6 +78,7 @@ class OrderBoardController extends Controller
             'allowed' => $this->allowed($request->user(), $order),
             'canPay' => $request->user()->canAny(['orders.manage', 'payments.manage']),
             'payments' => $order->payments()->with('user')->get(),
+            'couriers' => $order->type === OrderType::DELIVERY ? app(DeliveryController::class)->couriers($request) : collect(),
         ]);
     }
 
@@ -141,6 +144,30 @@ class OrderBoardController extends Controller
         return $request->expectsJson() ? response()->json(['ok' => true] + $result) : back()->with('status', $result['via_gateway'] ? __('orders.refunded_via_gateway') : __('orders.refunded_manually'));
     }
 
+    public function discount(Request $request, Order $order): JsonResponse|RedirectResponse
+    {
+        abort_unless($request->user()->can('orders.manage'), 403);
+        $data = $request->validate(['type' => ['required', Rule::in(['percent', 'fixed'])], 'value' => ['required', 'numeric', 'min:0', 'max:9999999'], 'reason' => ['nullable', 'string', 'max:120']]);
+
+        try {
+            $this->orders->applyDiscount($order, $data['type'], (float) $data['value'], $data['reason'] ?? null, $request->user());
+        } catch (OrderException $e) {
+            return $this->failed($request, $e);
+        }
+
+        return $this->done($request, $order);
+    }
+
+    /** The guests asked for the bill: settle every open order of the table at once. */
+    public function closeTable(Request $request, int $table): JsonResponse|RedirectResponse
+    {
+        abort_unless($request->user()->canAny(['orders.manage', 'payments.manage']), 403);
+        $data = $request->validate(['method' => ['required', Rule::in(['cash', 'card'])], 'tip' => ['nullable', 'numeric', 'min:0', 'max:9999999']]);
+        $count = app(PaymentLedger::class)->closeTable(DiningTable::findOrFail($table), $data['method'], (int) round((float) ($data['tip'] ?? 0) * 100), $request->user());
+
+        return $request->expectsJson() ? response()->json(['ok' => true, 'settled' => $count]) : back()->with('status', trans_choice('orders.table_closed', $count, ['count' => $count]));
+    }
+
     /** A delivery leaves with the courier. Guests who asked to be told hear that it is on the way. */
     public function dispatch(Request $request, Order $order): JsonResponse|RedirectResponse
     {
@@ -197,6 +224,44 @@ class OrderBoardController extends Controller
         return view('orders::board.batch', ['rows' => $rows, 'stations' => $stations, 'station' => $station, 'orderCount' => $orders->count()]);
     }
 
+    /** Kitchen display: big tickets for the screen above the pass, one station at a time. */
+    public function kds(Request $request): View
+    {
+        $restaurant = $request->user()->restaurant;
+
+        return view('orders::board.kds', ['config' => $this->feed($request->user())->getData(true) + [
+            'feedUrl' => route('orders.feed'), 'statusUrl' => url('/orders'), 'csrf' => csrf_token(), 'stations' => $this->settings->stations($restaurant),
+            'interval' => 3000, 'alertAfter' => (int) $this->settings->for($restaurant)['alert_unaccepted'], 'canAccept' => $request->user()->can('orders.manage'),
+        ]]);
+    }
+
+    /**
+     * A station finished its lines of an order. When every line is done the order moves on to ready by itself,
+     * so a kitchen and a bar can each tick off their part.
+     */
+    public function stationDone(Request $request, Order $order): JsonResponse|RedirectResponse
+    {
+        abort_unless($request->user()->canAny(['orders.manage', 'kitchen.view']), 403);
+        $data = $request->validate(['station' => ['nullable', 'string', 'max:30']]);
+        $station = $data['station'] ?? null;
+
+        $order->items()->when($station !== null && $station !== '', fn ($q) => $q->where('station', $station))->whereNull('done_at')->update(['done_at' => now()]);
+
+        try {
+            if ($order->items()->whereNull('done_at')->doesntExist() && in_array($order->status, [OrderStatus::NEW, OrderStatus::ACCEPTED, OrderStatus::PREPARING], true)) {
+                if ($order->status !== OrderStatus::PREPARING) {
+                    $this->orders->transition($order, OrderStatus::PREPARING, $request->user());
+                }
+
+                $this->orders->transition($order->refresh(), OrderStatus::READY, $request->user());
+            }
+        } catch (OrderException $e) {
+            return $this->failed($request, $e);
+        }
+
+        return $this->done($request, $order);
+    }
+
     /** Pause or resume online ordering ("kitchen is overloaded"). */
     public function pause(Request $request): JsonResponse|RedirectResponse
     {
@@ -237,7 +302,7 @@ class OrderBoardController extends Controller
             'created' => $o->created_at->toIso8601String(), 'prep_minutes' => $o->prep_minutes,
             'paid' => $o->isPaid(), 'method' => $o->payment_method, 'cancel_reason' => $o->cancel_reason,
             'total' => $money($o->total_cents),
-            'items' => $o->items->map(fn ($i) => ['qty' => $i->qty, 'name' => $i->name, 'options' => $i->optionsLabel(), 'note' => $i->note])->all(),
+            'items' => $o->items->map(fn ($i) => ['id' => $i->id, 'qty' => $i->qty, 'name' => $i->name, 'options' => $i->optionsLabel(), 'note' => $i->note, 'station' => $i->station, 'done' => $i->done_at !== null])->all(),
             'allowed' => $this->allowed($user, $o),
             'forward' => OrderStatus::forward($o->status),
             'vehicle' => $o->vehicle, 'room' => $o->room, 'scheduled' => $o->scheduled_for?->toIso8601String(),

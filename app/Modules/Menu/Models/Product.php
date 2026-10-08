@@ -35,6 +35,16 @@ class Product extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        // Topping the stock up above the warning level re-arms the low stock e-mail.
+        static::saving(function (self $p): void {
+            if ($p->isDirty('stock_qty') && $p->low_stock_notified_at !== null && ($p->stock_qty === null || $p->low_stock_at === null || $p->stock_qty > $p->low_stock_at)) {
+                $p->low_stock_notified_at = null;
+            }
+        });
+    }
+
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);

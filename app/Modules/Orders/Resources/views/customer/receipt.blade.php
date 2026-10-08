@@ -35,6 +35,7 @@
     <table>
         <tr><td>{{ __('orders.subtotal') }}</td><td class="r">{{ $money($order->subtotal_cents) }}</td></tr>
         @if ($order->discount_cents)<tr><td>{{ __('marketing.promo_discount') }} {{ $order->promo_code }}</td><td class="r">−{{ $money($order->discount_cents) }}</td></tr>@endif
+        @if ($order->manual_discount_cents)<tr><td>{{ __('orders.discount') }}</td><td class="r">−{{ $money($order->manual_discount_cents) }}</td></tr>@endif
         @if ($order->service_cents)<tr><td>{{ __('orders.service') }}</td><td class="r">{{ $money($order->service_cents) }}</td></tr>@endif
         @if ($order->packaging_cents)<tr><td>{{ __('orders.packaging') }}</td><td class="r">{{ $money($order->packaging_cents) }}</td></tr>@endif
         @if ($order->delivery_cents)<tr><td>{{ __('orders.delivery_fee') }}</td><td class="r">{{ $money($order->delivery_cents) }}</td></tr>@endif

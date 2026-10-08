@@ -12,6 +12,7 @@ use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderEvent;
 use App\Modules\Orders\Models\OrderPayment;
 use App\Modules\Orders\Support\OrderStatus;
+use App\Modules\Tables\Models\DiningTable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -85,6 +86,26 @@ class PaymentLedger
         }
     }
 
+    /**
+     * Everything still owed at a table, paid in one go (the guests asked for the bill). The tip goes on the first order.
+     *
+     * @return int number of orders settled
+     */
+    public function closeTable(DiningTable $table, string $method, int $tip = 0, ?User $by = null): int
+    {
+        $orders = Order::where('table_id', $table->id)->whereNull('paid_at')->where('status', '!=', OrderStatus::CANCELLED)->where('created_at', '>=', now()->subHours(12))->orderBy('id')->get();
+        $settled = 0;
+
+        foreach ($orders as $order) {
+            if ($this->remaining($order) > 0) {
+                $this->record($order, $method, null, $settled === 0 ? $tip : 0, $by);
+                $settled++;
+            }
+        }
+
+        return $settled;
+    }
+
     /** Platform commission on an online payment, in cents. */
     public function commission(int $amountCents): int
     {
@@ -134,7 +155,7 @@ class PaymentLedger
             }
 
             $order->save();
-            OrderEvent::create(['order_id' => $order->id, 'user_id' => $by?->id, 'type' => 'refund', 'note' => $amount.($reason ? ' · '.mb_substr($reason, 0, 120) : '')]);
+            OrderEvent::create(['order_id' => $order->id, 'user_id' => $by?->id, 'type' => 'refund', 'note' => $amount.' '.$payment->method.($reason ? ' · '.mb_substr($reason, 0, 120) : '')]);
         });
 
         return ['refunded' => $amount, 'via_gateway' => $viaGateway];

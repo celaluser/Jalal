@@ -1,6 +1,9 @@
 @props(['groups', 'title' => null, 'section', 'home', 'announcements' => false])
 @php($user = auth()->user())
 @php($tablet = (bool) session(\App\Modules\Orders\Http\Controllers\TabletModeController::KEY, false))
+@if ($user->restaurant_id)
+    @push('head')<link rel="manifest" href="{{ route('staff.manifest') }}"><meta name="theme-color" content="{{ $user->restaurant?->brandColor() }}">@endpush
+@endif
 <x-layouts.base :title="$title" :tablet="$tablet">
     <div class="flex min-h-screen" x-data="{ open: false }" x-on:keydown.escape.window="open = false">
         {{-- Sidebar: ink in both themes, saffron marks where you are --}}

@@ -114,6 +114,9 @@ class OrderService
             throw new OrderException('payment_unavailable');
         }
 
+        // With delivery zones, the zone sets the fee and the minimum order.
+        $zone = $type === OrderType::DELIVERY ? app(DeliveryZones::class)->resolve($data['delivery_zone'] ?? null) : null;
+        $settings = app(DeliveryZones::class)->apply($settings, $zone);
         $quote = $this->pricing->quote($restaurant, $data['lines'] ?? [], $type, $branch?->id);
 
         if (! $quote['valid']) {
@@ -126,7 +129,7 @@ class OrderService
             throw new OrderException('too_many_items');
         }
 
-        if (! $staff && $type === OrderType::DELIVERY && $quote['subtotal_cents'] < $this->settings->cents($restaurant, 'delivery_min')) {
+        if (! $staff && $type === OrderType::DELIVERY && $quote['subtotal_cents'] < (int) round((float) $settings['delivery_min'] * 100)) {
             throw new OrderException('below_minimum');
         }
 
@@ -147,7 +150,7 @@ class OrderService
             'note' => $this->clean($data['note'] ?? null, 300), 'locale' => $data['locale'] ?? app()->getLocale(),
             'payment_method' => $method, 'currency_code' => $restaurant->currency_code,
             'marketing_opt_in' => $email !== null && ! empty($data['marketing_opt_in']), 'promo_code' => $promo?->code,
-            'vehicle' => $vehicle, 'room' => $room, 'scheduled_for' => $scheduledFor, 'tab_id' => $tab?->tab_id ?? $tab?->id,
+            'delivery_zone' => $zone?->name, 'vehicle' => $vehicle, 'room' => $room, 'scheduled_for' => $scheduledFor, 'tab_id' => $tab?->tab_id ?? $tab?->id,
             'notify_channel' => $this->notifyChannel($settings, $data['notify'] ?? null, $phone),
             'prep_minutes' => $scheduledFor ? (int) $settings['prep_minutes'] : app(WaitEstimate::class)->for($restaurant)['minutes'],
         ], $by, $promo);
@@ -195,6 +198,49 @@ class OrderService
         event(new OrderStatusChanged($order, $from, $to));
 
         return $order;
+    }
+
+    /**
+     * A discount given by staff at the till (a regular, a complaint, a mistake), on top of any promo code.
+     * Totals are worked out again from the stored fees, so a later change to the settings does not alter this order.
+     *
+     * @param  'percent'|'fixed'  $type
+     * @param  float  $value  percent, or an amount in the restaurant currency; 0 removes the staff discount
+     *
+     * @throws OrderException invalid_amount | cannot_discount
+     */
+    public function applyDiscount(Order $order, string $type, float $value, ?string $reason = null, ?User $by = null): Order
+    {
+        if ($order->status === OrderStatus::CANCELLED || ($order->isPaid() && $order->paid_cents >= $order->total_cents && $value > 0)) {
+            throw new OrderException('cannot_discount');
+        }
+
+        if ($value < 0 || ($type === 'percent' && $value > 100)) {
+            throw new OrderException('invalid_amount');
+        }
+
+        $room = max(0, $order->subtotal_cents - $order->discount_cents); // what is left to discount after any promo code
+        $manual = $type === 'percent' ? (int) round($room * $value / 100) : (int) round($value * 100);
+        $manual = min($manual, $room);
+
+        $settings = $this->settings->for($order->restaurant);
+        $settings['delivery_fee'] = (string) ($order->delivery_cents / 100);
+        $settings['packaging_fee'] = (string) ($order->packaging_cents / 100);
+        $settings['packaging_per_item'] = '0';
+        $sums = $this->totals->compute($order->subtotal_cents, $order->type, $settings, $order->discount_cents + $manual, 0);
+
+        DB::transaction(function () use ($order, $manual, $sums, $reason, $by, $value, $type) {
+            $order->forceFill(['manual_discount_cents' => $manual, 'service_cents' => $sums['service'], 'tax_cents' => $sums['tax'], 'total_cents' => $sums['total']]);
+
+            if ($order->paid_cents > 0 && $order->paid_cents >= $order->total_cents && $order->paid_at === null) {
+                $order->paid_at = now(); // the discount made the bill smaller than what was already paid in
+            }
+
+            $order->save();
+            $this->log($order, 'discount', null, null, ($type === 'percent' ? $value.'%' : (string) $value).($reason ? ' · '.$reason : ''), $by);
+        });
+
+        return $order->refresh();
     }
 
     /** Delivery order leaves with the courier. Does not change the status: it is still "ready" until it is handed over. @throws OrderException */
@@ -333,7 +379,10 @@ class OrderService
         }
 
         if ($touched) {
-            DB::afterCommit(fn () => MenuCache::bump(app(TenantContext::class)->id()));
+            DB::afterCommit(function () use ($wanted) {
+                MenuCache::bump(app(TenantContext::class)->id());
+                app(LowStockAlerts::class)->check(array_keys($wanted));
+            });
         }
     }
 

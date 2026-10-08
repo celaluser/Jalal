@@ -3,6 +3,9 @@
     <x-ui.page-header :title="__('orders.order_number', ['number' => $order->label()])" :back="['url' => route('orders.board'), 'label' => __('orders.back')]">
         <x-slot:actions>
             <x-ui.status :value="$order->status" :label="__('orders.status_'.$order->status)" />
+            <form method="POST" action="{{ route('orders.print', $order->id) }}" class="inline-flex gap-1">@csrf
+                <button name="kind" value="kitchen" class="btn btn-secondary btn-sm"><x-ui.icon name="printer" size="4" />{{ __('orders.print_kitchen') }}</button>
+                <button name="kind" value="receipt" class="btn btn-secondary btn-sm">{{ __('orders.print_receipt') }}</button></form>
             <a class="btn btn-secondary btn-sm" href="{{ route('orders.ticket', $order->id) }}" target="_blank" rel="noopener"><x-ui.icon name="receipt" size="4" />{{ __('orders.print') }}</a>
         </x-slot:actions>
     </x-ui.page-header>
@@ -25,6 +28,8 @@
                 <dl class="mt-4 space-y-1.5 border-t border-line pt-4 text-sm tnum">
                     <div class="flex justify-between"><dt class="text-muted">{{ __('orders.subtotal') }}</dt><dd><bdi>{{ $money($order->subtotal_cents) }}</bdi></dd></div>
                     @if ($order->discount_cents)<div class="flex justify-between text-accent-700 dark:text-accent-300"><dt>{{ __('marketing.promo_discount') }} · <span class="font-mono" dir="ltr">{{ $order->promo_code }}</span></dt><dd><bdi>−{{ $money($order->discount_cents) }}</bdi></dd></div>@endif
+                    @if ($order->manual_discount_cents)<div class="flex justify-between text-accent-700 dark:text-accent-300"><dt>{{ __('orders.discount') }}</dt><dd><bdi>−{{ $money($order->manual_discount_cents) }}</bdi></dd></div>@endif
+                    @if ($order->packaging_cents)<div class="flex justify-between"><dt class="text-muted">{{ __('orders.packaging') }}</dt><dd><bdi>{{ $money($order->packaging_cents) }}</bdi></dd></div>@endif
                     @if ($order->service_cents)<div class="flex justify-between"><dt class="text-muted">{{ __('orders.service') }}</dt><dd><bdi>{{ $money($order->service_cents) }}</bdi></dd></div>@endif
                     @if ($order->delivery_cents)<div class="flex justify-between"><dt class="text-muted">{{ __('orders.delivery_fee') }}</dt><dd><bdi>{{ $money($order->delivery_cents) }}</bdi></dd></div>@endif
                     @if ($order->tax_cents)<div class="flex justify-between"><dt class="text-muted">{{ __('orders.tax') }}</dt><dd><bdi>{{ $money($order->tax_cents) }}</bdi></dd></div>@endif
@@ -67,6 +72,28 @@
                 @endif
             </x-ui.card>
 
+            @if (auth()->user()->can('orders.manage') && $order->status !== 'cancelled')
+                <x-ui.card :title="__('orders.discount')" :description="__('orders.discount_help')">
+                    <form method="POST" action="{{ route('orders.discount', $order->id) }}" class="grid gap-2 sm:grid-cols-4">@csrf
+                        <select name="type" class="field" aria-label="{{ __('orders.discount') }}"><option value="percent">%</option><option value="fixed">{{ $restaurant->currency_code }}</option></select>
+                        <input name="value" type="number" step="0.01" min="0" class="field" placeholder="{{ $order->manual_discount_cents ? $order->manual_discount_cents / 100 : '10' }}" aria-label="{{ __('orders.discount') }}" dir="ltr" required>
+                        <input name="reason" class="field sm:col-span-2" maxlength="120" placeholder="{{ __('orders.discount_reason') }}" aria-label="{{ __('orders.discount_reason') }}">
+                        <x-ui.button :block="false" variant="secondary">{{ __('orders.discount_apply') }}</x-ui.button>
+                    </form>
+                    @if ($order->manual_discount_cents)<p class="mt-2 text-sm text-muted">{{ __('orders.discount_current', ['amount' => $money($order->manual_discount_cents)]) }}</p>@endif
+                </x-ui.card>
+            @endif
+
+            @if ($order->type === 'dine_in' && $order->table_id && ! $order->isPaid() && $canPay)
+                <x-ui.card :title="__('orders.close_table')" :description="__('orders.close_table_help')">
+                    <form method="POST" action="{{ route('orders.tables.close', $order->table_id) }}" class="grid gap-2 sm:grid-cols-3">@csrf
+                        <select name="method" class="field" aria-label="{{ __('orders.pay_how') }}"><option value="cash">{{ __('orders.pay_cash') }}</option><option value="card">{{ __('orders.pay_card') }}</option></select>
+                        <input name="tip" type="number" step="0.01" min="0" class="field" placeholder="{{ __('orders.tip') }}" aria-label="{{ __('orders.tip') }}" dir="ltr">
+                        <x-ui.button :block="false" variant="secondary">{{ __('orders.close_table') }}</x-ui.button>
+                    </form>
+                </x-ui.card>
+            @endif
+
             <x-ui.card :title="__('orders.history')">
                 <ol class="space-y-3 text-sm">
                     @foreach ($order->events as $event)
@@ -76,7 +103,8 @@
                                 <p class="font-medium">
                                     @if ($event->type === 'placed'){{ __('orders.event_placed') }}
                                     @elseif ($event->type === 'payment'){{ __('orders.event_payment', ['note' => __('orders.pay_'.$event->note)]) }}
-                                    @elseif ($event->type === 'refund'){{ __('orders.event_refund', ['note' => $event->note]) }}
+                                    @elseif ($event->type === 'discount'){{ __('orders.event_discount', ['note' => $event->note]) }}
+                                    @elseif ($event->type === 'refund')@php($rf = explode(' ', explode(' · ', $event->note)[0])){{ __('orders.event_refund', ['note' => $money((int) $rf[0]).' '.__('orders.pay_'.($rf[1] ?? 'cash')).(str_contains($event->note, ' · ') ? ' · '.explode(' · ', $event->note, 2)[1] : '')]) }}
                                     @elseif ($event->type === 'dispatched'){{ __('orders.on_the_way') }}
                                     @else{{ __('orders.status_'.$event->to) }}@endif
                                 </p>
@@ -101,6 +129,16 @@
                     <div class="flex justify-between gap-3"><dt class="text-muted">{{ $order->isPaid() ? __('orders.paid') : __('orders.unpaid') }}</dt><dd class="font-medium">{{ $order->payment_method ? __('orders.pay_'.$order->payment_method) : '' }}</dd></div>
                 </dl>
             </x-ui.card>
+
+            @if ($order->type === 'delivery' && auth()->user()->canAny(['orders.manage', 'delivery.manage']))
+                <x-ui.card :title="__('orders.courier')">
+                    <form method="POST" action="{{ route('orders.courier', $order->id) }}" class="flex gap-2">@csrf
+                        <select name="courier_id" class="field" aria-label="{{ __('orders.courier_assign') }}"><option value="">{{ __('orders.courier_unassigned') }}</option>
+                            @foreach ($couriers as $c)<option value="{{ $c->id }}" @selected($order->courier_id === $c->id)>{{ $c->name }}</option>@endforeach</select>
+                        <x-ui.button variant="secondary" :block="false">{{ __('admin.save') }}</x-ui.button>
+                    </form>
+                </x-ui.card>
+            @endif
 
             @if ($allowed || $canPay)
                 <x-ui.card>

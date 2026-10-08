@@ -35,6 +35,7 @@ class FloorMapController extends Controller
                 'saveUrl' => $canArrange ? route('tables.map.save') : null,
                 'posUrl' => $canOrder ? route('orders.pos.index') : null,
                 'orderUrl' => $user->can('orders.view') ? url('/orders') : null,
+                'closeUrl' => $user->canAny(['orders.manage', 'payments.manage']) ? url('/orders/tables') : null,
                 'csrf' => csrf_token(),
                 'area' => ctype_digit((string) $areaId) ? (int) $areaId : null,
             ],

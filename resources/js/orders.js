@@ -6,6 +6,7 @@ document.addEventListener('alpine:init', () => {
         orders: cfg.orders,
         requests: cfg.requests || [],
         t: cfg.t,
+        cfg: { alertAfter: cfg.alertAfter || 3 },
         accepting: cfg.accepting,
         offline: false,
         sound: (() => { try { return localStorage.getItem('orders.sound') !== 'off'; } catch (e) { return true; } })(),
@@ -23,9 +24,12 @@ document.addEventListener('alpine:init', () => {
             setInterval(() => { this.tick = Date.now(); }, 15000);
             document.addEventListener('visibilitychange', () => { if (!document.hidden) { this.refresh(); } });
             this.title();
+            // A new order nobody has picked up: ring again every 20 seconds until someone does.
+            setInterval(() => { if (this.stale.length && !document.hidden) { this.beep(); } }, 20000);
         },
 
         // ---- columns ---------------------------------------------------------------------
+        get stale() { return this.orders.filter((o) => o.status === 'new' && !o.scheduled && this.age(o) >= this.cfg.alertAfter); },
         get newOrders() { return this.orders.filter((o) => o.status === 'new'); },
         get kitchen() { return this.orders.filter((o) => ['accepted', 'preparing'].includes(o.status)); },
         get ready() { return this.orders.filter((o) => o.status === 'ready'); },

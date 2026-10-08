@@ -103,4 +103,8 @@ return [
     'receipt' => 'الإيصال',
     'receipt_thanks' => 'شكرًا لزيارتك!',
     'receipt_scan' => 'امسح للحصول على إيصالك الرقمي',
+    'zone_label' => 'منطقة التوصيل',
+    'zone_choose' => 'اختر منطقتك',
+    'zone_min' => 'الحد الأدنى',
+    'error_zone_required' => 'يرجى اختيار منطقة التوصيل.',
 ];

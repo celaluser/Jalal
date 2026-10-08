@@ -50,6 +50,7 @@ class CustomerOrderController extends Controller
             'marketing_opt_in' => ['nullable', 'boolean'],
             'promo_code' => ['nullable', 'string', 'max:40'],
             'delivery_address' => ['nullable', 'string', 'max:255'],
+            'delivery_zone' => ['nullable', 'integer'],
             'vehicle' => ['nullable', 'string', 'max:80'],
             'room' => ['nullable', 'string', 'max:30'],
             'scheduled_for' => ['nullable', 'date'],

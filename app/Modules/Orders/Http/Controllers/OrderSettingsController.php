@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Orders\Services\OrderSettings;
+use App\Modules\Orders\Services\TicketPrinter;
 use App\Modules\Orders\Support\OrderType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,7 +18,7 @@ class OrderSettingsController extends Controller
     {
         $restaurant = $request->user()->restaurant;
 
-        return view('orders::settings.edit', ['restaurant' => $restaurant, 's' => $this->settings->for($restaurant)]);
+        return view('orders::settings.edit', ['restaurant' => $restaurant, 's' => $this->settings->for($restaurant), 'printUrl' => url('/print/'.app(TicketPrinter::class)->token($restaurant))]);
     }
 
     public function update(Request $request): RedirectResponse

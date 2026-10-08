@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Providers;
 
 use App\Modules\Core\Mail\EmailTemplateRegistry;
 use App\Modules\Core\Support\RestaurantNav;
+use App\Modules\Orders\Listeners\AutoPrint;
 use App\Modules\Orders\Listeners\NotifyGuest;
 use App\Modules\Orders\Listeners\SendOrderEmails;
 use Illuminate\Support\Facades\Event;
@@ -18,12 +19,16 @@ class OrdersServiceProvider extends ServiceProvider
         $this->loadRoutesFrom(__DIR__.'/../routes.php');
 
         RestaurantNav::add('orders', 'panel.nav.orders', 'orders.board', 'orders.board|orders.show', icon: 'bell', can: 'orders.view');
+        RestaurantNav::add('orders', 'panel.nav.shifts', 'shifts.index', 'shifts.*', icon: 'wallet', can: 'payments.manage');
+        RestaurantNav::add('orders', 'panel.nav.courier', 'courier.index', 'courier.*', icon: 'truck', can: 'delivery.view');
+        RestaurantNav::add('settings', 'panel.nav.delivery_zones', 'delivery.zones', 'delivery.zones*', icon: 'store', can: 'delivery.manage');
         RestaurantNav::add('orders', 'panel.nav.new_order', 'orders.pos.index', icon: 'plus', can: 'orders.create');
         RestaurantNav::add('settings', 'panel.nav.online_payments', 'payments.settings', 'payments.settings*', icon: 'credit-card', can: 'payments.manage');
         RestaurantNav::add('settings', 'panel.nav.ordering', 'orders.settings', icon: 'sliders', can: 'settings.manage');
 
         Event::subscribe(SendOrderEmails::class);
         Event::subscribe(NotifyGuest::class);
+        Event::subscribe(AutoPrint::class);
         $this->registerEmailTemplates();
     }
 
@@ -42,6 +47,18 @@ class OrdersServiceProvider extends ServiceProvider
             'label' => 'Order ready (guest)', 'required' => false, 'variables' => $vars, 'sample' => $sample,
             'subject' => 'Your order {{number}} is ready · {{restaurant}}',
             'body' => "Hi {{name}},\n\nGood news: your order **{{number}}** at **{{restaurant}}** is ready.\n\n[Open your order]({{status_url}})",
+        ]);
+        EmailTemplateRegistry::register('low_stock', [
+            'label' => 'Low stock (owner)', 'required' => false, 'variables' => ['restaurant', 'items', 'stock_url'],
+            'sample' => ['restaurant' => 'Bella Italia', 'items' => 'Margherita (Only 3 left), Tiramisu (Out of stock)', 'stock_url' => 'https://example.com/menu/stock'],
+            'subject' => 'Running low · {{restaurant}}',
+            'body' => "Some dishes are almost gone at **{{restaurant}}**:\n\n{{items}}\n\n[Update your stock]({{stock_url}})",
+        ]);
+        EmailTemplateRegistry::register('order_unaccepted', [
+            'label' => 'Order nobody picked up (owner)', 'required' => false, 'variables' => ['restaurant', 'number', 'minutes', 'order_url'],
+            'sample' => ['restaurant' => 'Bella Italia', 'number' => '#1042', 'minutes' => '8', 'order_url' => 'https://example.com/orders/1'],
+            'subject' => 'Order {{number}} has been waiting {{minutes}} minutes · {{restaurant}}',
+            'body' => "Order **{{number}}** at **{{restaurant}}** arrived {{minutes}} minutes ago and nobody has accepted it yet.\n\n[Open the order]({{order_url}})",
         ]);
         EmailTemplateRegistry::register('order_receipt', [
             'label' => 'Receipt (guest)', 'required' => false, 'variables' => $vars, 'sample' => $sample,

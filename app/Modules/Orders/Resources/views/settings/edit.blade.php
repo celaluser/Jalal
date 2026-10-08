@@ -75,6 +75,30 @@
             </div>
         </x-ui.card>
 
+        <x-ui.card :title="__('orders.sec_alerts')" :description="__('orders.alerts_help')">
+            <div class="grid gap-4 sm:grid-cols-2">
+                <x-ui.input name="alert_unaccepted" type="number" min="1" max="60" :label="__('orders.alert_unaccepted')" :value="$s['alert_unaccepted']" />
+                <x-ui.input name="escalate_minutes" type="number" min="0" max="120" :label="__('orders.escalate_minutes')" :value="$s['escalate_minutes']" :hint="__('orders.escalate_hint')" />
+            </div>
+        </x-ui.card>
+
+        <x-ui.card :title="__('orders.sec_print')" :description="__('orders.print_help')">
+            <div class="space-y-4">
+                <x-ui.checkbox name="print_auto_kitchen" :label="__('orders.print_auto_kitchen')" :checked="$s['print_auto_kitchen']" />
+                <x-ui.checkbox name="print_auto_receipt" :label="__('orders.print_auto_receipt')" :checked="$s['print_auto_receipt']" />
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <x-ui.select name="print_width" :label="__('orders.print_width')" :options="['32' => '58 mm (32)', '42' => '80 mm (42)', '48' => '80 mm (48)']" :value="(string) $s['print_width']" />
+                    <x-ui.select name="print_codepage" :label="__('orders.print_codepage')" :options="['cp437' => 'CP437 (US)', 'cp850' => 'CP850 (Western Europe)', 'cp857' => 'CP857 (Turkish)', 'cp1252' => 'CP1252 (Windows Latin)', 'ascii' => 'ASCII only']" :value="$s['print_codepage']" />
+                </div>
+                <div>
+                    <p class="eyebrow mb-1.5">{{ __('orders.print_url') }}</p>
+                    <code class="block break-all rounded-lg bg-surface-2 px-3 py-2 font-mono text-xs" dir="ltr">{{ $printUrl }}</code>
+                    <p class="mt-1.5 text-xs text-muted">{{ __('orders.print_bridge_help') }}</p>
+                    <button type="submit" form="renew-print-token" class="btn btn-ghost btn-sm mt-2" onclick="return confirm('{{ __('orders.print_token_confirm') }}')">{{ __('orders.print_token_renew') }}</button>
+                </div>
+            </div>
+        </x-ui.card>
+
         <x-ui.card :title="__('orders.sec_notify')" :description="__('orders.notify_help')">
             <div class="space-y-3">
                 <x-ui.checkbox name="notify_push" :label="__('orders.notify_push_setting')" :checked="$s['notify_push']" />
@@ -85,4 +109,5 @@
 
         <div class="flex justify-end"><x-ui.button :block="false" size="lg">{{ __('admin.save') }}</x-ui.button></div>
     </form>
+    <form id="renew-print-token" method="POST" action="{{ route('orders.settings.print-token') }}">@csrf</form>
 </x-layouts.app>

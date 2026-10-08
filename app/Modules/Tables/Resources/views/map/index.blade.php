@@ -28,6 +28,24 @@
 
         <p class="text-sm font-medium" x-show="message" x-text="message" role="status" x-cloak></p>
 
+        {{-- An occupied table: add to its order, look at the orders, or close it --}}
+        <div x-show="picked" x-cloak class="card p-4" role="region" aria-live="polite">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <p class="font-semibold"><span x-text="picked ? picked.name : ''"></span> · <span class="font-normal text-muted" x-text="picked ? stateLabel(picked) : ''"></span><span class="tnum ms-2 font-normal" x-text="picked && states[picked.id] ? fmt(states[picked.id].total) : ''"></span></p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <a class="btn btn-secondary btn-sm" :href="cfg.posUrl + '?table=' + (picked ? picked.id : '')" x-show="cfg.posUrl">{{ __('orders.map_add_order') }}</a>
+                    <a class="btn btn-secondary btn-sm" href="{{ route('orders.board') }}" x-show="cfg.orderUrl">{{ __('orders.board_title') }}</a>
+                    <button type="button" class="btn btn-ghost btn-sm" x-on:click="picked = null" aria-label="{{ __('admin.close') }}"><x-ui.icon name="x" size="4" /></button>
+                </div>
+            </div>
+            <form method="POST" :action="cfg.closeUrl + '/' + (picked ? picked.id : '') + '/close'" class="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3" x-show="cfg.closeUrl && picked && stateOf(picked) !== 'free'">
+                <input type="hidden" name="_token" :value="cfg.csrf">
+                <select name="method" class="field !w-auto" aria-label="{{ __('orders.pay_how') }}"><option value="cash">{{ __('orders.pay_cash') }}</option><option value="card">{{ __('orders.pay_card') }}</option></select>
+                <input name="tip" type="number" step="0.01" min="0" class="field !w-28" placeholder="{{ __('orders.tip') }}" aria-label="{{ __('orders.tip') }}" dir="ltr">
+                <button class="btn btn-primary btn-sm">{{ __('orders.close_table') }}</button>
+            </form>
+        </div>
+
         {{-- The canvas is 1000 x 700 "map units"; positions are percentages of it, so it scales to any screen. --}}
         <div x-ref="canvas" class="relative w-full overflow-hidden rounded-2xl border border-line bg-surface-2" style="aspect-ratio: 10 / 7; touch-action: none"
              x-on:pointermove.window="drag($event)" x-on:pointerup.window="drop()" x-on:pointercancel.window="drop()">
@@ -50,7 +68,7 @@
     <script>
         document.addEventListener('alpine:init', () => {
             Alpine.data('floorMap', (cfg) => ({
-                tables: cfg.tables, states: {}, arranging: false, selected: null, grabbed: null, message: '', timer: null,
+                cfg, picked: null, tables: cfg.tables, states: {}, arranging: false, selected: null, grabbed: null, message: '', timer: null,
                 init() { this.poll(); this.timer = setInterval(() => { if (!this.arranging && !document.hidden) { this.poll(); } }, 6000); },
                 async poll() {
                     try { const r = await fetch(cfg.statusUrl, { headers: { Accept: 'application/json' } }); if (r.ok) { this.states = (await r.json()).states || {}; } } catch (e) { /* offline: keep last state */ }
@@ -62,6 +80,7 @@
                         ready: 'border-sky-500 bg-sky-50 text-sky-900 dark:bg-sky-900/30 dark:text-sky-100', unpaid: 'border-rose-500 bg-rose-50 text-rose-900 dark:bg-rose-900/30 dark:text-rose-100' })[this.stateOf(t)];
                 },
                 shapeClass(t) { return ({ square: 'h-[5.5rem] w-[5.5rem] rounded-xl', round: 'size-[5.5rem] rounded-full', wide: 'h-[5.5rem] w-36 rounded-xl' })[t.shape] || 'size-[5.5rem] rounded-xl'; },
+                fmt(cents) { return (cents / 100).toFixed(2); },
                 elapsed(t) {
                     const s = this.states[t.id]; if (!s?.since) { return ''; }
                     const m = Math.max(0, Math.round((Date.now() - new Date(s.since).getTime()) / 60000));
@@ -69,6 +88,7 @@
                 },
                 tap(t) {
                     if (this.arranging) { this.selected = t.id; return; }
+                    if (this.stateOf(t) !== 'free') { this.picked = t; return; }
                     if (cfg.posUrl) { window.location.href = cfg.posUrl + '?table=' + t.id; } else if (cfg.orderUrl) { window.location.href = cfg.orderUrl; }
                 },
                 grab(e, t) { if (!this.arranging) { return; } this.grabbed = t; this.selected = t.id; e.currentTarget.setPointerCapture?.(e.pointerId); },

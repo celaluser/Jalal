@@ -112,6 +112,14 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Apple Pay / Google Pay: shown by the hosted checkout pages when the owner has them on in their gateway account (nothing to configure here)
 - 🟡 Gateway checkouts, webhooks and refunds are tested against simulated responses (signature checks included), not against live gateway accounts. Refunds through the API exist for Stripe only. Commission in a currency other than the plan's stays unbilled
 
+## 9g. Operations (v2 gap work)
+- ✅ Kitchen display (KDS): big tickets, timers, per-station "done" so a kitchen and a bar tick off their own lines; unaccepted-order alarm on the board and an e-mail to the owner after N minutes
+- ✅ Till: staff discount on top of promo codes, close a whole table at once (from the order page or the floor map), part payments and splits
+- ✅ Delivery areas with their own fee and minimum, couriers (assign, claim, "on the way", collect cash/card on delivery)
+- ✅ Cash shifts (opening cash, expected vs counted, difference), order history with filters and CSV export, low-stock e-mail alerts
+- ✅ Thermal printing: ESC/POS kitchen tickets and receipts queued in the cloud, collected by a small bridge program (docs/tools/print-bridge.php) next to the printer; staff screens installable as an app
+- 🟡 Printing was tested to the byte stream and the queue protocol, not on a real printer; Arabic text does not print on most ESC/POS printers (no code page)
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)

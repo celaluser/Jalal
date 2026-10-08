@@ -17,6 +17,8 @@ use App\Modules\Menu\Services\MenuAvailability;
 use App\Modules\Menu\Services\ThemeRegistry;
 use App\Modules\Messaging\Services\Messenger;
 use App\Modules\Orders\Exceptions\OrderException;
+use App\Modules\Orders\Models\DeliveryZone;
+use App\Modules\Orders\Services\DeliveryZones;
 use App\Modules\Orders\Services\OrderSettings;
 use App\Modules\Orders\Services\OrderTotals;
 use App\Modules\Orders\Services\PushNotifier;
@@ -137,6 +139,7 @@ class PublicMenuController extends Controller
         $data = $request->validate([
             'lines' => ['required', 'array', 'max:'.CartPricing::MAX_LINES], 'type' => ['nullable', 'in:'.implode(',', OrderType::ALL)],
             'promo_code' => ['nullable', 'string', 'max:40'], 'customer_email' => ['nullable', 'string', 'max:190'], 'customer_phone' => ['nullable', 'string', 'max:40'],
+            'delivery_zone' => ['nullable', 'integer'],
         ]);
         app()->setLocale($this->locales->resolve($request, $restaurant));
 
@@ -157,7 +160,12 @@ class PublicMenuController extends Controller
                 }
             }
 
-            $sums = app(OrderTotals::class)->compute($quote['subtotal_cents'], $data['type'], app(OrderSettings::class)->for($restaurant), $discount, (int) collect($quote['lines'])->sum('qty'));
+            // A delivery zone changes the fee; until the guest picks one, the fee shows as zero.
+            $zones = app(DeliveryZones::class);
+            $zone = $data['type'] === OrderType::DELIVERY && ! empty($data['delivery_zone']) ? DeliveryZone::where('is_active', true)->find($data['delivery_zone']) : null;
+            $settings = $zones->apply(app(OrderSettings::class)->for($restaurant), $zone);
+            $quote['delivery_min'] = $data['type'] === OrderType::DELIVERY ? (int) round((float) $settings['delivery_min'] * 100) : 0;
+            $sums = app(OrderTotals::class)->compute($quote['subtotal_cents'], $data['type'], $settings, $discount, (int) collect($quote['lines'])->sum('qty'));
             $quote['totals'] = collect($sums)->map(fn ($c) => $restaurant->money($c / 100))->all() + ['raw' => $sums];
         }
 
@@ -197,6 +205,7 @@ class PublicMenuController extends Controller
             'orderUrl' => rtrim($request->getPathInfo(), '/').'/order',
             'wait' => app(WaitEstimate::class)->for($restaurant)['minutes'],
             'maxItems' => (int) $s['max_items'],
+            'zones' => app(DeliveryZones::class)->active()->map(fn ($z) => ['id' => $z->id, 'name' => $z->name, 'fee' => $restaurant->money((float) $z->fee), 'min' => (float) $z->min_order > 0 ? $restaurant->money((float) $z->min_order) : null, 'eta' => $z->eta_minutes])->all(),
             'schedule' => $s['schedule_orders'] ? ['lead' => (int) $s['schedule_lead'], 'days' => (int) $s['schedule_days'], 'tz' => $restaurant->timezone ?: 'UTC'] : null,
             // Ways a guest can ask to be told when the order is ready. SMS/WhatsApp only if a provider is set up.
             'notify' => array_values(array_filter([

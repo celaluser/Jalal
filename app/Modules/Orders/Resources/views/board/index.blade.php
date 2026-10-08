@@ -13,12 +13,15 @@
             <x-slot:actions>
                 <span class="badge" :class="accepting ? 'badge-success' : 'badge-warning'"><span class="size-1.5 rounded-full bg-current"></span><span x-text="accepting ? @js(__('orders.accepting')) : @js(__('orders.paused'))"></span></span>
                 @if ($canManage)<button type="button" class="btn btn-secondary btn-sm" x-on:click="togglePause()"><span x-text="accepting ? @js(__('orders.pause')) : @js(__('orders.resume'))"></span></button>@endif
+                <a href="{{ route('orders.kds') }}" class="btn btn-secondary btn-sm"><x-ui.icon name="layout" size="4" />{{ __('orders.kds_title') }}</a>
+                @if ($canManage)<a href="{{ route('orders.history') }}" class="btn btn-secondary btn-sm"><x-ui.icon name="clock" size="4" />{{ __('orders.history_title') }}</a>@endif
                 <a href="{{ route('orders.batch') }}" class="btn btn-secondary btn-sm"><x-ui.icon name="layers" size="4" />{{ __('orders.batch_title') }}</a>
                 <button type="button" class="btn btn-secondary btn-sm" x-on:click="toggleSound()" :aria-pressed="sound"><x-ui.icon name="bell" size="4" /><span x-text="sound ? @js(__('orders.sound_on')) : @js(__('orders.sound_off'))"></span></button>
             </x-slot:actions>
         </x-ui.page-header>
 
         <p x-show="offline" x-cloak class="mb-3 rounded-xl bg-red-50 px-4 py-2 text-sm font-medium text-red-800 dark:bg-red-950/60 dark:text-red-200" role="alert">{{ __('orders.offline') }}</p>
+        <p x-show="stale.length" x-cloak class="mb-3 rounded-xl bg-red-100 px-4 py-2 text-sm font-semibold text-red-900 dark:bg-red-950/60 dark:text-red-200" role="alert" x-text="@js(__('orders.unaccepted_alert', ['count' => ':n', 'minutes' => ':m'])).replace(':n', stale.length).replace(':m', cfg.alertAfter)"></p>
         <p x-show="!accepting" x-cloak class="mb-3 rounded-xl bg-brand-100 px-4 py-2 text-sm font-medium text-brand-900 dark:bg-brand-900/40 dark:text-brand-100" role="status">{{ __('orders.paused_banner') }}</p>
 
         {{-- Guests asking for the waiter or the bill --}}

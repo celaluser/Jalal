@@ -129,4 +129,36 @@ return [
     'gateways_wallets' => 'Apple Pay, Google Pay and local wallets appear on the payment page when your gateway account has them switched on.', 'gateway_no_currency' => 'Does not support :currency', 'gateway_saved_incomplete' => ':name was saved but is not ready: fill in all required fields.',
 
     'receipt' => 'Receipt', 'receipt_thanks' => 'Thank you for your visit!', 'receipt_scan' => 'Scan for your digital receipt',
+
+    'zone_label' => 'Delivery area', 'zone_choose' => 'Choose your area', 'zone_min' => 'min.', 'error_zone_required' => 'Please choose your delivery area.',
+
+    'zones_title' => 'Delivery areas', 'zones_sub' => 'Give each area its own fee and minimum order. Guests pick their area at checkout. With no areas, the single fee from Ordering settings is used.', 'zone_add' => 'Add area', 'zone_name' => 'Area name',
+    'zones_empty' => 'No areas yet', 'zones_empty_text' => 'Add areas such as “Old town” or “Suburbs” to charge different fees.', 'zone_saved' => 'Delivery area saved.', 'zone_deleted' => 'Delivery area deleted.', 'zone_eta' => 'Extra minutes', 'zone_active' => 'On',
+    'courier_title' => 'My deliveries', 'courier_sub' => 'Orders ready to go out, and the ones you picked.', 'courier_mine' => 'On my list', 'courier_none' => 'Nothing on your list right now.', 'courier_coming' => '{1} 1 more is still being prepared.|[2,*] :count more are still being prepared.',
+    'courier_open' => 'Ready, nobody has them yet', 'courier_nothing_open' => 'No unassigned deliveries.', 'courier_take' => 'Take it', 'courier_map' => 'Map', 'courier_collect' => 'Collect :amount', 'courier_cash' => 'Delivered · cash received', 'courier_card' => 'Delivered · paid by card', 'courier_delivered' => 'Delivered',
+    'delivered_done' => 'Delivered. Thank you!', 'error_courier_invalid' => 'That person cannot deliver.', 'courier' => 'Courier', 'courier_assign' => 'Assign courier', 'courier_unassigned' => 'Nobody yet',
+
+    'discount' => 'Discount', 'discount_help' => 'A discount from you, on top of any promo code. Enter 0 to remove it.', 'discount_reason' => 'Reason (optional)', 'discount_apply' => 'Apply', 'discount_current' => 'Current staff discount: :amount',
+    'event_discount' => 'Discount :note', 'error_cannot_discount' => 'This order is already settled, so it cannot be discounted any more.',
+    'close_table' => 'Close the table', 'close_table_help' => 'Pays every open order of this table in one go.', 'table_closed' => '{0} Nothing left to pay at this table.|{1} Table closed: 1 order paid.|[2,*] Table closed: :count orders paid.',
+
+    'map_add_order' => 'Add an order',
+
+    'history_title' => 'Order history', 'history_sub' => 'Every order, with filters. Export what you see to a spreadsheet.', 'history_search' => 'Number, name, phone or table', 'history_from' => 'From', 'history_to' => 'To',
+    'history_status' => 'Status', 'history_type' => 'Type', 'history_paid' => 'Payment', 'history_source' => 'Taken by', 'history_filter' => 'Filter', 'history_when' => 'When',
+    'history_summary' => '{0} No orders match.|{1} 1 order · :sum (tips :tips)|[2,*] :count orders · :sum (tips :tips)', 'history_empty' => 'No orders found', 'history_empty_text' => 'Try other dates or clear the filters.',
+
+    'shifts_title' => 'Cash shifts', 'shifts_sub' => 'Count the cash drawer when you start and when you finish, and see if it adds up.', 'shift_start' => 'Start your shift', 'shift_start_help' => 'Count the cash in the drawer and enter it.', 'shift_opening' => 'Cash in the drawer at the start', 'shift_open' => 'Open the shift',
+    'shift_running' => 'Shift running since :time', 'shift_cash_refunds' => 'Cash refunds', 'shift_expected' => 'Cash that should be there', 'shift_counted' => 'Cash you counted', 'shift_note' => 'Note (optional)', 'shift_close' => 'Close the shift',
+    'shift_already_open' => 'You already have a shift open.', 'shift_opened' => 'Shift opened.', 'shift_closed' => 'Shift closed.', 'shifts_open_others' => 'Open now', 'shifts_history' => 'Closed shifts', 'shifts_none' => 'No closed shifts yet.', 'shift_who' => 'Cashier', 'shift_difference' => 'Difference',
+
+    'unaccepted_alert' => ':count new order(s) waiting for more than :minutes minutes. Someone please accept them!',
+    'kds_title' => 'Kitchen display', 'kds_all' => 'All stations', 'kds_start' => 'Start', 'kds_ready' => 'Ready', 'kds_station_done' => 'Done: :station', 'kds_col_new' => 'To start', 'kds_col_cooking' => 'Cooking', 'kds_col_ready' => 'Ready', 'kds_fullscreen' => 'Full screen', 'kds_empty' => 'All clear',
+
+    'sec_alerts' => 'Orders nobody picks up', 'alerts_help' => 'The board rings again and shows a red warning, and you can be e-mailed.', 'alert_unaccepted' => 'Warn on the board after (minutes)', 'escalate_minutes' => 'E-mail the owner after (minutes)', 'escalate_hint' => '0 switches the e-mail off.',
+    'sec_print' => 'Thermal printer', 'print_help' => 'Tickets are queued; a small bridge program next to the printer collects them. See docs/tools/print-bridge.php.', 'print_auto_kitchen' => 'Print a kitchen ticket for every new order', 'print_auto_receipt' => 'Print a receipt when an order is paid',
+    'print_width' => 'Paper width', 'print_codepage' => 'Character set', 'print_url' => 'Bridge address (keep it secret)', 'print_bridge_help' => 'Run the bridge on a computer in the restaurant and give it this address and your printer.', 'print_token_renew' => 'Make a new secret address', 'print_token_confirm' => 'The current bridge stops working until you give it the new address. Continue?',
+    'print_token_renewed' => 'New address created. Update your bridge.', 'print_queued' => 'Sent to the printer queue.', 'print_kitchen' => 'Kitchen ticket', 'print_receipt' => 'Receipt',
+
+    'staff_app' => 'Staff',
 ];

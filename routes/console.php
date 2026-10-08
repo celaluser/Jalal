@@ -11,3 +11,6 @@ Schedule::command('billing:remind')->dailyAt('09:00');
 // Heartbeat for the System page, and a daily database backup (newest 7 are kept).
 Schedule::command('system:heartbeat')->everyMinute();
 Schedule::command('system:backup --keep=7')->dailyAt('03:30');
+
+// Owners hear about new orders nobody accepted in time (only for restaurants that asked for it).
+Schedule::command('orders:escalate')->everyMinute();

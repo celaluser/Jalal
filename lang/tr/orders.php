@@ -103,4 +103,8 @@ return [
     'receipt' => 'Fiş',
     'receipt_thanks' => 'Ziyaretiniz için teşekkürler!',
     'receipt_scan' => 'Dijital fişiniz için okutun',
+    'zone_label' => 'Teslimat bölgesi',
+    'zone_choose' => 'Bölgenizi seçin',
+    'zone_min' => 'min.',
+    'error_zone_required' => 'Lütfen teslimat bölgenizi seçin.',
 ];

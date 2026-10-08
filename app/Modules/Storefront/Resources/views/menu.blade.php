@@ -25,7 +25,7 @@
         'nutrient' => collect(['protein', 'carbs', 'fat', 'fiber', 'sugar', 'sodium'])->mapWithKeys(fn ($n) => [$n => __('menu.nutrient_'.$n)])->all(),
         'allergen' => collect($allergens)->mapWithKeys(fn ($a) => [$a => __('menu.allergen.'.$a)])->all(),
         't' => collect(['sold_out', 'unavailable', 'not_for_type', 'stock_limit', 'variant_required', 'combo_required', 'option_required', 'option_unavailable', 'invalid_option', 'too_many_options', 'quantity'])->mapWithKeys(fn ($k) => [$k => __('customer.error_'.$k)])->all()
-            + collect(['table_required', 'name_required', 'phone_required', 'address_required', 'email_invalid', 'vehicle_required', 'room_required', 'too_many_items', 'schedule_invalid'])->mapWithKeys(fn ($k) => [$k => __('orders.error_'.$k)])->all()
+            + collect(['table_required', 'name_required', 'phone_required', 'address_required', 'email_invalid', 'vehicle_required', 'room_required', 'zone_required', 'too_many_items', 'schedule_invalid'])->mapWithKeys(fn ($k) => [$k => __('orders.error_'.$k)])->all()
             + ['reorder_done' => __('orders.reorder_unavailable'), 'from_price' => __('customer.from_price'), 'too_many' => __('customer.too_many'), 'generic_error' => __('customer.generic_error')],
     ];
     $ogImage = $logo;
@@ -583,6 +583,14 @@
                             <input type="checkbox" x-model="form.marketing" class="mt-0.5 size-4 shrink-0 accent-[var(--menu-accent)]">
                             <span>{{ __('marketing.opt_in', ['name' => $restaurant->name]) }}</span>
                         </label>
+                    </div>
+                    <div x-show="form.type === 'delivery' && ord.zones.length" x-cloak>
+                        <label class="mb-1 block text-sm font-semibold" for="co-zone">{{ __('orders.zone_label') }}</label>
+                        <select id="co-zone" x-model="form.zone" class="menu-card w-full px-3 py-2.5">
+                            <option value="">{{ __('orders.zone_choose') }}</option>
+                            <template x-for="z in ord.zones" :key="z.id"><option :value="z.id" x-text="z.name + ' · ' + z.fee + (z.min ? ' · ' + @js(__('orders.zone_min')) + ' ' + z.min : '')"></option></template>
+                        </select>
+                        <p class="mt-1 text-sm text-red-600" x-show="errors.zone" x-text="errors.zone" role="alert"></p>
                     </div>
                     <div x-show="form.type === 'curbside'" x-cloak>
                         <label class="mb-1 block text-sm font-semibold" for="co-vehicle">{{ __('orders.vehicle_label') }}</label>

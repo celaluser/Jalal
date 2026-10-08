@@ -25,7 +25,7 @@ document.addEventListener('alpine:init', () => {
         toast: '',
         bumped: false,
         stage: 'cart',
-        form: { type: '', name: '', phone: '', email: '', promo: '', marketing: false, address: '', note: '', table_id: '', payment: '', vehicle: '', room: '', later: false, when: '', notify: '' },
+        form: { type: '', name: '', phone: '', email: '', promo: '', marketing: false, address: '', note: '', table_id: '', payment: '', vehicle: '', room: '', zone: '', later: false, when: '', notify: '' },
         errors: {},
         formError: '',
         submitting: false,
@@ -67,6 +67,7 @@ document.addEventListener('alpine:init', () => {
             this.prune();
             this.$watch('cart', () => { this.save(); this.requote(); });
             this.$watch('form.type', () => { this.errors = {}; this.requote(0); });
+            this.$watch('form.zone', () => this.requote(0));
             this.$watch('cartOpen', (v) => { if (!v) { this.stage = 'cart'; } });
             this.resetForm();
             this.$watch('sheet', (v) => this.lock(v !== null || this.cartOpen));
@@ -378,6 +379,7 @@ document.addEventListener('alpine:init', () => {
                             type: this.stage === 'checkout' ? this.form.type : undefined,
                             promo_code: this.stage === 'checkout' && this.form.promo ? this.form.promo : undefined,
                             customer_email: this.form.email || undefined, customer_phone: this.form.phone || undefined,
+                            delivery_zone: this.stage === 'checkout' && this.form.type === 'delivery' && this.form.zone ? this.form.zone : undefined,
                         }),
                     });
                     if (!res.ok) { throw new Error(String(res.status)); }
@@ -435,6 +437,7 @@ document.addEventListener('alpine:init', () => {
             if (this.needsContact && !/^[0-9+()\-\s.]{6,40}$/.test(f.phone.trim())) { e.phone = cfg.t.phone_required; }
             if (f.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { e.email = cfg.t.email_invalid; }
             if (f.type === 'delivery' && f.address.trim().length < 5) { e.address = cfg.t.address_required; }
+            if (f.type === 'delivery' && this.ord.zones.length && !f.zone) { e.zone = cfg.t.zone_required; }
             if (f.type === 'curbside' && !f.vehicle.trim()) { e.vehicle = cfg.t.vehicle_required; }
             if (f.type === 'room_service' && !f.room.trim()) { e.room = cfg.t.room_required; }
             if (this.ord.schedule && f.later && (!f.when || f.when < this.whenMin || f.when > this.whenMax)) { e.when = cfg.t.schedule_invalid; }
@@ -454,7 +457,7 @@ document.addEventListener('alpine:init', () => {
                     body: JSON.stringify({
                         type: f.type, table_id: f.type === 'dine_in' ? (this.ord.table?.id || f.table_id || null) : null,
                         customer_name: f.name, customer_phone: f.phone, customer_email: f.email, marketing_opt_in: !!f.email.trim() && f.marketing, promo_code: f.promo || null, delivery_address: f.type === 'delivery' ? f.address : null,
-                        vehicle: f.type === 'curbside' ? f.vehicle : null, room: f.type === 'room_service' ? f.room : null,
+                        delivery_zone: f.type === 'delivery' && f.zone ? f.zone : null, vehicle: f.type === 'curbside' ? f.vehicle : null, room: f.type === 'room_service' ? f.room : null,
                         scheduled_for: this.ord.schedule && f.later && f.when ? new Date(f.when).toISOString() : null, notify: f.notify || null,
                         note: f.note, payment_method: f.payment, idempotency_key: this.key, kiosk: cfg.kiosk ? 1 : undefined,
                         lines: this.cart.map((l) => ({ product_id: l.product_id, variant_id: l.variant_id || null, combo: l.combo || undefined, options: l.options, qty: l.qty, note: l.note })),
