@@ -180,6 +180,13 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Existing: two-factor sign-in, login throttling, reCAPTCHA option, activity log, tenant isolation tests, signed updates, SSRF guard for webhooks
 - 🔴 Not built: full Content-Security-Policy (pages use inline scripts), cookie-consent management for non-ad cookies (the menu sets only functional ones), formal GDPR/KVKK certification or legal texts (owners must supply their own privacy policy)
 
+## 9o. Packaging and documentation (v2 gap work)
+
+- ✅ Signing tools: `php artisan package:keys` and `package:build` (updates and add-ons, Ed25519, file hashes); `docs/tools/build-release.sh <version>` builds the buyer package (not executed in this environment, syntax-checked only)
+- ✅ Manual: installation (shared hosting + VPS), owner guide, admin guide, updating, API, add-ons, developer guide, troubleshooting, generated HTML manual (`php artisan docs:build`), third-party licence list (`docs:licenses`, with LGPL notes), changelog, README, marketplace listing text (`docs/CODECANYON.md`)
+- 🟡 Guides were written from the code and tests, not from screenshots; no video tutorials, no screenshots in the manual
+- 🔴 Not done: the actual marketplace submission package/screenshots/preview images, legal review of licences, a real Envato licence check against the live API (code exists, never run against Envato)
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)
