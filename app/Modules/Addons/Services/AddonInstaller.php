@@ -23,7 +23,7 @@ class AddonInstaller
     /** @return array<string, mixed> the installed add-on's manifest @throws UpdateException|RuntimeException */
     public function install(string $zipPath): array
     {
-        $package = UpdatePackage::open($zipPath);
+        $package = UpdatePackage::open($zipPath, (array) config('addons.trusted_keys', []));
         $paths = $package->paths();
         $slug = $this->slugOf($paths);
 

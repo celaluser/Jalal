@@ -40,7 +40,7 @@ Set `ADDONS_UPLOAD=false` in `.env` to switch the upload form off (install by FT
 
 An add-on package is an update package (see the update documentation): `manifest.json` with the SHA-256 of every file, `manifest.sig` (Ed25519 signature of the manifest),
 and the files under `files/addons/<slug>/…`. Every path must be inside `addons/<slug>/`. Packages are verified with the same public key as updates
-(`UPDATER_PUBLIC_KEY`), so **only packages signed by the key's owner install through the panel**. Anyone can still copy a folder into `addons/` by hand.
+(`UPDATER_PUBLIC_KEY`). To allow other authors, add their public keys to `ADDONS_TRUSTED_KEYS` in `.env` (comma separated); those keys are accepted for add-ons only, never for updates. Anyone can still copy a folder into `addons/` by hand.
 
 ## Security
 

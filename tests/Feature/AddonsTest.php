@@ -172,3 +172,15 @@ describe('admin page', function () {
         $this->actingAs($admin)->post(route('admin.addons.upload'), $upload())->assertForbidden();
     });
 });
+
+it('installs add-ons signed by a trusted author key, but never accepts that key for updates', function () {
+    $author = sodium_crypto_sign_keypair();
+    $authorSecret = sodium_crypto_sign_secretkey($author);
+    [$zip, $slug] = adPackage(secret: $authorSecret);
+
+    expect(fn () => app(AddonInstaller::class)->install($zip))->toThrow(UpdateException::class); // author key not trusted yet
+
+    config(['addons.trusted_keys' => [base64_encode(sodium_crypto_sign_publickey($author))]]);
+    expect(app(AddonInstaller::class)->install($zip)['slug'])->toBe($slug);
+    expect(fn () => \App\Modules\Updater\Services\UpdatePackage::open($zip))->toThrow(UpdateException::class); // the update path ignores it
+});

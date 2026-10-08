@@ -28,7 +28,8 @@ class UpdatePackage
         @$this->zip->close();
     }
 
-    public static function open(string $path): self
+    /** @param list<string> $extraKeys further trusted public keys (base64), used for add-on packages from other authors */
+    public static function open(string $path, array $extraKeys = []): self
     {
         $zip = new ZipArchive;
 
@@ -46,7 +47,7 @@ class UpdatePackage
             throw new UpdateException(__('updater.invalid_manifest'));
         }
 
-        self::verifySignature($manifestRaw, (string) $zip->getFromName('manifest.sig'));
+        self::verifySignature($manifestRaw, (string) $zip->getFromName('manifest.sig'), $extraKeys);
 
         $package = new self($zip, $manifest);
         $package->verifyFiles();
@@ -108,11 +109,12 @@ class UpdatePackage
         }
     }
 
-    private static function verifySignature(string $manifestRaw, string $signatureB64): void
+    /** @param list<string> $extraKeys */
+    private static function verifySignature(string $manifestRaw, string $signatureB64, array $extraKeys = []): void
     {
-        $key = config('updater.public_key');
+        $keys = array_values(array_filter([config('updater.public_key'), ...$extraKeys]));
 
-        if (! $key) {
+        if ($keys === []) {
             if (config('updater.allow_unsigned')) {
                 return;
             }
@@ -121,16 +123,20 @@ class UpdatePackage
         }
 
         $signature = base64_decode(trim($signatureB64), true);
-        $publicKey = base64_decode($key, true);
 
-        $valid = $signature !== false && $publicKey !== false
-            && strlen($signature) === SODIUM_CRYPTO_SIGN_BYTES
-            && strlen($publicKey) === SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES
-            && sodium_crypto_sign_verify_detached($signature, $manifestRaw, $publicKey);
-
-        if (! $valid) {
+        if ($signature === false || strlen($signature) !== SODIUM_CRYPTO_SIGN_BYTES) {
             throw new UpdateException(__('updater.bad_signature'));
         }
+
+        foreach ($keys as $key) {
+            $publicKey = base64_decode(trim((string) $key), true);
+
+            if ($publicKey !== false && strlen($publicKey) === SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES && sodium_crypto_sign_verify_detached($signature, $manifestRaw, $publicKey)) {
+                return;
+            }
+        }
+
+        throw new UpdateException(__('updater.bad_signature'));
     }
 
     private function verifyFiles(): void

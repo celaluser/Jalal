@@ -170,7 +170,7 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ `addons/<slug>/` with `addon.json`; code autoloaded under `Addons\...`, provider registered after the core (nav, routes, events, mail templates, migrations)
 - ✅ Super admin page: install from a signed zip (same signature/hash checks and Ed25519 key as updates, paths limited to `addons/<slug>/`), switch on/off (migrations run on enable), upgrade in place, remove (tables stay)
 - ✅ A broken add-on is skipped and reported instead of crashing the site; state kept in a file so it works before the database is up
-- 🟡 Only packages signed with the vendor key install through the panel; third-party authors cannot sign with their own key. Copying a folder by hand works
+- ✅ Other authors' add-ons install when their public key is listed in `ADDONS_TRUSTED_KEYS` (add-ons only; updates always need the vendor key). Copying a folder by hand works
 - 🔴 Not built: add-on marketplace, per-add-on licence keys, dependency resolution between add-ons, migration rollback on uninstall
 - Docs: `docs/ADDONS.md`, example in `docs/examples/hello-addon`
 
