@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', $locale) }}" dir="{{ $dir }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>{{ __('reservations.your_booking') }} · {{ $restaurant->name }}</title>
+    <style>{!! $themeCss !!}</style>
+    @vite(['resources/css/app.css'])
+</head>
+<body class="menu-page min-h-screen p-5">
+<main class="mx-auto max-w-md space-y-4 pt-6">
+    <a href="{{ $base ?: '/' }}" class="menu-muted text-sm underline">← {{ $restaurant->name }}</a>
+    <h1 class="display text-2xl font-bold">{{ __('reservations.your_booking') }}</h1>
+    @error('reservation')<p class="menu-card px-3 py-2 text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
+    <section class="menu-card space-y-2 p-5">
+        <p class="display text-xl font-bold">{{ $when->isoFormat('dddd D MMMM') }}</p>
+        <p class="display text-3xl font-extrabold">{{ $when->format('H:i') }}</p>
+        <p>{{ trans_choice('reservations.people', $res->party_size, ['count' => $res->party_size]) }} · {{ $res->name }}</p>
+        <p><span class="rounded-full px-2.5 py-0.5 text-xs font-semibold {{ in_array($res->status, ['confirmed', 'seated', 'completed'], true) ? 'menu-accent' : 'menu-surface border menu-line' }}">{{ __('reservations.status_'.$res->status) }}</span></p>
+        @if ($res->status === 'pending')<p class="menu-muted text-sm">{{ __('reservations.pending_text') }}</p>@endif
+    </section>
+    @if (in_array($res->status, ['pending', 'confirmed'], true) && $res->starts_at->isFuture())
+        <form method="POST" action="{{ $base }}/reserve/{{ $res->token }}/cancel" onsubmit="return confirm('{{ __('reservations.cancel_confirm') }}')">@csrf<button class="menu-btn menu-btn-quiet w-full">{{ __('reservations.cancel') }}</button></form>
+    @endif
+</main>
+</body>
+</html>

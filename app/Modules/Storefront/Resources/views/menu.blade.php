@@ -80,6 +80,7 @@
                         @foreach ($currencies as $c)<option value="{{ $c['code'] }}" class="text-black">{{ $c['code'] }}</option>@endforeach
                     </select>
                 @endif
+                @if ($reserveUrl && ! $kiosk)<a href="{{ $reserveUrl }}" class="shrink-0 rounded-full bg-black/15 px-2.5 py-1 text-xs font-bold">{{ __('reservations.reserve_link') }}</a>@endif
                 @unless ($kiosk)<a href="{{ $base }}/account" class="shrink-0 rounded-full bg-black/15 px-2.5 py-1 text-xs font-bold">{{ $account ? ($account['name'] ?: __('customer.account_link')) : __('customer.account_link') }}</a>@endunless
                 <button type="button" x-show="installEvent" x-cloak x-on:click="install()" class="shrink-0 rounded-full bg-black/15 px-2.5 py-1 text-xs font-bold">{{ __('customer.install_app') }}</button>
                 @if ($settings['dark_toggle'])

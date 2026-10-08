@@ -120,6 +120,12 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Thermal printing: ESC/POS kitchen tickets and receipts queued in the cloud, collected by a small bridge program (docs/tools/print-bridge.php) next to the printer; staff screens installable as an app
 - 🟡 Printing was tested to the byte stream and the queue protocol, not on a real printer; Arabic text does not print on most ESC/POS printers (no code page)
 
+## 9h. Reservations (v2 gap work)
+- ✅ Online booking page with live free times (opening hours, slot length, stay length, largest party, notice, days ahead), table-aware or seats-at-once capacity, manual or automatic confirmation
+- ✅ Guest private link to view/cancel; e-mails for received, confirmed, cancelled and a reminder before the visit (editable templates)
+- ✅ Staff day view: confirm, assign a table (smallest fitting one is picked), seat, finish, no-show, take phone bookings (even into a full slot, on purpose)
+- 🟡 Plan feature `reservations` gates it; no deposit/prepayment and no SMS reminders yet
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)
@@ -141,4 +147,4 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ⬜ **Phase 14** Envato packaging: documentation, changelog, licence list, update-signing tool
 
 ## Plan features that exist as switches but have no feature behind them yet
-`custom_domain` (resolution only), `whatsapp_orders`, `online_payments` (for orders), `reservations`, `analytics`.
+`custom_domain` (resolution only), `whatsapp_orders`, `analytics`.

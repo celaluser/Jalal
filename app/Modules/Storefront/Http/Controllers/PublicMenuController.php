@@ -24,6 +24,7 @@ use App\Modules\Orders\Services\OrderTotals;
 use App\Modules\Orders\Services\PushNotifier;
 use App\Modules\Orders\Services\WaitEstimate;
 use App\Modules\Orders\Support\OrderType;
+use App\Modules\Reservations\Services\ReservationSettings;
 use App\Modules\Storefront\Services\CartPricing;
 use App\Modules\Storefront\Services\MenuCache;
 use App\Modules\Storefront\Services\MenuLocale;
@@ -91,6 +92,7 @@ class PublicMenuController extends Controller
             'kiosk' => $request->boolean('kiosk'),
             'ordering' => $this->ordering($restaurant, $table, $request),
             'rating' => $this->rating($restaurant),
+            'reserveUrl' => app(ReservationSettings::class)->active($restaurant) ? rtrim($request->getPathInfo(), '/').'/reserve' : null,
             'banners' => $this->banners($restaurant, $locale),
             'account' => ($c = AccountController::current($request, $restaurant->id)) ? ['name' => $c->name, 'phone' => $c->phone, 'email' => $c->email] : null,
             'currencies' => $this->currencies($restaurant),

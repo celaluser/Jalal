@@ -14,3 +14,5 @@ Schedule::command('system:backup --keep=7')->dailyAt('03:30');
 
 // Owners hear about new orders nobody accepted in time (only for restaurants that asked for it).
 Schedule::command('orders:escalate')->everyMinute();
+
+Schedule::command('reservations:remind')->everyTenMinutes();

@@ -36,7 +36,7 @@ final class Permissions
             self::OWNER => ['*'],
             self::MANAGER => [
                 'menu.manage', 'orders.view', 'orders.create', 'orders.manage', 'tables.manage', 'tables.view', 'staff.view',
-                'reports.view', 'customers.view', 'customers.manage', 'marketing.manage', 'settings.view', 'support.manage',
+                'reports.view', 'customers.view', 'customers.manage', 'marketing.manage', 'settings.view', 'support.manage', 'reservations.manage',
             ],
             self::WAITER => ['orders.view', 'orders.create', 'tables.view'],
             self::KITCHEN => ['orders.view', 'kitchen.view'],
@@ -55,7 +55,7 @@ final class Permissions
             'menu.manage', 'orders.view', 'orders.create', 'orders.manage', 'tables.view', 'tables.manage',
             'staff.view', 'staff.manage', 'roles.manage', 'reports.view', 'customers.view', 'customers.manage',
             'marketing.manage', 'settings.view', 'settings.manage', 'payments.manage', 'kitchen.view',
-            'billing.manage', 'support.manage', 'activity.view', 'delivery.view', 'delivery.manage', 'branches.manage',
+            'billing.manage', 'support.manage', 'activity.view', 'delivery.view', 'delivery.manage', 'branches.manage', 'reservations.manage',
         ];
     }
 

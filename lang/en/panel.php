@@ -34,6 +34,8 @@ return [
         'online_payments' => 'Online payments',
         'courier' => 'My deliveries',
         'shifts' => 'Cash shifts',
+        'reservations' => 'Reservations',
+        'reservation_settings' => 'Reservation settings',
         'delivery_zones' => 'Delivery areas',
         'restaurant' => 'Restaurant profile',
         'subscription' => 'Subscription',

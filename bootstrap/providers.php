@@ -17,6 +17,7 @@ use App\Modules\Marketing\Providers\MarketingServiceProvider;
 use App\Modules\Menu\Providers\MenuServiceProvider;
 use App\Modules\Messaging\Providers\MessagingServiceProvider;
 use App\Modules\Orders\Providers\OrdersServiceProvider;
+use App\Modules\Reservations\Providers\ReservationsServiceProvider;
 use App\Modules\Storefront\Providers\StorefrontServiceProvider;
 use App\Modules\Support\Providers\SupportServiceProvider;
 use App\Modules\Tables\Providers\TablesServiceProvider;
@@ -39,6 +40,7 @@ return [
     TablesServiceProvider::class,
     OrdersServiceProvider::class,
     MarketingServiceProvider::class,
+    ReservationsServiceProvider::class,
     ActivityServiceProvider::class,
     MessagingServiceProvider::class,
     AnalyticsServiceProvider::class,
