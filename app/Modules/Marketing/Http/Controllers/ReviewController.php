@@ -22,7 +22,7 @@ class ReviewController extends Controller
             ->when($filter === 'unanswered', fn ($q) => $q->whereNull('replied_at'))->orderByDesc('id')->paginate(20)->withQueryString();
 
         return view('marketing::reviews.index', [
-            'reviews' => $list, 'summary' => $this->reviews->summary(), 'filter' => $filter,
+            'reviews' => $list, 'summary' => $this->reviews->summary(), 'nps' => app(\App\Modules\Marketing\Services\Nps::class)->summary(), 'filter' => $filter,
             'lowOpen' => Review::where('rating', '<=', Review::LOW)->whereNull('replied_at')->count(),
             'canManage' => $request->user()->can('marketing.manage'), 'aiEnabled' => app(AiManager::class)->configured(),
         ]);

@@ -126,6 +126,18 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Staff day view: confirm, assign a table (smallest fitting one is picked), seat, finish, no-show, take phone bookings (even into a full slot, on purpose)
 - 🟡 Plan feature `reservations` gates it; no deposit/prepayment and no SMS reminders yet
 
+## 9i. Marketing growth (v2 gap work)
+
+- ✅ **Campaigns by SMS and WhatsApp** through the existing messaging providers, with the same consent rules, daily cap and monthly message allowance; every text carries a signed stop link. Audiences by **segment**: new, regulars (silver tier), VIP (gold tier), lapsed. Recipients are marked `failed` when no provider is configured. Tested with faked provider HTTP only, no live SMS.
+- ✅ **Happy hour / dynamic pricing**: percentage rules by weekday, time window (also past midnight) and category. Applied by the server in `CartPricing`, so the cart and the real order both carry the price; the menu shows a banner but **the dish cards themselves keep the regular price** (the cached menu tree is not time-dependent).
+- ✅ **Gift cards** with a balance, expiry and an e-mail to the recipient; typed in the promo field, spent down atomically. They are issued by staff; there is **no online gift-card shop** for guests.
+- ✅ **Tiers** (bronze/silver/gold by completed orders) feed campaign segments; the existing "every Nth order" reward remains the stamp card.
+- ✅ **Autopilot** (`marketing:autopilot`, daily): personal single-use win-back code by e-mail to consenting lapsed guests, at most once per 90 days.
+- ✅ **NPS**: optional 0-10 question next to the stars, score and breakdown on the reviews page.
+- ✅ **Ad pixels** (Meta, Google tag, TikTok): ids validated by pattern, loaded on the guest menu only when the guest does not send Do Not Track. This is not a full cookie-consent banner.
+- ✅ **Link-in-bio page** (`/links`), **printable A5 flyer** with the menu QR, **website button** script (`/widget.js`) and iframe snippet, **promo templates** (welcome, weekend, big order, flash sale).
+- 🔴 Not built: birthday campaigns (no birthday field), segment builder with free rules, A/B testing, automatic send-time optimisation.
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)

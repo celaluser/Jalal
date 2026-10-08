@@ -3,6 +3,7 @@
 namespace App\Modules\Storefront\Services;
 
 use App\Modules\Branches\Services\BranchMenu;
+use App\Modules\Marketing\Services\PriceRules;
 use App\Modules\Menu\Models\OptionGroup;
 use App\Modules\Menu\Models\Product;
 use App\Modules\Menu\Services\MenuAvailability;
@@ -175,13 +176,26 @@ class CartPricing
             }
         }
 
-        $unit = max(0, $unit);
+        // Happy hour takes a percentage off the dish and its extras while the rule is running.
+        $percent = $this->happyPercent($restaurant, $product);
+        $unit = app(PriceRules::class)->apply(max(0, $unit), $percent);
         $total = $unit * $qty;
 
         return array_merge($base, [
             'variant_id' => $variantId, 'combo_products' => $comboProducts, 'options' => $picked, 'unit_cents' => $unit, 'total_cents' => $total,
-            'unit' => $restaurant->money($unit / 100), 'total' => $restaurant->money($total / 100), 'errors' => array_values(array_unique($errors)),
+            'happy_percent' => $percent, 'unit' => $restaurant->money($unit / 100), 'total' => $restaurant->money($total / 100), 'errors' => array_values(array_unique($errors)),
         ]);
+    }
+
+    /** @var array<int, mixed> rules running right now, loaded once per request */
+    private ?Collection $running = null;
+
+    private function happyPercent(Restaurant $restaurant, Product $product): int
+    {
+        $rules = app(PriceRules::class);
+        $this->running ??= $rules->running(app(MenuAvailability::class)->now($restaurant));
+
+        return $rules->percentFor($this->running, $product);
     }
 
     /** A positive integer id from client input, or 0. Arrays, floats and junk never become an id. */

@@ -6,6 +6,7 @@ use App\Modules\Core\Mail\EmailTemplateRegistry;
 use App\Modules\Core\Support\RestaurantNav;
 use App\Modules\Demo\Support\DemoDataRegistry;
 use App\Modules\Marketing\Database\Seeders\MarketingDemoSeeder;
+use App\Modules\Marketing\Console\Autopilot;
 use App\Modules\Marketing\Listeners\RecordCustomerActivity;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
@@ -29,8 +30,14 @@ class MarketingServiceProvider extends ServiceProvider
         RestaurantNav::add('marketing', 'panel.nav.reviews', 'reviews.index', 'reviews.*', icon: 'star', can: 'customers.view');
         RestaurantNav::add('marketing', 'panel.nav.promos', 'promos.index', 'promos.*', icon: 'tag', can: 'marketing.manage');
         RestaurantNav::add('marketing', 'panel.nav.banners', 'banners.index', 'banners.*', icon: 'image', can: 'marketing.manage');
+        RestaurantNav::add('marketing', 'panel.nav.pricing', 'pricing.index', 'pricing.*', icon: 'tag', can: 'marketing.manage');
+        RestaurantNav::add('marketing', 'panel.nav.gifts', 'gifts.index', 'gifts.*', icon: 'gift', can: 'marketing.manage');
         RestaurantNav::add('marketing', 'panel.nav.campaigns', 'campaigns.index', 'campaigns.*', icon: 'mail', can: 'marketing.manage');
         RestaurantNav::add('marketing', 'panel.nav.loyalty', 'marketing.settings', icon: 'gift', can: 'marketing.manage');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([Autopilot::class]);
+        }
 
         Event::subscribe(RecordCustomerActivity::class);
         DemoDataRegistry::register(MarketingDemoSeeder::class);
@@ -45,6 +52,20 @@ class MarketingServiceProvider extends ServiceProvider
             'sample' => ['name' => 'Sam', 'restaurant' => 'Bella Italia', 'code' => 'THANKS-4KQ9ZD', 'reward' => '10% off', 'expires' => 'Dec 31, 2026', 'orders' => '5', 'menu_url' => 'https://example.com/r/bella'],
             'subject' => 'A thank-you from {{restaurant}}: {{reward}}',
             'body' => "Hi {{name}},\n\nYou have ordered {{orders}} times at **{{restaurant}}**, thank you! Here is **{{reward}}** on your next order:\n\n**{{code}}**\n\nEnter it at checkout before {{expires}}. It works once and only for you.\n\n[Order now]({{menu_url}})",
+        ]);
+        EmailTemplateRegistry::register('winback', [
+            'label' => 'We miss you (guest)', 'required' => false,
+            'variables' => ['name', 'restaurant', 'code', 'reward', 'expires', 'menu_url'],
+            'sample' => ['name' => 'Sam', 'restaurant' => 'Bella Italia', 'code' => 'MISSYOU-4KQ9ZD', 'reward' => '15% off', 'expires' => 'Dec 31, 2026', 'menu_url' => 'https://example.com/r/bella'],
+            'subject' => '{{restaurant}} misses you: {{reward}}',
+            'body' => "Hi {{name}},\n\nIt has been a while since your last order at **{{restaurant}}**. Here is **{{reward}}** to welcome you back:\n\n**{{code}}**\n\nEnter it at checkout before {{expires}}. It works once and only for you.\n\n[Order now]({{menu_url}})",
+        ]);
+        EmailTemplateRegistry::register('gift_card', [
+            'label' => 'Gift card (recipient)', 'required' => false,
+            'variables' => ['restaurant', 'code', 'amount', 'note', 'menu_url'],
+            'sample' => ['restaurant' => 'Bella Italia', 'code' => 'GIFT-AB12-CD34', 'amount' => '$50.00', 'note' => 'Happy birthday!', 'menu_url' => 'https://example.com/r/bella'],
+            'subject' => 'A gift card for {{restaurant}}: {{amount}}',
+            'body' => "You received a gift card worth **{{amount}}** for **{{restaurant}}**.\n\n{{note}}\n\nYour code: **{{code}}**\n\nEnter it at checkout; any balance stays on the card.\n\n[Order now]({{menu_url}})",
         ]);
         EmailTemplateRegistry::register('review_request', [
             'label' => 'Review request (guest)', 'required' => false,

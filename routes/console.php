@@ -16,3 +16,5 @@ Schedule::command('system:backup --keep=7')->dailyAt('03:30');
 Schedule::command('orders:escalate')->everyMinute();
 
 Schedule::command('reservations:remind')->everyTenMinutes();
+
+Schedule::command('marketing:autopilot')->dailyAt('10:15');

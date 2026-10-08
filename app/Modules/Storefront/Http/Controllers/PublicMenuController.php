@@ -96,6 +96,8 @@ class PublicMenuController extends Controller
             'reserveUrl' => app(ReservationSettings::class)->active($restaurant) ? rtrim($request->getPathInfo(), '/').'/reserve' : null,
             'assistantUrl' => app(MarketingSettings::class)->get($restaurant, 'ai_assistant') && app(AiManager::class)->configured() && ! $request->boolean('kiosk') ? rtrim($request->getPathInfo(), '/').'/assistant' : null,
             'banners' => $this->banners($restaurant, $locale),
+            'pixels' => $request->boolean('kiosk') ? [] : array_filter(app(MarketingSettings::class)->for($restaurant), fn ($v, $k) => str_starts_with($k, 'pixel_') && $v !== '', ARRAY_FILTER_USE_BOTH),
+            'happy' => $this->happyHour($restaurant),
             'account' => ($c = AccountController::current($request, $restaurant->id)) ? ['name' => $c->name, 'phone' => $c->phone, 'email' => $c->email] : null,
             'currencies' => $this->currencies($restaurant),
             'branch' => $branch ? ['name' => $branch->name, 'open' => $branch->isOpen(), 'switch' => $guestBranch->active()->count() > 1] : null,
@@ -174,6 +176,13 @@ class PublicMenuController extends Controller
         }
 
         return response()->json($quote);
+    }
+
+    /** Happy-hour rules running now, for the banner on the menu (prices in the cart already include them). @return list<array{name: string, percent: int}> */
+    private function happyHour(Restaurant $restaurant): array
+    {
+        return app(\App\Modules\Marketing\Services\PriceRules::class)->running(app(MenuAvailability::class)->now($restaurant))
+            ->map(fn ($r) => ['name' => $r->name, 'percent' => $r->percent, 'until' => $r->to_time])->values()->all();
     }
 
     /** Average rating shown under the name, once enough guests have rated (a lone review is not a rating). @return array{average: float, count: int}|null */

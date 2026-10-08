@@ -13,4 +13,8 @@ return [
     'unsub_footer' => 'تصلك هذه الرسالة لأنك وافقت على تلقي عروض من :name.', 'unsub_link' => 'إلغاء الاشتراك',
     'unsub_title' => 'إلغاء الاشتراك', 'unsub_ask' => 'إيقاف رسائل :name؟', 'unsub_ask_text' => 'لن تصلك العروض والأخبار بعد الآن. ستظل تصلك تحديثات الطلبات.', 'unsub_button' => 'نعم، ألغِ اشتراكي',
     'unsub_done' => 'تم إلغاء اشتراكك', 'unsub_done_text' => 'لن تتلقى رسائل تسويقية من :name بعد الآن.', 'unsub_already' => 'أنت ملغي الاشتراك بالفعل من :name.',
+    'sms_stop' => 'لإيقاف الرسائل: :url',
+    'nps_question' => 'ما مدى احتمال أن توصي بنا لصديق؟', 'nps_low' => 'غير محتمل', 'nps_high' => 'محتمل جدًا',
+    'link_label_menu' => 'شاهد القائمة واطلب', 'link_label_whatsapp' => 'تحدث عبر واتساب', 'link_label_phone' => 'اتصل بنا', 'link_label_instagram' => 'إنستغرام', 'link_label_facebook' => 'فيسبوك', 'link_label_website' => 'موقعنا', 'link_label_review' => 'اترك تقييمًا',
+    'widget_button' => 'اطلب أونلاين',
 ];

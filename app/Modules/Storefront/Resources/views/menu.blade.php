@@ -57,6 +57,22 @@
         html[data-menu-calm] *,html[data-menu-calm] *::before,html[data-menu-calm] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
     </style>
     @if ($kiosk)<style>html{font-size:118%}.kiosk .menu-add{width:3.25rem;height:3.25rem}.kiosk .menu-chip{padding:.6rem 1.1rem}</style>@endif
+    @if ($pixels)
+        {{-- Ad tracking, only with ids the owner saved, and never for guests who send Do Not Track. --}}
+        <script>
+        if (navigator.doNotTrack !== '1') {
+            @if (! empty($pixels['pixel_ga']))
+            (function(){var s=document.createElement('script');s.async=1;s.src='https://www.googletagmanager.com/gtag/js?id={{ $pixels['pixel_ga'] }}';document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','{{ $pixels['pixel_ga'] }}')})();
+            @endif
+            @if (! empty($pixels['pixel_meta']))
+            !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','{{ $pixels['pixel_meta'] }}');fbq('track','PageView');
+            @endif
+            @if (! empty($pixels['pixel_tiktok']))
+            !function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify"];ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.load=function(e){var n=d.createElement("script");n.async=!0;n.src="https://analytics.tiktok.com/i18n/pixel/events.js?sdkid="+e;d.head.appendChild(n)};ttq.load('{{ $pixels['pixel_tiktok'] }}');ttq.page()}(window,document,'ttq');
+            @endif
+        }
+        </script>
+    @endif
     @vite(['resources/css/app.css', 'resources/js/storefront.js'])
     @livewireStyles
 </head>
@@ -198,6 +214,9 @@
     </div>
 
     {{-- Banners --}}
+    @foreach ($happy as $h)
+        <p class="menu-card menu-accent-text mx-auto mt-4 max-w-3xl px-4 py-3 text-center text-sm font-semibold" role="status">{{ __('customer.happy_hour', ['name' => $h['name'], 'percent' => $h['percent'], 'until' => $h['until']]) }}</p>
+    @endforeach
     <section class="mx-auto mt-5 max-w-3xl" x-show="banners.length && !hasFilters" x-cloak aria-label="{{ __('marketing.banners_title') }}">
         <div class="menu-scroll menu-snap flex gap-3 overflow-x-auto px-4 pb-1">
             <template x-for="b in banners" :key="b.id">

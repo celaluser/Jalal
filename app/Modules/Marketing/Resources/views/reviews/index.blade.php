@@ -14,6 +14,13 @@
                 <p class="display tnum mt-1 text-5xl font-bold leading-none">{{ number_format($summary['average'], 1) }}</p>
                 <div class="mt-2"><x-marketing::stars :rating="$summary['average']" size="5" /></div>
                 <p class="mt-1 text-sm text-muted">{{ trans_choice('marketing.review_count', $summary['count'], ['count' => $summary['count']]) }}</p>
+                @if ($nps['count'] > 0)
+                    <div class="mt-5 border-t border-line pt-4">
+                        <p class="text-sm text-muted">{{ __('marketing.nps_score') }}</p>
+                        <p class="display tnum mt-1 text-3xl font-bold leading-none">{{ $nps['score'] > 0 ? '+' : '' }}{{ $nps['score'] }}</p>
+                        <p class="mt-1 text-xs text-muted">{{ __('marketing.nps_breakdown', ['p' => $nps['promoters'], 'n' => $nps['passives'], 'd' => $nps['detractors']]) }}</p>
+                    </div>
+                @endif
                 <div class="mt-5 space-y-2">
                     @foreach ($summary['distribution'] as $star => $n)
                         <div class="flex items-center gap-2 text-sm"><span class="tnum w-3 text-muted">{{ $star }}</span>

@@ -14,6 +14,8 @@ return [
         'reviews' => 'Reviews',
         'promos' => 'Promo codes',
         'campaigns' => 'Campaigns',
+        'pricing' => 'Happy hour',
+        'gifts' => 'Gift cards',
         'loyalty' => 'Loyalty & reviews',
         'support' => 'Support',
         'group_menu' => 'Menu',

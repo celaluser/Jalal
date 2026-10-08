@@ -5,6 +5,7 @@ namespace App\Modules\Marketing\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Marketing\Models\Campaign;
 use App\Modules\Marketing\Services\CampaignService;
+use App\Modules\Marketing\Services\Segments;
 use App\Modules\Marketing\Services\MarketingSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -96,10 +97,15 @@ class CampaignController extends Controller
     /** @return array<string, mixed> */
     private function validated(Request $request): array
     {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:120'], 'subject' => ['required', 'string', 'max:160'],
-            'body' => ['required', 'string', 'max:10000'], 'min_orders' => ['nullable', 'integer', 'min:0', 'max:1000'],
-        ]) + ['min_orders' => 0];
+        $email = $request->input('channel', 'email') === 'email';
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'], 'subject' => [$email ? 'required' : 'nullable', 'string', 'max:160'],
+            'channel' => ['nullable', 'in:email,sms,whatsapp'], 'segment' => ['nullable', 'in:'.implode(',', Segments::ALL)],
+            'body' => ['required', 'string', 'max:'.($email ? 10000 : 600)], 'min_orders' => ['nullable', 'integer', 'min:0', 'max:1000'],
+        ]);
+
+        // SMS and WhatsApp have no subject line; the column still needs something to show in lists.
+        return ['subject' => $data['subject'] ?? $data['name'], 'min_orders' => (int) ($data['min_orders'] ?? 0), 'channel' => $data['channel'] ?? 'email', 'segment' => $data['segment'] ?? 'all'] + $data;
     }
 
     /** @return array<string, mixed> */

@@ -22,7 +22,16 @@ class PromoController extends Controller
 
     public function create(Request $request): View
     {
-        return view('marketing::promos.form', ['promo' => null, 'restaurant' => $request->user()->restaurant]);
+        // Ready-made starting points; the owner still reviews and saves them.
+        $templates = [
+            'first_order' => ['code' => 'WELCOME10', 'type' => 'percent', 'value' => 10, 'max_uses' => null],
+            'weekend' => ['code' => 'WEEKEND15', 'type' => 'percent', 'value' => 15, 'max_uses' => null],
+            'big_basket' => ['code' => 'BIGORDER', 'type' => 'fixed', 'value' => 500, 'max_uses' => null, 'min_order_cents' => 5000],
+            'flash' => ['code' => 'FLASH20', 'type' => 'percent', 'value' => 20, 'max_uses' => 50, 'ends_at' => now()->addDays(3)],
+        ];
+        $preset = isset($templates[$request->query('template')]) ? new PromoCode($templates[$request->query('template')] + ['description' => __('marketing.template_'.$request->query('template'))]) : null;
+
+        return view('marketing::promos.form', ['promo' => null, 'preset' => $preset, 'templates' => array_keys($templates), 'restaurant' => $request->user()->restaurant]);
     }
 
     public function store(Request $request): RedirectResponse

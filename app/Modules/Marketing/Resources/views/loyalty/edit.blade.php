@@ -39,6 +39,43 @@
             </div>
         </x-ui.card>
 
+        <x-ui.card :title="__('marketing.growth_section')">
+            <div class="space-y-5">
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <x-ui.input name="tier_silver" type="number" min="2" :value="$s['tier_silver']" :label="__('marketing.tier_silver')" :hint="__('marketing.tier_help')" />
+                    <x-ui.input name="tier_gold" type="number" min="3" :value="$s['tier_gold']" :label="__('marketing.tier_gold')" />
+                </div>
+                <x-ui.checkbox name="nps_enabled" :label="__('marketing.nps_enabled')" :checked="$s['nps_enabled']" />
+                <x-ui.checkbox name="autopilot_winback" :label="__('marketing.autopilot_winback')" :checked="$s['autopilot_winback']" />
+                <p class="-mt-3 text-xs text-muted">{{ __('marketing.autopilot_help') }}</p>
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <x-ui.input name="autopilot_days" type="number" min="7" max="365" :value="$s['autopilot_days']" :label="__('marketing.autopilot_days')" />
+                    <x-ui.input name="autopilot_percent" type="number" min="1" max="100" :value="$s['autopilot_percent']" :label="__('marketing.autopilot_percent')" />
+                </div>
+            </div>
+        </x-ui.card>
+
+        <x-ui.card :title="__('marketing.pixels_section')">
+            <p class="mb-4 text-sm text-muted">{{ __('marketing.pixels_help') }}</p>
+            <div class="grid gap-4 sm:grid-cols-3">
+                <x-ui.input name="pixel_meta" :value="$s['pixel_meta']" :label="__('marketing.pixel_meta')" placeholder="1234567890" dir="ltr" />
+                <x-ui.input name="pixel_ga" :value="$s['pixel_ga']" :label="__('marketing.pixel_ga')" placeholder="G-XXXXXXXXXX" dir="ltr" />
+                <x-ui.input name="pixel_tiktok" :value="$s['pixel_tiktok']" :label="__('marketing.pixel_tiktok')" placeholder="C1ABCDEF2GHI" dir="ltr" />
+            </div>
+        </x-ui.card>
+
+        <x-ui.card :title="__('marketing.links_section')">
+            <p class="mb-4 text-sm text-muted">{{ __('marketing.links_help', ['url' => $restaurant->publicUrl('links')]) }}</p>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <x-ui.input name="link_phone" :value="$s['link_phone']" :label="__('marketing.link_phone')" dir="ltr" />
+                <x-ui.input name="link_whatsapp" :value="$s['link_whatsapp']" :label="__('marketing.link_whatsapp')" :hint="__('marketing.link_whatsapp_hint')" dir="ltr" />
+                <x-ui.input name="link_instagram" type="url" :value="$s['link_instagram']" :label="__('marketing.link_instagram')" dir="ltr" />
+                <x-ui.input name="link_facebook" type="url" :value="$s['link_facebook']" :label="__('marketing.link_facebook')" dir="ltr" />
+                <div class="sm:col-span-2"><x-ui.input name="link_website" type="url" :value="$s['link_website']" :label="__('marketing.link_website')" dir="ltr" /></div>
+            </div>
+            <p class="mt-4 flex flex-wrap gap-3 text-sm"><a class="font-semibold underline" href="{{ route('marketing.flyer') }}" target="_blank">{{ __('marketing.flyer_open') }}</a><a class="font-semibold underline" href="{{ route('marketing.widget') }}">{{ __('marketing.widget_open') }}</a></p>
+        </x-ui.card>
+
         <x-ui.card :title="__('marketing.messages_section')">
             <x-ui.input name="calling_code" :value="$s['calling_code']" :label="__('marketing.calling_code')" :hint="__('marketing.calling_code_help')" placeholder="90" dir="ltr" />
         </x-ui.card>

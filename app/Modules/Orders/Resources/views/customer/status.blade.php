@@ -200,6 +200,16 @@
                         @endfor
                     </div>
                     <input type="hidden" name="rating" :value="rating">
+                    <fieldset x-show="s.review.nps" class="space-y-1.5" x-data="{ nps: null }">
+                        <legend class="menu-muted text-sm">{{ __('marketing.nps_question') }}</legend>
+                        <input type="hidden" name="nps" :value="nps">
+                        <div class="flex flex-wrap justify-center gap-1" role="radiogroup" aria-label="{{ __('marketing.nps_question') }}">
+                            @for ($n = 0; $n <= 10; $n++)
+                                <button type="button" role="radio" :aria-checked="nps === {{ $n }}" class="menu-card size-9 text-sm font-semibold transition" :class="nps === {{ $n }} ? 'menu-btn !p-0' : ''" x-on:click="nps = {{ $n }}">{{ $n }}</button>
+                            @endfor
+                        </div>
+                        <div class="menu-muted flex justify-between text-xs"><span>{{ __('marketing.nps_low') }}</span><span>{{ __('marketing.nps_high') }}</span></div>
+                    </fieldset>
                     <textarea name="comment" rows="3" maxlength="1000" class="menu-card w-full px-3 py-2.5" placeholder="{{ __('marketing.rate_comment') }}" aria-label="{{ __('marketing.rate_comment') }}"></textarea>
                     <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="is_public" value="1" checked class="mt-0.5 size-4 shrink-0 accent-[var(--menu-accent)]"><span>{{ __('marketing.rate_public') }}</span></label>
                     <button class="menu-btn w-full !py-3" :disabled="!rating">{{ __('marketing.rate_send') }}</button>

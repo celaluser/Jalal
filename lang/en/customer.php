@@ -36,4 +36,5 @@ return [
     'cart_hint' => 'Looks delicious. Anything else?',
     'too_many' => 'Too many attempts. Please wait a minute and try again.',
     'generic_error' => 'Something went wrong. Please try again.',
+    'happy_hour' => 'Happy hour: :name, :percent% off until :until',
 ];

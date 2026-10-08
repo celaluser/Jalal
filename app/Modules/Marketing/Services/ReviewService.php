@@ -31,7 +31,7 @@ class ReviewService
     }
 
     /** @throws InvalidArgumentException code: closed | done | rating */
-    public function submit(Restaurant $restaurant, Order $order, int $rating, ?string $comment, bool $public = true): Review
+    public function submit(Restaurant $restaurant, Order $order, int $rating, ?string $comment, bool $public = true, ?int $nps = null): Review
     {
         if (! $this->enabled($restaurant) || $order->status !== OrderStatus::COMPLETED) {
             throw new InvalidArgumentException('closed');
@@ -48,7 +48,7 @@ class ReviewService
         $comment = trim(strip_tags((string) $comment));
 
         return Review::create([
-            'order_id' => $order->id, 'customer_id' => $order->customer_id, 'rating' => $rating,
+            'order_id' => $order->id, 'customer_id' => $order->customer_id, 'rating' => $rating, 'nps' => $nps !== null ? max(0, min(10, $nps)) : null,
             'comment' => $comment !== '' ? mb_substr($comment, 0, 1000) : null,
             // Only the first name is ever shown next to a public review.
             'author' => $order->customer_name ? mb_substr(trim(explode(' ', trim($order->customer_name))[0]), 0, 40) : null,

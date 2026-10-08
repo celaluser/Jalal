@@ -4,7 +4,10 @@ use App\Modules\Core\Http\Middleware\SetLocale;
 use App\Modules\Marketing\Http\Controllers\BannerController;
 use App\Modules\Marketing\Http\Controllers\CampaignController;
 use App\Modules\Marketing\Http\Controllers\CustomerController;
+use App\Modules\Marketing\Http\Controllers\GiftCardController;
+use App\Modules\Marketing\Http\Controllers\GrowthToolsController;
 use App\Modules\Marketing\Http\Controllers\GuestReviewController;
+use App\Modules\Marketing\Http\Controllers\PriceRuleController;
 use App\Modules\Marketing\Http\Controllers\MarketingSettingsController;
 use App\Modules\Marketing\Http\Controllers\PromoController;
 use App\Modules\Marketing\Http\Controllers\ReviewController;
@@ -15,6 +18,8 @@ use Illuminate\Support\Facades\Route;
 // Guest: rate an order from its tracking page, on /r/{slug} and on a restaurant's own domain.
 $guest = function () {
     Route::post('order/{token}/review', [GuestReviewController::class, 'store'])->where('token', '[a-z0-9]{24}')->middleware('throttle:10,1')->name('review.store');
+    Route::get('links', [GrowthToolsController::class, 'links'])->name('links');
+    Route::get('widget.js', [GrowthToolsController::class, 'script'])->name('widget');
 };
 Route::middleware(['web', SetLocale::class, ResolveTenant::class])
     ->prefix(config('tenancy.path_prefix').'/{restaurant}')->name('storefront.')->where(['restaurant' => '[A-Za-z0-9-]+'])->group($guest);
@@ -54,6 +59,18 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])-
             Route::put('promos/{promo}', [PromoController::class, 'update'])->whereNumber('promo')->name('promos.update');
             Route::post('promos/{promo}/toggle', [PromoController::class, 'toggle'])->whereNumber('promo')->name('promos.toggle');
             Route::delete('promos/{promo}', [PromoController::class, 'destroy'])->whereNumber('promo')->name('promos.destroy');
+
+            Route::get('pricing', [PriceRuleController::class, 'index'])->name('pricing.index');
+            Route::post('pricing', [PriceRuleController::class, 'store'])->name('pricing.store');
+            Route::post('pricing/{rule}/toggle', [PriceRuleController::class, 'toggle'])->whereNumber('rule')->name('pricing.toggle');
+            Route::delete('pricing/{rule}', [PriceRuleController::class, 'destroy'])->whereNumber('rule')->name('pricing.destroy');
+
+            Route::get('gift-cards', [GiftCardController::class, 'index'])->name('gifts.index');
+            Route::post('gift-cards', [GiftCardController::class, 'store'])->middleware('throttle:30,1')->name('gifts.store');
+            Route::post('gift-cards/{card}/toggle', [GiftCardController::class, 'toggle'])->whereNumber('card')->name('gifts.toggle');
+
+            Route::get('flyer', [GrowthToolsController::class, 'flyer'])->name('marketing.flyer');
+            Route::get('widget', [GrowthToolsController::class, 'widget'])->name('marketing.widget');
 
             Route::get('banners', [BannerController::class, 'index'])->name('banners.index');
             Route::get('banners/create', [BannerController::class, 'create'])->name('banners.create');

@@ -22,6 +22,16 @@ class MarketingSettings
         'show_rating' => true,           // average rating on the public menu
         'campaign_daily_cap' => 200,
         'calling_code' => '',            // country code for local phone numbers, e.g. 90
+        'tier_silver' => 5,              // orders to reach the silver / gold tier
+        'tier_gold' => 15,
+        'autopilot_winback' => false,    // automatic "we miss you" message with a personal code
+        'autopilot_days' => 45,          // quiet for this many days = lapsed
+        'autopilot_percent' => 15,
+        'nps_enabled' => true,           // the 0-10 "would you recommend us" question next to the stars
+        'pixel_meta' => '',              // tracking ids; loaded on the guest menu unless the guest sends Do Not Track
+        'pixel_ga' => '',
+        'pixel_tiktok' => '',
+        'link_phone' => '', 'link_whatsapp' => '', 'link_instagram' => '', 'link_facebook' => '', 'link_website' => '', // the link-in-bio page
     ];
 
     /** @return array<string, mixed> */
@@ -72,6 +82,12 @@ class MarketingSettings
             'reviews_enabled' => ['nullable', 'boolean'], 'ai_assistant' => ['nullable', 'boolean'], 'review_request_email' => ['nullable', 'boolean'], 'show_rating' => ['nullable', 'boolean'],
             'review_url' => ['nullable', 'url:https', 'max:500'], 'review_min' => ['nullable', 'integer', 'between:1,5'],
             'calling_code' => ['nullable', 'regex:/^\+?\d{1,4}$/'],
+            'tier_silver' => ['sometimes', 'required', 'integer', 'min:2', 'max:500'], 'tier_gold' => ['sometimes', 'required', 'integer', 'gt:tier_silver', 'max:1000'],
+            'autopilot_winback' => ['nullable', 'boolean'], 'autopilot_days' => ['sometimes', 'required', 'integer', 'min:7', 'max:365'], 'autopilot_percent' => ['sometimes', 'required', 'integer', 'min:1', 'max:100'],
+            'nps_enabled' => ['nullable', 'boolean'],
+            'pixel_meta' => ['nullable', 'regex:/^\d{5,20}$/'], 'pixel_ga' => ['nullable', 'regex:/^(G|GT|AW)-[A-Z0-9]{4,15}$/'], 'pixel_tiktok' => ['nullable', 'regex:/^[A-Z0-9]{8,30}$/'],
+            'link_phone' => ['nullable', 'regex:/^\+?[\d\s()-]{6,25}$/'], 'link_whatsapp' => ['nullable', 'regex:/^\+?\d{7,15}$/'],
+            'link_instagram' => ['nullable', 'url:https', 'max:300'], 'link_facebook' => ['nullable', 'url:https', 'max:300'], 'link_website' => ['nullable', 'url:https', 'max:300'],
             'campaign_daily_cap' => ['required', 'integer', 'min:1', 'max:'.max(1, (int) config('marketing.daily_email_cap'))],
         ];
     }

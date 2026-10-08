@@ -65,4 +65,5 @@ return [
     'account_delete_confirm' => 'Hesabınız ve kişisel bilgileriniz silinsin mi? Geçmiş siparişleriniz anonim satış olarak kalır.',
     'account_deleted' => 'Verileriniz silindi.',
     'account_link' => 'Hesabım',
+    'happy_hour' => 'Mutlu saat: :name, :until saatine kadar %:percent indirim',
 ];

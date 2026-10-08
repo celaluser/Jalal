@@ -65,4 +65,5 @@ return [
     'account_delete_confirm' => 'هل تريد حذف حسابك وبياناتك الشخصية؟ ستبقى طلباتك السابقة كمبيعات مجهولة.',
     'account_deleted' => 'تم حذف بياناتك.',
     'account_link' => 'حسابي',
+    'happy_hour' => 'ساعة السعادة: :name، خصم :percent% حتى :until',
 ];

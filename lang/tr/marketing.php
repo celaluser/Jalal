@@ -13,4 +13,8 @@ return [
     'unsub_footer' => ':name restoranından kampanya almayı kabul ettiğiniz için bu e-postayı alıyorsunuz.', 'unsub_link' => 'Abonelikten çık',
     'unsub_title' => 'Abonelikten çık', 'unsub_ask' => ':name e-postaları durdurulsun mu?', 'unsub_ask_text' => 'Artık kampanya ve haber almayacaksınız. Sipariş bildirimleri size ulaşmaya devam eder.', 'unsub_button' => 'Evet, aboneliğimi iptal et',
     'unsub_done' => 'Abonelikten çıktınız', 'unsub_done_text' => 'Artık :name restoranından pazarlama e-postası almayacaksınız.', 'unsub_already' => ':name aboneliğinden zaten çıkmışsınız.',
+    'sms_stop' => 'Mesajları durdur: :url',
+    'nps_question' => 'Bizi bir arkadaşınıza tavsiye etme olasılığınız nedir?', 'nps_low' => 'Pek olası değil', 'nps_high' => 'Çok olası',
+    'link_label_menu' => 'Menüyü gör ve sipariş ver', 'link_label_whatsapp' => 'WhatsApp\'ta yaz', 'link_label_phone' => 'Bizi arayın', 'link_label_instagram' => 'Instagram', 'link_label_facebook' => 'Facebook', 'link_label_website' => 'Web sitemiz', 'link_label_review' => 'Yorum bırak',
+    'widget_button' => 'Online sipariş',
 ];

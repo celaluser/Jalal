@@ -20,10 +20,10 @@ class GuestReviewController extends Controller
         $restaurant = $this->tenant->get();
         // Read by name: the route also carries {restaurant}, and parameters reach controllers by position.
         $order = Order::where('token', (string) $request->route('token'))->firstOrFail();
-        $data = $request->validate(['rating' => ['required', 'integer', 'between:1,5'], 'comment' => ['nullable', 'string', 'max:1000'], 'is_public' => ['nullable', 'boolean']]);
+        $data = $request->validate(['rating' => ['required', 'integer', 'between:1,5'], 'comment' => ['nullable', 'string', 'max:1000'], 'is_public' => ['nullable', 'boolean'], 'nps' => ['nullable', 'integer', 'between:0,10']]);
 
         try {
-            $this->reviews->submit($restaurant, $order, (int) $data['rating'], $data['comment'] ?? null, $request->boolean('is_public', true));
+            $this->reviews->submit($restaurant, $order, (int) $data['rating'], $data['comment'] ?? null, $request->boolean('is_public', true), isset($data['nps']) ? (int) $data['nps'] : null);
         } catch (InvalidArgumentException $e) {
             return back()->withErrors(['review' => __('marketing.review_error_'.$e->getMessage())]);
         }

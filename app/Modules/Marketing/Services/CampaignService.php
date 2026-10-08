@@ -7,6 +7,7 @@ use App\Modules\Marketing\Mail\CampaignMail;
 use App\Modules\Marketing\Models\Campaign;
 use App\Modules\Marketing\Models\CampaignRecipient;
 use App\Modules\Marketing\Models\Customer;
+use App\Modules\Messaging\Services\Messenger;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Mail;
@@ -16,13 +17,19 @@ use Throwable;
 /** Builds the audience of a campaign and sends it, within the daily cap and only to people who agreed. */
 class CampaignService
 {
-    public function __construct(private readonly MarketingSettings $settings) {}
+    public function __construct(private readonly MarketingSettings $settings, private readonly Segments $segments, private readonly Messenger $messenger) {}
 
-    /** Guests who said yes to marketing, have an address, did not unsubscribe, and ordered often enough. */
-    public function audience(Campaign $campaign): Builder
+    /** Guests who said yes to marketing, can be reached on the campaign's channel, did not unsubscribe, and are in its segment. */
+    public function audience(Campaign $campaign, ?Restaurant $restaurant = null): Builder
     {
-        return Customer::query()->where('marketing_opt_in', true)->whereNull('unsubscribed_at')->whereNotNull('email')
+        $restaurant ??= app(\App\Modules\Core\Tenancy\TenantContext::class)->get();
+        $query = Customer::query()->where('marketing_opt_in', true)->whereNull('unsubscribed_at')
             ->where('orders_count', '>=', (int) $campaign->min_orders);
+
+        // SMS and WhatsApp need a phone number, e-mail needs an address.
+        ($campaign->channel ?? 'email') === 'email' ? $query->whereNotNull('email') : $query->whereNotNull('phone');
+
+        return $this->segments->scope($query, (string) ($campaign->segment ?? 'all'), $restaurant);
     }
 
     /** How many marketing e-mails this restaurant already sent today. */
@@ -59,7 +66,7 @@ class CampaignService
             return;
         }
 
-        $this->audience($campaign)->orderBy('id')->chunkById(200, function ($customers) use ($campaign) {
+        $this->audience($campaign, $restaurant)->orderBy('id')->chunkById(200, function ($customers) use ($campaign) {
             foreach ($customers as $customer) {
                 CampaignRecipient::firstOrCreate(['campaign_id' => $campaign->id, 'customer_id' => $customer->id]);
             }
@@ -72,7 +79,9 @@ class CampaignService
                 $customer = $row->customer;
 
                 // Consent is checked again at the moment of sending: they may have unsubscribed since the campaign started.
-                if (! $customer || ! $customer->canBeEmailed()) {
+                $email = ($campaign->channel ?? 'email') === 'email';
+
+                if (! $customer || ! $customer->marketing_opt_in || $customer->unsubscribed_at !== null || ($email ? $customer->email === null : $customer->phone === null)) {
                     $row->update(['status' => 'skipped']);
 
                     continue;
@@ -85,7 +94,14 @@ class CampaignService
                 }
 
                 try {
-                    Mail::to($customer->email)->send(new CampaignMail($campaign, $restaurant, $customer));
+                    if ($email) {
+                        Mail::to($customer->email)->send(new CampaignMail($campaign, $restaurant, $customer));
+                    } elseif (! $this->messenger->send($restaurant, $campaign->channel, (string) $customer->phone, $this->text($campaign, $restaurant, $customer), 'campaign')) {
+                        $row->update(['status' => 'failed']); // no provider, bad number or the monthly message allowance is used
+
+                        continue;
+                    }
+
                     $row->update(['status' => 'sent', 'sent_at' => now()]);
                     $room--;
                 } catch (Throwable $e) {
@@ -100,6 +116,14 @@ class CampaignService
             'status' => Campaign::SENT, 'sent_at' => now(), 'recipients_count' => (int) $counts->sum(),
             'sent_count' => (int) ($counts['sent'] ?? 0), 'skipped_count' => (int) (($counts['skipped'] ?? 0) + ($counts['failed'] ?? 0)),
         ])->save();
+    }
+
+    /** The SMS / WhatsApp text: the campaign body with the guest's name, and a way to stop (reply STOP is the provider's job; the link is ours). */
+    public function text(Campaign $campaign, Restaurant $restaurant, Customer $customer): string
+    {
+        $body = str_replace(['{{name}}', '{{restaurant}}'], [$customer->name ?: '', $restaurant->name], (string) $campaign->body);
+
+        return trim($body)."\n".__('marketing.sms_stop', ['url' => \Illuminate\Support\Facades\URL::signedRoute('marketing.unsubscribe', ['customer' => $customer->id])]);
     }
 
     /** A copy to the person writing the campaign, with the real layout and a working unsubscribe link. */
