@@ -89,16 +89,16 @@
     {{-- Hero: brand colour, restaurant, table and language --}}
     <header class="menu-hero relative overflow-hidden">
         <div class="mx-auto max-w-3xl px-4 {{ $settings['hero'] === 'full' ? 'pb-14' : 'pb-10' }} pt-5">
-            <div class="flex items-start justify-between gap-3">
-                <div class="flex min-w-0 items-center gap-3">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="flex min-w-[13rem] flex-1 items-center gap-3">
                     @if ($logo)<img src="{{ $logo }}" alt="" class="menu-radius size-14 shrink-0 bg-white object-cover shadow-lg">
                     @else<span class="menu-radius grid size-14 shrink-0 place-items-center bg-white/90 text-xl font-bold text-[#0f1115] shadow-lg">{{ mb_strtoupper(mb_substr($restaurant->name, 0, 1)) }}</span>@endif
                     <div class="min-w-0">
-                        <h1 class="display truncate text-2xl font-bold leading-tight">{{ $restaurant->name }}</h1>
+                        <h1 class="display break-words text-2xl font-bold leading-tight">{{ $restaurant->name }}</h1>
                         @if ($table)<p class="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-black/15 px-2.5 py-0.5 text-sm font-semibold"><x-ui.icon name="qr" size="4" />{{ table_label($table['name']) }}</p>
                         @elseif ($restaurant->city)<p class="truncate text-sm opacity-80">{{ $restaurant->city }}</p>@endif
                         @if ($rating)<p class="mt-1 inline-flex items-center gap-1 text-sm font-semibold" aria-label="{{ trans_choice('marketing.review_count', $rating['count'], ['count' => $rating['count']]) }}, {{ number_format($rating['average'], 1) }}"><svg class="size-4 fill-current" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><span class="tnum">{{ number_format($rating['average'], 1) }}</span><span class="font-normal opacity-80">({{ $rating['count'] }})</span></p>@endif
-                        @if ($aboutUrl && ! $kiosk)<p class="mt-1 text-sm"><a class="underline" href="{{ $aboutUrl }}">{{ __('customer.about_us') }}</a></p>@endif
+                        @if ($aboutUrl && ! $kiosk)<p class="mt-1 whitespace-nowrap text-sm"><a class="underline" href="{{ $aboutUrl }}">{{ __('customer.about_us') }}</a></p>@endif
                     </div>
                 </div>
                 @if ($currencies)
