@@ -56,6 +56,10 @@
             </div>
         </x-ui.card>
 
+        <x-ui.card :title="__('marketing.privacy_section')">
+            <x-ui.input name="retention_months" type="number" min="0" max="120" :value="$s['retention_months']" :label="__('marketing.retention_months')" :hint="__('marketing.retention_help')" />
+        </x-ui.card>
+
         <x-ui.card :title="__('marketing.pixels_section')">
             <p class="mb-4 text-sm text-muted">{{ __('marketing.pixels_help') }}</p>
             <div class="grid gap-4 sm:grid-cols-3">

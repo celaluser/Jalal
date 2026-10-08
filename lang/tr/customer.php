@@ -68,4 +68,5 @@ return [
     'happy_hour' => 'Mutlu saat: :name, :until saatine kadar %:percent indirim',
     'about_menu' => 'Menüyü gör ve sipariş ver', 'about_call' => 'Ara', 'about_directions' => 'Yol tarifi', 'about_us' => 'Hakkımızda', 'about_hours' => 'Çalışma saatleri', 'about_contact' => 'Bize ulaşın', 'about_follow' => 'Bizi takip edin', 'about_website' => 'Web sitesi',
     'about_day_0' => 'Pazartesi', 'about_day_1' => 'Salı', 'about_day_2' => 'Çarşamba', 'about_day_3' => 'Perşembe', 'about_day_4' => 'Cuma', 'about_day_5' => 'Cumartesi', 'about_day_6' => 'Pazar',
+    'account_export' => 'Verilerimi indir', 'consent_title' => 'Çerezler', 'consent_text' => 'Kampanyalarımızı ölçmek için reklam çerezleri kullanabilir miyiz? Menü her iki durumda da aynı çalışır.', 'consent_accept' => 'Kabul et', 'consent_decline' => 'Hayır, teşekkürler',
 ];

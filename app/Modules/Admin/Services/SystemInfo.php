@@ -77,6 +77,12 @@ class SystemInfo
         $checks[] = ['label' => 'WebP (GD)', 'ok' => function_exists('imagewebp')];
         $checks[] = ['label' => 'APP_DEBUG off in production', 'ok' => ! (config('app.env') === 'production' && config('app.debug'))];
 
+        // Security and operations
+        $checks[] = ['label' => 'HTTPS (APP_URL starts with https)', 'ok' => str_starts_with((string) config('app.url'), 'https://')];
+        $checks[] = ['label' => 'Update signing key set (UPDATER_PUBLIC_KEY)', 'ok' => (bool) config('updater.public_key') && ! config('updater.allow_unsigned')];
+        $checks[] = ['label' => 'Real queue (not "sync")', 'ok' => config('queue.default') !== 'sync'];
+        $checks[] = ['label' => 'Demo mode off', 'ok' => ! config('demo.enabled')];
+
         return $checks;
     }
 

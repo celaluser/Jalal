@@ -51,6 +51,7 @@
 
             <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
                 <form method="POST" action="{{ $base }}/account/logout">@csrf<button class="menu-chip">{{ __('customer.account_logout') }}</button></form>
+                <a class="text-sm underline" href="{{ $base }}/account/export">{{ __('customer.account_export') }}</a>
                 <form method="POST" action="{{ $base }}/account" onsubmit="return confirm('{{ __('customer.account_delete_confirm') }}')">@csrf @method('DELETE')<button class="text-sm underline text-red-600">{{ __('customer.account_delete') }}</button></form>
             </div>
         @endif

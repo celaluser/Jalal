@@ -96,6 +96,24 @@ class AccountController extends Controller
         return redirect($this->base($request).'/account');
     }
 
+    /** Right of access: everything this restaurant holds about the signed-in guest, as a JSON download. */
+    public function export(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $customer = $this->mustBeSignedIn($request);
+        $orders = Order::with('items')->where('customer_id', $customer->id)->orderBy('id')->get();
+        $data = [
+            'restaurant' => $this->tenant->get()->name, 'exported_at' => now()->toIso8601String(),
+            'profile' => $customer->only(['name', 'email', 'phone', 'locale', 'marketing_opt_in', 'opted_in_at', 'unsubscribed_at', 'first_order_at', 'last_order_at', 'orders_count']),
+            'orders' => $orders->map(fn (Order $o) => [
+                'number' => $o->number, 'placed_at' => $o->created_at->toIso8601String(), 'status' => $o->status, 'type' => $o->type, 'total_cents' => $o->total_cents, 'currency' => $o->currency_code,
+                'delivery_address' => $o->delivery_address, 'note' => $o->note, 'items' => $o->items->map(fn ($i) => ['name' => $i->name, 'qty' => $i->qty, 'total_cents' => $i->total_cents])->all(),
+            ])->all(),
+            'reviews' => \App\Modules\Marketing\Models\Review::where('customer_id', $customer->id)->get(['rating', 'nps', 'comment', 'created_at'])->all(),
+        ];
+
+        return response()->streamDownload(fn () => print json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 'my-data.json', ['Content-Type' => 'application/json']);
+    }
+
     /** Right to erasure, from the guest themself. */
     public function destroy(Request $request): RedirectResponse
     {

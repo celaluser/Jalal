@@ -26,6 +26,7 @@ $pwa = function () {
     Route::get('account', [AccountController::class, 'show'])->name('account');
     Route::post('account/login', [AccountController::class, 'sendLink'])->middleware('throttle:5,1')->name('account.login');
     Route::get('account/verify/{customer}', [AccountController::class, 'verify'])->whereNumber('customer')->middleware('throttle:20,1')->name('account.verify');
+    Route::get('account/export', [AccountController::class, 'export'])->middleware('throttle:5,1')->name('account.export');
     Route::put('account', [AccountController::class, 'update'])->name('account.update');
     Route::post('account/logout', [AccountController::class, 'logout'])->name('account.logout');
     Route::delete('account', [AccountController::class, 'destroy'])->middleware('throttle:5,1')->name('account.destroy');

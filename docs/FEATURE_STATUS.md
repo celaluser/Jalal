@@ -171,6 +171,15 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - 🔴 Not built: add-on marketplace, per-add-on licence keys, dependency resolution between add-ons, migration rollback on uninstall
 - Docs: `docs/ADDONS.md`, example in `docs/examples/hello-addon`
 
+## 9n. Security and privacy (v2 gap work)
+
+- ✅ Security headers on every page (nosniff, referrer policy, permissions policy, HSTS over https); panel and sign-in cannot be framed, the guest menu can (website button/iframe)
+- ✅ Guests can **download their data** (JSON) and delete it; staff can export/delete customers; **retention period** per restaurant erases quiet guests and personal details of old orders every night (sales figures stay)
+- ✅ **Consent banner** for ad pixels (Accept/No thanks, remembered per device, nothing loads before consent or with Do Not Track)
+- ✅ System page now also checks HTTPS, update signing key, real queue and demo mode
+- ✅ Existing: two-factor sign-in, login throttling, reCAPTCHA option, activity log, tenant isolation tests, signed updates, SSRF guard for webhooks
+- 🔴 Not built: full Content-Security-Policy (pages use inline scripts), cookie-consent management for non-ad cookies (the menu sets only functional ones), formal GDPR/KVKK certification or legal texts (owners must supply their own privacy policy)
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)

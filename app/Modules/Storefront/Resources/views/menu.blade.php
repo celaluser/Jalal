@@ -64,9 +64,11 @@
     </style>
     @if ($kiosk)<style>html{font-size:118%}.kiosk .menu-add{width:3.25rem;height:3.25rem}.kiosk .menu-chip{padding:.6rem 1.1rem}</style>@endif
     @if ($pixels)
-        {{-- Ad tracking, only with ids the owner saved, and never for guests who send Do Not Track. --}}
+        {{-- Ad tracking loads only after the guest says yes (remembered on this device), and never when the browser sends Do Not Track. --}}
         <script>
-        if (navigator.doNotTrack !== '1') {
+        window.qrmLoadPixels = function () {
+            if (window.qrmPixelsLoaded || navigator.doNotTrack === '1') { return; }
+            window.qrmPixelsLoaded = true;
             @if (! empty($pixels['pixel_ga']))
             (function(){var s=document.createElement('script');s.async=1;s.src='https://www.googletagmanager.com/gtag/js?id={{ $pixels['pixel_ga'] }}';document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments)};gtag('js',new Date());gtag('config','{{ $pixels['pixel_ga'] }}')})();
             @endif
@@ -76,7 +78,8 @@
             @if (! empty($pixels['pixel_tiktok']))
             !function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify"];ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.load=function(e){var n=d.createElement("script");n.async=!0;n.src="https://analytics.tiktok.com/i18n/pixel/events.js?sdkid="+e;d.head.appendChild(n)};ttq.load('{{ $pixels['pixel_tiktok'] }}');ttq.page()}(window,document,'ttq');
             @endif
-        }
+        };
+        try { if (localStorage.getItem('qrm.consent.{{ $restaurant->id }}') === '1') { window.qrmLoadPixels(); } } catch (e) {}
         </script>
     @endif
     @vite(['resources/css/app.css', 'resources/js/storefront.js'])
@@ -725,5 +728,15 @@
     </div>
 
     @livewireScripts
+    @if ($pixels && ! $kiosk)
+        <div x-data="{ show: false }" x-init="try { show = navigator.doNotTrack !== '1' && localStorage.getItem('qrm.consent.{{ $restaurant->id }}') === null } catch (e) {}" x-show="show" x-cloak role="dialog" aria-label="{{ __('customer.consent_title') }}"
+             class="menu-card fixed inset-x-3 bottom-3 z-50 mx-auto max-w-md p-4 shadow-xl">
+            <p class="text-sm">{{ __('customer.consent_text') }}</p>
+            <div class="mt-3 flex gap-2">
+                <button type="button" class="menu-btn flex-1 !py-2" x-on:click="try { localStorage.setItem('qrm.consent.{{ $restaurant->id }}', '1') } catch (e) {}; window.qrmLoadPixels(); show = false">{{ __('customer.consent_accept') }}</button>
+                <button type="button" class="menu-card flex-1 py-2 text-sm font-semibold" x-on:click="try { localStorage.setItem('qrm.consent.{{ $restaurant->id }}', '0') } catch (e) {}; show = false">{{ __('customer.consent_decline') }}</button>
+            </div>
+        </div>
+    @endif
 </body>
 </html>

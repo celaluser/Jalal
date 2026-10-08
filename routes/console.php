@@ -19,3 +19,4 @@ Schedule::command('reservations:remind')->everyTenMinutes();
 
 Schedule::command('marketing:autopilot')->dailyAt('10:15');
 Schedule::command('reports:digest')->weeklyOn(1, '07:30');
+Schedule::command('privacy:prune')->dailyAt('03:45');

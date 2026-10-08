@@ -107,4 +107,6 @@ return [
     'gift_issue' => 'Issue gift card', 'gift_issued' => 'Gift card :code created.', 'gifts_empty' => 'No gift cards yet', 'gifts_empty_text' => 'Issue one above and hand the code to the buyer.',
     'gift_balance' => 'Balance :balance of :initial', 'gift_expires' => 'expires :date',
     'weekly_digest' => 'E-mail me a summary of last week every Monday',
+    'privacy_section' => 'Privacy', 'retention_months' => 'Erase guest personal data after (months)',
+    'retention_help' => '0 keeps everything. Otherwise, guests who have not ordered for this long are deleted and their name, phone, e-mail and address are removed from old orders. The orders themselves (amounts, dishes) stay for your books.',
 ];

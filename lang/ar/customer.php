@@ -68,4 +68,5 @@ return [
     'happy_hour' => 'ساعة السعادة: :name، خصم :percent% حتى :until',
     'about_menu' => 'شاهد القائمة واطلب', 'about_call' => 'اتصل', 'about_directions' => 'الاتجاهات', 'about_us' => 'من نحن', 'about_hours' => 'ساعات العمل', 'about_contact' => 'تجدنا في', 'about_follow' => 'تابعنا', 'about_website' => 'الموقع',
     'about_day_0' => 'الاثنين', 'about_day_1' => 'الثلاثاء', 'about_day_2' => 'الأربعاء', 'about_day_3' => 'الخميس', 'about_day_4' => 'الجمعة', 'about_day_5' => 'السبت', 'about_day_6' => 'الأحد',
+    'account_export' => 'تنزيل بياناتي', 'consent_title' => 'ملفات تعريف الارتباط', 'consent_text' => 'هل يمكننا استخدام ملفات تعريف الارتباط الإعلانية لقياس حملاتنا؟ تعمل القائمة بالطريقة نفسها في الحالتين.', 'consent_accept' => 'موافق', 'consent_decline' => 'لا، شكرًا',
 ];
