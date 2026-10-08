@@ -5,6 +5,7 @@ use App\Modules\Orders\Http\Controllers\CustomerOrderController;
 use App\Modules\Orders\Http\Controllers\OrderBoardController;
 use App\Modules\Orders\Http\Controllers\OrderSettingsController;
 use App\Modules\Orders\Http\Controllers\PosController;
+use App\Modules\Orders\Http\Controllers\TabletModeController;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenant;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +23,8 @@ Route::middleware(['web', SetLocale::class, ResolveTenant::class])->name('storef
 
 // Staff side. Viewing needs orders.view (waiters, cashiers) or kitchen.view; what each person may change is decided per order.
 Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])->group(function () {
+    Route::post('tablet-mode', TabletModeController::class)->name('tablet.toggle');
+
     Route::middleware('permission:orders.view|kitchen.view')->prefix('orders')->name('orders.')->group(function () {
         Route::get('/', [OrderBoardController::class, 'index'])->name('board');
         Route::get('feed', [OrderBoardController::class, 'feed'])->middleware('throttle:60,1')->name('feed');

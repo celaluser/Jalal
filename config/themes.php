@@ -14,6 +14,7 @@ return [
         'modern' => ['dark' => false, 'bg' => '#f5f6f8', 'surface' => '#ffffff', 'fg' => '#14161b', 'muted' => '#5d6577', 'line' => '#e3e6ec', 'font' => 'sans', 'layout' => 'cards', 'radius' => 'round'],
         'midnight' => ['dark' => true, 'bg' => '#0e1014', 'surface' => '#171a21', 'fg' => '#f1f2f5', 'muted' => '#a3a9b7', 'line' => '#262b35', 'font' => 'display', 'layout' => 'cards', 'radius' => 'soft'],
         'fresh' => ['dark' => false, 'bg' => '#f1f8f4', 'surface' => '#ffffff', 'fg' => '#10261c', 'muted' => '#53705f', 'line' => '#d6e8dd', 'font' => 'sans', 'layout' => 'grid', 'radius' => 'round'],
+        'ocean' => ['dark' => false, 'bg' => '#eef7f8', 'surface' => '#ffffff', 'fg' => '#0d2b33', 'muted' => '#4d6d75', 'line' => '#cfe5e8', 'font' => 'display', 'layout' => 'cards', 'radius' => 'round'],
         'minimal' => ['dark' => false, 'bg' => '#ffffff', 'surface' => '#ffffff', 'fg' => '#111111', 'muted' => '#6b6b6b', 'line' => '#e5e5e5', 'font' => 'sans', 'layout' => 'list', 'radius' => 'sharp'],
     ],
 
@@ -24,6 +25,10 @@ return [
     ],
 
     'layouts' => ['list', 'cards', 'grid'],
+
+    // Header styles and how long menus load: all at once, or category by category while scrolling.
+    'heroes' => ['full', 'compact'],
+    'scrolls' => ['all', 'infinite'],
 
     'radii' => ['sharp' => '4px', 'soft' => '12px', 'round' => '20px'],
 ];

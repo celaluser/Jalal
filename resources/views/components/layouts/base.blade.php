@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ $dir ?? 'ltr' }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ $dir ?? 'ltr' }}" @if (! empty($tablet)) data-tablet style="font-size:112.5%" @endif>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -38,6 +38,16 @@
     @endif
     @error('demo')<div class="bg-red-600 px-4 py-2 text-center text-sm text-white" role="alert">{{ $message }}</div>@enderror
     {{ $slot }}
+    @if (! empty($tablet))
+        {{-- Tablet mode: keep the screen on while this page is open (browsers that support it). --}}
+        <script>
+            (function () {
+                var lock = null;
+                function acquire() { if ('wakeLock' in navigator && !document.hidden) { navigator.wakeLock.request('screen').then(function (l) { lock = l; }).catch(function () {}); } }
+                document.addEventListener('visibilitychange', acquire); acquire();
+            })();
+        </script>
+    @endif
     <x-cookie-banner />
     @livewireScripts
     @stack('scripts')

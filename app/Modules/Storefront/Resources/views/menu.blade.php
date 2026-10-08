@@ -9,6 +9,8 @@
         'quoteUrl' => $base.'/cart/quote',
         'csrf' => csrf_token(),
         'ordering' => $ordering,
+        'scroll' => $settings['scroll'],
+        'kiosk' => $kiosk,
         'menus' => $menus,
         'storageKey' => 'qrmenu.cart.'.$restaurant->id,
         'diet' => collect($dietary)->mapWithKeys(fn ($d) => [$d => __('menu.diet.'.$d)])->all(),
@@ -35,13 +37,14 @@
     <meta name="theme-color" content="{{ $restaurant->brandColor() }}">
     @if ($noindex)<meta name="robots" content="noindex">@endif
     <style>{!! $themeCss !!}</style>
+    @if ($kiosk)<style>html{font-size:118%}.kiosk .menu-add{width:3.25rem;height:3.25rem}.kiosk .menu-chip{padding:.6rem 1.1rem}</style>@endif
     @vite(['resources/css/app.css', 'resources/js/storefront.js'])
     @livewireStyles
 </head>
-<body class="menu-page min-h-screen pb-28" x-data="storefront(@js($config))" x-on:keydown.escape.window="closeAll()">
+<body class="menu-page min-h-screen pb-28 {{ $kiosk ? 'kiosk select-none' : '' }}" x-data="storefront(@js($config))" x-on:keydown.escape.window="closeAll()">
     {{-- Hero: brand colour, restaurant, table and language --}}
     <header class="menu-hero relative overflow-hidden">
-        <div class="mx-auto max-w-3xl px-4 pb-14 pt-5">
+        <div class="mx-auto max-w-3xl px-4 {{ $settings['hero'] === 'full' ? 'pb-14' : 'pb-10' }} pt-5">
             <div class="flex items-start justify-between gap-3">
                 <div class="flex min-w-0 items-center gap-3">
                     @if ($logo)<img src="{{ $logo }}" alt="" class="menu-radius size-14 shrink-0 bg-white object-cover shadow-lg">
@@ -53,6 +56,9 @@
                         @if ($rating)<p class="mt-1 inline-flex items-center gap-1 text-sm font-semibold" aria-label="{{ trans_choice('marketing.review_count', $rating['count'], ['count' => $rating['count']]) }}, {{ number_format($rating['average'], 1) }}"><svg class="size-4 fill-current" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><span class="tnum">{{ number_format($rating['average'], 1) }}</span><span class="font-normal opacity-80">({{ $rating['count'] }})</span></p>@endif
                     </div>
                 </div>
+                @if ($settings['dark_toggle'])
+                    <button type="button" x-on:click="toggleAlt()" class="grid size-8 shrink-0 place-items-center rounded-full bg-black/15" :aria-pressed="alt" aria-label="{{ __('customer.toggle_theme') }}"><x-ui.icon name="sun" size="4" /></button>
+                @endif
                 @if (count($languages) > 1)
                     <nav aria-label="{{ __('customer.language') }}" class="flex shrink-0 gap-1">
                         @foreach ($languages as $code => $name)
@@ -61,10 +67,12 @@
                     </nav>
                 @endif
             </div>
-            <p class="display menu-rise mt-6 max-w-xs text-3xl font-bold leading-[1.1]">{{ __('customer.hero_title') }}</p>
-            <p class="mt-2 max-w-xs text-sm opacity-90">{{ $table ? __('customer.hero_table') : __('customer.hero_text') }}</p>
+            @if ($settings['hero'] === 'full')
+                <p class="display menu-rise mt-6 max-w-xs text-3xl font-bold leading-[1.1]">{{ __('customer.hero_title') }}</p>
+                <p class="mt-2 max-w-xs text-sm opacity-90">{{ $table ? __('customer.hero_table') : __('customer.hero_text') }}</p>
+            @endif
             {{-- Dish illustrations / photos peeking in from the corner --}}
-            <div class="pointer-events-none absolute -end-6 bottom-2 hidden gap-[-1rem] sm:flex" aria-hidden="true">
+            <div class="pointer-events-none absolute -end-6 bottom-2 hidden gap-[-1rem] {{ $settings['hero'] === 'full' ? 'sm:flex' : '' }}" aria-hidden="true">
                 @foreach (collect($tree)->flatMap(fn ($c) => $c['products'])->take(3) as $i => $p)
                     <img src="{{ $p['image'] ?: $p['art'] }}" alt="" class="size-24 rounded-full border-4 border-white/70 object-cover shadow-xl {{ $i ? '-ms-6' : '' }}">
                 @endforeach
@@ -197,6 +205,7 @@
                     </div>
                 </section>
             </template>
+            <div x-ref="sentinel" class="h-px" aria-hidden="true"></div>
 
             <div x-show="visible.length === 0" x-cloak class="menu-card px-6 py-14 text-center">
                 <p class="text-lg font-semibold">{{ __('customer.no_results_title') }}</p>
@@ -219,6 +228,18 @@
             @endforeach
         </div>
     </noscript>
+
+    {{-- Kiosk: order placed. The screen resets by itself for the next guest. --}}
+    @if ($kiosk)
+        <div x-show="kioskDone" x-cloak class="menu-page fixed inset-0 z-50 grid place-items-center p-8 text-center" role="alertdialog" aria-live="assertive">
+            <div class="max-w-md">
+                <p class="display text-4xl font-bold">{{ __('customer.kiosk_thanks') }}</p>
+                <p class="menu-muted mt-3 text-lg">{{ __('customer.kiosk_number') }}</p>
+                <p class="display tnum menu-accent-text mt-1 text-7xl font-extrabold" x-text="'#' + (kioskDone ? kioskDone.number : '')"></p>
+                <button type="button" class="menu-btn mt-8 !px-8 !py-3 !text-lg" x-on:click="kioskReset()">{{ __('customer.kiosk_new') }}</button>
+            </div>
+        </div>
+    @endif
 
     {{-- Confirmation toast --}}
     <div x-show="toast" x-cloak x-transition.opacity class="pointer-events-none fixed inset-x-0 bottom-24 z-40 flex justify-center px-4" role="status">

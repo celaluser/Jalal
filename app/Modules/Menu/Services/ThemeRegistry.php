@@ -23,7 +23,7 @@ class ThemeRegistry
     /**
      * Effective settings: theme defaults, overridden by what the restaurant chose.
      *
-     * @return array{theme: string, font: string, layout: string, radius: string, show_images: bool, show_credit: bool}
+     * @return array{theme: string, font: string, layout: string, radius: string, show_images: bool, show_credit: bool, hero: string, scroll: string, dark_toggle: bool}
      */
     public function settings(Restaurant $restaurant): array
     {
@@ -37,6 +37,9 @@ class ThemeRegistry
             'layout' => $this->pick($own['layout'] ?? null, config('themes.layouts'), $base['layout']),
             'radius' => $this->pick($own['radius'] ?? null, array_keys(config('themes.radii')), $base['radius']),
             'show_images' => (bool) ($own['show_images'] ?? true),
+            'hero' => $this->pick($own['hero'] ?? null, config('themes.heroes'), 'full'),
+            'scroll' => $this->pick($own['scroll'] ?? null, config('themes.scrolls'), 'all'),
+            'dark_toggle' => (bool) ($own['dark_toggle'] ?? false),
             // The "Powered by" credit can only be removed on plans that include the feature.
             'show_credit' => ! ($own['hide_credit'] ?? false) || ! $this->canRemoveCredit($restaurant),
         ];
@@ -84,7 +87,12 @@ class ThemeRegistry
             $declarations .= "{$name}:{$value};";
         }
 
-        return ":root{{$declarations}}";
+        // Palette a guest switches to with the light/dark button: the opposite of the theme's own.
+        $theme = $this->themes()[$this->settings($restaurant)['theme']];
+        $alt = $this->themes()[$theme['dark'] ? 'modern' : 'midnight'];
+        $swap = '--menu-bg:'.$alt['bg'].';--menu-surface:'.$alt['surface'].';--menu-fg:'.$alt['fg'].';--menu-muted:'.$alt['muted'].';--menu-line:'.$alt['line'].';';
+
+        return ":root{{$declarations}}:root[data-menu-alt]{{$swap}}";
     }
 
     /** @param array<string, mixed> $data validated by rules() */
@@ -96,6 +104,9 @@ class ThemeRegistry
             'layout' => $data['layout'],
             'radius' => $data['radius'],
             'show_images' => ! empty($data['show_images']),
+            'hero' => $data['hero'] ?? 'full',
+            'scroll' => $data['scroll'] ?? 'all',
+            'dark_toggle' => ! empty($data['dark_toggle']),
             'hide_credit' => ! empty($data['hide_credit']) && $this->canRemoveCredit($restaurant),
         ];
 
@@ -111,6 +122,9 @@ class ThemeRegistry
             'layout' => ['required', 'in:'.implode(',', config('themes.layouts'))],
             'radius' => ['required', 'in:'.implode(',', array_keys(config('themes.radii')))],
             'show_images' => ['nullable', 'boolean'],
+            'hero' => ['nullable', 'in:'.implode(',', config('themes.heroes'))],
+            'scroll' => ['nullable', 'in:'.implode(',', config('themes.scrolls'))],
+            'dark_toggle' => ['nullable', 'boolean'],
             'hide_credit' => ['nullable', 'boolean'],
         ];
     }

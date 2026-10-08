@@ -29,6 +29,7 @@ return [
         'ordering' => 'Ordering',
         'tables' => 'Tables & QR',
         'branches' => 'Branches',
+        'floor_map' => 'Floor map',
         'restaurant' => 'Restaurant profile',
         'subscription' => 'Subscription',
     ],

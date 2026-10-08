@@ -49,7 +49,14 @@ class CustomerOrderController extends Controller
             'note' => ['nullable', 'string', 'max:300'],
             'payment_method' => ['required', Rule::in(['cash', 'card'])],
             'idempotency_key' => ['nullable', 'string', 'max:64'],
+            'kiosk' => ['nullable', 'boolean'],
         ]);
+        $kiosk = $request->boolean('kiosk');
+
+        // A kiosk takes orders for eating in or taking away; there is nobody to deliver to a screen in the shop.
+        if ($kiosk && $data['type'] === OrderType::DELIVERY) {
+            return response()->json(['error' => 'type_unavailable', 'message' => __('orders.error_type_unavailable')], 422);
+        }
 
         // A guest who scanned a table code orders for that table; they cannot claim another one.
         $scanned = $request->session()->get("table.{$restaurant->id}");
@@ -61,7 +68,7 @@ class CustomerOrderController extends Controller
         $data['branch_id'] = app(GuestBranch::class)->id($request, $restaurant);
 
         try {
-            $order = $this->orders->place($restaurant, $data + ['locale' => $locale]);
+            $order = $this->orders->place($restaurant, $data + ['locale' => $locale], $kiosk ? 'kiosk' : 'qr');
         } catch (OrderException $e) {
             return response()->json(['error' => $e->reason, 'message' => __('orders.error_'.$e->reason), 'lines' => $e->details], 422);
         }

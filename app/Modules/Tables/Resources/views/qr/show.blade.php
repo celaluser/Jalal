@@ -35,6 +35,14 @@
                         @unless ($hasLogo)<p class="mt-1 text-xs text-muted">{{ __('tables.logo_missing') }} <a class="link" href="{{ route('restaurant.settings') }}">{{ __('panel.nav.restaurant') }}</a></p>@endunless
                     </div>
 
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div><label for="frame" class="mb-1.5 block text-sm font-medium">{{ __('tables.frame') }}</label>
+                            <select id="frame" name="frame" class="field">@foreach (\App\Modules\Tables\Services\TableQr::FRAMES as $f)<option value="{{ $f }}" @selected($settings['frame'] === $f)>{{ __('tables.frame_'.$f) }}</option>@endforeach</select></div>
+                        <div><label for="template" class="mb-1.5 block text-sm font-medium">{{ __('tables.template') }}</label>
+                            <select id="template" name="template" class="field">@foreach (array_keys(\App\Modules\Tables\Services\TableQr::TEMPLATES) as $t)<option value="{{ $t }}" @selected($settings['template'] === $t)>{{ __('tables.template_'.$t) }}</option>@endforeach</select></div>
+                    </div>
+                    <p class="-mt-2 text-xs text-muted">{{ __('tables.template_help') }}</p>
+
                     <x-ui.input name="caption" :label="__('tables.caption')" :value="$settings['caption']" maxlength="60" :hint="__('tables.caption_hint')" />
                 </div>
             </x-ui.card>
@@ -58,6 +66,7 @@
                         <a class="btn btn-primary" href="{{ route('tables.qr.pdf') }}"><x-ui.icon name="download" size="4" />{{ __('tables.pdf_sheet') }}</a>
                         <a class="btn btn-secondary" href="{{ route('tables.qr.zip', 'png') }}">{{ __('tables.zip_png') }}</a>
                         <a class="btn btn-secondary" href="{{ route('tables.qr.zip', 'svg') }}">{{ __('tables.zip_svg') }}</a>
+                        <a class="btn btn-ghost" href="{{ route('tables.nfc') }}">{{ __('tables.nfc_title') }}</a>
                     @else
                         <p class="text-sm text-muted">{{ __('tables.no_tables_for_print') }}</p>
                     @endif

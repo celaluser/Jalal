@@ -32,4 +32,19 @@ return [
     'downloads' => 'Download & print', 'zip_png' => 'All tables (PNG, ZIP)', 'zip_svg' => 'All tables (SVG, ZIP)', 'pdf_sheet' => 'Printable sheet (PDF)',
     'no_tables_for_print' => 'Add tables first to download or print their codes.',
     'sheet_table' => 'Table',
+
+    // Frames, paper layouts and NFC
+    'frame' => 'Frame', 'frame_none' => 'Simple', 'frame_border' => 'Brand border', 'frame_ribbon' => 'Ribbon on top', 'frame_badge' => 'Badge underneath',
+    'template' => 'Paper layout', 'template_cards' => 'Cards (6 per A4)', 'template_compact' => 'Small cards (12 per A4)', 'template_sticker' => 'Stickers (24 per A4)', 'template_tent' => 'Table tent (A4, fold in half)', 'template_poster' => 'Poster (1 per A4)',
+    'template_help' => 'Used by the PDF download. Print at 100% scale (no “fit to page”).',
+    'nfc_title' => 'NFC tags', 'nfc_sub' => 'Write the table links onto NFC stickers so guests can tap their phone instead of scanning.',
+    'nfc_help' => 'Use blank NTAG213/215 tags. Tap a table below to write its link with an Android phone (Chrome), or download the list for an NFC encoder app.',
+    'nfc_csv' => 'Download list (CSV)', 'nfc_copy' => 'Copy link', 'nfc_write' => 'Write to tag', 'nfc_copied' => 'Link copied.', 'nfc_hold' => 'Hold the tag against the back of your phone…',
+    'nfc_done' => 'Written. Test the tag by tapping it.', 'nfc_failed' => 'Could not write. Check the tag is blank and not locked.',
+    'nfc_unsupported' => 'Writing tags needs Chrome on an Android phone. You can still copy the links or download the list.',
+
+    // Floor map
+    'map_title' => 'Floor map', 'map_sub' => 'See every table at a glance. Tap a table to take an order.', 'map_legend' => 'Table states', 'map_arrange' => 'Arrange tables',
+    'map_drag_help' => 'Drag the tables to where they stand in your room.', 'map_shape' => 'Change shape', 'map_saved' => 'Floor map saved.', 'map_save_failed' => 'Could not save the map. Try again.',
+    'state_free' => 'Free', 'state_busy' => 'Order in progress', 'state_ready' => 'Ready to serve', 'state_unpaid' => 'Waiting to pay', 'seats_short' => 'seats', 'map_open' => 'Floor map',
 ];

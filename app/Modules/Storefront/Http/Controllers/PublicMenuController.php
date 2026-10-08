@@ -80,7 +80,9 @@ class PublicMenuController extends Controller
             'dietary' => config('menu.dietary'),
             'description' => __('customer.meta_description', ['name' => $restaurant->name]),
             // A table link is personal to that table's guests: keep it out of search results.
-            'noindex' => $table !== null,
+            'noindex' => $table !== null || $request->boolean('kiosk'),
+            // Self-order kiosk: a screen in the restaurant where guests order for themselves (?kiosk=1).
+            'kiosk' => $request->boolean('kiosk'),
             'ordering' => $this->ordering($restaurant, $table, $request),
             'rating' => $this->rating($restaurant),
             'branch' => $branch ? ['name' => $branch->name, 'open' => $branch->isOpen(), 'switch' => $guestBranch->active()->count() > 1] : null,

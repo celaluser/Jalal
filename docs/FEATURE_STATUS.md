@@ -78,6 +78,13 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ CSV menu import with preview and plan limits
 - ✅ Branches: per-location tables, staff (fixed or all), opening hours, price/availability/portion overrides per dish with copy between branches, guest branch choice (QR table → link → remembered → chooser), closed-branch protection, order board and till filtered by branch; plan limit `branches`
 
+## 9c. QR, floor and appearance (v2 gap work)
+- ✅ QR print: frames (border, ribbon, badge), five paper layouts (cards, small cards, stickers, folded table tent, poster), NFC link list with Web NFC "write to tag" and CSV
+- ✅ Floor map: drag tables into place, shapes, live free / busy / ready / waiting-to-pay states, tap to order
+- ✅ Sixth theme (Ocean), compact header, load-more-while-scrolling for long menus, optional guest light/dark switch
+- ✅ Tablet mode for staff (sidebar folds away, larger text, screen stays awake) and a self-order kiosk (`?kiosk=1`: idle reset, thank-you screen, no delivery)
+- 🟡 Web NFC writing only works in Chrome on Android; the kiosk has not been tried on real kiosk hardware
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)

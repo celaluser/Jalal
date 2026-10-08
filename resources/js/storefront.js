@@ -32,12 +32,18 @@ document.addEventListener('alpine:init', () => {
         key: '',
         totals: null,
         ord: cfg.ordering,
+        shown: cfg.scroll === 'infinite' ? 3 : 9999,
+        alt: false,
+        io: null,
         cfg_diet: cfg.diet,
         cfg_badge: cfg.badge,
         cfg_nutrient: cfg.nutrient,
         cfg_allergen: cfg.allergen,
 
+        kioskDone: null,
+
         init() {
+            if (cfg.kiosk) { this.startKiosk(); }
             this.cart = this.load();
             this.prune();
             this.$watch('cart', () => { this.save(); this.requote(); });
@@ -47,6 +53,11 @@ document.addEventListener('alpine:init', () => {
             this.$watch('sheet', (v) => this.lock(v !== null || this.cartOpen));
             this.$watch('cartOpen', (v) => this.lock(v || this.sheet !== null));
             this.$nextTick(() => this.observe());
+            this.$watch('shown', () => this.$nextTick(() => this.observe()));
+            this.$watch('menuId', () => { this.shown = cfg.scroll === 'infinite' ? 3 : 9999; this.$nextTick(() => this.observe()); });
+            this.watchSentinel();
+            try { this.alt = localStorage.getItem('qrmenu.alt') === '1'; } catch (e) { /* private mode */ }
+            document.documentElement.toggleAttribute('data-menu-alt', this.alt);
             if (this.cart.length) { this.requote(0); }
         },
 
@@ -56,9 +67,25 @@ document.addEventListener('alpine:init', () => {
             const q = fold(this.q.trim());
             // Several menus (breakfast, lunch...): show one at a time, but a search looks through all of them.
             const pool = this.menus.length && !this.hasFilters ? this.tree.filter((c) => c.menu_id === this.menuId) : this.tree;
-            return pool
+            const list = pool
                 .map((c) => ({ ...c, products: c.products.filter((p) => this.matches(p, q)) }))
                 .filter((c) => c.products.length > 0);
+            // Long menus can load category by category while scrolling; a search always looks through everything.
+            return this.hasFilters ? list : list.slice(0, this.shown);
+        },
+        get allVisibleShown() { return this.hasFilters || this.shown >= (this.menus.length ? this.tree.filter((c) => c.menu_id === this.menuId) : this.tree).length; },
+        watchSentinel() {
+            if (cfg.scroll !== 'infinite' || !('IntersectionObserver' in window)) { this.shown = 9999; return; }
+            this.$nextTick(() => {
+                const el = this.$refs.sentinel;
+                if (!el) { return; }
+                new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting) && !this.allVisibleShown) { this.shown += 3; } }, { rootMargin: '600px 0px' }).observe(el);
+            });
+        },
+        toggleAlt() {
+            this.alt = !this.alt;
+            document.documentElement.toggleAttribute('data-menu-alt', this.alt);
+            try { localStorage.setItem('qrmenu.alt', this.alt ? '1' : '0'); } catch (e) { /* ignore */ }
         },
         matches(p, q) {
             if (q && !fold(p.name).includes(q) && !fold(p.description).includes(q)) { return false; }
@@ -71,11 +98,19 @@ document.addEventListener('alpine:init', () => {
 
         goTo(id) {
             this.active = id;
+            const i = this.visible.findIndex((c) => c.id === id);
+            if (i === -1) {
+                const pool = this.menus.length && !this.hasFilters ? this.tree.filter((c) => c.menu_id === this.menuId) : this.tree;
+                this.shown = Math.max(this.shown, pool.findIndex((c) => c.id === id) + 1);
+                this.$nextTick(() => document.getElementById('cat-' + id)?.scrollIntoView({ block: 'start' }));
+                return;
+            }
             document.getElementById('cat-' + id)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
         },
         observe() {
             if (!('IntersectionObserver' in window)) { return; }
-            const io = new IntersectionObserver((entries) => {
+            this.io?.disconnect();
+            const io = this.io = new IntersectionObserver((entries) => {
                 entries.filter((e) => e.isIntersecting).forEach((e) => {
                     this.active = Number(e.target.dataset.cat);
                     document.querySelector('[data-tab="' + this.active + '"]')?.scrollIntoView({ inline: 'center', block: 'nearest' });
@@ -307,7 +342,7 @@ document.addEventListener('alpine:init', () => {
                     body: JSON.stringify({
                         type: f.type, table_id: f.type === 'dine_in' ? (this.ord.table?.id || f.table_id || null) : null,
                         customer_name: f.name, customer_phone: f.phone, customer_email: f.email, marketing_opt_in: !!f.email.trim() && f.marketing, promo_code: f.promo || null, delivery_address: f.type === 'delivery' ? f.address : null,
-                        note: f.note, payment_method: f.payment, idempotency_key: this.key,
+                        note: f.note, payment_method: f.payment, idempotency_key: this.key, kiosk: cfg.kiosk ? 1 : undefined,
                         lines: this.cart.map((l) => ({ product_id: l.product_id, variant_id: l.variant_id || null, combo: l.combo || undefined, options: l.options, qty: l.qty, note: l.note })),
                     }),
                 });
@@ -315,6 +350,7 @@ document.addEventListener('alpine:init', () => {
                 if (res.status === 201) {
                     try { localStorage.setItem('qrmenu.guest', JSON.stringify({ name: f.name, phone: f.phone, email: f.email, address: f.address })); localStorage.removeItem(cfg.storageKey); } catch (e) { /* ignore */ }
                     this.cart = [];
+                    if (cfg.kiosk) { this.kioskDone = { number: data.number }; this.cartOpen = false; setTimeout(() => this.kioskReset(), 12000); this.submitting = false; return; }
                     window.location.href = data.url;
                     return;
                 }
@@ -324,6 +360,20 @@ document.addEventListener('alpine:init', () => {
                 this.formError = cfg.t.generic_error;
             }
             this.submitting = false;
+        },
+
+        // ---- kiosk: a screen guests order from by themselves -------------------------------
+        startKiosk() {
+            let idle = null;
+            const arm = () => { clearTimeout(idle); idle = setTimeout(() => { if (this.cart.length || this.sheet || this.cartOpen) { this.kioskReset(); } }, 90000); };
+            ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, arm, { passive: true }));
+            arm();
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+        },
+        // Next guest: forget the cart and the personal details, and start from the top.
+        kioskReset() {
+            try { localStorage.removeItem(cfg.storageKey); localStorage.removeItem('qrmenu.guest'); } catch (e) { /* ignore */ }
+            window.location.href = window.location.pathname + '?kiosk=1';
         },
 
         // ---- chrome ----------------------------------------------------------------------

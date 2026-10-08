@@ -21,7 +21,7 @@ return [
     'fix_cart' => 'Some items need your attention before you can order.',
     'unavailable_title' => 'This menu is taking a break', 'unavailable_text' => 'The restaurant\'s online menu is temporarily unavailable. Please ask the staff for a printed menu.',
     'powered_by' => 'Powered by :name',
-    'hero_title' => 'Hungry? Let\'s fix that.',
+    'toggle_theme' => 'Switch light / dark', 'kiosk_thanks' => 'Thank you! Your order is in.', 'kiosk_number' => 'Your order number', 'kiosk_new' => 'Start a new order', 'hero_title' => 'Hungry? Let\'s fix that.',
     'hero_text' => 'Pick your favourites and order in a few taps.',
     'hero_table' => 'Order from your seat. We bring it to your table.',
     'most_loved' => 'Most loved',

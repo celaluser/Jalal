@@ -13,6 +13,21 @@ use Throwable;
 /** QR codes of a restaurant: what they point to and how they look (set on the QR design screen). */
 class TableQr
 {
+    /** Frames drawn around the code on printed cards. */
+    public const FRAMES = ['none', 'border', 'ribbon', 'badge'];
+
+    /**
+     * Paper layouts for the PDF: cards per row/page, QR size (mm), paper and orientation.
+     * "tent" prints one folded table tent per page (two faces), "poster" one big sign per page.
+     */
+    public const TEMPLATES = [
+        'cards' => ['cols' => 2, 'rows' => 3, 'qr' => 44, 'paper' => 'a4', 'orientation' => 'portrait'],
+        'compact' => ['cols' => 3, 'rows' => 4, 'qr' => 32, 'paper' => 'a4', 'orientation' => 'portrait'],
+        'sticker' => ['cols' => 4, 'rows' => 6, 'qr' => 36, 'paper' => 'a4', 'orientation' => 'portrait'],
+        'tent' => ['cols' => 2, 'rows' => 1, 'qr' => 70, 'paper' => 'a4', 'orientation' => 'landscape'],
+        'poster' => ['cols' => 1, 'rows' => 1, 'qr' => 120, 'paper' => 'a4', 'orientation' => 'portrait'],
+    ];
+
     /** Where a scan goes: the table's own entry point, or the plain menu when no table is given. */
     public function url(Restaurant $restaurant, ?DiningTable $table = null): string
     {
@@ -29,6 +44,8 @@ class TableQr
             'bg' => $this->color($own['bg'] ?? null, '#ffffff'),
             'shape' => in_array($own['shape'] ?? null, QrStyle::SHAPES, true) ? $own['shape'] : 'square',
             'logo' => ! empty($own['logo']) && $restaurant->logo_media_id !== null,
+            'frame' => in_array($own['frame'] ?? null, self::FRAMES, true) ? $own['frame'] : 'none',
+            'template' => in_array($own['template'] ?? null, array_keys(self::TEMPLATES), true) ? $own['template'] : 'cards',
             'caption' => isset($own['caption']) && is_string($own['caption']) && trim($own['caption']) !== '' ? $own['caption'] : null,
         ];
     }

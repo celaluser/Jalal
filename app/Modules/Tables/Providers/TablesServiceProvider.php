@@ -19,6 +19,8 @@ class TablesServiceProvider extends ServiceProvider
 
         RestaurantNav::add('menu', 'panel.nav.tables', 'tables.index', 'tables.*', icon: 'qr', can: 'tables.view');
 
+        RestaurantNav::add('menu', 'panel.nav.floor_map', 'tables.map', 'tables.map*', icon: 'layout', can: 'tables.view');
+
         DemoDataRegistry::register(TablesDemoSeeder::class);
 
         UsageRegistry::register('tables', fn () => DiningTable::count());

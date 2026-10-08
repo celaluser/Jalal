@@ -44,7 +44,7 @@ return [
     'note' => 'Note', 'table' => 'Table :name', 'guest' => 'Guest',
     'history' => 'History', 'items' => 'Items', 'total' => 'Total', 'subtotal' => 'Subtotal', 'service' => 'Service charge', 'delivery_fee' => 'Delivery fee', 'tax' => 'Tax', 'tax_included' => 'incl. tax',
     'placed_by_guest' => 'Placed by the guest', 'event_placed' => 'Order placed', 'event_payment' => 'Paid with :note',
-    'customer' => 'Customer', 'phone' => 'Phone', 'address' => 'Address', 'source_qr' => 'QR menu', 'source_staff' => 'Staff',
+    'customer' => 'Customer', 'phone' => 'Phone', 'address' => 'Address', 'source_qr' => 'QR menu', 'source_staff' => 'Staff', 'source_kiosk' => 'Kiosk',
     'order_number' => 'Order :number', 'back' => 'Back to orders',
 
     // Settings

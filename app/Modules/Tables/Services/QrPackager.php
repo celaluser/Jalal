@@ -3,6 +3,7 @@
 namespace App\Modules\Tables\Services;
 
 use App\Modules\Tables\Models\DiningTable;
+use App\Modules\Tables\Qr\QrStyle;
 use App\Modules\Tenancy\Models\Restaurant;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
@@ -50,25 +51,32 @@ class QrPackager
     }
 
     /**
-     * A4 sheet of cards, two per row, each with the restaurant, the table and its QR code.
+     * Printable sheet (paper layout and frame chosen on the QR design screen): restaurant, table name and QR code per card.
      *
      * @param  Collection<int, DiningTable>  $tables
      */
-    public function pdf(Restaurant $restaurant, Collection $tables): \Barryvdh\DomPDF\PDF
+    public function pdf(Restaurant $restaurant, Collection $tables, ?string $template = null, ?string $frame = null): \Barryvdh\DomPDF\PDF
     {
         $style = $this->qr->style($restaurant);
+        $settings = $this->qr->settings($restaurant);
+        $template = isset(TableQr::TEMPLATES[$template]) ? $template : $settings['template'];
+        $frame = in_array($frame, TableQr::FRAMES, true) ? $frame : $settings['frame'];
+        $layout = TableQr::TEMPLATES[$template];
 
         $cards = $tables->map(fn (DiningTable $table) => [
             'name' => $table->name,
             'area' => $table->area?->name,
-            'png' => base64_encode($this->qr->png($restaurant, $table, 600, $style)),
+            'png' => base64_encode($this->qr->png($restaurant, $table, $template === 'poster' ? 1000 : 600, $style)),
         ]);
+        $perPage = $layout['cols'] * $layout['rows'];
 
         return Pdf::loadView('tables::qr.sheet', [
             'restaurant' => $restaurant,
-            'cards' => $cards->chunk(2)->chunk(3),
+            'cards' => $cards->chunk($layout['cols'])->chunk($layout['rows']),
             'caption' => $this->qr->caption($restaurant),
             'brand' => $restaurant->brandColor(),
-        ])->setPaper('a4');
+            'ink' => QrStyle::contrast($restaurant->brandColor(), '#0f1115') >= QrStyle::contrast($restaurant->brandColor(), '#ffffff') ? '#0f1115' : '#ffffff',
+            'template' => $template, 'layout' => $layout, 'frame' => $frame, 'perPage' => $perPage,
+        ])->setPaper($layout['paper'], $layout['orientation']);
     }
 }

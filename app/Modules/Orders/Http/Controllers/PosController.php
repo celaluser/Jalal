@@ -32,6 +32,7 @@ class PosController extends Controller
             'currency' => $restaurant->currency_code,
             'locale' => str_replace('_', '-', app()->getLocale()),
             'canPay' => $user->canAny(['orders.manage', 'payments.manage']),
+            'preselect' => $request->query('table') !== null ? (int) $request->query('table') : null,
             'storeUrl' => route('orders.pos.store'),
             'boardUrl' => route('orders.board'),
             'csrf' => csrf_token(),

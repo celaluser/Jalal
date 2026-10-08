@@ -124,7 +124,7 @@ document.addEventListener('alpine:init', () => {
     window.Alpine.data('posApp', (cfg) => ({
         menu: cfg.menu, tables: cfg.tables, canPay: cfg.canPay, t: cfg.t,
         cat: 0, q: '', lines: [], sheet: null, drawer: false, done: null, busy: false, error: '',
-        type: 'dine_in', tableId: '', name: '', phone: '', address: '', orderNote: '', paid: false, method: 'cash',
+        type: 'dine_in', tableId: cfg.preselect && cfg.tables.some((t) => t.id === cfg.preselect) ? cfg.preselect : '', name: '', phone: '', address: '', orderNote: '', paid: false, method: 'cash',
         fmt: new Intl.NumberFormat(cfg.locale, { style: 'currency', currency: cfg.currency }),
         key: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random(),
 

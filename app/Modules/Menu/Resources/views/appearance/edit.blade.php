@@ -36,8 +36,8 @@
             </x-ui.card>
 
             <x-ui.card>
-                <div class="grid gap-5 sm:grid-cols-3">
-                    @foreach ([['font', array_keys($fonts), 'fonts'], ['layout', config('themes.layouts'), 'layouts'], ['radius', array_keys($radii), 'radii']] as [$field, $values, $group])
+                <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    @foreach ([['font', array_keys($fonts), 'fonts'], ['layout', config('themes.layouts'), 'layouts'], ['radius', array_keys($radii), 'radii'], ['hero', config('themes.heroes'), 'heroes'], ['scroll', config('themes.scrolls'), 'scrolls']] as [$field, $values, $group])
                         <div>
                             <label for="{{ $field }}" class="mb-1.5 block text-sm font-medium">{{ __('menu.appearance.'.$field) }}</label>
                             <select id="{{ $field }}" name="{{ $field }}" class="field" x-model="{{ $field }}">
@@ -49,6 +49,7 @@
                 </div>
                 <div class="mt-5 space-y-3">
                     <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="show_images" value="1" class="check" x-model="show_images">{{ __('menu.appearance.show_images') }}</label>
+                    <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="dark_toggle" value="1" class="check" @checked($settings['dark_toggle'])>{{ __('menu.appearance.dark_toggle') }}</label>
                     <div>
                         <label class="flex items-center gap-2.5 text-sm {{ $canRemoveCredit ? '' : 'opacity-60' }}"><input type="checkbox" name="hide_credit" value="1" class="check" @checked(! $settings['show_credit']) @disabled(! $canRemoveCredit)>{{ __('menu.appearance.hide_credit') }}</label>
                         @unless ($canRemoveCredit)<p class="mt-1 text-xs text-muted">{{ __('menu.appearance.hide_credit_locked') }}</p>@endunless

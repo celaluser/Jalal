@@ -46,6 +46,7 @@ class QrController extends Controller
             'fg' => strtolower($data['fg']), 'bg' => strtolower($data['bg']), 'shape' => $data['shape'],
             'logo' => $request->boolean('logo') && $restaurant->logo_media_id !== null,
             'caption' => trim((string) ($data['caption'] ?? '')) ?: null,
+            'frame' => $data['frame'] ?? 'none', 'template' => $data['template'] ?? 'cards',
         ];
         $restaurant->update(['branding' => $branding]);
 
@@ -90,7 +91,31 @@ class QrController extends Controller
         $tables = DiningTable::with('area')->when($ids, fn ($q) => $q->whereIn('id', $ids))->orderBy('sort')->orderBy('id')->get();
         abort_if($tables->isEmpty(), 404);
 
-        return $this->packager->pdf($restaurant, $tables)->download("qr-sheet-{$restaurant->slug}.pdf");
+        return $this->packager->pdf($restaurant, $tables, $request->query('template'), $request->query('frame'))->download("qr-sheet-{$restaurant->slug}.pdf");
+    }
+
+    /** NFC tags: one link per table to write onto a tag, as a list and as a CSV for bulk encoders. */
+    public function nfc(Request $request): View
+    {
+        $restaurant = $request->user()->restaurant;
+
+        return view('tables::qr.nfc', ['restaurant' => $restaurant, 'links' => DiningTable::orderBy('sort')->orderBy('id')->get()->map(fn ($t) => ['name' => $t->name, 'url' => $this->qr->url($restaurant, $t)])->all(), 'menuUrl' => $this->qr->url($restaurant)]);
+    }
+
+    public function nfcCsv(Request $request): Response
+    {
+        $restaurant = $request->user()->restaurant;
+        $rows = [['name', 'url']];
+
+        foreach (DiningTable::orderBy('sort')->orderBy('id')->get() as $t) {
+            // Names starting with = + - @ would run as formulas in a spreadsheet.
+            $name = preg_match('/^[=+\-@\t\r]/', $t->name) ? "'".$t->name : $t->name;
+            $rows[] = [$name, $this->qr->url($restaurant, $t)];
+        }
+
+        $csv = implode("\n", array_map(fn ($r) => implode(',', array_map(fn ($v) => '"'.str_replace('"', '""', $v).'"', $r)), $rows));
+
+        return response($csv, 200, ['Content-Type' => 'text/csv; charset=UTF-8', 'Content-Disposition' => 'attachment; filename="nfc-links-'.$restaurant->slug.'.csv"']);
     }
 
     /** @return array<string, mixed> */
@@ -101,6 +126,8 @@ class QrController extends Controller
             'bg' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'shape' => ['required', Rule::in(QrStyle::SHAPES)],
             'caption' => ['nullable', 'string', 'max:60'],
+            'frame' => ['nullable', Rule::in(TableQr::FRAMES)],
+            'template' => ['nullable', Rule::in(array_keys(TableQr::TEMPLATES))],
         ]);
 
         // Dark-on-light with enough contrast, or phone cameras struggle with the printed code.

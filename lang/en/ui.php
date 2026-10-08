@@ -3,6 +3,7 @@
 return [
     'toggle_theme' => 'Light / dark',
     'security' => 'Security',
+    'tablet_on' => 'Tablet mode', 'tablet_off' => 'Leave tablet mode',
     'language' => 'Language',
     'menu' => 'Menu',
     'account' => 'Account',
