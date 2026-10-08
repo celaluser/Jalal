@@ -18,7 +18,7 @@ class Category extends Model
 
     protected function casts(): array
     {
-        return ['name' => 'array', 'description' => 'array', 'is_active' => 'boolean', 'schedule' => 'array'];
+        return ['name' => 'array', 'description' => 'array', 'is_active' => 'boolean', 'schedule' => 'array', 'locked_locales' => 'array'];
     }
 
     public function menu(): BelongsTo

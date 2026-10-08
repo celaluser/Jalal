@@ -13,6 +13,7 @@
         'kiosk' => $kiosk,
         'banners' => $banners,
         'account' => $account,
+        'assistantUrl' => $assistantUrl,
         'orderBase' => $base,
         'notifyLabels' => ['sms' => __('orders.notify_sms'), 'whatsapp' => __('orders.notify_whatsapp'), 'push' => __('orders.notify_push')],
         'currencies' => $currencies,
@@ -338,6 +339,29 @@
                 <p class="menu-muted mt-3 text-lg">{{ __('customer.kiosk_number') }}</p>
                 <p class="display tnum menu-accent-text mt-1 text-7xl font-extrabold" x-text="'#' + (kioskDone ? kioskDone.number : '')"></p>
                 <button type="button" class="menu-btn mt-8 !px-8 !py-3 !text-lg" x-on:click="kioskReset()">{{ __('customer.kiosk_new') }}</button>
+            </div>
+        </div>
+    @endif
+
+    {{-- Menu assistant (AI), when the restaurant switched it on --}}
+    @if ($assistantUrl)
+        <button type="button" class="menu-btn fixed bottom-24 end-4 z-30 !rounded-full !px-4 !py-3 shadow-lg" x-on:click="chat.open = true; $nextTick(() => $refs.chatInput && $refs.chatInput.focus())" x-show="!chat.open && !cartOpen && !sheet" aria-label="{{ __('ai.assistant_ask') }}"><x-ui.icon name="sparkles" size="5" /><span class="hidden sm:inline">{{ __('ai.assistant_ask') }}</span></button>
+        <div x-show="chat.open" x-cloak x-transition.opacity class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" x-on:click.self="chat.open = false" role="dialog" aria-modal="true" aria-label="{{ __('ai.assistant_name') }}">
+            <div class="menu-page flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl shadow-2xl sm:rounded-3xl">
+                <div class="menu-line flex items-center justify-between gap-3 border-b px-5 py-3"><h2 class="display flex items-center gap-2 text-lg font-bold"><x-ui.icon name="sparkles" size="5" />{{ __('ai.assistant_name') }}</h2>
+                    <button type="button" class="menu-card grid size-9 place-items-center" x-on:click="chat.open = false" aria-label="{{ __('customer.close') }}"><x-ui.icon name="x" size="5" /></button></div>
+                <div class="flex-1 space-y-3 overflow-y-auto px-5 py-4" x-ref="chatLog" aria-live="polite">
+                    <p class="menu-muted text-sm" x-show="!chat.msgs.length">{{ __('ai.assistant_hint') }}</p>
+                    <template x-for="(m, i) in chat.msgs" :key="i">
+                        <div :class="m.role === 'user' ? 'text-end' : ''"><p class="inline-block max-w-[90%] rounded-2xl px-3.5 py-2 text-start text-sm" :class="m.role === 'user' ? 'menu-accent' : 'menu-card'" x-text="m.text"></p>
+                            <div class="mt-1.5 flex flex-wrap gap-1.5" x-show="m.products && m.products.length"><template x-for="p in (m.products || [])" :key="p.id"><button type="button" class="menu-chip" x-on:click="showDish(p.id)" x-text="p.name"></button></template></div></div>
+                    </template>
+                    <p class="menu-muted text-sm" x-show="chat.busy">…</p>
+                </div>
+                <form class="menu-line flex gap-2 border-t p-3" x-on:submit.prevent="askAssistant()">
+                    <input x-ref="chatInput" x-model="chat.input" maxlength="300" placeholder="{{ __('ai.assistant_placeholder') }}" class="menu-card min-w-0 flex-1 px-3 py-2.5 text-sm" aria-label="{{ __('ai.assistant_ask') }}">
+                    <button class="menu-btn !px-4" :disabled="chat.busy || !chat.input.trim()">{{ __('ai.assistant_send') }}</button>
+                </form>
             </div>
         </div>
     @endif

@@ -74,4 +74,6 @@ return [
     'banner_starts' => 'Show from', 'banner_ends' => 'Show until', 'banner_popup' => 'Show as a pop-up (once per visit) instead of a banner', 'popup' => 'Pop-up', 'status_off' => 'Off',
 
     'review_url' => 'Public review link', 'review_url_hint' => 'For example your Google reviews link. Happy guests are invited to share their rating there.', 'review_min' => 'Offer it from (stars)', 'review_public_invite' => 'Glad you liked it! Would you share that on Google too?', 'review_public_button' => 'Write a public review',
+
+    'ai_assistant' => 'Menu assistant on the guest menu (AI)', 'ai_assistant_hint' => 'Guests can ask about dishes, diets and allergens. It answers only from your menu, and every answer uses one AI credit.',
 ];

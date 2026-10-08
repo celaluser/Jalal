@@ -4,7 +4,7 @@
     @unless ($enabled)
         <div class="card"><x-ui.empty icon="sparkles" :title="__('ai.import_not_configured_title')" :text="__('ai.error_not_configured')" /></div>
     @else
-        <div x-data="menuImport(@js(['preview' => route('ai.import.preview'), 'commit' => route('ai.import.commit'), 'csrf' => csrf_token(), 'max' => $maxChars, 'failText' => __('ai.error_provider_error'), 'doneText' => __('ai.import_done'), 'foundText' => __('ai.import_found')]))" class="grid gap-5 lg:grid-cols-3">
+        <div x-data="menuImport(@js(['preview' => route('ai.import.preview'), 'commit' => route('ai.import.commit'), 'csrf' => csrf_token(), 'max' => $maxChars, 'failText' => __('ai.error_provider_error'), 'photo' => route('ai.import.photo'), 'pdf' => route('ai.import.pdf'), 'bulk' => route('ai.translate-all'), 'bulkStatus' => route('ai.translate-all.status'), 'doneText' => __('ai.import_done'), 'foundText' => __('ai.import_found')]))" class="grid gap-5 lg:grid-cols-3">
             <div class="space-y-5 lg:col-span-2">
                 {{-- Step 1: paste --}}
                 <x-ui.card x-show="!result">
@@ -16,6 +16,14 @@
                             <span class="text-xs text-muted">{{ __('ai.import_cost', ['count' => $cost]) }}</span>
                             <button type="button" class="btn btn-primary" x-on:click="read()" :disabled="busy || text.trim().length < 10"><x-ui.icon name="sparkles" size="4" /><span x-text="busy ? @js(__('ai.writing')) : @js(__('ai.import_read'))"></span></button>
                         </div>
+                    </div>
+                    <div class="mt-5 grid gap-3 border-t border-line pt-4 sm:grid-cols-2">
+                        <div><label class="mb-1 block text-sm font-medium" for="menu-photo">{{ __('ai.import_photo') }}</label>
+                            <input id="menu-photo" type="file" accept="image/png,image/jpeg,image/webp" class="field file:me-3 file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-sm" x-on:change="upload(cfg.photo, 'photo', $event)" :disabled="busy">
+                            <p class="mt-1 text-xs text-muted">{{ __('ai.import_photo_cost', ['count' => $photoCost]) }}</p></div>
+                        <div><label class="mb-1 block text-sm font-medium" for="menu-pdf">{{ __('ai.import_pdf') }}</label>
+                            <input id="menu-pdf" type="file" accept="application/pdf" class="field file:me-3 file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-sm" x-on:change="upload(cfg.pdf, 'pdf', $event)" :disabled="busy">
+                            <p class="mt-1 text-xs text-muted">{{ __('ai.import_pdf_hint') }}</p></div>
                     </div>
                     <p class="mt-3 text-sm text-red-600 dark:text-red-400" x-show="error" x-text="error" role="alert"></p>
                 </x-ui.card>
@@ -59,6 +67,14 @@
             </div>
 
             <aside class="space-y-5">
+                <x-ui.card :title="__('ai.bulk_title')" :description="__('ai.bulk_text')">
+                    <button type="button" class="btn btn-secondary" x-on:click="startBulk()" :disabled="bulkState && bulkState.status === 'running'"><x-ui.icon name="languages" size="4" />{{ __('ai.bulk_start') }}</button>
+                    <p class="mt-3 text-sm" x-show="bulkState" x-cloak role="status">
+                        <span x-show="bulkState && bulkState.status === 'running'">{{ __('ai.bulk_running') }} <span class="tnum" x-text="bulkState ? bulkState.done + ' / ' + bulkState.total : ''"></span></span>
+                        <span x-show="bulkState && bulkState.status === 'finished'" x-text="bulkState ? @js(__('ai.bulk_done', ['count' => ':n'])).replace(':n', bulkState.translated) : ''"></span>
+                        <span x-show="bulkState && bulkState.status === 'stopped'" x-text="@js(__('ai.bulk_stopped'))"></span>
+                    </p>
+                </x-ui.card>
                 <x-ui.card :title="__('ai.import_how')">
                     <ol class="space-y-3 text-sm text-muted">
                         @foreach (['import_step1', 'import_step2', 'import_step3'] as $n => $step)
@@ -87,6 +103,30 @@
                             if (ok) { this.result = data; } else { this.error = data.message || data.errors?.text?.[0] || cfg.failText; }
                         } catch (e) { this.error = cfg.failText; }
                         this.busy = false;
+                    },
+                    async upload(url, field, event) {
+                        const file = event.target.files[0];
+                        if (!file) { return; }
+                        this.busy = true; this.error = '';
+                        const form = new FormData(); form.append(field, file);
+                        try {
+                            const res = await fetch(url, { method: 'POST', headers: { Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf }, body: form });
+                            const data = await res.json().catch(() => ({}));
+                            if (res.ok) { this.result = data; } else { this.error = data.message || data.errors?.[field]?.[0] || cfg.failText; }
+                        } catch (e) { this.error = cfg.failText; }
+                        event.target.value = ''; this.busy = false;
+                    },
+                    bulkState: null, bulkTimer: null,
+                    async startBulk() {
+                        this.error = '';
+                        const { ok, data } = await this.post(cfg.bulk, {});
+                        if (!ok) { this.error = data.message || cfg.failText; return; }
+                        this.pollBulk();
+                    },
+                    async pollBulk() {
+                        clearTimeout(this.bulkTimer);
+                        try { const r = await fetch(cfg.bulkStatus, { headers: { Accept: 'application/json' } }); this.bulkState = await r.json(); } catch (e) { /* try again */ }
+                        if (this.bulkState && this.bulkState.status === 'running') { this.bulkTimer = setTimeout(() => this.pollBulk(), 3000); }
                     },
                     prune() { this.result.categories = this.result.categories.filter((c) => c.items.length > 0); },
                     reset() { this.result = null; this.error = ''; },

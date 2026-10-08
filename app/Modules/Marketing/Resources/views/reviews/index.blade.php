@@ -43,12 +43,13 @@
                             @if ($r->comment)<p class="mt-3 whitespace-pre-line">{{ $r->comment }}</p>@endif
 
                             @if ($canManage)
-                                <form method="POST" action="{{ route('reviews.reply', $r->id) }}" class="mt-4 space-y-2" x-data="{ open: {{ $r->reply ? 'true' : 'false' }} }">
+                                <form method="POST" action="{{ route('reviews.reply', $r->id) }}" class="mt-4 space-y-2" x-data="{ open: {{ $r->reply ? 'true' : 'false' }}, busy: false, aiError: '', async draft() { this.busy = true; this.aiError = ''; try { const res = await fetch(@js(route('ai.review-reply', $r->id)), { method: 'POST', headers: { Accept: 'application/json', 'X-CSRF-TOKEN': @js(csrf_token()) } }); const d = await res.json().catch(() => ({})); if (res.ok) { this.$refs.reply.value = d.reply; } else { this.aiError = d.message || ''; } } catch (e) { this.aiError = @js(__('ai.assistant_error')); } this.busy = false; } }">
                                     @csrf
                                     <button type="button" class="text-sm font-medium text-accent-700 hover:underline dark:text-accent-300" x-show="!open" x-on:click="open = true">{{ __('marketing.reply') }}</button>
                                     <div x-show="open" x-cloak class="space-y-2">
                                         <label class="text-sm font-medium" for="reply-{{ $r->id }}">{{ __('marketing.reply') }}</label>
-                                        <textarea id="reply-{{ $r->id }}" name="reply" rows="2" maxlength="1000" class="field">{{ $r->reply }}</textarea>
+                                        <textarea id="reply-{{ $r->id }}" name="reply" rows="2" maxlength="1000" class="field" x-ref="reply">{{ $r->reply }}</textarea>
+                                        @if ($aiEnabled)<div class="flex flex-wrap items-center gap-2"><button type="button" class="btn btn-secondary btn-sm" x-on:click="draft()" :disabled="busy"><x-ui.icon name="sparkles" size="4" />{{ __('ai.draft_reply') }}</button><span class="text-xs text-muted">{{ __('ai.draft_note') }}</span></div><p class="text-sm text-red-600" x-show="aiError" x-text="aiError" role="alert"></p>@endif
                                         <p class="text-xs text-muted">{{ __('marketing.reply_help') }}</p>
                                         <x-ui.button :block="false" class="btn-sm">{{ __('marketing.reply_save') }}</x-ui.button>
                                     </div>

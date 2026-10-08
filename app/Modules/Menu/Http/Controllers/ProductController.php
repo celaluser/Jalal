@@ -166,6 +166,7 @@ class ProductController extends Controller
             }],
             'portion_size' => ['nullable', 'string', 'max:60'],
             'spice_level' => ['nullable', 'integer', 'between:0,3'],
+            'locked_locales' => ['nullable', 'array'], 'locked_locales.*' => ['string', 'in:'.implode(',', $locales)],
             'station' => ['nullable', 'string', 'max:30'],
             'nutrition' => ['nullable', 'array'],
             'nutrition.*' => ['nullable', 'numeric', 'min:0', 'max:100000'],
@@ -205,6 +206,7 @@ class ProductController extends Controller
             'video_url' => $request->filled('video_url') ? trim($request->input('video_url')) : null,
             'portion_size' => $request->filled('portion_size') ? trim($request->input('portion_size')) : null,
             'spice_level' => (int) $request->input('spice_level', 0),
+            'locked_locales' => array_values(array_intersect($locales, (array) $request->input('locked_locales', []))) ?: null,
             // Only a station the restaurant has listed counts; anything else is cleared.
             'station' => in_array($request->input('station'), app(OrderSettings::class)->stations($request->user()->restaurant), true) ? $request->input('station') : null,
             'nutrition' => collect($request->input('nutrition', []))->only(Product::NUTRIENTS)->filter(fn ($v) => $v !== null && $v !== '')->map(fn ($v) => (float) $v)->all() ?: null,

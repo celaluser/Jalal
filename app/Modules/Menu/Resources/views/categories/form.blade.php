@@ -7,6 +7,7 @@
             <x-ui.translatable name="name" :label="__('menu.name')" :locales="$locales" :values="$category->name ?? []" required :maxlength="120" />
             <x-ui.translatable name="description" :label="__('menu.description')" :locales="$locales" :values="$category->description ?? []" textarea :rows="2" :maxlength="500" />
             @include('ai::buttons', ['mode' => 'translate'])
+            @include('menu::partials.locks', ['model' => $category])
             @include('menu::partials.image', ['model' => $category])
             <x-ui.input name="icon" :label="__('menu.category_icon')" :value="$category->icon" :hint="__('menu.category_icon_hint')" maxlength="16" />
             @include('menu::partials.schedule', ['schedule' => $category->schedule])

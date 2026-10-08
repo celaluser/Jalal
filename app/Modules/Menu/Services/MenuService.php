@@ -98,6 +98,7 @@ class MenuService
             $default = $restaurant->locale;
 
             $menus = Menu::all()->keyBy('id');
+            $auto = app(Recommendations::class)->forRestaurant($restaurant->id);
 
             return Category::where('is_active', true)->orderBy('sort')->orderBy('id')
                 ->with(['products' => fn ($q) => $q->where('is_active', true)->with(['image', 'variants', 'pairings:id', 'comboSlots.items.dish', 'optionGroups.options' => fn ($o) => $o->where('is_available', true)]), 'image'])
@@ -118,7 +119,8 @@ class MenuService
                         'description' => $p->tr('description', $locale, $default),
                         // With sizes the card shows "from" the smallest available price.
                         'price' => $p->variants->where('is_available', true)->isNotEmpty() ? (float) $p->variants->where('is_available', true)->min('price') : (float) $p->price,
-                        'pairs' => $p->pairings->pluck('id')->all(),
+                        // The owner's own picks win; without any, dishes that real guests order together are suggested.
+                        'pairs' => $p->pairings->isNotEmpty() ? $p->pairings->pluck('id')->all() : ($auto[$p->id] ?? []),
                         'combo' => $p->is_combo && $p->comboSlots->isNotEmpty() ? $p->comboSlots->map(fn ($s) => ['id' => $s->id, 'name' => $s->tr('name', $locale, $default), 'items' => $s->items->filter(fn ($i) => $i->dish && $i->dish->is_active)->map(fn ($i) => ['id' => $i->product_id, 'name' => $i->dish->tr('name', $locale, $default), 'delta' => (float) $i->price_delta, 'available' => $i->dish->canBeOrdered()])->values()->all()])->values()->all() : null,
                         'variants' => $p->variants->map(fn ($v) => ['id' => $v->id, 'name' => $v->tr('name', $locale, $default), 'price' => (float) $v->price, 'available' => $v->is_available])->values()->all(),
                         'compare_price' => $p->isOnSale() ? (float) $p->compare_price : null,

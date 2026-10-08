@@ -20,6 +20,7 @@
                         <x-ui.translatable name="description" :label="__('menu.description')" :locales="$locales" :values="$product->description ?? []" textarea :maxlength="1000" />
                         @include('ai::buttons', ['mode' => 'description'])
                         @include('ai::buttons', ['mode' => 'translate'])
+                        @include('menu::partials.locks', ['model' => $product])
                     </div>
                     @include('menu::partials.image', ['model' => $product])
                 </div>

@@ -3,6 +3,7 @@
 namespace App\Modules\Marketing\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Ai\Services\AiManager;
 use App\Modules\Marketing\Models\Review;
 use App\Modules\Marketing\Services\ReviewService;
 use Illuminate\Http\RedirectResponse;
@@ -23,7 +24,7 @@ class ReviewController extends Controller
         return view('marketing::reviews.index', [
             'reviews' => $list, 'summary' => $this->reviews->summary(), 'filter' => $filter,
             'lowOpen' => Review::where('rating', '<=', Review::LOW)->whereNull('replied_at')->count(),
-            'canManage' => $request->user()->can('marketing.manage'),
+            'canManage' => $request->user()->can('marketing.manage'), 'aiEnabled' => app(AiManager::class)->configured(),
         ]);
     }
 

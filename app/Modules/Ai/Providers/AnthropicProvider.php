@@ -12,13 +12,13 @@ class AnthropicProvider extends HttpProvider
         return 'anthropic';
     }
 
-    public function complete(string $system, string $prompt, int $maxTokens): AiResult
+    public function complete(string $system, string $prompt, int $maxTokens, ?array $image = null): AiResult
     {
         $response = $this->send(fn ($http) => $http->withHeaders(['x-api-key' => $this->apiKey, 'anthropic-version' => '2023-06-01'])->post('https://api.anthropic.com/v1/messages', [
             'model' => $this->model,
             'max_tokens' => $maxTokens,
             'system' => $system,
-            'messages' => [['role' => 'user', 'content' => $prompt]],
+            'messages' => [['role' => 'user', 'content' => $image ? [['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $image['mime'], 'data' => $image['base64']]], ['type' => 'text', 'text' => $prompt]] : $prompt]],
         ]));
 
         $text = collect((array) $response->json('content'))->where('type', 'text')->pluck('text')->implode('');

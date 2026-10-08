@@ -12,11 +12,11 @@ class OpenAiProvider extends HttpProvider
         return 'openai';
     }
 
-    public function complete(string $system, string $prompt, int $maxTokens): AiResult
+    public function complete(string $system, string $prompt, int $maxTokens, ?array $image = null): AiResult
     {
         $response = $this->send(fn ($http) => $http->withToken($this->apiKey)->post('https://api.openai.com/v1/chat/completions', [
             'model' => $this->model,
-            'messages' => [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => $prompt]],
+            'messages' => [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => $image ? [['type' => 'text', 'text' => $prompt], ['type' => 'image_url', 'image_url' => ['url' => 'data:'.$image['mime'].';base64,'.$image['base64']]]] : $prompt]],
             'max_completion_tokens' => $maxTokens,
             'response_format' => ['type' => 'json_object'],
         ]));

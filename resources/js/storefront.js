@@ -54,6 +54,7 @@ document.addEventListener('alpine:init', () => {
         popup: null,
         installEvent: null,
         tab: null,
+        chat: { open: false, msgs: [], input: '', busy: false },
 
         init() {
             if (cfg.kiosk) { this.startKiosk(); }
@@ -147,6 +148,22 @@ document.addEventListener('alpine:init', () => {
             root.toggleAttribute('data-menu-contrast', this.a11y.contrast);
             root.toggleAttribute('data-menu-calm', this.a11y.calm);
         },
+
+        // ---- menu assistant (AI) -----------------------------------------------------------
+        async askAssistant() {
+            const text = this.chat.input.trim();
+            if (!text || this.chat.busy || !cfg.assistantUrl) { return; }
+            const history = this.chat.msgs.map((m) => ({ role: m.role, text: m.text }));
+            this.chat.msgs.push({ role: 'user', text }); this.chat.input = ''; this.chat.busy = true;
+            try {
+                const res = await fetch(cfg.assistantUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf }, body: JSON.stringify({ message: text, history }) });
+                const data = await res.json().catch(() => ({}));
+                this.chat.msgs.push(res.ok ? { role: 'assistant', text: data.answer, products: data.products } : { role: 'assistant', text: data.message || cfg.t.generic_error });
+            } catch (e) { this.chat.msgs.push({ role: 'assistant', text: cfg.t.generic_error }); }
+            this.chat.busy = false;
+            this.$nextTick(() => { const log = this.$refs.chatLog; if (log) { log.scrollTop = log.scrollHeight; } });
+        },
+        showDish(id) { const p = this.tree.flatMap((c) => c.products).find((x) => x.id === id); if (p) { this.chat.open = false; this.open(p); } },
 
         // ---- at the table ----------------------------------------------------------------
         async askService(kind) {

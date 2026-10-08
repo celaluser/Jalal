@@ -125,4 +125,12 @@
             <div class="card"><x-ui.empty icon="activity" :title="__('analytics.locked_title')" :text="__('analytics.locked_text')"><a href="{{ route('billing.index') }}" class="btn btn-primary">{{ __('analytics.upgrade') }}</a></x-ui.empty></div>
         @endif
     @endif
+    @if ($full && app(\App\Modules\Ai\Services\AiManager::class)->configured())
+        <x-ui.card :title="__('ai.insights_title')" class="mt-5" x-data="{ tips: [], busy: false, error: '', async go() { this.busy = true; this.error = ''; try { const r = await fetch(@js(route('ai.insights', request()->query())), { headers: { Accept: 'application/json' } }); const d = await r.json().catch(() => ({})); if (r.ok) { this.tips = d.tips; } else { this.error = d.message || ''; } } catch (e) { this.error = @js(__('ai.assistant_error')); } this.busy = false; } }">
+            <button type="button" class="btn btn-secondary btn-sm" x-on:click="go()" :disabled="busy"><x-ui.icon name="sparkles" size="4" />{{ __('ai.insights_button') }} · {{ __('ai.credits_cost', ['count' => app(\App\Modules\Ai\Services\AiCredits::class)->cost('insights')]) }}</button>
+            <ul class="mt-3 list-inside list-disc space-y-1.5 text-sm" x-show="tips.length" x-cloak><template x-for="t in tips" :key="t"><li x-text="t"></li></template></ul>
+            <p class="mt-2 text-xs text-muted" x-show="tips.length" x-cloak>{{ __('ai.insights_note') }}</p>
+            <p class="mt-2 text-sm text-red-600" x-show="error" x-text="error" role="alert"></p>
+        </x-ui.card>
+    @endif
 </x-layouts.app>

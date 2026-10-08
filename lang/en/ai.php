@@ -28,4 +28,11 @@ return [
     'category' => 'Category', 'dish' => 'Dish name', 'price' => 'Price', 'description' => 'Description',
     'button_import' => 'Import with AI',
     'need_name' => 'Enter the name first.',
+
+    'import_photo' => 'Or a photo of the menu', 'import_photo_cost' => 'A photo costs :count AI credits. Works with printed menus and screenshots.', 'import_pdf' => 'Or a PDF menu', 'import_pdf_hint' => 'PDFs with real text only. For a scanned PDF, take a photo of the page instead.',
+    'error_bad_file' => 'That file could not be read. Try a clear JPG, PNG or PDF.', 'error_pdf_no_text' => 'This PDF has no readable text (it is probably a scan). Use the photo import instead.',
+    'bulk_title' => 'Translate the whole menu', 'bulk_text' => 'Fills in every missing translation for dishes and categories, in the background. Languages you locked are never touched. Each item uses translation credits.', 'bulk_start' => 'Translate everything missing',
+    'bulk_running' => 'Translating…', 'bulk_done' => 'Done: :n texts translated.', 'bulk_stopped' => 'Stopped early (no credits left or the AI service is not available). What was done is kept.',
+    'draft_reply' => 'Draft a reply with AI', 'draft_note' => 'Read and edit the draft before you send it.', 'insights_title' => 'Ideas from your numbers', 'insights_button' => 'Get ideas', 'insights_note' => 'Written by an AI from the figures above. Treat them as suggestions.',
+    'assistant_name' => 'Menu assistant', 'assistant_ask' => 'Ask about the menu', 'assistant_placeholder' => 'Anything vegetarian? What goes with the burger?', 'assistant_send' => 'Send', 'assistant_hint' => 'Answers come from this menu only. Ask the staff to confirm allergies.', 'assistant_error' => 'The assistant is not available right now.',
 ];

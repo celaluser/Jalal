@@ -31,7 +31,7 @@ class Product extends Model
             'name' => 'array', 'description' => 'array', 'allergens' => 'array', 'dietary' => 'array',
             'price' => 'decimal:2', 'compare_price' => 'decimal:2',
             'is_active' => 'boolean', 'is_available' => 'boolean', 'is_featured' => 'boolean', 'is_combo' => 'boolean',
-            'cost_price' => 'decimal:2', 'gallery' => 'array', 'nutrition' => 'array', 'badges' => 'array', 'schedule' => 'array', 'order_types' => 'array', 'limited_until' => 'date',
+            'cost_price' => 'decimal:2', 'gallery' => 'array', 'nutrition' => 'array', 'badges' => 'array', 'schedule' => 'array', 'order_types' => 'array', 'locked_locales' => 'array', 'limited_until' => 'date',
         ];
     }
 

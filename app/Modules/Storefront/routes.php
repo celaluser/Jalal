@@ -2,6 +2,7 @@
 
 use App\Modules\Core\Http\Middleware\SetLocale;
 use App\Modules\Storefront\Http\Controllers\AccountController;
+use App\Modules\Storefront\Http\Controllers\AssistantController;
 use App\Modules\Storefront\Http\Controllers\PublicMenuController;
 use App\Modules\Storefront\Http\Controllers\PwaController;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenant;
@@ -15,6 +16,7 @@ $pwa = function () {
     Route::get('manifest.webmanifest', [PwaController::class, 'manifest'])->name('pwa.manifest');
     Route::get('pwa-icon-{size}.png', [PwaController::class, 'icon'])->whereNumber('size')->name('pwa.icon');
     Route::get('sw.js', [PwaController::class, 'worker'])->name('pwa.worker');
+    Route::post('assistant', [AssistantController::class, 'ask'])->middleware('throttle:10,1')->name('assistant');
 
     // Optional guest account (e-mail sign-in link, no password).
     Route::get('account', [AccountController::class, 'show'])->name('account');

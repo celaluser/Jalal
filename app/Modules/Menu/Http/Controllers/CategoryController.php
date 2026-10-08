@@ -78,6 +78,7 @@ class CategoryController extends Controller
             'image' => ['nullable', 'image', 'max:4096'],
             'icon' => ['nullable', 'string', 'max:16'],
             'schedule' => ['nullable', 'array'],
+            'locked_locales' => ['nullable', 'array'], 'locked_locales.*' => ['string', 'in:'.implode(',', $locales)],
         ]);
 
         return ['fields' => [
@@ -85,6 +86,7 @@ class CategoryController extends Controller
             'description' => Category::cleanTranslations($request->input('description', []), $locales) ?: null,
             'icon' => $request->filled('icon') ? mb_substr(trim($request->input('icon')), 0, 16) : null,
             'schedule' => Schedule::fromInput($request->input('schedule')),
+            'locked_locales' => array_values(array_intersect($locales, (array) $request->input('locked_locales', []))) ?: null,
             'is_active' => $request->boolean('is_active'),
         ]];
     }

@@ -3,6 +3,7 @@
 namespace App\Modules\Storefront\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Ai\Services\AiManager;
 use App\Modules\Billing\Services\LimitGuard;
 use App\Modules\Branches\Services\BranchMenu;
 use App\Modules\Branches\Services\GuestBranch;
@@ -93,6 +94,7 @@ class PublicMenuController extends Controller
             'ordering' => $this->ordering($restaurant, $table, $request),
             'rating' => $this->rating($restaurant),
             'reserveUrl' => app(ReservationSettings::class)->active($restaurant) ? rtrim($request->getPathInfo(), '/').'/reserve' : null,
+            'assistantUrl' => app(MarketingSettings::class)->get($restaurant, 'ai_assistant') && app(AiManager::class)->configured() && ! $request->boolean('kiosk') ? rtrim($request->getPathInfo(), '/').'/assistant' : null,
             'banners' => $this->banners($restaurant, $locale),
             'account' => ($c = AccountController::current($request, $restaurant->id)) ? ['name' => $c->name, 'phone' => $c->phone, 'email' => $c->email] : null,
             'currencies' => $this->currencies($restaurant),

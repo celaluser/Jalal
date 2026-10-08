@@ -16,7 +16,7 @@ use App\Modules\Tenancy\Models\Restaurant;
  */
 class AiCredits
 {
-    public const TASKS = ['menu_import' => 10, 'description' => 1, 'translation' => 2, 'allergens' => 1, 'review_reply' => 1, 'insights' => 5];
+    public const TASKS = ['menu_import' => 10, 'description' => 1, 'translation' => 2, 'allergens' => 1, 'review_reply' => 1, 'insights' => 5, 'photo_import' => 15, 'assistant' => 1];
 
     public function __construct(private readonly LimitGuard $limits, private readonly SettingsService $settings) {}
 

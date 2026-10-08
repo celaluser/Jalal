@@ -132,7 +132,10 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Menu import from pasted text with an editable preview, plan limits applied to the whole batch
 - ✅ Monthly credits from the plan, per-task cost set by the admin, charged only for usable answers; prompt-injection safe handling
 - 🟡 Providers tested with simulated responses only, not against live APIs
-- ⬜ Photo-to-menu (OCR), dish image generation, customer-facing AI assistant, review replies and sales insights (costs already configurable, features come with Phases 10 and 11)
+- ✅ Menu import from a photo (the model reads the picture; OpenAI, Anthropic and Gemini formats) and from text PDFs (read on the server; scanned PDFs are pointed to the photo import)
+- ✅ Review reply drafts and sales tips (always for a person to read and edit; nothing is sent by itself), translate-the-whole-menu in the background that only fills empty fields, skips languages you locked and stops when credits run out
+- ✅ Menu assistant on the guest menu (opt-in, answers only from the dishes on the menu right now, one credit per answer, capped per visitor); "guests also order…" suggestions computed from real orders (no AI)
+- 🟡 Vision and chat were tested against simulated provider responses only. No dish-image generation or photo enhancement: not built
 
 ## 11. Design and quality
 - ✅ One design system (ink / saffron / basil, QR-module identity), light and dark, right-to-left, mobile layouts, admin-chosen palette with contrast guards

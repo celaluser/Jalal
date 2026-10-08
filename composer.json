@@ -20,6 +20,7 @@
         "livewire/livewire": "^3.6",
         "minishlink/web-push": "^11.0",
         "pragmarx/google2fa": "*",
+        "smalot/pdfparser": "^2.12",
         "spatie/laravel-permission": "*"
     },
     "require-dev": {
