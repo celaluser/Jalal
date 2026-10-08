@@ -66,4 +66,6 @@ return [
     'account_deleted' => 'تم حذف بياناتك.',
     'account_link' => 'حسابي',
     'happy_hour' => 'ساعة السعادة: :name، خصم :percent% حتى :until',
+    'about_menu' => 'شاهد القائمة واطلب', 'about_call' => 'اتصل', 'about_directions' => 'الاتجاهات', 'about_us' => 'من نحن', 'about_hours' => 'ساعات العمل', 'about_contact' => 'تجدنا في', 'about_follow' => 'تابعنا', 'about_website' => 'الموقع',
+    'about_day_0' => 'الاثنين', 'about_day_1' => 'الثلاثاء', 'about_day_2' => 'الأربعاء', 'about_day_3' => 'الخميس', 'about_day_4' => 'الجمعة', 'about_day_5' => 'السبت', 'about_day_6' => 'الأحد',
 ];

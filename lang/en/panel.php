@@ -16,6 +16,7 @@ return [
         'campaigns' => 'Campaigns',
         'pricing' => 'Happy hour',
         'gifts' => 'Gift cards',
+        'site' => 'Website & SEO',
         'loyalty' => 'Loyalty & reviews',
         'support' => 'Support',
         'group_menu' => 'Menu',

@@ -3,6 +3,7 @@
 namespace App\Modules\Storefront\Providers;
 
 use App\Modules\Core\Mail\EmailTemplateRegistry;
+use App\Modules\Core\Support\RestaurantNav;
 use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\Option;
 use App\Modules\Menu\Models\OptionGroup;
@@ -21,6 +22,8 @@ class StorefrontServiceProvider extends ServiceProvider
             'body' => "Hi {{name}},\n\nUse this link to see your orders at **{{restaurant}}**. It works for {{minutes}} minutes.\n\n[Sign in]({{login_url}})\n\nIf you did not ask for this, ignore this e-mail.",
         ]);
 
+        $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
+        RestaurantNav::add('marketing', 'panel.nav.site', 'site.edit', 'site.*', icon: 'globe', can: 'marketing.manage');
         $this->loadViewsFrom(__DIR__.'/../Resources/views', 'storefront');
         $this->loadRoutesFrom(__DIR__.'/../routes.php');
 

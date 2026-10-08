@@ -5,6 +5,8 @@ use App\Modules\Storefront\Http\Controllers\AccountController;
 use App\Modules\Storefront\Http\Controllers\AssistantController;
 use App\Modules\Storefront\Http\Controllers\PublicMenuController;
 use App\Modules\Storefront\Http\Controllers\PwaController;
+use App\Modules\Storefront\Http\Controllers\SiteController;
+use App\Modules\Storefront\Http\Controllers\SiteSettingsController;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenant;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +18,8 @@ $pwa = function () {
     Route::get('manifest.webmanifest', [PwaController::class, 'manifest'])->name('pwa.manifest');
     Route::get('pwa-icon-{size}.png', [PwaController::class, 'icon'])->whereNumber('size')->name('pwa.icon');
     Route::get('sw.js', [PwaController::class, 'worker'])->name('pwa.worker');
+    Route::get('about', [SiteController::class, 'about'])->name('about');
+    Route::get('sitemap.xml', [SiteController::class, 'sitemap'])->name('sitemap');
     Route::post('assistant', [AssistantController::class, 'ask'])->middleware('throttle:10,1')->name('assistant');
 
     // Optional guest account (e-mail sign-in link, no password).
@@ -39,4 +43,9 @@ Route::middleware(['web', SetLocale::class, ResolveTenant::class])->name('storef
     Route::get('t/{token}', [PublicMenuController::class, 'table'])->where('token', '[a-z0-9]{6,32}')->name('table');
     Route::post('cart/quote', [PublicMenuController::class, 'quote'])->middleware('throttle:60,1')->name('quote');
     $pwa();
+});
+
+Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', 'permission:marketing.manage'])->group(function () {
+    Route::get('website', [SiteSettingsController::class, 'edit'])->name('site.edit');
+    Route::put('website', [SiteSettingsController::class, 'update'])->name('site.update');
 });

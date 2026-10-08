@@ -37,9 +37,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $restaurant->name }}</title>
+    <title>{{ $title }}</title>
     <meta name="description" content="{{ $description }}">
-    <meta property="og:title" content="{{ $restaurant->name }}">
+    <meta property="og:title" content="{{ $title }}">
     <meta property="og:description" content="{{ $description }}">
     @if ($ogImage)<meta property="og:image" content="{{ $ogImage }}">@endif
     <meta name="theme-color" content="{{ $restaurant->brandColor() }}">
@@ -48,7 +48,13 @@
         <link rel="apple-touch-icon" href="{{ $base }}/pwa-icon-192.png">
         <meta name="mobile-web-app-capable" content="yes">
     @endunless
-    @if ($noindex)<meta name="robots" content="noindex">@endif
+    @if ($noindex || ! $indexable)<meta name="robots" content="noindex">@else
+        {{-- Search engines: one canonical address, the other languages, and structured restaurant data. --}}
+        <link rel="canonical" href="{{ $restaurant->publicUrl() }}">
+        @foreach ($restaurant->menuLocales() as $code)<link rel="alternate" hreflang="{{ $code }}" href="{{ $restaurant->publicUrl() }}?lang={{ $code }}">@endforeach
+        <meta property="og:type" content="restaurant.restaurant">
+        <script type="application/ld+json">{!! json_encode($jsonLd, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) !!}</script>
+    @endif
     <style>{!! $themeCss !!}</style>
     <style>
         html[data-menu-large]{font-size:125%}
@@ -89,6 +95,7 @@
                         @if ($table)<p class="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-black/15 px-2.5 py-0.5 text-sm font-semibold"><x-ui.icon name="qr" size="4" />{{ table_label($table['name']) }}</p>
                         @elseif ($restaurant->city)<p class="truncate text-sm opacity-80">{{ $restaurant->city }}</p>@endif
                         @if ($rating)<p class="mt-1 inline-flex items-center gap-1 text-sm font-semibold" aria-label="{{ trans_choice('marketing.review_count', $rating['count'], ['count' => $rating['count']]) }}, {{ number_format($rating['average'], 1) }}"><svg class="size-4 fill-current" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><span class="tnum">{{ number_format($rating['average'], 1) }}</span><span class="font-normal opacity-80">({{ $rating['count'] }})</span></p>@endif
+                        @if ($aboutUrl && ! $kiosk)<p class="mt-1 text-sm"><a class="underline" href="{{ $aboutUrl }}">{{ __('customer.about_us') }}</a></p>@endif
                     </div>
                 </div>
                 @if ($currencies)

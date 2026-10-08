@@ -138,6 +138,14 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ **Link-in-bio page** (`/links`), **printable A5 flyer** with the menu QR, **website button** script (`/widget.js`) and iframe snippet, **promo templates** (welcome, weekend, big order, flash sale).
 - 🔴 Not built: birthday campaigns (no birthday field), segment builder with free rules, A/B testing, automatic send-time optimisation.
 
+## 9j. Mini website and SEO (v2 gap work)
+
+- ✅ Public **About page** (`/about`, optional): story, opening hours, address, phone, call/directions buttons, social links, rating; per-language texts
+- ✅ **Search engines**: per-language title and description, canonical link, `hreflang` alternates, schema.org `Restaurant` data (address, phone, cuisine, price range, opening hours, rating) on the menu and About page, Open Graph tags
+- ✅ Per-restaurant **`sitemap.xml`** (menu + About, every language, never table or order pages); one switch turns indexing off (`noindex`, empty sitemap)
+- 🟡 `robots.txt` and `sitemap.xml` are served per restaurant only under `/r/{slug}/`; a restaurant's own domain root is handled by the landing route, so a domain-level `robots.txt` is not generated
+- 🔴 Not built: page builder, blog, photo gallery, online table-booking widget on the About page
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)

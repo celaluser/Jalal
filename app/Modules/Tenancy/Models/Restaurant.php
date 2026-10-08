@@ -34,6 +34,7 @@ class Restaurant extends Model
             'menu_locales' => 'array',
             'order_settings' => 'array',
             'marketing_settings' => 'array',
+            'site_settings' => 'array',
             'suspended_at' => 'datetime',
         ];
     }

@@ -29,6 +29,7 @@ use App\Modules\Reservations\Services\ReservationSettings;
 use App\Modules\Storefront\Services\CartPricing;
 use App\Modules\Storefront\Services\MenuCache;
 use App\Modules\Storefront\Services\MenuLocale;
+use App\Modules\Storefront\Services\SiteSettings;
 use App\Modules\Tables\Models\DiningTable;
 use App\Modules\Tables\Services\TableService;
 use App\Modules\Tenancy\Models\Restaurant;
@@ -86,7 +87,11 @@ class PublicMenuController extends Controller
             'base' => rtrim($request->getPathInfo(), '/'),
             'allergens' => config('menu.allergens'),
             'dietary' => config('menu.dietary'),
-            'description' => __('customer.meta_description', ['name' => $restaurant->name]),
+            'description' => app(SiteSettings::class)->text($restaurant, 'seo_description', $locale) ?: __('customer.meta_description', ['name' => $restaurant->name]),
+            'title' => app(SiteSettings::class)->text($restaurant, 'seo_title', $locale) ?: $restaurant->name,
+            'jsonLd' => app(SiteSettings::class)->jsonLd($restaurant, $locale, $restaurant->logo?->url(), $this->rating($restaurant)),
+            'indexable' => app(SiteSettings::class)->for($restaurant)['indexable'],
+            'aboutUrl' => app(SiteSettings::class)->for($restaurant)['site_enabled'] ? $restaurant->publicUrl('about') : null,
             // A table link is personal to that table's guests: keep it out of search results.
             'noindex' => $table !== null || $request->boolean('kiosk'),
             // Self-order kiosk: a screen in the restaurant where guests order for themselves (?kiosk=1).
