@@ -5,7 +5,8 @@
 | White page / 500 error | Set `APP_DEBUG=true` briefly, or read `storage/logs/laravel.log` (Admin → Logs). Check `storage/` and `bootstrap/cache/` are writable. |
 | Redirected to `/install` again | `storage/app/installed` is missing (not writable at install time, or deleted). |
 | E-mails do not arrive | Admin → Settings → Mail; use "send test". Check spam. With the database queue, the cron/queue worker must run. |
-| "Scheduler / queue: never" on System status | The cron job (`schedule:run` every minute) or the queue worker is not running. See `INSTALLATION.md`. |
+| "Scheduler / queue: never" on System status | No cron job or worker is running. Easiest fix without a terminal: call the secret `/cron/...` address shown on that page once a minute, or set the fallback mode to "Always". See `INSTALLATION.md`. |
+| Uploaded images are broken | Admin → System status → *Fix uploaded images*. If the host forbids symlinks the script serves `/storage/...` itself; make sure `storage/app/public` is writable. |
 | New orders do not make a sound | Browsers block sound until the page has been clicked once. Click anywhere on the Orders page. |
 | QR code opens a "not found" page | The restaurant slug changed or the table was deleted; download the QR code again. |
 | Subdomain / custom domain does not work | Needs wildcard DNS or a DNS record per domain, a certificate, and `TENANCY_*` settings. `/r/slug` always works. |

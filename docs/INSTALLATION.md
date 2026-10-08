@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- PHP 8.2 or newer with these extensions: ctype, curl, dom, fileinfo, gd (with WebP), intl, json, mbstring, openssl, pdo, tokenizer, xml, zip (and sodium for signed updates)
+- PHP 8.2 or newer (tested on 8.2 compatible dependency versions; 8.3 and 8.4 also work) with these extensions: ctype, curl, dom, fileinfo, gd (with WebP), intl, json, mbstring, openssl, pdo, tokenizer, xml, zip (and sodium for signed updates)
 - MySQL 5.7+ / MariaDB 10.3+, or SQLite for small sites and trials
 - Apache or Nginx pointing at the `public/` folder
 - A cron job (every minute) so scheduled tasks run, and a queue worker (or the cron fallback below) for e-mails, webhooks and background jobs
@@ -16,7 +16,9 @@ No Node.js or Composer is needed on the server: `vendor/` and the compiled asset
    If you cannot change the document root, extract into a folder and ask your host to point the domain to its `public` subfolder.
 2. Create an empty MySQL database and user (or choose SQLite in the installer).
 3. Open `https://your-domain/install` and follow the steps: requirements check, licence, database, administrator account.
-4. Add the cron job (cPanel → Cron Jobs, every minute):
+4. Add the cron job (cPanel → Cron Jobs, every minute). **No terminal or `php` path? Use the web address instead**: the last installer page (and *Admin → System status*) shows `https://your-domain/cron/<secret>`; call it every minute with `wget -q -O /dev/null <address>` or any free cron service. It runs the scheduler and the queue inside the web request. With neither a cron job nor the web address, the script falls back to doing the work after visitors' page loads (Admin → System status → fallback mode).
+
+   Classic cron line:
 
    ```
    * * * * * /usr/local/bin/php /home/USER/qrmenu/artisan schedule:run >> /dev/null 2>&1
@@ -46,6 +48,10 @@ sudo apt install nginx php8.3-fpm php8.3-{mysql,mbstring,xml,curl,gd,intl,zip} m
 - File permissions: the web user must write `storage/` and `bootstrap/cache/`.
 - Supervisor program for `php artisan queue:work`, and the one-minute cron for `schedule:run`.
 - Subdomains per restaurant (`pizza.example.com`) need wildcard DNS and a wildcard certificate; set `TENANCY_BASE_DOMAIN` and `TENANCY_SUBDOMAINS=true` in `.env`. Restaurants' own domains need each domain pointed at the server (see the Domains page in the restaurant panel). The address `https://your-domain/r/restaurant-slug` always works without any DNS work.
+
+## Running everything from the browser
+
+You never need a terminal: the installer creates the database and the storage link, **Admin → System status** has buttons for *Update database*, *Speed up*, *Fix uploaded images*, *Run scheduled tasks now*, *Process waiting jobs now*, *Retry/Delete failed jobs* and *Back up database now*, and **Admin → Updates** applies updates. If your host forbids symlinks, uploaded images are served by the script itself.
 
 ## After installing
 

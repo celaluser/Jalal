@@ -320,6 +320,13 @@ return [
         'queue_help' => 'Start a worker, or run: php artisan queue:work --stop-when-empty every minute.',
         'maintenance' => 'Maintenance', 'maintenance_help' => 'Clearing caches is safe; the next request rebuilds them.',
         'clear_cache' => 'Application cache', 'clear_views' => 'Compiled views', 'clear_config' => 'Config cache', 'clear_routes' => 'Route cache', 'clear_all' => 'Clear everything',
+        'webcron' => 'Run without a terminal', 'webcron_help' => 'No cron job or SSH? Point any cron service (cPanel, cron-job.org, an uptime monitor) at this address once a minute. It runs the scheduler and the queue. Keep the address secret.',
+        'webcron_example' => 'cPanel cron entry:', 'webcron_mode' => 'Fallback when no cron is running', 'webcron_auto' => 'Automatic: visitors trigger it only if no cron was seen', 'webcron_always' => 'Always: visitors trigger it once a minute', 'webcron_off' => 'Off',
+        'webcron_regen' => 'Create a new secret address', 'webcron_regen_confirm' => 'The old address stops working. Update your cron job afterwards.',
+        'tools' => 'Server tools', 'tools_help' => 'What you would otherwise type in a terminal. Safe to repeat.', 'tool_done' => 'Done.', 'tool_failed' => 'Failed: :error', 'busy' => 'Another run is in progress.',
+        'tool_confirm' => 'Delete all failed jobs for good?',
+        'tool_migrate' => 'Update database', 'tool_optimize' => 'Speed up (cache config & routes)', 'tool_storage_link' => 'Fix uploaded images (storage link)', 'tool_retry_failed' => 'Retry failed jobs', 'tool_flush_failed' => 'Delete failed jobs',
+        'tool_backup' => 'Back up database now', 'tool_scheduler' => 'Run scheduled tasks now', 'tool_queue' => 'Process waiting jobs now',
         'cleared' => 'Cleared.', 'clear_failed' => 'Could not clear. Check file permissions on storage/ and bootstrap/cache.',
         'env' => [
             'app_version' => 'Script version', 'laravel' => 'Laravel', 'php' => 'PHP', 'environment' => 'Mode', 'debug' => 'Debug', 'url' => 'URL', 'timezone' => 'Timezone',

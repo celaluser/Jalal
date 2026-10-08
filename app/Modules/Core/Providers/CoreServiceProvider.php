@@ -33,6 +33,7 @@ class CoreServiceProvider extends ServiceProvider
         $router->aliasMiddleware('role_or_permission', RoleOrPermissionMiddleware::class);
 
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
+        $this->loadRoutesFrom(__DIR__.'/../routes.php');
         $this->loadViewsFrom(__DIR__.'/../Resources/views', 'core');
 
         // Through the kernel: it re-syncs its groups to the router, which would drop a router-level push.

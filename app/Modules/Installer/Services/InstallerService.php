@@ -41,6 +41,12 @@ class InstallerService
             Artisan::call('migrate', ['--force' => true]);
             Artisan::call('db:seed', ['--force' => true]);
 
+            // Uploaded images need public/storage. Hosts that forbid symlinks fall back to a built-in route.
+            try {
+                Artisan::call('storage:link');
+            } catch (Throwable) {
+            }
+
             $admin = User::create([
                 'name' => $data['admin']['name'],
                 'email' => $data['admin']['email'],

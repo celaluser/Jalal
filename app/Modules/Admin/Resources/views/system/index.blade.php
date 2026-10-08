@@ -55,6 +55,34 @@
         </div>
     </div>
 
+    @if (session('tool_output'))<pre class="mt-6 overflow-x-auto rounded-lg bg-surface-2 p-3 text-xs" dir="ltr">{{ session('tool_output') }}</pre>@endif
+    @error('system')<x-ui.alert type="danger" class="mt-6">{{ $message }}</x-ui.alert>@enderror
+
+    {{-- No terminal, no cron? Everything below works from the browser. --}}
+    <section class="card card-pad mt-6">
+        <h2 class="display text-lg font-semibold">{{ __('admin.system.webcron') }}</h2>
+        <p class="mt-1 text-sm text-muted">{{ __('admin.system.webcron_help') }}</p>
+        <div class="mt-4 flex flex-wrap items-center gap-2"><code class="min-w-0 flex-1 break-all rounded-lg bg-surface-2 p-2.5 text-sm" dir="ltr">{{ $cronUrl }}</code></div>
+        <p class="mt-2 text-xs text-muted">{{ __('admin.system.webcron_example') }} <code dir="ltr">* * * * * wget -q -O /dev/null {{ $cronUrl }}</code></p>
+        <form method="POST" action="{{ route('admin.system.cron') }}" class="mt-4 flex flex-wrap items-end gap-3">@csrf @method('PUT')
+            <div><label for="mode" class="mb-1.5 block text-sm font-medium">{{ __('admin.system.webcron_mode') }}</label>
+                <select id="mode" name="mode" class="field">@foreach (['auto', 'always', 'off'] as $m)<option value="{{ $m }}" @selected($cronMode === $m)>{{ __('admin.system.webcron_'.$m) }}</option>@endforeach</select></div>
+            <button class="btn btn-secondary btn-sm">{{ __('admin.save') }}</button>
+        </form>
+        <form method="POST" action="{{ route('admin.system.cron') }}" class="mt-3" onsubmit="return confirm('{{ __('admin.system.webcron_regen_confirm') }}')">@csrf @method('PUT')<input type="hidden" name="regenerate" value="1"><button class="btn btn-ghost btn-sm">{{ __('admin.system.webcron_regen') }}</button></form>
+    </section>
+
+    <section class="card card-pad mt-6">
+        <h2 class="display text-lg font-semibold">{{ __('admin.system.tools') }}</h2>
+        <p class="mt-1 text-sm text-muted">{{ __('admin.system.tools_help') }}</p>
+        <div class="mt-4 flex flex-wrap gap-2">
+            @foreach ($tools as $tool)
+                <form method="POST" action="{{ route('admin.system.tool', $tool) }}" @if (in_array($tool, ['flush_failed'])) onsubmit="return confirm('{{ __('admin.system.tool_confirm') }}')" @endif>@csrf
+                    <button class="btn btn-secondary btn-sm"><x-ui.icon name="refresh" size="4" />{{ __('admin.system.tool_'.$tool) }}</button></form>
+            @endforeach
+        </div>
+    </section>
+
     <section class="card card-pad mt-6">
         <h2 class="display text-lg font-semibold">{{ __('admin.system.maintenance') }}</h2>
         <p class="mt-1 text-sm text-muted">{{ __('admin.system.maintenance_help') }}</p>

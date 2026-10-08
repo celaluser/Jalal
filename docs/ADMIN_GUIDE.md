@@ -28,6 +28,7 @@ Landing page sections, blog posts and free pages are edited under **Website**. L
 
 ## Maintenance
 
+- **System status → Run without a terminal**: the secret cron address, the fallback mode and one-click server tools (update database, speed up, fix images, run scheduler/queue now, retry/delete failed jobs, back up).
 - **Backups**: a database backup runs nightly (newest 7 kept); download or run one by hand.
 - **Updates**: upload a signed zip (see `UPDATING.md`). A backup of the files it changes is taken first.
 - **Add-ons**: install signed add-ons (see `ADDONS.md`).

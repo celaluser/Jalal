@@ -33,7 +33,7 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            'serve' => false, // the app never needs Laravel's signed-URL file route; it would shadow the /storage fallback
             'throw' => false,
             'report' => false,
         ],

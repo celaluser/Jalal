@@ -20,6 +20,7 @@ use App\Modules\Admin\Http\Controllers\PlanController;
 use App\Modules\Admin\Http\Controllers\RestaurantController;
 use App\Modules\Admin\Http\Controllers\SettingsController;
 use App\Modules\Admin\Http\Controllers\SubscriptionController;
+use App\Modules\Admin\Http\Controllers\CronController;
 use App\Modules\Admin\Http\Controllers\SystemController;
 use App\Modules\Admin\Http\Controllers\TicketController;
 use App\Modules\Admin\Http\Controllers\TranslationController;
@@ -57,6 +58,8 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
         Route::post('invoices/{invoice}/void', [InvoiceController::class, 'void'])->name('invoices.void');
 
         Route::get('system', [SystemController::class, 'index'])->name('system.index');
+        Route::post('system/tool/{tool}', [SystemController::class, 'tool'])->middleware('throttle:20,1')->name('system.tool');
+        Route::put('system/cron', [SystemController::class, 'cron'])->name('system.cron');
         Route::post('system/clear/{action}', [SystemController::class, 'clear'])->name('system.clear');
         Route::get('system/logs', [LogController::class, 'index'])->name('system.logs');
         Route::delete('system/logs', [LogController::class, 'clear'])->name('system.logs.clear');
@@ -112,3 +115,6 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
         Route::get('settings/payments', [PaymentSettingsController::class, 'edit'])->name('settings.payments');
         Route::put('settings/payments/{gateway}', [PaymentSettingsController::class, 'update'])->name('settings.payments.update');
     });
+
+// External cron services call this every minute (the secret is in the address; a wrong one answers 404).
+Route::get('cron/{token}', CronController::class)->middleware('throttle:30,1')->name('cron.run');

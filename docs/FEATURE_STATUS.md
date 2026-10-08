@@ -187,6 +187,15 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - 🟡 Guides were written from the code and tests, not from screenshots; no video tutorials, no screenshots in the manual
 - 🔴 Not done: the actual marketplace submission package/screenshots/preview images, legal review of licences, a real Envato licence check against the live API (code exists, never run against Envato)
 
+## 9p. PHP 8.2 and running without a terminal (v2 gap work)
+
+- ✅ **PHP 8.2**: `config.platform.php` is pinned to 8.2.0 so Composer only picks 8.2-compatible packages (Intervention Image 3, Spatie Permission 6, Pint 1.30 instead of the 8.3-only majors); the code uses no 8.3+ syntax. Verified by dependency resolution and a code search; the test suite itself ran on PHP 8.3.6 only (no 8.2 binary here)
+- ✅ **Web cron**: secret address `/cron/<token>` runs due scheduled tasks **in-process** (no `php artisan` sub-process, which fails under FastCGI or with `exec` disabled) and the queue for up to 45 s; one run at a time
+- ✅ **Fallback without any cron**: after a visitor's page is sent, runs the same once a minute (modes: automatic when no cron was seen, always, off)
+- ✅ **Admin "server tools"**: update database, optimise, storage link, retry/flush failed jobs, back up now, run scheduler/queue now, cache clears; fixed allowlist
+- ✅ Installer creates the storage link; if symlinks are forbidden, uploads are served by a built-in `/storage/...` route (images and PDFs only)
+- 🟡 The visitor-driven fallback does its work after the response only on PHP-FPM/FastCGI; on mod_php the visitor waits a moment. A real cron or the web address is still better
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)

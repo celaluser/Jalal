@@ -7,7 +7,6 @@ use App\Modules\Core\Tenancy\TenantContext;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Intervention\Image\Format;
 use Intervention\Image\Laravel\Facades\Image;
 use InvalidArgumentException;
 
@@ -51,19 +50,19 @@ class FileUploader
         $hasThumb = false;
 
         if ($isImage) {
-            $image = Image::decodePath($file->getRealPath());
+            $image = Image::read($file->getRealPath());
             $image->scaleDown(width: $maxDimension, height: $maxDimension);
             $width = $image->width();
             $height = $image->height();
 
             $path = $folder.'/'.Str::uuid().'.webp';
-            $contents = (string) $image->encodeUsingFormat(Format::WEBP, quality: (int) $this->settings->get('storage.image_quality', 82));
+            $contents = (string) $image->toWebp(quality: (int) $this->settings->get('storage.image_quality', 82));
             Storage::disk($disk)->put($path, $contents, 'public');
 
             // Lists and cards load a small copy; the full image is for the detail view.
             if ($image->width() > Media::THUMB_SIZE || $image->height() > Media::THUMB_SIZE) {
-                $thumb = Image::decodePath($file->getRealPath())->scaleDown(width: Media::THUMB_SIZE, height: Media::THUMB_SIZE);
-                Storage::disk($disk)->put(Media::thumbPath($path), (string) $thumb->encodeUsingFormat(Format::WEBP, quality: 78), 'public');
+                $thumb = Image::read($file->getRealPath())->scaleDown(width: Media::THUMB_SIZE, height: Media::THUMB_SIZE);
+                Storage::disk($disk)->put(Media::thumbPath($path), (string) $thumb->toWebp(quality: 78), 'public');
                 $hasThumb = true;
             }
 

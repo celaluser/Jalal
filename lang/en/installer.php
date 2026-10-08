@@ -39,4 +39,5 @@ return [
     'finished' => 'Installation complete',
     'finished_help' => 'Your platform is ready. Sign in with the admin account you just created. For security the installer is now disabled.',
     'go_to_login' => 'Go to login',
+    'cron_title' => 'One last thing: background jobs', 'cron_help' => 'Call this address once a minute from your hosting\'s cron (or a free cron service) so e-mails, reminders and renewals run. No terminal needed. You can find it again under Admin → System status.',
 ];

@@ -139,7 +139,7 @@ class InstallController extends Controller
 
     public function finished(): View
     {
-        return view('installer::finished', ['step' => 5]);
+        return view('installer::finished', ['step' => 5, 'cronUrl' => url('/cron/'.app(\App\Modules\Admin\Services\WebCron::class)->token())]);
     }
 
     /** SQLite files must live inside the project's database folder. */
