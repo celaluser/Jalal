@@ -19,6 +19,7 @@ class OrdersServiceProvider extends ServiceProvider
 
         RestaurantNav::add('orders', 'panel.nav.orders', 'orders.board', 'orders.board|orders.show', icon: 'bell', can: 'orders.view');
         RestaurantNav::add('orders', 'panel.nav.new_order', 'orders.pos.index', icon: 'plus', can: 'orders.create');
+        RestaurantNav::add('settings', 'panel.nav.online_payments', 'payments.settings', 'payments.settings*', icon: 'credit-card', can: 'payments.manage');
         RestaurantNav::add('settings', 'panel.nav.ordering', 'orders.settings', icon: 'sliders', can: 'settings.manage');
 
         Event::subscribe(SendOrderEmails::class);
@@ -41,6 +42,11 @@ class OrdersServiceProvider extends ServiceProvider
             'label' => 'Order ready (guest)', 'required' => false, 'variables' => $vars, 'sample' => $sample,
             'subject' => 'Your order {{number}} is ready · {{restaurant}}',
             'body' => "Hi {{name}},\n\nGood news: your order **{{number}}** at **{{restaurant}}** is ready.\n\n[Open your order]({{status_url}})",
+        ]);
+        EmailTemplateRegistry::register('order_receipt', [
+            'label' => 'Receipt (guest)', 'required' => false, 'variables' => $vars, 'sample' => $sample,
+            'subject' => 'Your receipt {{number}} · {{restaurant}}',
+            'body' => "Hi {{name}},\n\nThank you for visiting **{{restaurant}}**. Your receipt for order **{{number}}** ({{total}}) is attached.\n\n[See it online]({{status_url}})",
         ]);
         EmailTemplateRegistry::register('order_cancelled', [
             'label' => 'Order cancelled (guest)', 'required' => false, 'variables' => $vars, 'sample' => $sample,

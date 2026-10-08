@@ -103,6 +103,15 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Guest notifications when the order is ready / on the way: browser push (own VAPID keys, made on first use), SMS and WhatsApp through the messaging providers
 - 🟡 Browser push, SMS and WhatsApp were tested against fakes only (no real push service or provider account)
 
+## 9f. Payments (v2 gap work)
+- ✅ Guests pay from their phone: whole bill, equal share (split), any amount (partial), or the whole table's tab in one go, with tip presets or a custom tip
+- ✅ Restaurants connect their OWN gateway accounts (Stripe, PayPal, Mollie, iyzico, Razorpay, Paystack, Flutterwave, Mercado Pago, Midtrans); money goes straight to them. Plan feature `online_payments` gates it; the platform admin picks the allowed gateways
+- ✅ Platform commission on online payments (bill amount, not tips), added as a line to the restaurant's next subscription invoice in the invoice currency
+- ✅ Payment ledger: cash/card/online part payments, tips, refunds (Stripe through its API; others recorded and refunded in the provider's dashboard), orders re-open when a refund leaves them unpaid
+- ✅ Digital receipt page + PDF with QR code (also on the staff ticket), e-mailed with the PDF when the bill is settled; "write a public review" invitation for happy guests with the owner's own link
+- ✅ Apple Pay / Google Pay: shown by the hosted checkout pages when the owner has them on in their gateway account (nothing to configure here)
+- 🟡 Gateway checkouts, webhooks and refunds are tested against simulated responses (signature checks included), not against live gateway accounts. Refunds through the API exist for Stripe only. Commission in a currency other than the plan's stays unbilled
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)

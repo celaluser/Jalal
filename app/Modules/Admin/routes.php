@@ -8,6 +8,7 @@ use App\Modules\Admin\Http\Controllers\CouponController;
 use App\Modules\Admin\Http\Controllers\CurrencyController;
 use App\Modules\Admin\Http\Controllers\DashboardController;
 use App\Modules\Admin\Http\Controllers\EmailTemplateController;
+use App\Modules\Admin\Http\Controllers\GuestPaymentsController;
 use App\Modules\Admin\Http\Controllers\ImpersonationController;
 use App\Modules\Admin\Http\Controllers\InvoiceController;
 use App\Modules\Admin\Http\Controllers\LandingPageController;
@@ -106,6 +107,8 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
         Route::post('email-templates/{key}/preview', [EmailTemplateController::class, 'preview'])->name('email-templates.preview');
         Route::post('email-templates/{key}/test', [EmailTemplateController::class, 'test'])->middleware('throttle:5,1')->name('email-templates.test');
 
+        Route::get('settings/guest-payments', [GuestPaymentsController::class, 'edit'])->name('settings.guest-payments');
+        Route::put('settings/guest-payments', [GuestPaymentsController::class, 'update'])->name('settings.guest-payments.update');
         Route::get('settings/payments', [PaymentSettingsController::class, 'edit'])->name('settings.payments');
         Route::put('settings/payments/{gateway}', [PaymentSettingsController::class, 'update'])->name('settings.payments.update');
     });

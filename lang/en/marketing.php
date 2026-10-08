@@ -72,4 +72,6 @@ return [
     'banners_empty' => 'No banners yet', 'banners_empty_text' => 'Add a banner to tell guests about an offer, a new dish or opening hours.', 'banner_saved' => 'Banner saved.', 'banner_deleted' => 'Banner deleted.',
     'banner_title' => 'Headline', 'banner_text' => 'Short text', 'banner_link' => 'Link', 'banner_link_hint' => 'An https:// address, or #cat-12 to jump to a menu section. Optional.', 'banner_button' => 'Button text',
     'banner_starts' => 'Show from', 'banner_ends' => 'Show until', 'banner_popup' => 'Show as a pop-up (once per visit) instead of a banner', 'popup' => 'Pop-up', 'status_off' => 'Off',
+
+    'review_url' => 'Public review link', 'review_url_hint' => 'For example your Google reviews link. Happy guests are invited to share their rating there.', 'review_min' => 'Offer it from (stars)', 'review_public_invite' => 'Glad you liked it! Would you share that on Google too?', 'review_public_button' => 'Write a public review',
 ];

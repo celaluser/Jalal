@@ -622,14 +622,14 @@
                     </div>
                     <fieldset x-show="ord.payments.length > 0">
                         <legend class="mb-1.5 text-sm font-semibold">{{ __('orders.pay_how') }}</legend>
-                        <div class="flex gap-2">
-                            @foreach (['cash', 'card'] as $m)
+                        <div class="flex flex-wrap gap-2">
+                            @foreach (['cash', 'card', 'online'] as $m)
                                 <label x-show="ord.payments.includes('{{ $m }}')" class="menu-card flex flex-1 cursor-pointer items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold" :style="form.payment === '{{ $m }}' ? 'border-color: var(--menu-accent); box-shadow: 0 0 0 2px var(--menu-accent)' : ''">
-                                    <input type="radio" name="pay" value="{{ $m }}" x-model="form.payment" class="sr-only"><x-ui.icon name="{{ $m === 'cash' ? 'wallet' : 'credit-card' }}" size="4" />{{ __('orders.pay_'.$m) }}
+                                    <input type="radio" name="pay" value="{{ $m }}" x-model="form.payment" class="sr-only"><x-ui.icon name="{{ ['cash' => 'wallet', 'card' => 'credit-card', 'online' => 'smartphone'][$m] }}" size="4" />{{ __('orders.pay_'.$m) }}
                                 </label>
                             @endforeach
                         </div>
-                        <p class="menu-muted mt-1.5 text-xs" x-text="@js(['dine_in' => __('orders.pay_on_spot_dine_in'), 'takeaway' => __('orders.pay_on_spot_takeaway'), 'delivery' => __('orders.pay_on_spot_delivery'), 'curbside' => __('orders.pay_on_spot_curbside'), 'room_service' => __('orders.pay_on_spot_room_service')])[form.type]"></p>
+                        <p class="menu-muted mt-1.5 text-xs" x-text="form.payment === 'online' ? @js(__('orders.pay_on_spot_online')) : @js(['dine_in' => __('orders.pay_on_spot_dine_in'), 'takeaway' => __('orders.pay_on_spot_takeaway'), 'delivery' => __('orders.pay_on_spot_delivery'), 'curbside' => __('orders.pay_on_spot_curbside'), 'room_service' => __('orders.pay_on_spot_room_service')])[form.type]"></p>
                     </fieldset>
                 </div>
 

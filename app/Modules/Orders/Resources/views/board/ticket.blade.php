@@ -39,5 +39,8 @@
     @if ($order->tax_cents)<div class="row"><span>{{ __('orders.tax') }}</span><span>{{ $money($order->tax_cents) }}</span></div>@endif
     <div class="row" style="font-weight:700;font-size:16px"><span>{{ __('orders.total') }}</span><span>{{ $money($order->total_cents) }}</span></div>
     <p class="c">{{ $order->isPaid() ? __('orders.paid').' · '.__('orders.pay_'.$order->payment_method) : __('orders.unpaid') }}</p>
+    @if ($order->tip_cents)<div class="row"><span>{{ __('orders.tip') }}</span><span>{{ $money($order->tip_cents) }}</span></div>@endif
+    <div style="width:26mm;height:26mm;margin:6px auto 0" aria-hidden="true">{!! \App\Modules\Tables\Qr\QrCode::svg($restaurant->publicUrl('order/'.$order->token.'/receipt'), new \App\Modules\Tables\Qr\QrStyle('#000000', '#ffffff', 'square')) !!}</div>
+    <p class="c" style="font-size:10px">{{ __('orders.receipt_scan') }}</p>
 </body>
 </html>

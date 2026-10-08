@@ -32,6 +32,41 @@
                 </dl>
             </x-ui.card>
 
+            <x-ui.card :title="__('orders.payments')">
+                <dl class="mb-3 space-y-1.5 text-sm tnum">
+                    <div class="flex justify-between"><dt class="text-muted">{{ __('orders.paid_so_far') }}</dt><dd><bdi>{{ $money($order->paid_cents) }}</bdi></dd></div>
+                    @if ($order->tip_cents)<div class="flex justify-between"><dt class="text-muted">{{ __('orders.tip') }}</dt><dd><bdi>{{ $money($order->tip_cents) }}</bdi></dd></div>@endif
+                    @if ($order->refunded_cents)<div class="flex justify-between"><dt class="text-muted">{{ __('orders.refunded') }}</dt><dd><bdi>−{{ $money($order->refunded_cents) }}</bdi></dd></div>@endif
+                    <div class="flex justify-between font-semibold"><dt>{{ __('orders.still_owed') }}</dt><dd><bdi>{{ $money(max(0, $order->total_cents - $order->paid_cents)) }}</bdi></dd></div>
+                </dl>
+                @if ($payments->isNotEmpty())
+                    <ul class="divide-y divide-line border-t border-line">
+                        @foreach ($payments as $p)
+                            <li class="flex flex-wrap items-center justify-between gap-3 py-2.5 text-sm">
+                                <div><p class="font-medium">{{ __('orders.pay_'.$p->method) }}@if ($p->gateway) · {{ $p->gateway }}@endif
+                                        <x-ui.badge :tone="['paid' => 'success', 'pending' => 'warning', 'failed' => 'danger'][$p->status]">{{ __('orders.payment_'.$p->status) }}</x-ui.badge></p>
+                                    <p class="text-muted tnum"><bdi>{{ $money($p->amount_cents) }}@if ($p->tip_cents) + {{ __('orders.tip') }} {{ $money($p->tip_cents) }}@endif @if ($p->refunded_cents) · {{ __('orders.refunded') }} {{ $money($p->refunded_cents) }}@endif</bdi> · {{ ($p->paid_at ?? $p->created_at)->toDayDateTimeString() }}@if ($p->user) · {{ $p->user->name }}@endif</p></div>
+                                @if ($canPay && $p->refundable() > 0)
+                                    <form method="POST" action="{{ route('orders.payments.refund', $p->id) }}" class="flex items-center gap-2" onsubmit="return confirm('{{ __('orders.refund_confirm') }}')">@csrf
+                                        <input name="amount" type="number" step="0.01" min="0.01" max="{{ $p->refundable() / 100 }}" class="field !w-24 !py-1.5 text-sm" placeholder="{{ $p->refundable() / 100 }}" aria-label="{{ __('orders.refund_amount') }}" dir="ltr">
+                                        <input name="reason" class="field !w-32 !py-1.5 text-sm" maxlength="120" placeholder="{{ __('orders.refund_reason') }}" aria-label="{{ __('orders.refund_reason') }}">
+                                        <x-ui.button variant="secondary" size="sm" :block="false">{{ __('orders.refund') }}</x-ui.button></form>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+                @if ($canPay && $order->status !== 'cancelled' && $order->total_cents > $order->paid_cents)
+                    <form method="POST" action="{{ route('orders.payments.add', $order->id) }}" class="mt-3 grid gap-2 border-t border-line pt-3 sm:grid-cols-4">@csrf
+                        <select name="method" class="field" aria-label="{{ __('orders.pay_how') }}"><option value="cash">{{ __('orders.pay_cash') }}</option><option value="card">{{ __('orders.pay_card') }}</option></select>
+                        <input name="amount" type="number" step="0.01" min="0.01" class="field" placeholder="{{ ($order->total_cents - $order->paid_cents) / 100 }}" aria-label="{{ __('orders.pay_amount') }}" dir="ltr">
+                        <input name="tip" type="number" step="0.01" min="0" class="field" placeholder="{{ __('orders.tip') }}" aria-label="{{ __('orders.tip') }}" dir="ltr">
+                        <x-ui.button :block="false">{{ __('orders.take_payment') }}</x-ui.button>
+                    </form>
+                    <p class="mt-1.5 text-xs text-muted">{{ __('orders.take_payment_help') }}</p>
+                @endif
+            </x-ui.card>
+
             <x-ui.card :title="__('orders.history')">
                 <ol class="space-y-3 text-sm">
                     @foreach ($order->events as $event)
@@ -41,6 +76,8 @@
                                 <p class="font-medium">
                                     @if ($event->type === 'placed'){{ __('orders.event_placed') }}
                                     @elseif ($event->type === 'payment'){{ __('orders.event_payment', ['note' => __('orders.pay_'.$event->note)]) }}
+                                    @elseif ($event->type === 'refund'){{ __('orders.event_refund', ['note' => $event->note]) }}
+                                    @elseif ($event->type === 'dispatched'){{ __('orders.on_the_way') }}
                                     @else{{ __('orders.status_'.$event->to) }}@endif
                                 </p>
                                 <p class="text-muted">{{ $event->created_at->toDayDateTimeString() }} · {{ $event->user?->name ?? __('orders.placed_by_guest') }}@if ($event->type === 'status' && $event->note) · {{ $event->note }}@endif</p>

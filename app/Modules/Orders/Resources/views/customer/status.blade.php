@@ -1,7 +1,7 @@
 @php
     $t = collect(['new', 'accepted', 'preparing', 'ready'])->mapWithKeys(fn ($k) => ['step_'.$k => __('orders.step_'.$k)])->all()
         + ['step_completed' => __('orders.step_completed_'.$order->type), 'msg_new' => __('orders.msg_new'), 'msg_accepted' => __('orders.msg_accepted'), 'msg_preparing' => __('orders.msg_preparing'),
-           'msg_ready' => __('orders.msg_ready_'.$order->type), 'msg_completed' => __('orders.msg_completed'), 'msg_cancelled' => __('orders.msg_cancelled'), 'estimated' => __('orders.estimated'), 'cancel_confirm' => __('orders.cancel_mine_confirm'), 'msg_on_the_way' => __('orders.msg_on_the_way'), 'push_on' => __('orders.push_on'), 'push_denied' => __('orders.push_denied')];
+           'msg_ready' => __('orders.msg_ready_'.$order->type), 'msg_completed' => __('orders.msg_completed'), 'msg_cancelled' => __('orders.msg_cancelled'), 'estimated' => __('orders.estimated'), 'cancel_confirm' => __('orders.cancel_mine_confirm'), 'msg_on_the_way' => __('orders.msg_on_the_way'), 'push_on' => __('orders.push_on'), 'push_denied' => __('orders.push_denied'), 'pay_failed' => __('orders.pay_failed')];
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', $locale) }}" dir="{{ $dir }}">
@@ -22,6 +22,30 @@
                 get stepIndex() { return this.s.status === 'cancelled' ? -1 : this.s.steps.indexOf(this.s.status); },
                 get message() { return this.s.dispatched && this.s.status === 'ready' ? cfg.t.msg_on_the_way : cfg.t['msg_' + this.s.status]; },
                 pushMsg: '',
+                // ---- pay from the phone: whole bill, equal share, any amount or the whole table, plus a tip ----
+                payOpen: cfg.autoPay, mode: 'full', people: 2, custom: '', tipPercent: 10, tipCustom: '', gateway: (cfg.state.pay?.gateways[0] || {}).code || '', payBusy: false, payError: '',
+                fmt(cents) { try { return new Intl.NumberFormat(cfg.locale, { style: 'currency', currency: this.s.pay.currency }).format(cents / 100); } catch (e) { return (cents / 100).toFixed(2); } },
+                get payBase() {
+                    const p = this.s.pay; if (!p) { return 0; }
+                    if (this.mode === 'tab' && p.tab) { return p.tab.cents; }
+                    if (this.mode === 'split') { return Math.ceil(p.remaining_cents / Math.max(2, this.people)); }
+                    if (this.mode === 'custom') { return Math.min(p.remaining_cents, Math.max(0, Math.round(parseFloat(this.custom || '0') * 100))); }
+                    return p.remaining_cents;
+                },
+                get payTip() { return this.tipPercent === 'custom' ? Math.max(0, Math.round(parseFloat(this.tipCustom || '0') * 100)) : Math.round(this.payBase * Number(this.tipPercent) / 100); },
+                async startPay() {
+                    if (this.payBusy || this.payBase < 1) { return; }
+                    this.payBusy = true; this.payError = '';
+                    const body = { gateway: this.gateway, mode: this.mode, people: this.mode === 'split' ? this.people : undefined, amount: this.mode === 'custom' ? this.custom : undefined };
+                    if (this.tipPercent === 'custom') { body.tip = this.tipCustom || 0; } else { body.tip_percent = Number(this.tipPercent); }
+                    try {
+                        const res = await fetch(cfg.payUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf }, body: JSON.stringify(body) });
+                        const data = await res.json().catch(() => ({}));
+                        if (res.ok && data.url) { window.location.href = data.url; return; }
+                        this.payError = data.message || cfg.t.pay_failed;
+                    } catch (e) { this.payError = cfg.t.pay_failed; }
+                    this.payBusy = false;
+                },
                 async enablePush() {
                     try {
                         if (!('serviceWorker' in navigator) || !('PushManager' in window)) { this.pushMsg = cfg.t.push_denied; return; }
@@ -55,7 +79,7 @@
     </script>
     @livewireStyles
 </head>
-<body class="menu-page min-h-screen pb-10" x-data="orderStatus(@js(['state' => $state, 'statusUrl' => $statusUrl, 'cancelUrl' => $cancelUrl, 'csrf' => csrf_token(), 't' => $t, 'pushUrl' => $pushUrl, 'workerUrl' => $workerUrl]))">
+<body class="menu-page min-h-screen pb-10" x-data="orderStatus(@js(['state' => $state, 'statusUrl' => $statusUrl, 'cancelUrl' => $cancelUrl, 'csrf' => csrf_token(), 't' => $t, 'pushUrl' => $pushUrl, 'workerUrl' => $workerUrl, 'payUrl' => $payUrl, 'payResult' => $payResult, 'autoPay' => $autoPay, 'locale' => $locale_tag]))">
     <header class="menu-hero">
         <div class="mx-auto max-w-xl px-4 pb-16 pt-6 text-center">
             <p class="text-sm font-semibold opacity-90">{{ $restaurant->name }}</p>
@@ -98,6 +122,41 @@
             @endif
         </section>
 
+        {{-- Pay from the phone --}}
+        @if ($payResult)<p class="menu-card menu-accent-text p-4 text-center font-semibold" role="status">{{ $payResult === 'paid' ? __('orders.pay_thanks') : __('orders.pay_pending') }}</p>@endif
+        <section class="menu-card p-5" x-show="s.pay" x-cloak>
+            <button type="button" class="menu-btn w-full !py-3" x-show="!payOpen" x-on:click="payOpen = true">{{ __('orders.pay_now') }} · <span class="tnum" x-text="s.pay ? s.pay.remaining : ''"></span></button>
+            <div x-show="payOpen" x-cloak class="space-y-4">
+                <h2 class="display text-xl font-bold">{{ __('orders.pay_now') }}</h2>
+                <fieldset class="space-y-2">
+                    <legend class="sr-only">{{ __('orders.pay_what') }}</legend>
+                    <label class="menu-card flex cursor-pointer items-center gap-3 px-3 py-2.5"><input type="radio" value="full" x-model="mode" class="accent-[var(--menu-accent)]"><span class="flex-1 font-medium">{{ __('orders.pay_full') }}</span><span class="tnum" x-text="s.pay ? s.pay.remaining : ''"></span></label>
+                    <label class="menu-card flex cursor-pointer items-center gap-3 px-3 py-2.5" x-show="s.pay && s.pay.tab"><input type="radio" value="tab" x-model="mode" class="accent-[var(--menu-accent)]"><span class="flex-1 font-medium">{{ __('orders.pay_tab') }}</span><span class="tnum" x-text="s.pay && s.pay.tab ? s.pay.tab.remaining : ''"></span></label>
+                    <label class="menu-card flex cursor-pointer items-center gap-3 px-3 py-2.5"><input type="radio" value="split" x-model="mode" class="accent-[var(--menu-accent)]"><span class="flex-1 font-medium">{{ __('orders.pay_split') }}</span>
+                        <select x-model.number="people" x-on:focus="mode = 'split'" class="menu-card px-2 py-1 text-sm" aria-label="{{ __('orders.pay_people') }}"><template x-for="n in [2,3,4,5,6,7,8,10]" :key="n"><option :value="n" x-text="n"></option></template></select></label>
+                    <label class="menu-card flex cursor-pointer items-center gap-3 px-3 py-2.5"><input type="radio" value="custom" x-model="mode" class="accent-[var(--menu-accent)]"><span class="flex-1 font-medium">{{ __('orders.pay_custom') }}</span>
+                        <input type="number" step="0.01" min="0.01" inputmode="decimal" x-model="custom" x-on:focus="mode = 'custom'" class="menu-card w-24 px-2 py-1 text-end text-sm" dir="ltr" aria-label="{{ __('orders.pay_custom') }}"></label>
+                </fieldset>
+                <fieldset>
+                    <legend class="mb-1.5 text-sm font-semibold">{{ __('orders.tip') }}</legend>
+                    <div class="flex flex-wrap gap-1.5">
+                        <template x-for="p in (s.pay ? s.pay.tips : [])" :key="p"><button type="button" class="menu-chip" :aria-pressed="tipPercent === p" x-on:click="tipPercent = p" x-text="p === 0 ? @js(__('orders.no_tip')) : p + '%'"></button></template>
+                        <button type="button" class="menu-chip" :aria-pressed="tipPercent === 'custom'" x-on:click="tipPercent = 'custom'">{{ __('orders.pay_custom') }}</button>
+                    </div>
+                    <input x-show="tipPercent === 'custom'" x-cloak type="number" step="0.01" min="0" inputmode="decimal" x-model="tipCustom" class="menu-card mt-2 w-32 px-2 py-1.5 text-sm" dir="ltr" aria-label="{{ __('orders.tip') }}">
+                </fieldset>
+                <div x-show="s.pay && s.pay.gateways.length > 1"><label class="mb-1 block text-sm font-semibold" for="pay-gw">{{ __('orders.pay_with') }}</label>
+                    <select id="pay-gw" x-model="gateway" class="menu-card w-full px-3 py-2.5"><template x-for="g in (s.pay ? s.pay.gateways : [])" :key="g.code"><option :value="g.code" x-text="g.name"></option></template></select></div>
+                <dl class="menu-line space-y-1 border-t pt-3 text-sm tnum">
+                    <div class="flex justify-between"><dt class="menu-muted">{{ __('orders.pay_amount') }}</dt><dd x-text="fmt(payBase)"></dd></div>
+                    <div class="flex justify-between" x-show="payTip > 0"><dt class="menu-muted">{{ __('orders.tip') }}</dt><dd x-text="fmt(payTip)"></dd></div>
+                    <div class="flex justify-between text-base font-bold"><dt>{{ __('orders.total') }}</dt><dd x-text="fmt(payBase + payTip)"></dd></div>
+                </dl>
+                <p class="text-sm text-red-600" x-show="payError" x-text="payError" role="alert"></p>
+                <button type="button" class="menu-btn w-full !py-3.5" :disabled="payBusy || payBase < 1" x-on:click="startPay()">{{ __('orders.pay_button') }} · <span class="tnum" x-text="fmt(payBase + payTip)"></span></button>
+            </div>
+        </section>
+
         {{-- The order --}}
         <section class="menu-card p-5">
             <h2 class="mb-3 font-bold">{{ __('orders.your_items') }}</h2>
@@ -112,6 +171,7 @@
             <p class="menu-muted mt-3 flex justify-between text-sm" x-show="s.packaging" x-cloak><span>{{ __('orders.packaging') }}</span><span class="tnum" x-text="s.packaging"></span></p>
             <p class="menu-accent-text mt-3 flex justify-between text-sm font-semibold" x-show="s.discount" x-cloak><span x-text="@js(__('marketing.promo_discount')) + ' · ' + (s.discount ? s.discount.code : '')"></span><span class="tnum" x-text="s.discount ? '−' + s.discount.amount : ''"></span></p>
             <div class="menu-line mt-3 flex items-baseline justify-between border-t pt-3 text-lg font-bold"><span>{{ __('orders.total') }}</span><span class="tnum" x-text="s.total"></span></div>
+            <p class="menu-muted mt-2 flex justify-between text-sm" x-show="s.tip" x-cloak><span>{{ __('orders.tip') }}</span><span class="tnum" x-text="s.tip"></span></p>
             <p class="mt-2 text-sm"><span class="rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="s.paid ? 'menu-accent' : 'menu-surface border menu-line'" x-text="s.paid ? @js(__('orders.paid')) : @js(__('orders.unpaid'))"></span></p>
         </section>
 
@@ -149,11 +209,13 @@
                 <div>
                     <p class="font-bold">{{ __('marketing.rate_yours') }}</p>
                     <p class="menu-accent-text mt-1 text-2xl tracking-wider" aria-hidden="true" x-text="'★'.repeat(s.review.rating) + '☆'.repeat(5 - s.review.rating)"></p>
+                    <div class="menu-line mt-3 border-t pt-3 text-sm" x-show="s.review.redirect"><p class="mb-2">{{ __('marketing.review_public_invite') }}</p><a class="menu-btn w-full" :href="s.review.redirect" target="_blank" rel="noopener noreferrer">{{ __('marketing.review_public_button') }}</a></div>
                     <div class="menu-line mt-3 border-t pt-3 text-sm" x-show="s.review.reply"><p class="menu-muted text-xs font-semibold uppercase">{{ __('marketing.rate_reply') }}</p><p x-text="s.review.reply"></p></div>
                 </div>
             </template>
         </section>
 
+        <a href="{{ $receiptUrl }}" class="menu-btn menu-btn-quiet w-full !py-3.5" x-show="s.paid" x-cloak>{{ __('orders.receipt') }}</a>
         <a href="{{ $reorderUrl }}" class="menu-btn menu-btn-quiet w-full !py-3.5" x-show="!s.open" x-cloak>{{ __('orders.order_again') }}</a>
         <a href="{{ $menuUrl }}" class="menu-btn w-full !py-3.5">{{ __('orders.order_more') }}</a>
     </main>

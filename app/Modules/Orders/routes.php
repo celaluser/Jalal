@@ -4,8 +4,11 @@ use App\Modules\Core\Http\Middleware\SetLocale;
 use App\Modules\Orders\Http\Controllers\CustomerOrderController;
 use App\Modules\Orders\Http\Controllers\GuestServiceController;
 use App\Modules\Orders\Http\Controllers\OrderBoardController;
+use App\Modules\Orders\Http\Controllers\OrderPaymentController;
 use App\Modules\Orders\Http\Controllers\OrderSettingsController;
+use App\Modules\Orders\Http\Controllers\PaymentSettingsController;
 use App\Modules\Orders\Http\Controllers\PosController;
+use App\Modules\Orders\Http\Controllers\ReceiptController;
 use App\Modules\Orders\Http\Controllers\TabletModeController;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenant;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +21,11 @@ $guest = function () {
     Route::get('tab', [GuestServiceController::class, 'tab'])->middleware('throttle:30,1')->name('tab');
     Route::post('order/{token}/push', [GuestServiceController::class, 'subscribePush'])->where('token', '[a-z0-9]{24}')->middleware('throttle:10,1')->name('order.push');
     Route::get('order/{token}/reorder', [GuestServiceController::class, 'reorder'])->where('token', '[a-z0-9]{24}')->middleware('throttle:30,1')->name('order.reorder');
+    Route::post('order/{token}/pay', [OrderPaymentController::class, 'start'])->where('token', '[a-z0-9]{24}')->middleware('throttle:10,1')->name('order.pay');
+    Route::match(['get', 'post'], 'order/{token}/pay/return', [OrderPaymentController::class, 'return'])->where('token', '[a-z0-9]{24}')->middleware('throttle:30,1')->name('order.pay.return');
+    Route::post('pay/{gateway}/webhook', [OrderPaymentController::class, 'webhook'])->where('gateway', '[a-z_]+')->middleware('throttle:120,1')->name('pay.webhook');
+    Route::get('order/{token}/receipt', [ReceiptController::class, 'show'])->where('token', '[a-z0-9]{24}')->middleware('throttle:30,1')->name('order.receipt');
+    Route::get('order/{token}/receipt.pdf', [ReceiptController::class, 'pdf'])->where('token', '[a-z0-9]{24}')->middleware('throttle:10,1')->name('order.receipt.pdf');
     Route::post('order/{token}/cancel', [CustomerOrderController::class, 'cancel'])->where('token', '[a-z0-9]{24}')->middleware('throttle:10,1')->name('order.cancel');
 };
 
@@ -39,6 +47,8 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])-
         Route::get('{order}/ticket', [OrderBoardController::class, 'ticket'])->whereNumber('order')->name('ticket');
         Route::post('{order}/status', [OrderBoardController::class, 'transition'])->whereNumber('order')->name('status');
         Route::post('{order}/dispatch', [OrderBoardController::class, 'dispatch'])->whereNumber('order')->name('dispatch');
+        Route::post('{order}/payments', [OrderBoardController::class, 'addPayment'])->whereNumber('order')->name('payments.add');
+        Route::post('payments/{payment}/refund', [OrderBoardController::class, 'refund'])->whereNumber('payment')->name('payments.refund');
         Route::post('{order}/pay', [OrderBoardController::class, 'pay'])->whereNumber('order')->name('pay');
     });
 
@@ -49,6 +59,11 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])-
     });
 
     Route::post('orders/pause', [OrderBoardController::class, 'pause'])->middleware('permission:orders.manage')->name('orders.pause');
+
+    Route::middleware('permission:payments.manage')->group(function () {
+        Route::get('settings/payments', [PaymentSettingsController::class, 'edit'])->name('payments.settings');
+        Route::put('settings/payments/{gateway}', [PaymentSettingsController::class, 'update'])->where('gateway', '[a-z_]+')->name('payments.settings.update');
+    });
 
     Route::middleware('permission:settings.manage')->group(function () {
         Route::get('settings/ordering', [OrderSettingsController::class, 'edit'])->name('orders.settings');

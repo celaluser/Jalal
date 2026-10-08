@@ -31,6 +31,7 @@ return [
         'branches' => 'Branches',
         'floor_map' => 'Floor map',
         'banners' => 'Banners',
+        'online_payments' => 'Online payments',
         'restaurant' => 'Restaurant profile',
         'subscription' => 'Subscription',
     ],

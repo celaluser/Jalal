@@ -16,6 +16,8 @@ class MarketingSettings
         'loyalty_valid_days' => 60,
         'reviews_enabled' => true,
         'review_request_email' => true,
+        'review_url' => '',               // where happy guests are sent to review the restaurant publicly (Google, Tripadvisor...)
+        'review_min' => 4,               // stars from which that link is offered
         'show_rating' => true,           // average rating on the public menu
         'campaign_daily_cap' => 200,
         'calling_code' => '',            // country code for local phone numbers, e.g. 90
@@ -67,6 +69,7 @@ class MarketingSettings
             'loyalty_reward_value' => ['required', 'numeric', 'min:0.01', 'max:99999'],
             'loyalty_valid_days' => ['required', 'integer', 'min:1', 'max:365'],
             'reviews_enabled' => ['nullable', 'boolean'], 'review_request_email' => ['nullable', 'boolean'], 'show_rating' => ['nullable', 'boolean'],
+            'review_url' => ['nullable', 'url:https', 'max:500'], 'review_min' => ['nullable', 'integer', 'between:1,5'],
             'calling_code' => ['nullable', 'regex:/^\+?\d{1,4}$/'],
             'campaign_daily_cap' => ['required', 'integer', 'min:1', 'max:'.max(1, (int) config('marketing.daily_email_cap'))],
         ];

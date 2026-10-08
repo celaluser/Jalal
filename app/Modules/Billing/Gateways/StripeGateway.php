@@ -2,6 +2,7 @@
 
 namespace App\Modules\Billing\Gateways;
 
+use App\Modules\Billing\Contracts\RefundableGateway;
 use App\Modules\Billing\Exceptions\GatewayException;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Payments\CheckoutResult;
@@ -10,7 +11,7 @@ use App\Modules\Billing\Payments\PaymentNotification;
 use Illuminate\Http\Request;
 
 /** Stripe Checkout (hosted page). Webhook: checkout.session.completed, signed with the endpoint secret. */
-class StripeGateway extends BaseGateway
+class StripeGateway extends BaseGateway implements RefundableGateway
 {
     private const API = 'https://api.stripe.com/v1';
 
@@ -89,6 +90,14 @@ class StripeGateway extends BaseGateway
         }
 
         return $this->notification($session, PaymentNotification::SUCCEEDED);
+    }
+
+    /** Refund a payment intent (the transaction id Stripe sent back with the payment). */
+    public function refund(string $transactionId, int $amountMinor, string $currency, GatewayConfig $config): string
+    {
+        $data = $this->json($this->http()->withToken($config->get('secret_key'))->asForm()->post(self::API.'/refunds', ['payment_intent' => $transactionId, 'amount' => $amountMinor]), 'refund');
+
+        return (string) ($data['id'] ?? '');
     }
 
     /**

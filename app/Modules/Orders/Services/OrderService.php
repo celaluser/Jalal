@@ -211,7 +211,7 @@ class OrderService
         return $order;
     }
 
-    /** Record that the guest paid on the spot (cash or card terminal). */
+    /** Record that the guest paid the whole bill on the spot (cash or card terminal). Part payments go through PaymentLedger. */
     public function markPaid(Order $order, string $method, ?User $by = null): Order
     {
         if ($order->isPaid() || $order->status === OrderStatus::CANCELLED) {
@@ -222,10 +222,9 @@ class OrderService
             throw new OrderException('payment_unavailable');
         }
 
-        $order->forceFill(['payment_method' => $method, 'paid_at' => now()])->save();
-        $this->log($order, 'payment', null, null, $method, $by);
+        app(PaymentLedger::class)->record($order, $method, null, 0, $by);
 
-        return $order;
+        return $order->refresh();
     }
 
     /**

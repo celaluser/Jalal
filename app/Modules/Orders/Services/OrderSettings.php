@@ -73,7 +73,14 @@ class OrderSettings
     {
         $s = $this->for($restaurant);
 
-        return array_keys(array_filter(['cash' => $s['pay_cash'], 'card' => $s['pay_card']]));
+        $methods = array_keys(array_filter(['cash' => $s['pay_cash'], 'card' => $s['pay_card']]));
+
+        // Paying online needs a gateway of the restaurant's own that is switched on and set up.
+        if (app(RestaurantGateways::class)->anyReady($restaurant)) {
+            $methods[] = 'online';
+        }
+
+        return $methods;
     }
 
     public function cents(Restaurant $restaurant, string $key): int

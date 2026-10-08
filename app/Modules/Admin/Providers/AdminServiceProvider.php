@@ -28,6 +28,7 @@ class AdminServiceProvider extends ServiceProvider
             ['billing', 'invoices', 'admin.invoices.index', 'admin.invoices.*', [], 'receipt'],
             ['billing', 'coupons', 'admin.coupons.index', 'admin.coupons.*', [], 'percent'],
             ['billing', 'payments', 'admin.settings.payments', 'admin.settings.payments*', [], 'credit-card'],
+            ['billing', 'guest_payments', 'admin.settings.guest-payments', 'admin.settings.guest-payments*', [], 'wallet'],
             ['billing', 'billing_settings', 'admin.settings.billing', 'admin.settings.billing*', [], 'wallet'],
             ['content', 'landing', 'admin.landing.edit', 'admin.landing.*', [], 'layout'],
             ['content', 'blog', 'admin.posts.index', 'admin.posts.*', [], 'pen'],

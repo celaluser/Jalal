@@ -7,9 +7,11 @@ use App\Models\User;
 use App\Modules\Branches\Services\BranchContext;
 use App\Modules\Orders\Exceptions\OrderException;
 use App\Modules\Orders\Models\Order;
+use App\Modules\Orders\Models\OrderPayment;
 use App\Modules\Orders\Models\ServiceRequest;
 use App\Modules\Orders\Services\OrderService;
 use App\Modules\Orders\Services\OrderSettings;
+use App\Modules\Orders\Services\PaymentLedger;
 use App\Modules\Orders\Support\OrderStatus;
 use App\Modules\Orders\Support\OrderType;
 use Illuminate\Http\JsonResponse;
@@ -72,7 +74,8 @@ class OrderBoardController extends Controller
             'order' => $order->load(['items', 'events.user']),
             'restaurant' => $request->user()->restaurant,
             'allowed' => $this->allowed($request->user(), $order),
-            'canPay' => $request->user()->canAny(['orders.manage', 'payments.manage']) && ! $order->isPaid() && $order->status !== OrderStatus::CANCELLED,
+            'canPay' => $request->user()->canAny(['orders.manage', 'payments.manage']),
+            'payments' => $order->payments()->with('user')->get(),
         ]);
     }
 
@@ -106,6 +109,36 @@ class OrderBoardController extends Controller
         }
 
         return $this->done($request, $order);
+    }
+
+    /** A part payment, a split or a tip taken at the table. */
+    public function addPayment(Request $request, Order $order): JsonResponse|RedirectResponse
+    {
+        abort_unless($request->user()->canAny(['orders.manage', 'payments.manage']), 403);
+        $data = $request->validate(['method' => ['required', Rule::in(['cash', 'card'])], 'amount' => ['nullable', 'numeric', 'min:0.01', 'max:9999999'], 'tip' => ['nullable', 'numeric', 'min:0', 'max:9999999']]);
+
+        try {
+            app(PaymentLedger::class)->record($order, $data['method'], isset($data['amount']) ? (int) round($data['amount'] * 100) : null, (int) round((float) ($data['tip'] ?? 0) * 100), $request->user());
+        } catch (OrderException $e) {
+            return $this->failed($request, $e);
+        }
+
+        return $this->done($request, $order);
+    }
+
+    public function refund(Request $request, int $payment): JsonResponse|RedirectResponse
+    {
+        abort_unless($request->user()->canAny(['orders.manage', 'payments.manage']), 403);
+        $row = OrderPayment::with('order.restaurant')->findOrFail($payment);
+        $data = $request->validate(['amount' => ['nullable', 'numeric', 'min:0.01', 'max:9999999'], 'reason' => ['nullable', 'string', 'max:120']]);
+
+        try {
+            $result = app(PaymentLedger::class)->refund($row, isset($data['amount']) ? (int) round($data['amount'] * 100) : null, $request->user(), $data['reason'] ?? null);
+        } catch (OrderException $e) {
+            return $this->failed($request, $e);
+        }
+
+        return $request->expectsJson() ? response()->json(['ok' => true] + $result) : back()->with('status', $result['via_gateway'] ? __('orders.refunded_via_gateway') : __('orders.refunded_manually'));
     }
 
     /** A delivery leaves with the courier. Guests who asked to be told hear that it is on the way. */

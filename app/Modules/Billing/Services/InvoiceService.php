@@ -8,6 +8,7 @@ use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Models\Subscription;
 use App\Modules\Core\Services\SettingsService;
+use App\Modules\Orders\Services\CommissionLedger;
 use App\Modules\Tenancy\Models\Restaurant;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -29,13 +30,15 @@ class InvoiceService
     /**
      * @return array{subtotal: int, discount: int, credit: int, tax: int, total: int, rate: float, inclusive: bool} amounts in cents
      */
-    public function calculate(float|string $price, ?Coupon $coupon = null, int $creditCents = 0): array
+    public function calculate(float|string $price, ?Coupon $coupon = null, int $creditCents = 0, int $extraCents = 0): array
     {
         $subtotal = (int) round(((float) $price) * 100);
         $discount = $coupon ? (int) round($coupon->discountFor($subtotal / 100) * 100) : 0;
         $credit = min(max(0, $creditCents), max(0, $subtotal - $discount)); // unused time on the old plan
         $discount += $credit;
-        $net = max(0, $subtotal - $discount);
+        // A charge on top of the plan (commission on online payments): taxed like the rest, never discounted.
+        $net = max(0, $subtotal - $discount) + max(0, $extraCents);
+        $subtotal += max(0, $extraCents);
 
         $rate = max(0.0, (float) $this->settings->get('billing.tax_rate', 0));
         $inclusive = (bool) $this->settings->get('billing.prices_include_tax', false);
@@ -55,15 +58,20 @@ class InvoiceService
     {
         // Credit earned by referring restaurants comes off after the proration credit, never beyond what is owed.
         $balance = $this->affiliate->creditCents($restaurant, $plan->currency_code);
-        $amounts = $this->calculate($plan->price, $coupon, $creditCents + $balance);
+        $commission = app(CommissionLedger::class)->dueCents($restaurant, $plan->currency_code);
+        $amounts = $this->calculate($plan->price, $coupon, $creditCents + $balance, $commission);
         $balanceUsed = min($balance, max(0, $amounts['credit'] - $creditCents));
         $prorated = $amounts['credit'] - $balanceUsed;
 
         $items = [[
             'description' => $plan->name.' ('.__('billing.interval_'.$plan->interval).')',
             'quantity' => 1,
-            'amount' => $amounts['subtotal'] / 100,
+            'amount' => ($amounts['subtotal'] - $commission) / 100,
         ]];
+
+        if ($commission > 0) {
+            $items[] = ['description' => __('billing.commission_line'), 'quantity' => 1, 'amount' => $commission / 100];
+        }
 
         if ($prorated > 0) {
             $items[] = ['description' => __('billing.proration_credit'), 'quantity' => 1, 'amount' => -$prorated / 100];
@@ -77,8 +85,12 @@ class InvoiceService
         // so a concurrent duplicate is simply retried with the next number.
         for ($attempt = 0; ; $attempt++) {
             try {
-                return DB::transaction(function () use ($restaurant, $subscription, $plan, $amounts, $coupon, $balanceUsed, $items) {
+                return DB::transaction(function () use ($restaurant, $subscription, $plan, $amounts, $coupon, $balanceUsed, $items, $commission) {
                     $this->affiliate->spend($restaurant, $balanceUsed);
+
+                    if ($commission > 0) {
+                        app(CommissionLedger::class)->markBilled($restaurant, $plan->currency_code);
+                    }
 
                     return Invoice::create([
                         'restaurant_id' => $restaurant->id,

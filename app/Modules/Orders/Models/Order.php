@@ -27,6 +27,11 @@ class Order extends Model
         return $this->hasMany(OrderItem::class)->orderBy('id');
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(OrderPayment::class)->orderBy('id');
+    }
+
     public function events(): HasMany
     {
         return $this->hasMany(OrderEvent::class)->orderBy('id');

@@ -16,6 +16,7 @@ return [
         'coupons' => 'Coupons',
         'billing_settings' => 'Tax & invoicing',
         'payments' => 'Payment gateways',
+        'guest_payments' => 'Restaurant payments',
         'settings' => 'Settings',
         'email_templates' => 'E-mail templates',
         'tickets' => 'Support tickets',
@@ -335,5 +336,12 @@ return [
         'backup_name' => 'File', 'backup_size' => 'Size', 'backup_date' => 'Created', 'download' => 'Download',
         'backups_empty_title' => 'No backups yet', 'backups_empty_text' => 'Create the first backup now. Store a copy somewhere outside this server.',
         'backup_warning' => 'Backups contain customer data. Keep downloaded files private.',
+    ],
+
+    'guest_payments' => [
+        'help' => 'Restaurants take their guests’ payments with their own gateway accounts. Choose which gateways they may use and what commission you keep.',
+        'enabled' => 'Let restaurants take online payments (plans must also include the Online payments feature)', 'commission' => 'Commission on online payments (%)', 'commission_hint' => 'Counted on the bill amount, not on tips. It is added to the restaurant’s next subscription invoice.',
+        'allowed' => 'Gateways restaurants may use', 'allowed_hint' => 'Turn off a gateway you do not want to support.', 'volume' => 'Online payments by restaurant', 'none' => 'No online payments yet.',
+        'restaurant' => 'Restaurant', 'payments' => 'Payments', 'volume_col' => 'Volume', 'commission_col' => 'Commission', 'unbilled' => 'Not yet invoiced',
     ],
 ];

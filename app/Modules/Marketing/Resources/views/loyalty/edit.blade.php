@@ -28,6 +28,10 @@
         <x-ui.card :title="__('marketing.reviews_section')">
             <div class="space-y-3">
                 <x-ui.checkbox name="reviews_enabled" :label="__('marketing.reviews_enabled')" :checked="$s['reviews_enabled']" />
+                <div class="grid gap-4 sm:grid-cols-3">
+                    <div class="sm:col-span-2"><x-ui.input name="review_url" type="url" :label="__('marketing.review_url')" :value="$s['review_url']" :hint="__('marketing.review_url_hint')" maxlength="500" dir="ltr" /></div>
+                    <x-ui.input name="review_min" type="number" min="1" max="5" :label="__('marketing.review_min')" :value="$s['review_min']" />
+                </div>
                 <x-ui.checkbox name="review_request_email" :label="__('marketing.review_email')" :checked="$s['review_request_email']" />
                 <x-ui.checkbox name="show_rating" :label="__('marketing.show_rating')" :checked="$s['show_rating']" />
             </div>

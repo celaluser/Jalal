@@ -113,4 +113,20 @@ return [
     'sec_schedule' => 'Pre-orders', 'schedule_help' => 'Let guests order for later today or in the next few days.', 'schedule_orders' => 'Allow ordering for a later time', 'schedule_lead' => 'Earliest, in minutes from now', 'schedule_days' => 'How many days ahead',
     'sec_notify' => 'Tell guests when it is ready', 'notify_help' => 'Guests choose at checkout. Text messages and WhatsApp use your messaging provider and your plan’s monthly allowance.',
     'notify_push_setting' => 'Browser notification on the guest’s phone', 'notify_sms_setting' => 'Text message (SMS)', 'notify_whatsapp_setting' => 'WhatsApp',
+
+    // Paying online, tips, split bills, refunds
+    'pay_online' => 'Pay online now', 'pay_on_spot_online' => 'You will be taken to a secure page to pay.', 'pay_now' => 'Pay now', 'pay_what' => 'What to pay', 'pay_full' => 'The whole bill', 'pay_tab' => 'The whole table', 'pay_split' => 'My share, split equally between', 'pay_people' => 'People',
+    'pay_custom' => 'Other amount', 'pay_with' => 'Pay with', 'pay_amount' => 'Amount', 'pay_button' => 'Pay', 'tip' => 'Tip', 'no_tip' => 'No tip', 'pay_failed' => 'Could not start the payment. Please try again or pay at the counter.',
+    'pay_thanks' => 'Thank you, your payment was received.', 'pay_pending' => 'We are waiting for your bank to confirm the payment. This page updates by itself.',
+    'error_payment_failed' => 'The payment page could not be opened. Please try again or pay at the counter.', 'error_invalid_amount' => 'That amount cannot be paid.', 'error_refund_failed' => 'The payment provider refused the refund. Refund it in their dashboard instead.',
+
+    'payments' => 'Payments', 'paid_so_far' => 'Paid so far', 'refunded' => 'Refunded', 'still_owed' => 'Still to pay', 'payment_paid' => 'Paid', 'payment_pending' => 'Waiting', 'payment_failed' => 'Failed',
+    'take_payment' => 'Take payment', 'take_payment_help' => 'Leave the amount empty to take everything that is left. Enter less for a split or a part payment.', 'refund' => 'Refund', 'refund_amount' => 'Amount to refund', 'refund_reason' => 'Reason', 'refund_confirm' => 'Give this money back?',
+    'event_refund' => 'Refund :note', 'refunded_via_gateway' => 'Refunded through the payment provider.', 'refunded_manually' => 'Refund recorded. Hand the money back, or refund it in your payment provider’s dashboard.',
+
+    'gateways_title' => 'Online payments', 'gateways_sub' => 'Connect your own payment account so guests can pay from their phone. The money goes straight to you.',
+    'gateways_locked' => 'Your plan does not include online payments.', 'gateways_commission' => 'The platform keeps :percent% of every online payment (not of tips). It is added to your next subscription invoice.',
+    'gateways_wallets' => 'Apple Pay, Google Pay and local wallets appear on the payment page when your gateway account has them switched on.', 'gateway_no_currency' => 'Does not support :currency', 'gateway_saved_incomplete' => ':name was saved but is not ready: fill in all required fields.',
+
+    'receipt' => 'Receipt', 'receipt_thanks' => 'Thank you for your visit!', 'receipt_scan' => 'Scan for your digital receipt',
 ];
