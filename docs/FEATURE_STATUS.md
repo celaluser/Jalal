@@ -146,6 +146,13 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - 🟡 `robots.txt` and `sitemap.xml` are served per restaurant only under `/r/{slug}/`; a restaurant's own domain root is handled by the landing route, so a domain-level `robots.txt` is not generated
 - 🔴 Not built: page builder, blog, photo gallery, online table-booking widget on the About page
 
+## 9k. Analytics extras (v2 gap work)
+
+- ✅ **Menu engineering** (`/reports/menu`, plan feature `analytics`): stars / plowhorses / puzzles / dogs from popularity and margin, food-cost %, sales by category, CSV export
+- ✅ **Weekly digest** e-mail to the owner every Monday (orders, revenue vs. the week before, best sellers); owner can switch it off
+- 🟡 Margins use the dish's own cost price; extras and sizes are not costed, and dishes without a cost price are listed but not classified
+- 🔴 Not built: staff performance, table turnover, forecasting, scheduled custom reports
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)

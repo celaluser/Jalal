@@ -106,4 +106,5 @@ return [
     'gift_amount' => 'Amount', 'gift_valid_days' => 'Valid for (days)', 'gift_valid_help' => 'Empty = never expires.', 'gift_email' => 'Send to (e-mail)', 'gift_email_help' => 'Optional. The recipient gets the code by e-mail.', 'gift_note' => 'Message',
     'gift_issue' => 'Issue gift card', 'gift_issued' => 'Gift card :code created.', 'gifts_empty' => 'No gift cards yet', 'gifts_empty_text' => 'Issue one above and hand the code to the buyer.',
     'gift_balance' => 'Balance :balance of :initial', 'gift_expires' => 'expires :date',
+    'weekly_digest' => 'E-mail me a summary of last week every Monday',
 ];

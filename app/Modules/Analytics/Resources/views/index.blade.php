@@ -11,6 +11,7 @@
 <x-layouts.app :title="__('analytics.title')">
     <x-ui.page-header :title="__('analytics.title')" :description="__('analytics.subtitle', ['from' => $period['from']->translatedFormat('M j, Y'), 'to' => $period['to']->translatedFormat('M j, Y')])">
         <x-slot:actions>
+            @if ($full)<a href="{{ route('reports.menu') }}" class="btn btn-secondary"><x-ui.icon name="activity" size="4" />{{ __('analytics.eng_title') }}</a>@endif
             @if ($full)<a href="{{ route('reports.export', request()->only(['range', 'from', 'to'])) }}" class="btn btn-secondary"><x-ui.icon name="download" size="4" />{{ __('analytics.export') }}</a>@endif
         </x-slot:actions>
     </x-ui.page-header>

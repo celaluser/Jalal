@@ -45,6 +45,7 @@
                     <x-ui.input name="tier_silver" type="number" min="2" :value="$s['tier_silver']" :label="__('marketing.tier_silver')" :hint="__('marketing.tier_help')" />
                     <x-ui.input name="tier_gold" type="number" min="3" :value="$s['tier_gold']" :label="__('marketing.tier_gold')" />
                 </div>
+                <x-ui.checkbox name="weekly_digest" :label="__('marketing.weekly_digest')" :checked="$s['weekly_digest']" />
                 <x-ui.checkbox name="nps_enabled" :label="__('marketing.nps_enabled')" :checked="$s['nps_enabled']" />
                 <x-ui.checkbox name="autopilot_winback" :label="__('marketing.autopilot_winback')" :checked="$s['autopilot_winback']" />
                 <p class="-mt-3 text-xs text-muted">{{ __('marketing.autopilot_help') }}</p>
