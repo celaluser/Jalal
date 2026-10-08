@@ -28,6 +28,7 @@ return [
         'orders' => 'Live orders',
         'ordering' => 'Ordering',
         'tables' => 'Tables & QR',
+        'branches' => 'Branches',
         'restaurant' => 'Restaurant profile',
         'subscription' => 'Subscription',
     ],

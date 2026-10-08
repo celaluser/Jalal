@@ -18,7 +18,12 @@ class Category extends Model
 
     protected function casts(): array
     {
-        return ['name' => 'array', 'description' => 'array', 'is_active' => 'boolean'];
+        return ['name' => 'array', 'description' => 'array', 'is_active' => 'boolean', 'schedule' => 'array'];
+    }
+
+    public function menu(): BelongsTo
+    {
+        return $this->belongsTo(Menu::class);
     }
 
     public function products(): HasMany

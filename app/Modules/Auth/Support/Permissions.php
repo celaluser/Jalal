@@ -55,7 +55,7 @@ final class Permissions
             'menu.manage', 'orders.view', 'orders.create', 'orders.manage', 'tables.view', 'tables.manage',
             'staff.view', 'staff.manage', 'roles.manage', 'reports.view', 'customers.view', 'customers.manage',
             'marketing.manage', 'settings.view', 'settings.manage', 'payments.manage', 'kitchen.view',
-            'billing.manage', 'support.manage', 'activity.view', 'delivery.view', 'delivery.manage',
+            'billing.manage', 'support.manage', 'activity.view', 'delivery.view', 'delivery.manage', 'branches.manage',
         ];
     }
 

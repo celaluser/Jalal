@@ -142,14 +142,17 @@ document.addEventListener('alpine:init', () => {
 
         pick(p) {
             if (!p.available) { return; }
-            if (!p.option_groups.length) { this.add(p, [], '', []); return; }
+            const variants = (p.variants || []).filter((v) => v.available);
+            if (!p.option_groups.length && !(p.variants || []).length && !(p.combo || []).length) { this.add(p, [], '', [], null, null); return; }
             const chosen = {};
             p.option_groups.forEach((g) => {
                 // Required single-choice groups start on their default (or first) option, as on the guest menu.
                 const def = g.options.filter((o) => o.default).map((o) => o.id);
                 chosen[g.id] = def.length ? (g.type === 'single' ? def.slice(0, 1) : def) : (g.type === 'single' && g.required && g.options.length ? [g.options[0].id] : []);
             });
-            this.sheet = { product: p, chosen, note: '' };
+            const combo = {};
+            (p.combo || []).forEach((slot) => { const first = slot.items.find((i) => i.available); combo[slot.id] = first ? first.id : null; });
+            this.sheet = { product: p, chosen, note: '', combo, variant: variants.length ? variants[0].id : null };
         },
         toggle(g, o) {
             const cur = this.sheet.chosen[g.id];
@@ -159,27 +162,32 @@ document.addEventListener('alpine:init', () => {
             this.sheet.chosen[g.id] = [...cur, o.id];
         },
         get sheetValid() {
-            return !!this.sheet && this.sheet.product.option_groups.every((g) => !g.required || this.sheet.chosen[g.id].length > 0);
+            return !!this.sheet && !((this.sheet.product.variants || []).length > 0 && this.sheet.variant === null) && !(this.sheet.product.combo || []).some((slot) => !slot.items.find((i) => i.id === this.sheet.combo[slot.id] && i.available)) && this.sheet.product.option_groups.every((g) => !g.required || this.sheet.chosen[g.id].length > 0);
         },
         get sheetUnit() {
             if (!this.sheet) { return 0; }
-            return this.sheet.product.price + this.sheet.product.option_groups.reduce((n, g) => n + g.options.filter((o) => this.sheet.chosen[g.id].includes(o.id)).reduce((m, o) => m + o.price_delta, 0), 0);
+            const v = (this.sheet.product.variants || []).find((x) => x.id === this.sheet.variant);
+            const extra = (this.sheet.product.combo || []).reduce((n, slot) => n + ((slot.items.find((i) => i.id === this.sheet.combo[slot.id]) || {}).delta || 0), 0);
+            return extra + (v ? v.price : this.sheet.product.price) + this.sheet.product.option_groups.reduce((n, g) => n + g.options.filter((o) => this.sheet.chosen[g.id].includes(o.id)).reduce((m, o) => m + o.price_delta, 0), 0);
         },
         commit() {
             if (!this.sheetValid) { return; }
             const p = this.sheet.product;
             const picked = p.option_groups.flatMap((g) => g.options.filter((o) => this.sheet.chosen[g.id].includes(o.id)));
-            this.add(p, picked.map((o) => o.id), this.sheet.note.trim(), picked);
+            const v = (p.variants || []).find((x) => x.id === this.sheet.variant);
+            this.add(p, picked.map((o) => o.id), this.sheet.note.trim(), picked, v || null, (p.combo || []).length ? { ...this.sheet.combo } : null);
             this.sheet = null;
         },
 
         // ---- order lines -----------------------------------------------------------------
-        add(p, optionIds, note, picked) {
-            const sig = p.id + ':' + [...optionIds].sort().join(',') + ':' + note;
+        add(p, optionIds, note, picked, variant = null, combo = null) {
+            const sig = p.id + ':' + (variant ? variant.id : 0) + ':' + JSON.stringify(combo || {}) + ':' + [...optionIds].sort().join(',') + ':' + note;
             const same = this.lines.find((l) => l.sig === sig);
             if (same) { same.qty = Math.min(same.qty + 1, 50); return; }
-            const unit = p.price + picked.reduce((n, o) => n + o.price_delta, 0);
-            this.lines.push({ key: sig + ':' + Date.now(), sig, id: p.id, name: p.name, options: optionIds, optionNames: picked.map((o) => o.name), note, qty: 1, unit });
+            const comboNames = combo ? (p.combo || []).map((slot) => (slot.items.find((i) => i.id === combo[slot.id]) || {}).name).filter(Boolean) : [];
+            const comboExtra = combo ? (p.combo || []).reduce((n, slot) => n + ((slot.items.find((i) => i.id === combo[slot.id]) || {}).delta || 0), 0) : 0;
+            const unit = comboExtra + (variant ? variant.price : p.price) + picked.reduce((n, o) => n + o.price_delta, 0);
+            this.lines.push({ key: sig + ':' + Date.now(), sig, id: p.id, variant_id: variant ? variant.id : null, combo, name: p.name, options: optionIds, optionNames: [...(variant ? [variant.name] : []), ...comboNames, ...picked.map((o) => o.name)], note, qty: 1, unit });
         },
         bump(i, d) {
             const l = this.lines[i];
@@ -201,7 +209,7 @@ document.addEventListener('alpine:init', () => {
                         type: this.type, table_id: this.type === 'dine_in' ? (this.tableId || null) : null,
                         customer_name: this.name, customer_phone: this.phone, delivery_address: this.address, note: this.orderNote,
                         paid: this.canPay && this.paid, payment_method: this.method, idempotency_key: this.key,
-                        lines: this.lines.map((l) => ({ product_id: l.id, qty: l.qty, options: l.options, note: l.note })),
+                        lines: this.lines.map((l) => ({ product_id: l.id, variant_id: l.variant_id || null, combo: l.combo || undefined, qty: l.qty, options: l.options, note: l.note })),
                     }),
                 });
                 const body = await res.json().catch(() => ({}));

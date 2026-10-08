@@ -3,6 +3,7 @@
 namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Branches\Services\GuestBranch;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Marketing\Services\LoyaltyService;
 use App\Modules\Marketing\Services\ReviewService;
@@ -56,6 +57,8 @@ class CustomerOrderController extends Controller
         if ($data['type'] === OrderType::DINE_IN) {
             $data['table_id'] = $scanned ?: ($this->settings->for($restaurant)['dine_in_pick_table'] ? ($data['table_id'] ?? null) : null);
         }
+
+        $data['branch_id'] = app(GuestBranch::class)->id($request, $restaurant);
 
         try {
             $order = $this->orders->place($restaurant, $data + ['locale' => $locale]);

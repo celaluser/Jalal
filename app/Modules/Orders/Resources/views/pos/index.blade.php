@@ -38,7 +38,7 @@
                             </span>
                             <span class="flex flex-1 flex-col gap-1 p-3">
                                 <span class="line-clamp-2 text-sm font-semibold leading-snug" x-text="p.name"></span>
-                                <span class="tnum mt-auto text-sm text-muted" x-text="money(p.price)"></span>
+                                <span class="tnum mt-auto text-sm text-muted" x-text="(p.variants.length ? '{{ __('customer.from_price') }} ' : '') + money(p.price)"></span>
                             </span>
                         </button>
                     </template>
@@ -135,6 +135,30 @@
                             <button type="button" class="btn btn-secondary btn-sm" x-on:click="sheet = null" aria-label="{{ __('admin.close') }}"><x-ui.icon name="x" size="4" /></button>
                         </div>
                         <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+                            <fieldset x-show="(sheet.product.variants || []).length">
+                                <legend class="mb-2 flex w-full items-center justify-between text-sm font-semibold"><span>{{ __('customer.choose_size') }}</span><span class="text-xs font-normal text-muted">{{ __('orders.pos_required') }}</span></legend>
+                                <div class="space-y-1.5">
+                                    <template x-for="v in (sheet.product.variants || [])" :key="v.id">
+                                        <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-line-strong px-3 py-2.5 has-[:checked]:border-accent-600 has-[:checked]:bg-accent-50 dark:has-[:checked]:bg-accent-900/20" :class="v.available ? '' : 'opacity-50'">
+                                            <input type="radio" class="size-4 accent-[var(--color-accent-600)]" name="pos-size" :checked="sheet.variant === v.id" :disabled="!v.available" x-on:change="sheet.variant = v.id">
+                                            <span class="flex-1 text-sm" x-text="v.name"></span><span class="tnum text-sm text-muted" x-text="money(v.price)"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                            </fieldset>
+                            <template x-for="slot in (sheet.product.combo || [])" :key="'s' + slot.id">
+                                <fieldset>
+                                    <legend class="mb-2 flex w-full items-center justify-between text-sm font-semibold"><span x-text="slot.name"></span><span class="text-xs font-normal text-muted">{{ __('orders.pos_required') }}</span></legend>
+                                    <div class="space-y-1.5">
+                                        <template x-for="it in slot.items" :key="it.id">
+                                            <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-line-strong px-3 py-2.5 has-[:checked]:border-accent-600 has-[:checked]:bg-accent-50 dark:has-[:checked]:bg-accent-900/20" :class="it.available ? '' : 'opacity-50'">
+                                                <input type="radio" class="size-4 accent-[var(--color-accent-600)]" :name="'pos-slot' + slot.id" :checked="sheet.combo[slot.id] === it.id" :disabled="!it.available" x-on:change="sheet.combo[slot.id] = it.id">
+                                                <span class="flex-1 text-sm" x-text="it.name"></span><span class="tnum text-sm text-muted" x-text="it.delta > 0 ? '+' + money(it.delta) : ''"></span>
+                                            </label>
+                                        </template>
+                                    </div>
+                                </fieldset>
+                            </template>
                             <template x-for="g in sheet.product.option_groups" :key="g.id">
                                 <fieldset>
                                     <legend class="mb-2 flex w-full items-center justify-between text-sm font-semibold"><span x-text="g.name"></span>

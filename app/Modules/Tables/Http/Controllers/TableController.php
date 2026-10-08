@@ -4,6 +4,8 @@ namespace App\Modules\Tables\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Billing\Services\LimitGuard;
+use App\Modules\Branches\Models\Branch;
+use App\Modules\Branches\Services\BranchContext;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Tables\Models\Area;
 use App\Modules\Tables\Models\DiningTable;
@@ -23,7 +25,9 @@ class TableController extends Controller
         $restaurant = $request->user()->restaurant;
         $areas = Area::orderBy('sort')->orderBy('id')->get();
         $areaId = $request->query('area');
+        $branchId = app(BranchContext::class)->currentId();
         $tables = DiningTable::with('area')
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
             ->when($areaId === 'none', fn ($q) => $q->whereNull('area_id'))
             ->when(ctype_digit((string) $areaId), fn ($q) => $q->where('area_id', (int) $areaId))
             ->orderBy('sort')->orderBy('id')->get();
@@ -84,7 +88,7 @@ class TableController extends Controller
 
     public function edit(DiningTable $table): View
     {
-        return view('tables::tables.edit', ['table' => $table, 'areas' => Area::orderBy('sort')->get()]);
+        return view('tables::tables.edit', ['table' => $table, 'areas' => Area::orderBy('sort')->get(), 'branches' => Branch::orderBy('sort')->get()]);
     }
 
     public function update(Request $request, DiningTable $table): RedirectResponse
@@ -118,9 +122,13 @@ class TableController extends Controller
             'name' => ['required', 'string', 'max:60', Rule::unique('dining_tables', 'name')->where('restaurant_id', $tenant)->ignore($table?->id)],
             'area_id' => ['nullable', $this->areaRule()],
             'seats' => ['nullable', 'integer', 'min:1', 'max:99'],
+            'branch_id' => ['nullable', Rule::exists('branches', 'id')->where('restaurant_id', $tenant)],
         ]);
 
-        return ['name' => trim($data['name']), 'area_id' => $data['area_id'] ?? null, 'seats' => $data['seats'] ?? null];
+        // A table belongs to one branch: the one chosen in the form, else the branch the owner is looking at.
+        $branchId = $request->has('branch_id') ? ($data['branch_id'] ?? null) : ($table?->branch_id ?? app(BranchContext::class)->currentId());
+
+        return ['name' => trim($data['name']), 'area_id' => $data['area_id'] ?? null, 'seats' => $data['seats'] ?? null, 'branch_id' => $branchId];
     }
 
     private function areaRule()

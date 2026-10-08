@@ -3,6 +3,8 @@
 namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Branches\Services\BranchContext;
+use App\Modules\Branches\Services\BranchMenu;
 use App\Modules\Menu\Services\MenuService;
 use App\Modules\Orders\Exceptions\OrderException;
 use App\Modules\Orders\Services\OrderService;
@@ -22,10 +24,11 @@ class PosController extends Controller
     {
         $user = $request->user();
         $restaurant = $user->restaurant;
+        $branchId = app(BranchContext::class)->currentId($user);
 
         return view('orders::pos.index', ['config' => [
-            'menu' => $this->menu->tree($restaurant, app()->getLocale()),
-            'tables' => DiningTable::where('is_active', true)->orderBy('name')->get()->map(fn ($t) => ['id' => $t->id, 'name' => table_label($t->name)])->all(),
+            'menu' => app(BranchMenu::class)->apply($this->menu->tree($restaurant, app()->getLocale()), $branchId),
+            'tables' => DiningTable::where('is_active', true)->when($branchId, fn ($q) => $q->where('branch_id', $branchId))->orderBy('name')->get()->map(fn ($t) => ['id' => $t->id, 'name' => table_label($t->name)])->all(),
             'currency' => $restaurant->currency_code,
             'locale' => str_replace('_', '-', app()->getLocale()),
             'canPay' => $user->canAny(['orders.manage', 'payments.manage']),
@@ -55,6 +58,7 @@ class PosController extends Controller
         $user = $request->user();
         $restaurant = $user->restaurant;
         $data['payment_method'] ??= 'cash';
+        $data['branch_id'] = app(BranchContext::class)->currentId($user);
 
         try {
             $order = $this->orders->place($restaurant, $data, 'staff', $user);

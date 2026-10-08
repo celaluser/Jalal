@@ -28,6 +28,10 @@
                 </div>
                 @error('role')<p class="mt-1.5 text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
             </fieldset>
+            @if (($branches ?? collect())->isNotEmpty())
+                <div><x-ui.select name="branch_id" :label="__('branches.staff_branch')" :options="$branches->pluck('name', 'id')->all()" :value="old('branch_id', $member?->branch_id)" :placeholder="__('branches.all')" />
+                    <p class="mt-1 text-xs text-muted">{{ __('branches.staff_branch_help') }}</p></div>
+            @endif
             <div class="flex items-center justify-between gap-3 pt-1">
                 <span>@if ($editing)<button type="submit" form="remove-member" class="btn btn-ghost text-red-600 dark:text-red-400">{{ __('team.remove') }}</button>@endif</span>
                 <x-ui.button :block="false" :disabled="! $editing && $remaining === 0">{{ $editing ? __('team.save') : __('team.send_invite') }}</x-ui.button>

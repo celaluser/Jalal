@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Branches\Services\BranchContext;
 use App\Modules\Orders\Exceptions\OrderException;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\OrderService;
@@ -48,7 +49,9 @@ class OrderBoardController extends Controller
         $user ??= request()->user();
         $restaurant = $user->restaurant;
 
+        $branchId = app(BranchContext::class)->currentId($user);
         $orders = Order::with('items')
+            ->when($branchId, fn ($q) => $q->where('branch_id', $branchId))
             ->where(fn ($q) => $q->whereIn('status', OrderStatus::OPEN)->orWhere('updated_at', '>=', now()->subHours(self::RECENT_HOURS)))
             ->orderBy('id')->limit(300)->get();
 

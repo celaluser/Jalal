@@ -4,6 +4,8 @@ use App\Modules\Core\Http\Middleware\SetLocale;
 use App\Modules\Menu\Http\Controllers\AppearanceController;
 use App\Modules\Menu\Http\Controllers\CategoryController;
 use App\Modules\Menu\Http\Controllers\MenuController;
+use App\Modules\Menu\Http\Controllers\MenuGroupController;
+use App\Modules\Menu\Http\Controllers\MenuImportController;
 use App\Modules\Menu\Http\Controllers\OptionGroupController;
 use App\Modules\Menu\Http\Controllers\ProductController;
 use App\Modules\Menu\Http\Controllers\ReorderController;
@@ -22,7 +24,14 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
         Route::get('stock', [StockController::class, 'index'])->name('stock.index');
         Route::put('stock', [StockController::class, 'update'])->name('stock.update');
         Route::post('stock/adjust', [StockController::class, 'adjust'])->name('stock.adjust');
+        Route::get('import', [MenuImportController::class, 'show'])->name('import');
+        Route::post('import', [MenuImportController::class, 'preview'])->middleware('throttle:20,1')->name('import.preview');
+        Route::post('import/apply', [MenuImportController::class, 'apply'])->middleware('throttle:10,1')->name('import.apply');
+        Route::post('import/cancel', [MenuImportController::class, 'cancel'])->name('import.cancel');
+        Route::get('import/sample', [MenuImportController::class, 'sample'])->name('import.sample');
         Route::get('export', [StockController::class, 'export'])->middleware('throttle:10,1')->name('export');
+
+        Route::resource('menus', MenuGroupController::class)->except('show')->parameters(['menus' => 'menu']);
 
         Route::resource('option-groups', OptionGroupController::class)->except('show');
 

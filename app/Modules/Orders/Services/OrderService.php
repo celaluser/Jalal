@@ -3,6 +3,8 @@
 namespace App\Modules\Orders\Services;
 
 use App\Models\User;
+use App\Modules\Branches\Models\Branch;
+use App\Modules\Branches\Models\BranchProduct;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Marketing\Models\PromoCode;
 use App\Modules\Marketing\Services\PromoService;
@@ -65,6 +67,7 @@ class OrderService
         }
 
         $table = $this->resolveTable($type, $data, $settings);
+        $branch = $this->resolveBranch($restaurant, $data, $table, $staff);
         $phone = $this->clean($data['customer_phone'] ?? null, 40);
         $name = $this->clean($data['customer_name'] ?? null, 80);
         $address = $this->clean($data['delivery_address'] ?? null, 255);
@@ -96,7 +99,7 @@ class OrderService
             throw new OrderException('payment_unavailable');
         }
 
-        $quote = $this->pricing->quote($restaurant, $data['lines'] ?? []);
+        $quote = $this->pricing->quote($restaurant, $data['lines'] ?? [], $type, $branch?->id);
 
         if (! $quote['valid']) {
             throw new OrderException('cart_invalid', $quote['lines']);
@@ -116,7 +119,7 @@ class OrderService
         $sums = $this->totals->compute($quote['subtotal_cents'], $type, $settings, $discount);
 
         $order = $this->store($restaurant, $settings, $quote, $sums, [
-            'type' => $type, 'source' => $source, 'idempotency_key' => $key,
+            'type' => $type, 'source' => $source, 'idempotency_key' => $key, 'branch_id' => $branch?->id,
             'table_id' => $table?->id, 'table_name' => $table?->name,
             'customer_name' => $name, 'customer_phone' => $phone, 'customer_email' => $email !== null ? mb_strtolower($email) : null, 'delivery_address' => $type === OrderType::DELIVERY ? $address : null,
             'note' => $this->clean($data['note'] ?? null, 300), 'locale' => $data['locale'] ?? app()->getLocale(),
@@ -211,12 +214,12 @@ class OrderService
                         throw new OrderException('promo_used');
                     }
 
-                    $this->takeStock($quote['lines']);
+                    $this->takeStock($quote['lines'], $attributes['branch_id'] ?? null);
 
                     foreach ($quote['lines'] as $line) {
                         $order->items()->create([
                             'product_id' => $line['product_id'], 'name' => $line['name'],
-                            'options' => array_map(fn ($o) => ['group' => $o['group'], 'name' => $o['name'], 'price_delta_cents' => $o['price_delta_cents']], $line['options']),
+                            'options' => array_map(fn ($o) => ['group' => $o['group'], 'name' => $o['name'], 'price_delta_cents' => $o['price_delta_cents']] + (isset($o['combo_product']) ? ['combo_product' => $o['combo_product']] : []), $line['options']),
                             'note' => $line['note'] !== '' ? $line['note'] : null, 'qty' => $line['qty'], 'unit_cents' => $line['unit_cents'], 'total_cents' => $line['total_cents'],
                         ]);
                     }
@@ -249,17 +252,31 @@ class OrderService
      *
      * @throws OrderException
      */
-    private function takeStock(array $lines): void
+    private function takeStock(array $lines, ?int $branchId = null): void
     {
         $wanted = [];
 
         foreach ($lines as $line) {
-            $wanted[$line['product_id']] = ($wanted[$line['product_id']] ?? 0) + $line['qty'];
+            // A set menu also uses up the dishes picked inside it.
+            foreach ([$line['product_id'], ...($line['combo_products'] ?? [])] as $productId) {
+                $wanted[$productId] = ($wanted[$productId] ?? 0) + $line['qty'];
+            }
         }
 
         $touched = false;
 
-        foreach (Product::whereIn('id', array_keys($wanted))->whereNotNull('stock_qty')->pluck('id') as $id) {
+        // A branch that keeps its own portions of a dish sells from those; everyone else from the shared stock.
+        $own = $branchId ? BranchProduct::where('branch_id', $branchId)->whereIn('product_id', array_keys($wanted))->whereNotNull('stock_qty')->pluck('product_id')->all() : [];
+
+        foreach ($own as $id) {
+            if (BranchProduct::where('branch_id', $branchId)->where('product_id', $id)->where('stock_qty', '>=', $wanted[$id])->decrement('stock_qty', $wanted[$id]) !== 1) {
+                throw new OrderException('out_of_stock');
+            }
+
+            $touched = true;
+        }
+
+        foreach (Product::whereIn('id', array_diff(array_keys($wanted), $own))->whereNotNull('stock_qty')->pluck('id') as $id) {
             $taken = Product::whereKey($id)->where('stock_qty', '>=', $wanted[$id])->decrement('stock_qty', $wanted[$id]);
 
             if ($taken !== 1) {
@@ -277,11 +294,56 @@ class OrderService
     /** A cancelled order gives its portions back. */
     private function returnStock(Order $order): void
     {
-        foreach ($order->items()->get()->groupBy('product_id') as $productId => $items) {
-            Product::whereKey($productId)->whereNotNull('stock_qty')->increment('stock_qty', (int) $items->sum('qty'));
+        $back = [];
+
+        foreach ($order->items()->get() as $item) {
+            foreach ([$item->product_id, ...collect($item->options ?? [])->pluck('combo_product')->filter()->all()] as $productId) {
+                if ($productId) {
+                    $back[$productId] = ($back[$productId] ?? 0) + $item->qty;
+                }
+            }
+        }
+
+        foreach ($back as $productId => $qty) {
+            $own = $order->branch_id ? BranchProduct::where('branch_id', $order->branch_id)->where('product_id', $productId)->whereNotNull('stock_qty') : null;
+
+            if ($own && $own->exists()) {
+                $own->increment('stock_qty', $qty);
+            } else {
+                Product::whereKey($productId)->whereNotNull('stock_qty')->increment('stock_qty', $qty);
+            }
         }
 
         DB::afterCommit(fn () => MenuCache::bump($order->restaurant_id));
+    }
+
+    /**
+     * Which branch takes the order. A restaurant without branches has none. With branches, a dine-in table decides it, else the guest's choice;
+     * a closed branch takes no guest orders (staff can still key one in).
+     *
+     * @throws OrderException branch_required | branch_closed
+     */
+    private function resolveBranch(Restaurant $restaurant, array $data, ?DiningTable $table, bool $staff): ?Branch
+    {
+        $branches = Branch::where('is_active', true)->orderBy('sort')->orderBy('id')->get();
+
+        if ($branches->isEmpty()) {
+            return null;
+        }
+
+        $branch = ($table?->branch_id ? $branches->firstWhere('id', $table->branch_id) : null)
+            ?? (! empty($data['branch_id']) ? $branches->firstWhere('id', (int) $data['branch_id']) : null)
+            ?? ($branches->count() === 1 ? $branches->first() : null);
+
+        if (! $branch) {
+            throw new OrderException('branch_required');
+        }
+
+        if (! $staff && ! $branch->isOpen()) {
+            throw new OrderException('branch_closed');
+        }
+
+        return $branch;
     }
 
     private function resolveTable(string $type, array $data, array $settings): ?DiningTable

@@ -2,9 +2,13 @@
 
 namespace App\Modules\Storefront\Services;
 
+use App\Modules\Branches\Services\BranchMenu;
 use App\Modules\Menu\Models\OptionGroup;
 use App\Modules\Menu\Models\Product;
+use App\Modules\Menu\Services\MenuAvailability;
+use App\Modules\Menu\Support\Schedule;
 use App\Modules\Tenancy\Models\Restaurant;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
 /**
@@ -24,11 +28,14 @@ class CartPricing
      * @param  array<int, mixed>  $lines  [{product_id, qty, options: [id...], note?}]
      * @return array{lines: list<array<string, mixed>>, subtotal_cents: int, subtotal: string, valid: bool}
      */
-    public function quote(Restaurant $restaurant, array $lines): array
+    public function quote(Restaurant $restaurant, array $lines, ?string $type = null, ?int $branchId = null): array
     {
+        $overrides = app(BranchMenu::class)->overrides($branchId);
+        $availability = app(MenuAvailability::class);
+        $now = $availability->now($restaurant);
         $lines = array_slice(array_values($lines), 0, self::MAX_LINES);
         $ids = collect($lines)->map(fn ($l) => is_array($l) ? $this->id($l['product_id'] ?? null) : 0)->filter()->unique()->all();
-        $products = Product::with(['category', 'optionGroups.options'])->whereIn('id', $ids)->get()->keyBy('id');
+        $products = Product::with(['category.menu', 'variants', 'comboSlots.items.dish.variants', 'optionGroups.options'])->whereIn('id', $ids)->get()->keyBy('id');
         $locale = app()->getLocale();
 
         $priced = [];
@@ -36,7 +43,7 @@ class CartPricing
         $valid = true;
 
         foreach ($lines as $i => $line) {
-            $row = $this->line($restaurant, is_array($line) ? $line : [], $products, $locale);
+            $row = $this->line($restaurant, is_array($line) ? $line : [], $products, $locale, $availability, $now, $type, $overrides);
             $row['index'] = $i;
             $valid = $valid && $row['errors'] === [];
             $subtotal += $row['errors'] === [] ? $row['total_cents'] : 0;
@@ -50,7 +57,7 @@ class CartPricing
      * @param  Collection<int, Product>  $products
      * @return array<string, mixed>
      */
-    private function line(Restaurant $restaurant, array $line, $products, string $locale): array
+    private function line(Restaurant $restaurant, array $line, $products, string $locale, MenuAvailability $availability, CarbonImmutable $now, ?string $type, $overrides): array
     {
         $errors = [];
         $productId = $this->id($line['product_id'] ?? null);
@@ -66,21 +73,79 @@ class CartPricing
 
         $base = ['product_id' => $productId, 'qty' => $qty, 'note' => $note, 'name' => '', 'options' => [], 'unit_cents' => 0, 'total_cents' => 0, 'total' => '', 'unit' => ''];
 
-        if (! $product || ! $product->is_active || ! $product->category?->is_active) {
+        // Off the menu right now counts as gone: hidden, outside its hours, or its limited time is over.
+        if (! $product || ! $product->is_active || ! $product->category?->is_active
+            || ! $availability->productOpen($product->schedule, $product->limited_until?->toDateString(), $now) || ! Schedule::isOpen($product->category->schedule, $now)
+            || ($product->category->menu && (! $product->category->menu->is_active || ! Schedule::isOpen($product->category->menu->schedule, $now)))) {
             return $base + ['errors' => [...$errors, 'unavailable']];
         }
 
         $base['name'] = $product->tr('name', $locale, $restaurant->locale);
 
-        if (! $product->canBeOrdered()) {
+        if (! $availability->allowsType($product->order_types, $type)) {
+            $errors[] = 'not_for_type';
+        }
+
+        // A branch can have its own price, its own sold-out switch and its own portions for a dish.
+        $branch = $overrides[$product->id] ?? null;
+        $stock = $branch?->stock_qty ?? ($product->tracksStock() ? $product->stock_qty : null);
+
+        if (! $product->is_available || ($branch && $branch->is_available === false) || ($stock !== null && $stock <= 0)
+            || ($product->variants->isNotEmpty() && ! $product->variants->contains('is_available', true))) {
             $errors[] = 'sold_out';
-        } elseif ($product->tracksStock() && $qty > $product->stock_qty) {
+        } elseif ($stock !== null && $qty > $stock) {
             $errors[] = 'stock_limit'; // asked for more than is left
         }
 
         $chosen = collect(is_array($line['options'] ?? null) ? $line['options'] : [])->map(fn ($id) => $this->id($id))->filter()->unique()->values();
-        $unit = (int) round((float) $product->price * 100);
-        $picked = [];
+        $unit = (int) round((float) ($branch?->price ?? $product->price) * 100);
+
+        // A dish with sizes is always ordered in one size, and that size sets the price.
+        $variantId = null;
+
+        if ($product->variants->isNotEmpty()) {
+            $variant = $product->variants->firstWhere('id', $this->id($line['variant_id'] ?? null));
+
+            if (! $variant) {
+                $errors[] = 'variant_required';
+            } elseif (! $variant->is_available) {
+                $errors[] = 'sold_out';
+            } else {
+                $unit = (int) round((float) $variant->price * 100);
+                $variantId = $variant->id;
+                $base['name'] .= ' · '.$variant->tr('name', $locale, $restaurant->locale);
+            }
+        }
+        // A set menu: one dish for every slot, each possibly with a surcharge.
+        $comboProducts = [];
+        $comboPicked = [];
+
+        if ($product->is_combo && $product->comboSlots->isNotEmpty()) {
+            $choices = is_array($line['combo'] ?? null) ? $line['combo'] : [];
+
+            foreach ($product->comboSlots as $slot) {
+                $item = $slot->items->firstWhere('product_id', $this->id($choices[$slot->id] ?? null));
+
+                if (! $item) {
+                    $errors[] = 'combo_required';
+
+                    continue;
+                }
+
+                if (! $item->dish || ! $item->dish->is_active || ! $item->dish->canBeOrdered()) {
+                    $errors[] = 'sold_out';
+
+                    continue;
+                }
+
+                $delta = (int) round((float) $item->price_delta * 100);
+                $unit += $delta;
+                $comboProducts[] = $item->product_id;
+                $comboPicked[] = ['id' => $item->product_id, 'combo_product' => $item->product_id, 'group' => $slot->tr('name', $locale, $restaurant->locale), 'name' => $item->dish->tr('name', $locale, $restaurant->locale), 'price_delta_cents' => $delta];
+            }
+        }
+
+        $picked = $comboPicked;
 
         $knownIds = $product->optionGroups->flatMap(fn (OptionGroup $g) => $g->options->pluck('id'))->all();
 
@@ -114,7 +179,7 @@ class CartPricing
         $total = $unit * $qty;
 
         return array_merge($base, [
-            'options' => $picked, 'unit_cents' => $unit, 'total_cents' => $total,
+            'variant_id' => $variantId, 'combo_products' => $comboProducts, 'options' => $picked, 'unit_cents' => $unit, 'total_cents' => $total,
             'unit' => $restaurant->money($unit / 100), 'total' => $restaurant->money($total / 100), 'errors' => array_values(array_unique($errors)),
         ]);
     }

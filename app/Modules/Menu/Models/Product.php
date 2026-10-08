@@ -10,6 +10,7 @@ use App\Modules\Menu\Support\DishArt;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
@@ -18,6 +19,10 @@ class Product extends Model
     /** Switches that can be flipped from the list without opening the edit form. */
     public const TOGGLES = ['is_active', 'is_available', 'is_featured'];
 
+    public const BADGES = ['new', 'popular', 'chef', 'limited'];
+
+    public const NUTRIENTS = ['protein', 'carbs', 'fat', 'fiber', 'sugar', 'sodium'];
+
     protected $guarded = ['id', 'restaurant_id'];
 
     protected function casts(): array
@@ -25,7 +30,8 @@ class Product extends Model
         return [
             'name' => 'array', 'description' => 'array', 'allergens' => 'array', 'dietary' => 'array',
             'price' => 'decimal:2', 'compare_price' => 'decimal:2',
-            'is_active' => 'boolean', 'is_available' => 'boolean', 'is_featured' => 'boolean',
+            'is_active' => 'boolean', 'is_available' => 'boolean', 'is_featured' => 'boolean', 'is_combo' => 'boolean',
+            'cost_price' => 'decimal:2', 'gallery' => 'array', 'nutrition' => 'array', 'badges' => 'array', 'schedule' => 'array', 'order_types' => 'array', 'limited_until' => 'date',
         ];
     }
 
@@ -37,6 +43,22 @@ class Product extends Model
     public function image(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'image_media_id');
+    }
+
+    /** Dishes the owner says go well with this one. */
+    public function pairings(): BelongsToMany
+    {
+        return $this->belongsToMany(self::class, 'product_pairings', 'product_id', 'paired_id')->withPivot('sort')->orderByPivot('sort');
+    }
+
+    public function comboSlots(): HasMany
+    {
+        return $this->hasMany(ComboSlot::class)->orderBy('sort')->orderBy('id');
+    }
+
+    public function variants(): HasMany
+    {
+        return $this->hasMany(ProductVariant::class)->orderBy('sort')->orderBy('id');
     }
 
     public function optionGroups(): BelongsToMany
@@ -64,7 +86,8 @@ class Product extends Model
     /** Orderable right now: switched on by hand and not run out. */
     public function canBeOrdered(): bool
     {
-        return $this->is_available && $this->inStock();
+        // A dish whose every size is switched off cannot be ordered either.
+        return $this->is_available && $this->inStock() && ($this->variants->isEmpty() || $this->variants->contains('is_available', true));
     }
 
     public function isLowStock(): bool

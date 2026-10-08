@@ -70,7 +70,13 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Ordering settings: types, fees, payment methods, auto-accept, preparation time, guest cancel
 - ✅ Staff order entry (POS) for waiters, cashiers, managers: menu browser with options, table / takeaway / delivery, optional "paid now" for cashiers; server re-prices everything
 - ✅ Optional guest e-mail at checkout: order received, ready, cancelled-by-restaurant e-mails (admin-editable templates; a mail outage never blocks an order)
-- ⬜ Online card payment for orders (not verifiable without live gateway accounts), SMS notifications (needs a provider), courier tracking, branches
+- ⬜ Online card payment for orders (not verifiable without live gateway accounts), SMS notifications (needs a provider), courier tracking
+
+## 9b. Menu depth and branches (v2 gap work)
+- ✅ Dish fields: badges (new, spicy, chef's pick, …), nutrition, video link, gallery, schedule (days/hours), limited-time dates, order-type visibility, pairings ("goes well with")
+- ✅ Sizes/variants with their own price, set menus (combos with one dish per slot and surcharges, picked dishes leave stock), multiple menus (breakfast, drinks) with their own hours and a switcher on the guest page
+- ✅ CSV menu import with preview and plan limits
+- ✅ Branches: per-location tables, staff (fixed or all), opening hours, price/availability/portion overrides per dish with copy between branches, guest branch choice (QR table → link → remembered → chooser), closed-branch protection, order board and till filtered by branch; plan limit `branches`
 
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
@@ -93,4 +99,4 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ⬜ **Phase 14** Envato packaging: documentation, changelog, licence list, update-signing tool
 
 ## Plan features that exist as switches but have no feature behind them yet
-`branches`, `custom_domain` (resolution only), `whatsapp_orders`, `online_payments` (for orders), `reservations`, `analytics`.
+`custom_domain` (resolution only), `whatsapp_orders`, `online_payments` (for orders), `reservations`, `analytics`.

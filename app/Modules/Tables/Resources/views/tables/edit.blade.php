@@ -7,6 +7,7 @@
                 <x-ui.select name="area_id" :label="__('tables.area')" :options="$areas->pluck('name', 'id')->all()" :value="$table->area_id" placeholder="—" />
                 <x-ui.input name="seats" type="number" min="1" max="99" :label="__('tables.seats')" :value="$table->seats" />
             </div>
+            @if ($branches->isNotEmpty())<x-ui.select name="branch_id" :label="__('branches.branch')" :options="$branches->pluck('name', 'id')->all()" :value="$table->branch_id" :placeholder="__('branches.no_branch')" />@endif
             <x-ui.checkbox name="is_active" :label="__('tables.is_active')" :checked="$table->is_active" />
             <div class="flex items-center justify-between gap-3 pt-2">
                 <button type="submit" form="delete-table" class="btn btn-ghost text-red-600 dark:text-red-400">{{ __('admin.delete') }}</button>

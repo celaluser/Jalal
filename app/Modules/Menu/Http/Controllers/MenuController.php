@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Billing\Services\LimitGuard;
 use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\Product;
+use App\Modules\Orders\Services\OrderSettings;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -19,6 +20,7 @@ class MenuController extends Controller
         $current = $categories->firstWhere('id', (int) $request->query('category')) ?? $categories->first();
 
         return view('menu::menu.index', [
+            'ordering' => app(OrderSettings::class)->accepting($restaurant),
             'restaurant' => $restaurant,
             'categories' => $categories,
             'current' => $current,

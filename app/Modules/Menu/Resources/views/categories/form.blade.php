@@ -8,6 +8,8 @@
             <x-ui.translatable name="description" :label="__('menu.description')" :locales="$locales" :values="$category->description ?? []" textarea :rows="2" :maxlength="500" />
             @include('ai::buttons', ['mode' => 'translate'])
             @include('menu::partials.image', ['model' => $category])
+            <x-ui.input name="icon" :label="__('menu.category_icon')" :value="$category->icon" :hint="__('menu.category_icon_hint')" maxlength="16" />
+            @include('menu::partials.schedule', ['schedule' => $category->schedule])
             <x-ui.checkbox name="is_active" :label="__('menu.is_active')" :checked="$category->is_active" />
             <div class="flex items-center justify-between gap-3 pt-2">
                 <span>@if ($category->exists)<button type="submit" form="delete-category" class="btn btn-ghost text-red-600 dark:text-red-400">{{ __('admin.delete') }}</button>@endif</span>

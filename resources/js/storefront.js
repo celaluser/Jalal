@@ -7,6 +7,8 @@ const fold = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleL
 document.addEventListener('alpine:init', () => {
     window.Alpine.data('storefront', (cfg) => ({
         tree: cfg.tree,
+        menus: cfg.menus || [],
+        menuId: (cfg.menus && cfg.menus[0]) ? cfg.menus[0].id : 0,
         q: '',
         diet: [],
         avoid: [],
@@ -31,6 +33,8 @@ document.addEventListener('alpine:init', () => {
         totals: null,
         ord: cfg.ordering,
         cfg_diet: cfg.diet,
+        cfg_badge: cfg.badge,
+        cfg_nutrient: cfg.nutrient,
         cfg_allergen: cfg.allergen,
 
         init() {
@@ -50,7 +54,9 @@ document.addEventListener('alpine:init', () => {
         get hasFilters() { return this.q.trim() !== '' || this.diet.length > 0 || this.avoid.length > 0; },
         get visible() {
             const q = fold(this.q.trim());
-            return this.tree
+            // Several menus (breakfast, lunch...): show one at a time, but a search looks through all of them.
+            const pool = this.menus.length && !this.hasFilters ? this.tree.filter((c) => c.menu_id === this.menuId) : this.tree;
+            return pool
                 .map((c) => ({ ...c, products: c.products.filter((p) => this.matches(p, q)) }))
                 .filter((c) => c.products.length > 0);
         },
@@ -88,23 +94,31 @@ document.addEventListener('alpine:init', () => {
             return c.after ? num + ' ' + c.symbol : c.symbol + num;
         },
         cents(p) { return Math.round(p * 100); },
+        // Dishes sold in sizes show "from" their lowest price.
+        priceText(p) { const t = this.money(this.cents(p.price)); return (p.variants || []).length ? cfg.t.from_price + ' ' + t : t; },
 
         // ---- product sheet ---------------------------------------------------------------
         open(product, edit = null) {
             const selected = {};
             product.option_groups.forEach((g) => { selected[g.id] = g.options.filter((o) => o.default).map((o) => o.id); });
             if (edit) { Object.keys(selected).forEach((gid) => { selected[gid] = edit.options.filter((id) => product.option_groups.find((g) => g.id === Number(gid))?.options.some((o) => o.id === id)); }); }
-            this.sheet = { product, selected, qty: edit?.qty ?? 1, note: edit?.note ?? '', editKey: edit?.key ?? null, showErrors: false };
+            const variants = product.variants || [];
+            const variant = edit?.variant_id ?? (variants.find((v) => v.available)?.id ?? null);
+            const combo = {};
+            (product.combo || []).forEach((slot) => { const first = slot.items.find((i) => i.available); combo[slot.id] = edit?.combo?.[slot.id] ?? (first ? first.id : null); });
+            this.sheet = { product, selected, variant, combo, qty: edit?.qty ?? 1, note: edit?.note ?? '', editKey: edit?.key ?? null, showErrors: false, img: 0, video: false };
             this.$nextTick(() => this.$refs.sheetClose?.focus());
         },
         quickAdd(product, event = null) {
             if (!product.available) { return; }
-            if (product.option_groups.length) { this.open(product); return; }
-            this.push({ product_id: product.id, options: [], qty: 1, note: '', name: product.name, labels: [], unit_cents: this.cents(product.price) });
+            if (product.option_groups.length || (product.variants || []).length || (product.combo || []).length) { this.open(product); return; }
+            this.push({ product_id: product.id, variant_id: null, combo: null, options: [], qty: 1, note: '', name: product.name, labels: [], unit_cents: this.cents(product.price) });
             this.flash(product.name);
             this.fly(event?.currentTarget);
         },
         pic(p) { return p.image || p.art; },
+        // Every photo of a dish for its detail sheet: the main one first, then the gallery.
+        photos(p) { return [this.big(p), ...(p.gallery || []).map((g) => g.full)].filter(Boolean); },
         // The detail sheet shows the full-size photo.
         big(p) { return p.image_full || p.image || p.art; },
         // A little dot flies from the tapped button to the cart bar: feedback that the dish was added.
@@ -132,12 +146,14 @@ document.addEventListener('alpine:init', () => {
         // Dishes from other parts of the menu that go with what is in the cart. Only items that can be added in one tap.
         get suggestions() {
             const inCart = new Set(this.cart.map((l) => l.product_id));
+            // Dishes the restaurant itself says go well with what is in the cart come first.
+            const paired = new Set(this.tree.flatMap((c) => c.products).filter((p) => inCart.has(p.id)).flatMap((p) => p.pairs || []));
             const catOf = new Map(this.tree.flatMap((c) => c.products.map((p) => [p.id, c.id])));
             const cartCats = new Set(this.cart.map((l) => catOf.get(l.product_id)));
             return this.tree
                 .flatMap((c) => c.products.map((p) => ({ ...p, cat: c.id })))
-                .filter((p) => p.available && !inCart.has(p.id) && !p.option_groups.some((g) => g.required))
-                .sort((a, b) => (cartCats.has(a.cat) - cartCats.has(b.cat)) || (b.featured - a.featured) || (a.price - b.price))
+                .filter((p) => p.available && !inCart.has(p.id) && !(p.variants || []).length && !(p.combo || []).length && !p.option_groups.some((g) => g.required))
+                .sort((a, b) => (paired.has(b.id) - paired.has(a.id)) || (cartCats.has(a.cat) - cartCats.has(b.cat)) || (b.featured - a.featured) || (a.price - b.price))
                 .slice(0, 4);
         },
         pick(group, option) {
@@ -149,18 +165,28 @@ document.addEventListener('alpine:init', () => {
         },
         isPicked(group, option) { return this.sheet.selected[group.id].includes(option.id); },
         groupMissing(group) { return group.required && this.sheet.selected[group.id].length === 0; },
+        get sheetBase() {
+            const s = this.sheet;
+            const v = (s.product.variants || []).find((x) => x.id === s.variant);
+            return this.cents(v ? v.price : s.product.price);
+        },
         get sheetUnit() {
             const s = this.sheet;
-            return s.product.option_groups.reduce((sum, g) => sum + g.options.filter((o) => s.selected[g.id].includes(o.id)).reduce((a, o) => a + Math.round(o.price_delta * 100), 0), this.cents(s.product.price));
+            const comboExtra = (s.product.combo || []).reduce((sum, slot) => sum + Math.round(((slot.items.find((i) => i.id === s.combo[slot.id]) || {}).delta || 0) * 100), 0);
+            return comboExtra + s.product.option_groups.reduce((sum, g) => sum + g.options.filter((o) => s.selected[g.id].includes(o.id)).reduce((a, o) => a + Math.round(o.price_delta * 100), 0), this.sheetBase);
         },
-        get sheetValid() { return this.sheet.product.option_groups.every((g) => !this.groupMissing(g)); },
+        get variantMissing() { const s = this.sheet; return (s.product.variants || []).length > 0 && !(s.product.variants.find((v) => v.id === s.variant && v.available)); },
+        get comboMissing() { const s = this.sheet; return (s.product.combo || []).some((slot) => !slot.items.find((i) => i.id === s.combo[slot.id] && i.available)); },
+        get sheetValid() { return !this.variantMissing && !this.comboMissing && this.sheet.product.option_groups.every((g) => !this.groupMissing(g)); },
         step(delta) { this.sheet.qty = Math.min(50, Math.max(1, this.sheet.qty + delta)); },
         submitSheet() {
             const s = this.sheet;
             if (!this.sheetValid) { s.showErrors = true; return; }
             const options = s.product.option_groups.flatMap((g) => s.selected[g.id]);
-            const labels = s.product.option_groups.flatMap((g) => g.options.filter((o) => s.selected[g.id].includes(o.id)).map((o) => o.name));
-            const line = { product_id: s.product.id, options, qty: s.qty, note: s.note.trim(), name: s.product.name, labels, unit_cents: Math.max(0, this.sheetUnit) };
+            const variant = (s.product.variants || []).find((v) => v.id === s.variant);
+            const comboLabels = (s.product.combo || []).map((slot) => (slot.items.find((i) => i.id === s.combo[slot.id]) || {}).name).filter(Boolean);
+            const labels = [...(variant ? [variant.name] : []), ...comboLabels, ...s.product.option_groups.flatMap((g) => g.options.filter((o) => s.selected[g.id].includes(o.id)).map((o) => o.name))];
+            const line = { product_id: s.product.id, variant_id: variant ? variant.id : null, combo: (s.product.combo || []).length ? { ...s.combo } : null, options, qty: s.qty, note: s.note.trim(), name: s.product.name, labels, unit_cents: Math.max(0, this.sheetUnit) };
             if (s.editKey) { this.cart = this.cart.filter((l) => l.key !== s.editKey); }
             this.push(line);
             this.sheet = null;
@@ -169,7 +195,7 @@ document.addEventListener('alpine:init', () => {
         },
 
         // ---- cart ------------------------------------------------------------------------
-        key(l) { return [l.product_id, [...l.options].sort((a, b) => a - b).join(','), l.note].join('|'); },
+        key(l) { return [l.product_id, l.variant_id || 0, JSON.stringify(l.combo || {}), [...l.options].sort((a, b) => a - b).join(','), l.note].join('|'); },
         push(line) {
             line.key = this.key(line);
             const same = this.cart.find((l) => l.key === line.key);
@@ -213,7 +239,7 @@ document.addEventListener('alpine:init', () => {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf },
                         body: JSON.stringify({
-                            lines: this.cart.map((l) => ({ product_id: l.product_id, options: l.options, qty: l.qty, note: l.note })),
+                            lines: this.cart.map((l) => ({ product_id: l.product_id, variant_id: l.variant_id || null, combo: l.combo || undefined, options: l.options, qty: l.qty, note: l.note })),
                             type: this.stage === 'checkout' ? this.form.type : undefined,
                             promo_code: this.stage === 'checkout' && this.form.promo ? this.form.promo : undefined,
                             customer_email: this.form.email || undefined, customer_phone: this.form.phone || undefined,
@@ -282,7 +308,7 @@ document.addEventListener('alpine:init', () => {
                         type: f.type, table_id: f.type === 'dine_in' ? (this.ord.table?.id || f.table_id || null) : null,
                         customer_name: f.name, customer_phone: f.phone, customer_email: f.email, marketing_opt_in: !!f.email.trim() && f.marketing, promo_code: f.promo || null, delivery_address: f.type === 'delivery' ? f.address : null,
                         note: f.note, payment_method: f.payment, idempotency_key: this.key,
-                        lines: this.cart.map((l) => ({ product_id: l.product_id, options: l.options, qty: l.qty, note: l.note })),
+                        lines: this.cart.map((l) => ({ product_id: l.product_id, variant_id: l.variant_id || null, combo: l.combo || undefined, options: l.options, qty: l.qty, note: l.note })),
                     }),
                 });
                 const data = await res.json().catch(() => ({}));

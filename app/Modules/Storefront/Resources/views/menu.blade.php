@@ -9,12 +9,15 @@
         'quoteUrl' => $base.'/cart/quote',
         'csrf' => csrf_token(),
         'ordering' => $ordering,
+        'menus' => $menus,
         'storageKey' => 'qrmenu.cart.'.$restaurant->id,
         'diet' => collect($dietary)->mapWithKeys(fn ($d) => [$d => __('menu.diet.'.$d)])->all(),
+        'badge' => collect(['new', 'popular', 'chef', 'limited'])->mapWithKeys(fn ($b) => [$b => __('menu.badge_'.$b)])->all(),
+        'nutrient' => collect(['protein', 'carbs', 'fat', 'fiber', 'sugar', 'sodium'])->mapWithKeys(fn ($n) => [$n => __('menu.nutrient_'.$n)])->all(),
         'allergen' => collect($allergens)->mapWithKeys(fn ($a) => [$a => __('menu.allergen.'.$a)])->all(),
-        't' => collect(['sold_out', 'unavailable', 'option_required', 'option_unavailable', 'invalid_option', 'too_many_options', 'quantity'])->mapWithKeys(fn ($k) => [$k => __('customer.error_'.$k)])->all()
+        't' => collect(['sold_out', 'unavailable', 'not_for_type', 'stock_limit', 'variant_required', 'combo_required', 'option_required', 'option_unavailable', 'invalid_option', 'too_many_options', 'quantity'])->mapWithKeys(fn ($k) => [$k => __('customer.error_'.$k)])->all()
             + collect(['table_required', 'name_required', 'phone_required', 'address_required', 'email_invalid'])->mapWithKeys(fn ($k) => [$k => __('orders.error_'.$k)])->all()
-            + ['too_many' => __('customer.too_many'), 'generic_error' => __('customer.generic_error')],
+            + ['from_price' => __('customer.from_price'), 'too_many' => __('customer.too_many'), 'generic_error' => __('customer.generic_error')],
     ];
     $ogImage = $logo;
 @endphp
@@ -70,6 +73,10 @@
     </header>
 
     <div class="mx-auto -mt-7 max-w-3xl px-4">
+        @if ($branch)
+            <p class="menu-card mb-3 flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm" role="status"><span class="font-medium">{{ $branch['name'] }}@unless ($branch['open']) <span class="menu-muted">· {{ __('branches.closed_now') }}</span>@endunless</span>
+                @if ($branch['switch'])<a class="underline" href="{{ $base }}?branch=">{{ __('branches.choose_title') }}</a>@endif</p>
+        @endif
         @if (session('table_invalid'))<p class="menu-card menu-muted mb-3 px-3 py-2 text-sm" role="status">{{ __('customer.table_invalid') }}</p>@endif
 
         {{-- Search and filters --}}
@@ -109,7 +116,7 @@
                     <button type="button" class="menu-img block aspect-[4/3] w-full overflow-hidden" x-on:click="open(p)" tabindex="-1" aria-hidden="true"><img :src="pic(p)" alt="" loading="lazy" class="size-full object-cover"></button>
                     <div class="p-3">
                         <button type="button" class="block w-full truncate text-start font-semibold" x-on:click="open(p)" x-text="p.name"></button>
-                        <p class="mt-1 flex items-center justify-between"><span class="tnum font-bold" x-text="money(cents(p.price))"></span>
+                        <p class="mt-1 flex items-center justify-between"><span class="tnum font-bold" x-text="priceText(p)"></span>
                             <button type="button" class="menu-add !size-9" x-on:click="quickAdd(p, $event)" :aria-label="(p.option_groups.length ? @js(__('customer.choose')) : @js(__('customer.add'))) + ' ' + p.name"><x-ui.icon name="plus" size="5" /></button></p>
                     </div>
                 </article>
@@ -117,12 +124,21 @@
         </div>
     </section>
 
+    {{-- Menu switcher: only when more than one menu is open right now --}}
+    @if ($menus)
+        <nav class="mx-auto mt-4 flex max-w-3xl gap-2 overflow-x-auto px-4" aria-label="{{ __('menu.menus_title') }}" x-show="!hasFilters">
+            @foreach ($menus as $m)
+                <button type="button" class="menu-chip !px-4 !py-1.5 !text-sm !font-semibold" :aria-pressed="menuId === {{ $m['id'] }}" x-on:click="menuId = {{ $m['id'] }}; window.scrollTo({ top: 0, behavior: 'smooth' })">{{ $m['name'] }}</button>
+            @endforeach
+        </nav>
+    @endif
+
     {{-- Category tabs --}}
     @if ($tree)
         <nav class="menu-page menu-line sticky top-0 z-20 mt-3 border-b" aria-label="{{ __('menu.categories') }}">
             <div class="menu-scroll mx-auto flex max-w-3xl gap-2 overflow-x-auto px-4 py-2.5" x-show="visible.length > 0">
                 <template x-for="c in visible" :key="c.id">
-                    <button type="button" class="menu-chip" x-bind:data-tab="c.id" :aria-current="active === c.id" x-on:click="goTo(c.id)" x-text="c.name"></button>
+                    <button type="button" class="menu-chip" x-bind:data-tab="c.id" :aria-current="active === c.id" x-on:click="goTo(c.id)"><span x-show="c.icon" x-text="c.icon + ' '"></span><span x-text="c.name"></span></button>
                 </template>
             </div>
         </nav>
@@ -135,7 +151,7 @@
         @else
             <template x-for="c in visible" :key="c.id">
                 <section class="mb-8 scroll-mt-16" :id="'cat-' + c.id" :data-cat="c.id" :aria-label="c.name">
-                    <h2 class="display mb-1 text-xl font-bold" x-text="c.name"></h2>
+                    <h2 class="display mb-1 text-xl font-bold"><span x-show="c.icon" x-text="c.icon + ' '"></span><span x-text="c.name"></span></h2>
                     <p class="menu-muted mb-3 text-sm" x-show="c.description" x-text="c.description"></p>
                     <div class="{{ $layout === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-3' }}">
                         <template x-for="p in c.products" :key="p.id">
@@ -144,7 +160,7 @@
                                     <div class="menu-img relative w-full overflow-hidden {{ $layout === 'grid' ? 'aspect-[4/3]' : 'aspect-[16/9]' }}">
                                         <button type="button" x-on:click="open(p)" tabindex="-1" aria-hidden="true" class="block size-full"><img :src="pic(p)" alt="" loading="lazy" class="size-full object-cover"></button>
                                         <span class="menu-accent absolute start-2.5 top-2.5 rounded-full px-2.5 py-0.5 text-xs font-bold shadow" x-show="p.featured && p.available">{{ __('customer.featured') }}</span>
-                                        <span class="tnum menu-surface absolute bottom-2.5 start-2.5 rounded-full px-2.5 py-1 text-sm font-bold shadow" x-text="money(cents(p.price))"></span>
+                                        <span class="tnum menu-surface absolute bottom-2.5 start-2.5 rounded-full px-2.5 py-1 text-sm font-bold shadow" x-text="priceText(p)"></span>
                                         <button type="button" class="menu-add absolute bottom-2.5 end-2.5" :disabled="!p.available" x-on:click="quickAdd(p, $event)" :aria-label="(p.option_groups.length ? @js(__('customer.choose')) : @js(__('customer.add'))) + ' ' + p.name"><x-ui.icon name="plus" size="5" /></button>
                                     </div>
                                 @endif
@@ -153,14 +169,15 @@
                                         <span class="block text-[1.05rem] font-bold leading-snug" x-text="p.name"></span>
                                         <span class="menu-muted mt-1 line-clamp-2 block text-sm leading-snug" x-show="p.description" x-text="p.description"></span>
                                     </button>
-                                    <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs" x-show="!p.available || p.dietary.length || (p.featured && {{ $layout === 'list' || ! $settings['show_images'] ? 'true' : 'false' }})">
+                                    <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs" x-show="!p.available || p.dietary.length || p.badges.length || (p.featured && {{ $layout === 'list' || ! $settings['show_images'] ? 'true' : 'false' }})">
+                                        <template x-for="b in p.badges" :key="b"><span class="menu-accent rounded-full px-2 py-0.5 font-semibold" x-text="cfg_badge[b]"></span></template>
                                         <span class="menu-accent rounded-full px-2 py-0.5 font-semibold" x-show="p.featured && p.available && {{ $layout === 'list' || ! $settings['show_images'] ? 'true' : 'false' }}">{{ __('customer.featured') }}</span>
                                         <span class="rounded-full border px-2 py-0.5 font-semibold menu-line" x-show="!p.available">{{ __('customer.sold_out') }}</span>
                                         <template x-for="d in p.dietary" :key="d"><span class="menu-muted rounded-full border px-2 py-0.5 menu-line" x-text="cfg_diet[d]"></span></template>
                                     </div>
                                     @if ($layout === 'list' || ! $settings['show_images'])
                                         <div class="mt-auto flex items-center justify-between gap-2 pt-3">
-                                            <p class="tnum"><span class="text-lg font-bold" x-text="money(cents(p.price))"></span> <s class="menu-muted ms-1 text-sm" x-show="p.compare_price" x-text="p.compare_price ? money(cents(p.compare_price)) : ''"></s></p>
+                                            <p class="tnum"><span class="text-lg font-bold" x-text="priceText(p)"></span> <s class="menu-muted ms-1 text-sm" x-show="p.compare_price" x-text="p.compare_price ? money(cents(p.compare_price)) : ''"></s></p>
                                             @if (! $settings['show_images'])
                                                 <button type="button" class="menu-btn !px-3 !py-1.5 !text-sm" :disabled="!p.available" x-on:click="quickAdd(p, $event)"><x-ui.icon name="plus" size="4" /><span x-text="p.option_groups.length ? @js(__('customer.choose')) : @js(__('customer.add'))"></span></button>
                                             @endif
@@ -223,19 +240,69 @@
             <div class="menu-page relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[1.5rem] shadow-2xl sm:rounded-[1.5rem]" style="border-radius: min(var(--menu-radius) * 1.6, 1.75rem) min(var(--menu-radius) * 1.6, 1.75rem) 0 0">
                 <button type="button" x-ref="sheetClose" x-on:click="sheet = null" class="menu-card absolute end-3 top-3 z-10 grid size-9 place-items-center" aria-label="{{ __('customer.close') }}"><x-ui.icon name="x" size="5" /></button>
                 <div class="overflow-y-auto">
-                    <div class="menu-img aspect-[16/10] w-full"><img :src="big(sheet.product)" alt="" class="size-full object-cover"></div>
+                    <div class="menu-img relative aspect-[16/10] w-full"><img :src="photos(sheet.product)[sheet.img] || big(sheet.product)" alt="" class="size-full object-cover">
+                        <div class="absolute inset-x-0 bottom-2 flex justify-center gap-1.5" x-show="photos(sheet.product).length > 1">
+                            <template x-for="(ph, i) in photos(sheet.product)" :key="i"><button type="button" class="size-2.5 rounded-full border border-white/70 transition" :class="sheet.img === i ? 'bg-white' : 'bg-white/30'" x-on:click="sheet.img = i" :aria-label="(i + 1) + ' / ' + photos(sheet.product).length"></button></template>
+                        </div>
+                    </div>
                     <div class="p-5">
                         <h2 class="display pe-10 text-2xl font-bold leading-tight" x-text="sheet.product.name"></h2>
-                        <p class="tnum mt-1 text-lg font-bold"><span x-text="money(cents(sheet.product.price))"></span> <s class="menu-muted ms-1 text-sm font-normal" x-show="sheet.product.compare_price" x-text="sheet.product.compare_price ? money(cents(sheet.product.compare_price)) : ''"></s></p>
+                        <p class="tnum mt-1 text-lg font-bold"><span x-text="sheetBase ? money(sheetBase) : priceText(sheet.product)"></span> <s class="menu-muted ms-1 text-sm font-normal" x-show="sheet.product.compare_price" x-text="sheet.product.compare_price ? money(cents(sheet.product.compare_price)) : ''"></s></p>
                         <p class="menu-muted mt-1.5 whitespace-pre-line" x-show="sheet.product.description" x-text="sheet.product.description"></p>
                         <p class="menu-muted mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm" x-show="sheet.product.calories || sheet.product.prep_minutes">
                             <span x-show="sheet.product.calories" x-text="@js(__('customer.calories', ['count' => '__'])).replace('__', sheet.product.calories)"></span>
                             <span x-show="sheet.product.prep_minutes" x-text="@js(__('customer.minutes', ['count' => '__'])).replace('__', sheet.product.prep_minutes)"></span>
                         </p>
+                        <div class="mt-3 flex flex-wrap gap-1.5" x-show="sheet.product.badges.length">
+                            <template x-for="b in sheet.product.badges" :key="b"><span class="menu-accent rounded-full px-2.5 py-0.5 text-xs font-semibold" x-text="cfg_badge[b]"></span></template>
+                        </div>
                         <div class="mt-3 flex flex-wrap gap-1.5" x-show="sheet.product.dietary.length">
                             <template x-for="d in sheet.product.dietary" :key="d"><span class="menu-chip !py-0.5" x-text="cfg_diet[d]"></span></template>
                         </div>
+                        <template x-if="sheet.product.video">
+                            <div class="mt-4">
+                                <button type="button" class="menu-btn menu-btn-quiet w-full" x-show="!sheet.video" x-on:click="sheet.video = true"><x-ui.icon name="play" size="4" />{{ __('customer.watch_video') }}</button>
+                                <template x-if="sheet.video && sheet.product.video.type === 'embed'"><iframe :src="sheet.product.video.src" class="aspect-video w-full rounded-xl" loading="lazy" allow="encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="{{ __('customer.watch_video') }}"></iframe></template>
+                                <template x-if="sheet.video && sheet.product.video.type === 'file'"><video :src="sheet.product.video.src" class="aspect-video w-full rounded-xl bg-black" controls playsinline preload="metadata"></video></template>
+                            </div>
+                        </template>
+                        <div class="mt-4" x-show="sheet.product.nutrition || sheet.product.portion_size">
+                            <p class="text-sm font-semibold">{{ __('customer.nutrition') }}<span class="menu-muted font-normal" x-show="sheet.product.portion_size" x-text="' · ' + sheet.product.portion_size"></span></p>
+                            <dl class="mt-1.5 grid grid-cols-3 gap-2 text-center" x-show="sheet.product.nutrition">
+                                <template x-for="(val, key) in (sheet.product.nutrition || {})" :key="key"><div class="menu-card px-2 py-1.5"><dd class="tnum text-sm font-bold" x-text="val + (key === 'sodium' ? ' mg' : ' g')"></dd><dt class="menu-muted text-[11px]" x-text="cfg_nutrient[key]"></dt></div></template>
+                            </dl>
+                        </div>
                         <p class="mt-3 text-sm" x-show="sheet.product.allergens.length"><span class="font-semibold">{{ __('customer.contains') }}:</span> <span class="menu-muted" x-text="sheet.product.allergens.map((a) => cfg_allergen[a]).join(', ')"></span></p>
+
+                        <fieldset class="mt-5" x-show="(sheet.product.variants || []).length">
+                            <legend class="flex w-full items-baseline justify-between gap-2"><span class="font-semibold">{{ __('customer.choose_size') }}</span>
+                                <span class="text-xs" :class="sheet.showErrors && variantMissing ? 'font-semibold text-red-600' : 'menu-muted'">{{ __('customer.required') }} · {{ __('customer.choose_one') }}</span></legend>
+                            <div class="mt-2 space-y-1.5">
+                                <template x-for="v in (sheet.product.variants || [])" :key="v.id">
+                                    <label class="menu-card flex cursor-pointer items-center gap-3 px-3 py-2.5" :class="v.available ? '' : 'opacity-50'" :style="sheet.variant === v.id ? 'border-color: var(--menu-accent); box-shadow: 0 0 0 1px var(--menu-accent)' : ''">
+                                        <input type="radio" class="size-4" style="accent-color: var(--menu-accent)" name="size" :checked="sheet.variant === v.id" :disabled="!v.available" x-on:click="sheet.variant = v.id">
+                                        <span class="flex-1" x-text="v.name + (v.available ? '' : ' · ' + @js(__('customer.sold_out')))"></span>
+                                        <span class="tnum text-sm font-semibold" x-text="money(cents(v.price))"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </fieldset>
+
+                        <template x-for="slot in (sheet.product.combo || [])" :key="'s' + slot.id">
+                            <fieldset class="mt-5">
+                                <legend class="flex w-full items-baseline justify-between gap-2"><span class="font-semibold" x-text="slot.name"></span>
+                                    <span class="text-xs" :class="sheet.showErrors && !slot.items.find((i) => i.id === sheet.combo[slot.id] && i.available) ? 'font-semibold text-red-600' : 'menu-muted'">{{ __('customer.required') }} · {{ __('customer.choose_one') }}</span></legend>
+                                <div class="mt-2 space-y-1.5">
+                                    <template x-for="it in slot.items" :key="it.id">
+                                        <label class="menu-card flex cursor-pointer items-center gap-3 px-3 py-2.5" :class="it.available ? '' : 'opacity-50'" :style="sheet.combo[slot.id] === it.id ? 'border-color: var(--menu-accent); box-shadow: 0 0 0 1px var(--menu-accent)' : ''">
+                                            <input type="radio" class="size-4" style="accent-color: var(--menu-accent)" :name="'slot' + slot.id" :checked="sheet.combo[slot.id] === it.id" :disabled="!it.available" x-on:click="sheet.combo[slot.id] = it.id">
+                                            <span class="flex-1" x-text="it.name + (it.available ? '' : ' · ' + @js(__('customer.sold_out')))"></span>
+                                            <span class="menu-muted tnum text-sm" x-text="it.delta > 0 ? '+' + money(Math.round(it.delta * 100)) : @js(__('customer.combo_included'))"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                            </fieldset>
+                        </template>
 
                         <template x-for="g in sheet.product.option_groups" :key="g.id">
                             <fieldset class="mt-5">
@@ -324,7 +391,7 @@
                         <template x-for="p in suggestions" :key="'s' + p.id">
                             <div class="menu-card flex w-52 shrink-0 items-center gap-2.5 p-2">
                                 <div class="menu-img size-12 shrink-0 overflow-hidden rounded-lg"><img :src="pic(p)" alt="" loading="lazy" class="size-full object-cover"></div>
-                                <div class="min-w-0 flex-1"><p class="truncate text-sm font-semibold" x-text="p.name"></p><p class="tnum text-xs font-bold" x-text="money(cents(p.price))"></p></div>
+                                <div class="min-w-0 flex-1"><p class="truncate text-sm font-semibold" x-text="p.name"></p><p class="tnum text-xs font-bold" x-text="priceText(p)"></p></div>
                                 <button type="button" class="menu-add !size-8" x-on:click="quickAdd(p, $event)" :aria-label="@js(__('customer.add')) + ' ' + p.name"><x-ui.icon name="plus" size="4" /></button>
                             </div>
                         </template>

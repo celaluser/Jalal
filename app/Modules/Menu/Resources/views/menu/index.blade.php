@@ -1,12 +1,21 @@
 <x-layouts.app :title="__('menu.title')">
     <x-ui.page-header :title="__('menu.title')" :description="__('menu.subtitle')">
         <x-slot:actions>
+            <a href="{{ route('menu.menus.index') }}" class="btn btn-secondary"><x-ui.icon name="layout" size="4" />{{ __('menu.menus_title') }}</a>
             <a href="{{ route('menu.stock.index') }}" class="btn btn-secondary"><x-ui.icon name="sliders" size="4" />{{ __('menu.stock_prices') }}</a>
             <a href="{{ route('ai.import') }}" class="btn btn-secondary"><x-ui.icon name="sparkles" size="4" />{{ __('ai.button_import') }}</a>
             <a href="{{ route('menu.categories.create') }}" class="btn btn-secondary"><x-ui.icon name="plus" size="4" />{{ __('menu.add_category') }}</a>
             @if ($categories->isNotEmpty())<a href="{{ route('menu.products.create', ['category' => $current?->id]) }}" class="btn btn-primary"><x-ui.icon name="plus" size="4" />{{ __('menu.add_product') }}</a>@endif
         </x-slot:actions>
     </x-ui.page-header>
+
+    @can('orders.manage')
+        <form method="POST" action="{{ route('orders.pause') }}" class="card mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            @csrf
+            <p class="text-sm"><span class="font-semibold">{{ $ordering ? __('menu.mode_orders') : __('menu.mode_view_only') }}</span> <span class="text-muted">· {{ $ordering ? __('menu.mode_orders_help') : __('menu.mode_view_only_help') }}</span></p>
+            <button class="btn btn-secondary btn-sm">{{ $ordering ? __('menu.mode_switch_view_only') : __('menu.mode_switch_orders') }}</button>
+        </form>
+    @endcan
 
     @error('limit')<x-ui.alert type="warning" class="mb-4"><span class="flex flex-wrap items-center justify-between gap-2"><span>{{ $message }}</span><a class="font-semibold underline" href="{{ route('billing.index') }}">{{ __('menu.upgrade') }}</a></span></x-ui.alert>@enderror
 

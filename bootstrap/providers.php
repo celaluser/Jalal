@@ -7,6 +7,7 @@ use App\Modules\Ai\Providers\AiServiceProvider;
 use App\Modules\Analytics\Providers\AnalyticsServiceProvider;
 use App\Modules\Auth\Providers\AuthServiceProvider;
 use App\Modules\Billing\Providers\BillingServiceProvider;
+use App\Modules\Branches\Providers\BranchesServiceProvider;
 use App\Modules\Cms\Providers\CmsServiceProvider;
 use App\Modules\Core\Providers\CoreServiceProvider;
 use App\Modules\Demo\Providers\DemoServiceProvider;
@@ -34,6 +35,7 @@ return [
     CmsServiceProvider::class,
     SupportServiceProvider::class,
     MenuServiceProvider::class,
+    BranchesServiceProvider::class,
     TablesServiceProvider::class,
     OrdersServiceProvider::class,
     MarketingServiceProvider::class,

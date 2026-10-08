@@ -1,6 +1,7 @@
 <x-layouts.app :title="__('menu.stock_title')">
     <x-ui.page-header :title="__('menu.stock_title')" :description="__('menu.stock_sub')" :back="['url' => route('menu.index'), 'label' => __('menu.title')]">
-        <x-slot:actions><a href="{{ route('menu.export') }}" class="btn btn-secondary"><x-ui.icon name="download" size="4" />{{ __('menu.export_csv') }}</a></x-slot:actions>
+        <x-slot:actions><a href="{{ route('menu.import') }}" class="btn btn-secondary"><x-ui.icon name="upload" size="4" />{{ __('menu.import_title') }}</a>
+            <a href="{{ route('menu.export') }}" class="btn btn-secondary"><x-ui.icon name="download" size="4" />{{ __('menu.export_csv') }}</a></x-slot:actions>
     </x-ui.page-header>
 
     <div class="grid items-start gap-5 xl:grid-cols-[1fr_20rem]">

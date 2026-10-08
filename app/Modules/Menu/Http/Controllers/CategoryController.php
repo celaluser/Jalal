@@ -7,6 +7,7 @@ use App\Modules\Ai\Services\AiPanel;
 use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Services\MenuImage;
 use App\Modules\Menu\Services\MenuService;
+use App\Modules\Menu\Support\Schedule;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -75,11 +76,15 @@ class CategoryController extends Controller
             'description' => ['nullable', 'array'],
             'description.*' => ['nullable', 'string', 'max:500'],
             'image' => ['nullable', 'image', 'max:4096'],
+            'icon' => ['nullable', 'string', 'max:16'],
+            'schedule' => ['nullable', 'array'],
         ]);
 
         return ['fields' => [
             'name' => Category::cleanTranslations($request->input('name', []), $locales),
             'description' => Category::cleanTranslations($request->input('description', []), $locales) ?: null,
+            'icon' => $request->filled('icon') ? mb_substr(trim($request->input('icon')), 0, 16) : null,
+            'schedule' => Schedule::fromInput($request->input('schedule')),
             'is_active' => $request->boolean('is_active'),
         ]];
     }

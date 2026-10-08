@@ -3,8 +3,10 @@
 namespace App\Modules\Menu\Services;
 
 use App\Modules\Billing\Services\LimitGuard;
+use App\Modules\Core\Models\Media;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Menu\Models\Category;
+use App\Modules\Menu\Models\Menu;
 use App\Modules\Menu\Models\Option;
 use App\Modules\Menu\Models\OptionGroup;
 use App\Modules\Menu\Models\Product;
@@ -66,6 +68,17 @@ class MenuService
             $copy->save();
 
             Product::where('category_id', $product->category_id)->where('sort', '>=', $copy->sort)->where('id', '!=', $copy->id)->increment('sort');
+            foreach ($product->variants as $variant) {
+                $copy->variants()->create($variant->only(['name', 'price', 'cost_price', 'sort', 'is_available']));
+            }
+
+            foreach ($product->comboSlots()->with('items')->get() as $slot) {
+                $newSlot = $copy->comboSlots()->create(['name' => $slot->name, 'sort' => $slot->sort]);
+                foreach ($slot->items as $item) {
+                    $newSlot->items()->create(['product_id' => $item->product_id, 'price_delta' => $item->price_delta, 'sort' => $item->sort]);
+                }
+            }
+
             $copy->optionGroups()->sync($product->optionGroups->mapWithKeys(fn ($g) => [$g->id => ['sort' => $g->pivot->sort]])->all());
             MenuCache::bump($product->restaurant_id);
 
@@ -84,19 +97,30 @@ class MenuService
         return $this->tenant->runAs($restaurant, function () use ($restaurant, $locale) {
             $default = $restaurant->locale;
 
+            $menus = Menu::all()->keyBy('id');
+
             return Category::where('is_active', true)->orderBy('sort')->orderBy('id')
-                ->with(['products' => fn ($q) => $q->where('is_active', true)->with(['image', 'optionGroups.options' => fn ($o) => $o->where('is_available', true)]), 'image'])
+                ->with(['products' => fn ($q) => $q->where('is_active', true)->with(['image', 'variants', 'pairings:id', 'comboSlots.items.dish', 'optionGroups.options' => fn ($o) => $o->where('is_available', true)]), 'image'])
                 ->get()
                 ->map(fn (Category $c) => [
                     'id' => $c->id,
+                    'menu_id' => $c->menu_id && isset($menus[$c->menu_id]) ? $c->menu_id : 0,
+                    'menu_name' => $c->menu_id && isset($menus[$c->menu_id]) ? $menus[$c->menu_id]->tr('name', $locale, $default) : null,
+                    'menu_open' => $c->menu_id && isset($menus[$c->menu_id]) ? ['active' => $menus[$c->menu_id]->is_active, 'schedule' => $menus[$c->menu_id]->schedule] : null,
                     'name' => $c->tr('name', $locale, $default),
                     'description' => $c->tr('description', $locale, $default),
                     'image' => $c->image?->url(),
+                    'icon' => $c->icon,
+                    'schedule' => $c->schedule,
                     'products' => $c->products->map(fn (Product $p) => [
                         'id' => $p->id,
                         'name' => $p->tr('name', $locale, $default),
                         'description' => $p->tr('description', $locale, $default),
-                        'price' => (float) $p->price,
+                        // With sizes the card shows "from" the smallest available price.
+                        'price' => $p->variants->where('is_available', true)->isNotEmpty() ? (float) $p->variants->where('is_available', true)->min('price') : (float) $p->price,
+                        'pairs' => $p->pairings->pluck('id')->all(),
+                        'combo' => $p->is_combo && $p->comboSlots->isNotEmpty() ? $p->comboSlots->map(fn ($s) => ['id' => $s->id, 'name' => $s->tr('name', $locale, $default), 'items' => $s->items->filter(fn ($i) => $i->dish && $i->dish->is_active)->map(fn ($i) => ['id' => $i->product_id, 'name' => $i->dish->tr('name', $locale, $default), 'delta' => (float) $i->price_delta, 'available' => $i->dish->canBeOrdered()])->values()->all()])->values()->all() : null,
+                        'variants' => $p->variants->map(fn ($v) => ['id' => $v->id, 'name' => $v->tr('name', $locale, $default), 'price' => (float) $v->price, 'available' => $v->is_available])->values()->all(),
                         'compare_price' => $p->isOnSale() ? (float) $p->compare_price : null,
                         'image' => $p->image?->thumbUrl(),
                         'image_full' => $p->image?->url(),
@@ -105,6 +129,14 @@ class MenuService
                         'available' => $p->canBeOrdered(),
                         'featured' => $p->is_featured,
                         'calories' => $p->calories,
+                        'schedule' => $p->schedule,
+                        'order_types' => $p->order_types,
+                        'limited_until' => $p->limited_until?->toDateString(),
+                        'badges' => $p->badges ?? [],
+                        'nutrition' => $p->nutrition,
+                        'portion_size' => $p->portion_size,
+                        'video' => ProductMedia::video($p->video_url),
+                        'gallery' => $p->gallery ? Media::whereIn('id', $p->gallery)->get()->sortBy(fn ($m) => array_search($m->id, $p->gallery))->map(fn ($m) => ['thumb' => $m->thumbUrl(), 'full' => $m->url()])->values()->all() : [],
                         'prep_minutes' => $p->prep_minutes,
                         'allergens' => $p->allergens ?? [],
                         'dietary' => $p->dietary ?? [],

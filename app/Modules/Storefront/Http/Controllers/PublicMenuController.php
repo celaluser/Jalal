@@ -4,12 +4,15 @@ namespace App\Modules\Storefront\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Billing\Services\LimitGuard;
+use App\Modules\Branches\Services\BranchMenu;
+use App\Modules\Branches\Services\GuestBranch;
 use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Marketing\Models\PromoCode;
 use App\Modules\Marketing\Services\MarketingSettings;
 use App\Modules\Marketing\Services\PromoService;
 use App\Modules\Marketing\Services\ReviewService;
+use App\Modules\Menu\Services\MenuAvailability;
 use App\Modules\Menu\Services\ThemeRegistry;
 use App\Modules\Orders\Exceptions\OrderException;
 use App\Modules\Orders\Services\OrderSettings;
@@ -55,10 +58,21 @@ class PublicMenuController extends Controller
         }
 
         $table = $this->currentTable($request, $restaurant);
-        $tree = $this->cache->tree($restaurant, $locale);
+
+        // A restaurant with several branches: find out which one the guest is at before showing prices.
+        $guestBranch = app(GuestBranch::class);
+        $branch = $guestBranch->resolve($request, $restaurant, $table);
+
+        if (! $branch && ($branches = $guestBranch->active())->count() > 1) {
+            return response()->view('storefront::branches', $this->shared($restaurant, $locale) + ['branches' => $branches, 'base' => rtrim($request->getPathInfo(), '/') ?: '/'])->header('Cache-Control', 'no-store');
+        }
+
+        $tree = app(MenuAvailability::class)->filter($this->cache->tree($restaurant, $locale), $restaurant);
+        $tree = app(BranchMenu::class)->apply($tree, $branch?->id);
 
         $response = response()->view('storefront::menu', $this->shared($restaurant, $locale) + [
             'tree' => $tree,
+            'menus' => app(MenuAvailability::class)->menusOf($tree, __('customer.main_menu')),
             'table' => $table ? ['id' => $table->id, 'name' => $table->name] : null,
             'currency' => $this->currency($restaurant),
             'base' => rtrim($request->getPathInfo(), '/'),
@@ -69,6 +83,7 @@ class PublicMenuController extends Controller
             'noindex' => $table !== null,
             'ordering' => $this->ordering($restaurant, $table, $request),
             'rating' => $this->rating($restaurant),
+            'branch' => $branch ? ['name' => $branch->name, 'open' => $branch->isOpen(), 'switch' => $guestBranch->active()->count() > 1] : null,
         ]);
 
         // Remember a language the guest explicitly picked (and only a valid one).
@@ -116,7 +131,7 @@ class PublicMenuController extends Controller
         ]);
         app()->setLocale($this->locales->resolve($request, $restaurant));
 
-        $quote = $pricing->quote($restaurant, $data['lines']);
+        $quote = $pricing->quote($restaurant, $data['lines'], $data['type'] ?? null, app(GuestBranch::class)->id($request, $restaurant));
 
         // With an order type chosen, also show what the order will cost in full.
         if (! empty($data['type'])) {

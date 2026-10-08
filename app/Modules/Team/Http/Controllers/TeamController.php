@@ -4,6 +4,7 @@ namespace App\Modules\Team\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Branches\Models\Branch;
 use App\Modules\Team\Services\TeamService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,7 +32,7 @@ class TeamController extends Controller
     {
         $restaurant = $request->user()->restaurant;
 
-        return view('team::team.form', ['member' => null, 'roles' => $this->team->roles($restaurant), 'remaining' => $this->team->remaining($restaurant)]);
+        return view('team::team.form', ['member' => null, 'roles' => $this->team->roles($restaurant), 'remaining' => $this->team->remaining($restaurant), 'branches' => Branch::orderBy('sort')->get()]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -41,10 +42,12 @@ class TeamController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:190', 'unique:users,email'],
             'role' => ['required', 'string', Rule::in($this->team->roles($restaurant))],
+            'branch_id' => ['nullable', Rule::exists('branches', 'id')->where('restaurant_id', $restaurant->id)],
         ]);
 
         try {
-            $this->team->invite($restaurant, $data['name'], $data['email'], $data['role'], $request->user());
+            $member = $this->team->invite($restaurant, $data['name'], $data['email'], $data['role'], $request->user());
+            $member->forceFill(['branch_id' => $data['branch_id'] ?? null])->save();
         } catch (InvalidArgumentException $e) {
             return back()->withInput()->withErrors(['team' => __('team.error_'.$e->getMessage())]);
         }
@@ -56,14 +59,18 @@ class TeamController extends Controller
     {
         $restaurant = $request->user()->restaurant;
 
-        return view('team::team.form', ['member' => $this->find($request, $user), 'roles' => $this->team->roles($restaurant), 'team' => $this->team, 'remaining' => null]);
+        return view('team::team.form', ['member' => $this->find($request, $user), 'roles' => $this->team->roles($restaurant), 'team' => $this->team, 'remaining' => null, 'branches' => Branch::orderBy('sort')->get()]);
     }
 
     public function update(Request $request, int $user): RedirectResponse
     {
         $restaurant = $request->user()->restaurant;
         $member = $this->find($request, $user);
-        $data = $request->validate(['role' => ['required', 'string', Rule::in($this->team->roles($restaurant))]]);
+        $data = $request->validate([
+            'role' => ['required', 'string', Rule::in($this->team->roles($restaurant))],
+            'branch_id' => ['nullable', Rule::exists('branches', 'id')->where('restaurant_id', $restaurant->id)],
+        ]);
+        $member->forceFill(['branch_id' => $data['branch_id'] ?? null])->save();
 
         return $this->attempt(fn () => $this->team->changeRole($restaurant, $member, $data['role'], $request->user()), __('admin.saved'), route('team.index'));
     }
