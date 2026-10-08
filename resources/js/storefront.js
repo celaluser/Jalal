@@ -41,9 +41,26 @@ document.addEventListener('alpine:init', () => {
         cfg_allergen: cfg.allergen,
 
         kioskDone: null,
+        // Price and spice filters, sorting, favourites, comfort settings and a currency for browsing.
+        maxPrice: Math.ceil(Math.max(0, ...cfg.tree.flatMap((c) => c.products).map((p) => Math.max(p.price, ...(p.variants || []).map((v) => v.price))))),
+        priceCeil: Math.ceil(Math.max(0, ...cfg.tree.flatMap((c) => c.products).map((p) => Math.max(p.price, ...(p.variants || []).map((v) => v.price))))),
+        spice: 0,
+        favOnly: false,
+        sort: 'menu',
+        favs: [],
+        a11y: { large: false, contrast: false, calm: false },
+        curCode: (cfg.currencies.find((c) => c.base) || {}).code || '',
+        banners: cfg.banners.filter((b) => !b.popup),
+        popup: null,
+        installEvent: null,
 
         init() {
             if (cfg.kiosk) { this.startKiosk(); }
+            this.restorePrefs();
+            this.initPwa();
+            this.showPopup();
+            ['spice', 'favOnly', 'sort', 'curCode'].forEach((k) => this.$watch(k, () => this.savePrefs()));
+            ['diet', 'avoid', 'favs', 'a11y'].forEach((k) => this.$watch(k, () => this.savePrefs(), { deep: true }));
             this.cart = this.load();
             this.prune();
             this.$watch('cart', () => { this.save(); this.requote(); });
@@ -62,13 +79,15 @@ document.addEventListener('alpine:init', () => {
         },
 
         // ---- browsing -------------------------------------------------------------------
-        get hasFilters() { return this.q.trim() !== '' || this.diet.length > 0 || this.avoid.length > 0; },
+        get hasFilters() { return this.q.trim() !== '' || this.diet.length > 0 || this.avoid.length > 0 || this.spice > 0 || this.favOnly || this.maxPrice < this.priceCeil; },
+        get filterCount() { return this.diet.length + this.avoid.length + (this.spice > 0 ? 1 : 0) + (this.favOnly ? 1 : 0) + (this.maxPrice < this.priceCeil ? 1 : 0); },
         get visible() {
             const q = fold(this.q.trim());
             // Several menus (breakfast, lunch...): show one at a time, but a search looks through all of them.
             const pool = this.menus.length && !this.hasFilters ? this.tree.filter((c) => c.menu_id === this.menuId) : this.tree;
+            const order = { price_asc: (a, b) => this.lowest(a) - this.lowest(b), price_desc: (a, b) => this.lowest(b) - this.lowest(a) }[this.sort];
             const list = pool
-                .map((c) => ({ ...c, products: c.products.filter((p) => this.matches(p, q)) }))
+                .map((c) => { const products = c.products.filter((p) => this.matches(p, q)); return { ...c, products: order ? [...products].sort(order) : products }; })
                 .filter((c) => c.products.length > 0);
             // Long menus can load category by category while scrolling; a search always looks through everything.
             return this.hasFilters ? list : list.slice(0, this.shown);
@@ -91,9 +110,56 @@ document.addEventListener('alpine:init', () => {
             if (q && !fold(p.name).includes(q) && !fold(p.description).includes(q)) { return false; }
             if (this.diet.some((d) => !p.dietary.includes(d))) { return false; }
             if (this.avoid.some((a) => p.allergens.includes(a))) { return false; }
+            if (this.spice > 0 && (p.spice || 0) < this.spice) { return false; }
+            if (this.favOnly && !this.favs.includes(p.id)) { return false; }
+            if (this.maxPrice < this.priceCeil && this.lowest(p) > this.maxPrice) { return false; }
             return true;
         },
-        resetFilters() { this.q = ''; this.diet = []; this.avoid = []; },
+        lowest(p) { return (p.variants || []).length ? Math.min(...p.variants.map((v) => v.price)) : p.price; },
+        resetFilters() { this.q = ''; this.diet = []; this.avoid = []; this.spice = 0; this.favOnly = false; this.maxPrice = this.priceCeil; },
+
+        // ---- favourites and remembered preferences (kept in this browser only) -----------
+        isFav(p) { return this.favs.includes(p.id); },
+        toggleFav(p) { const i = this.favs.indexOf(p.id); i === -1 ? this.favs.push(p.id) : this.favs.splice(i, 1); },
+        restorePrefs() {
+            try {
+                const raw = JSON.parse(localStorage.getItem(cfg.prefsKey) || '{}');
+                if (Array.isArray(raw.diet)) { this.diet = raw.diet.filter((d) => d in cfg.diet); }
+                if (Array.isArray(raw.avoid)) { this.avoid = raw.avoid.filter((a) => a in cfg.allergen); }
+                if (Array.isArray(raw.favs)) { const ids = new Set(cfg.tree.flatMap((c) => c.products).map((p) => p.id)); this.favs = raw.favs.filter((id) => ids.has(id)); }
+                if ([0, 1, 2, 3].includes(raw.spice)) { this.spice = raw.spice; }
+                if (['menu', 'price_asc', 'price_desc'].includes(raw.sort)) { this.sort = raw.sort; }
+                if (raw.a11y && typeof raw.a11y === 'object') { this.a11y = { large: !!raw.a11y.large, contrast: !!raw.a11y.contrast, calm: !!raw.a11y.calm }; }
+                if (cfg.currencies.some((c) => c.code === raw.cur)) { this.curCode = raw.cur; }
+            } catch (e) { /* nothing saved, or private mode */ }
+            this.applyA11y();
+        },
+        savePrefs() {
+            this.applyA11y();
+            try { localStorage.setItem(cfg.prefsKey, JSON.stringify({ diet: this.diet, avoid: this.avoid, favs: this.favs, spice: this.spice, sort: this.sort, a11y: this.a11y, cur: this.curCode })); } catch (e) { /* ignore */ }
+        },
+        applyA11y() {
+            const root = document.documentElement;
+            root.toggleAttribute('data-menu-large', this.a11y.large);
+            root.toggleAttribute('data-menu-contrast', this.a11y.contrast);
+            root.toggleAttribute('data-menu-calm', this.a11y.calm);
+        },
+
+        // ---- install as an app, and the pop-up banner ------------------------------------
+        initPwa() {
+            if ('serviceWorker' in navigator && cfg.pwa) { navigator.serviceWorker.register(cfg.pwa.worker).catch(() => {}); }
+            window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); this.installEvent = e; });
+            window.addEventListener('appinstalled', () => { this.installEvent = null; });
+        },
+        async install() { if (!this.installEvent) { return; } this.installEvent.prompt(); await this.installEvent.userChoice.catch(() => {}); this.installEvent = null; },
+        showPopup() {
+            const b = cfg.banners.find((x) => x.popup);
+            if (!b || cfg.kiosk) { return; }
+            const key = 'qrmenu.popup.' + b.id + '.' + b.stamp;
+            try { if (sessionStorage.getItem(key)) { return; } } catch (e) { /* show it */ }
+            setTimeout(() => { this.popup = b; try { sessionStorage.setItem(key, '1'); } catch (e) { /* ignore */ } }, 1200);
+        },
+        get curObj() { return cfg.currencies.find((c) => c.code === this.curCode); },
         toggleIn(list, value) { const i = this[list].indexOf(value); i === -1 ? this[list].push(value) : this[list].splice(i, 1); },
 
         goTo(id) {
@@ -120,8 +186,11 @@ document.addEventListener('alpine:init', () => {
         },
 
         // ---- formatting ------------------------------------------------------------------
+        // The cart and checkout are always in the restaurant's own currency; browsing can show an approximate price in another.
         money(cents) {
-            const c = cfg.currency;
+            const o = this.curObj;
+            const c = o && !o.base && !this.cartOpen ? o : cfg.currency;
+            if (c === o) { cents = cents * o.factor; }
             let [int, frac] = (cents / 100).toFixed(c.decimals).split('.');
             int = int.replace(/\B(?=(\d{3})+(?!\d))/g, c.thousands);
             const num = frac ? int + c.decimal + frac : int;
@@ -300,9 +369,10 @@ document.addEventListener('alpine:init', () => {
             try { guest = JSON.parse(localStorage.getItem('qrmenu.guest') || '{}'); } catch (e) { /* none saved */ }
             this.form.type = this.ord.table && this.ord.types.includes('dine_in') ? 'dine_in' : (this.ord.types[0] || '');
             this.form.payment = this.ord.payments[0] || '';
-            this.form.name = guest.name || '';
-            this.form.phone = guest.phone || '';
-            this.form.email = guest.email || '';
+            // A signed-in guest's saved details win over what this browser remembers.
+            this.form.name = cfg.account?.name || guest.name || '';
+            this.form.phone = cfg.account?.phone || guest.phone || '';
+            this.form.email = cfg.account?.email || guest.email || '';
             this.form.address = guest.address || '';
             this.form.table_id = this.ord.table ? this.ord.table.id : (this.ord.tables[0]?.id || '');
         },

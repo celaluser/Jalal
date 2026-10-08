@@ -28,6 +28,7 @@ class MarketingServiceProvider extends ServiceProvider
         RestaurantNav::add('marketing', 'panel.nav.customers', 'customers.index', 'customers.*', icon: 'users', can: 'customers.view');
         RestaurantNav::add('marketing', 'panel.nav.reviews', 'reviews.index', 'reviews.*', icon: 'star', can: 'customers.view');
         RestaurantNav::add('marketing', 'panel.nav.promos', 'promos.index', 'promos.*', icon: 'tag', can: 'marketing.manage');
+        RestaurantNav::add('marketing', 'panel.nav.banners', 'banners.index', 'banners.*', icon: 'image', can: 'marketing.manage');
         RestaurantNav::add('marketing', 'panel.nav.campaigns', 'campaigns.index', 'campaigns.*', icon: 'mail', can: 'marketing.manage');
         RestaurantNav::add('marketing', 'panel.nav.loyalty', 'marketing.settings', icon: 'gift', can: 'marketing.manage');
 

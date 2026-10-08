@@ -97,6 +97,7 @@
                         <x-ui.input :name="'nutrition['.$n.']'" type="number" step="0.1" min="0" inputmode="decimal" :label="__('menu.nutrient_'.$n)" :value="$product->nutrition[$n] ?? null" />
                     @endforeach
                     <x-ui.input name="portion_size" :label="__('menu.portion_size')" :value="$product->portion_size" :hint="__('menu.portion_hint')" />
+                    <x-ui.select name="spice_level" :label="__('menu.spice_level')" :options="[0 => __('menu.spice_0'), 1 => __('menu.spice_1'), 2 => __('menu.spice_2'), 3 => __('menu.spice_3')]" :value="old('spice_level', $product->spice_level ?? 0)" />
                 </div>
             </x-ui.card>
 

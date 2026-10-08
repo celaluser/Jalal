@@ -85,6 +85,14 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Tablet mode for staff (sidebar folds away, larger text, screen stays awake) and a self-order kiosk (`?kiosk=1`: idle reset, thank-you screen, no delivery)
 - 🟡 Web NFC writing only works in Chrome on Android; the kiosk has not been tried on real kiosk hardware
 
+## 9d. Guest menu extras (v2 gap work)
+- ✅ Installable menu app (web manifest, generated home-screen icons, offline-readable menu, orders/status never cached)
+- ✅ Filters for highest price and spiciness (new 0–3 spice field), sorting by price, favourites (kept in the browser), remembered preferences, comfort modes (larger text, high contrast, reduced motion)
+- ✅ Banners and one-time pop-ups with dates, link and image (Marketing → Banners)
+- ✅ Approximate prices in other currencies (admin sets rates; cart and checkout always in the restaurant currency)
+- ✅ Optional guest account: e-mailed sign-in link, order history, saved details, self-service erasure; the form never reveals which e-mails have ordered
+- 🟡 Currency rates are typed in by the platform admin (no automatic rate feed); the service worker was tested for what it serves, not in a live browser install
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)

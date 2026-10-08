@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Core\Http\Middleware\SetLocale;
+use App\Modules\Marketing\Http\Controllers\BannerController;
 use App\Modules\Marketing\Http\Controllers\CampaignController;
 use App\Modules\Marketing\Http\Controllers\CustomerController;
 use App\Modules\Marketing\Http\Controllers\GuestReviewController;
@@ -53,6 +54,13 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])-
             Route::put('promos/{promo}', [PromoController::class, 'update'])->whereNumber('promo')->name('promos.update');
             Route::post('promos/{promo}/toggle', [PromoController::class, 'toggle'])->whereNumber('promo')->name('promos.toggle');
             Route::delete('promos/{promo}', [PromoController::class, 'destroy'])->whereNumber('promo')->name('promos.destroy');
+
+            Route::get('banners', [BannerController::class, 'index'])->name('banners.index');
+            Route::get('banners/create', [BannerController::class, 'create'])->name('banners.create');
+            Route::post('banners', [BannerController::class, 'store'])->name('banners.store');
+            Route::get('banners/{banner}/edit', [BannerController::class, 'edit'])->whereNumber('banner')->name('banners.edit');
+            Route::put('banners/{banner}', [BannerController::class, 'update'])->whereNumber('banner')->name('banners.update');
+            Route::delete('banners/{banner}', [BannerController::class, 'destroy'])->whereNumber('banner')->name('banners.destroy');
 
             Route::get('campaigns', [CampaignController::class, 'index'])->name('campaigns.index');
             Route::get('campaigns/create', [CampaignController::class, 'create'])->name('campaigns.create');

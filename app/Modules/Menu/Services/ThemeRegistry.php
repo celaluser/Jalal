@@ -23,7 +23,7 @@ class ThemeRegistry
     /**
      * Effective settings: theme defaults, overridden by what the restaurant chose.
      *
-     * @return array{theme: string, font: string, layout: string, radius: string, show_images: bool, show_credit: bool, hero: string, scroll: string, dark_toggle: bool}
+     * @return array{theme: string, font: string, layout: string, radius: string, show_images: bool, show_credit: bool, hero: string, scroll: string, dark_toggle: bool, currency_switch: bool}
      */
     public function settings(Restaurant $restaurant): array
     {
@@ -40,6 +40,7 @@ class ThemeRegistry
             'hero' => $this->pick($own['hero'] ?? null, config('themes.heroes'), 'full'),
             'scroll' => $this->pick($own['scroll'] ?? null, config('themes.scrolls'), 'all'),
             'dark_toggle' => (bool) ($own['dark_toggle'] ?? false),
+            'currency_switch' => (bool) ($own['currency_switch'] ?? false),
             // The "Powered by" credit can only be removed on plans that include the feature.
             'show_credit' => ! ($own['hide_credit'] ?? false) || ! $this->canRemoveCredit($restaurant),
         ];
@@ -107,6 +108,7 @@ class ThemeRegistry
             'hero' => $data['hero'] ?? 'full',
             'scroll' => $data['scroll'] ?? 'all',
             'dark_toggle' => ! empty($data['dark_toggle']),
+            'currency_switch' => ! empty($data['currency_switch']),
             'hide_credit' => ! empty($data['hide_credit']) && $this->canRemoveCredit($restaurant),
         ];
 
@@ -125,6 +127,7 @@ class ThemeRegistry
             'hero' => ['nullable', 'in:'.implode(',', config('themes.heroes'))],
             'scroll' => ['nullable', 'in:'.implode(',', config('themes.scrolls'))],
             'dark_toggle' => ['nullable', 'boolean'],
+            'currency_switch' => ['nullable', 'boolean'],
             'hide_credit' => ['nullable', 'boolean'],
         ];
     }

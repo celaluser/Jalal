@@ -66,4 +66,10 @@ return [
     // Unsubscribe page
     'unsub_title' => 'Unsubscribe', 'unsub_ask' => 'Stop e-mails from :name?', 'unsub_ask_text' => 'You will no longer receive offers and news. Order updates still reach you.', 'unsub_button' => 'Yes, unsubscribe me',
     'unsub_done' => 'You are unsubscribed', 'unsub_done_text' => 'You will not get marketing e-mails from :name any more.', 'unsub_already' => 'You are already unsubscribed from :name.',
+
+    // Banners and pop-ups
+    'banners_title' => 'Banners & pop-ups', 'banners_sub' => 'Show a new dish, an offer or a notice at the top of your menu.', 'new_banner' => 'New banner', 'edit_banner' => 'Edit banner',
+    'banners_empty' => 'No banners yet', 'banners_empty_text' => 'Add a banner to tell guests about an offer, a new dish or opening hours.', 'banner_saved' => 'Banner saved.', 'banner_deleted' => 'Banner deleted.',
+    'banner_title' => 'Headline', 'banner_text' => 'Short text', 'banner_link' => 'Link', 'banner_link_hint' => 'An https:// address, or #cat-12 to jump to a menu section. Optional.', 'banner_button' => 'Button text',
+    'banner_starts' => 'Show from', 'banner_ends' => 'Show until', 'banner_popup' => 'Show as a pop-up (once per visit) instead of a banner', 'popup' => 'Pop-up', 'status_off' => 'Off',
 ];

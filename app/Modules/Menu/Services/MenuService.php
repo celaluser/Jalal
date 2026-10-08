@@ -135,6 +135,7 @@ class MenuService
                         'badges' => $p->badges ?? [],
                         'nutrition' => $p->nutrition,
                         'portion_size' => $p->portion_size,
+                        'spice' => (int) $p->spice_level,
                         'video' => ProductMedia::video($p->video_url),
                         'gallery' => $p->gallery ? Media::whereIn('id', $p->gallery)->get()->sortBy(fn ($m) => array_search($m->id, $p->gallery))->map(fn ($m) => ['thumb' => $m->thumbUrl(), 'full' => $m->url()])->values()->all() : [],
                         'prep_minutes' => $p->prep_minutes,

@@ -8,6 +8,7 @@ use App\Modules\Branches\Services\BranchMenu;
 use App\Modules\Branches\Services\GuestBranch;
 use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Tenancy\TenantContext;
+use App\Modules\Marketing\Models\Banner;
 use App\Modules\Marketing\Models\PromoCode;
 use App\Modules\Marketing\Services\MarketingSettings;
 use App\Modules\Marketing\Services\PromoService;
@@ -85,6 +86,9 @@ class PublicMenuController extends Controller
             'kiosk' => $request->boolean('kiosk'),
             'ordering' => $this->ordering($restaurant, $table, $request),
             'rating' => $this->rating($restaurant),
+            'banners' => $this->banners($restaurant, $locale),
+            'account' => ($c = AccountController::current($request, $restaurant->id)) ? ['name' => $c->name, 'phone' => $c->phone, 'email' => $c->email] : null,
+            'currencies' => $this->currencies($restaurant),
             'branch' => $branch ? ['name' => $branch->name, 'open' => $branch->isOpen(), 'switch' => $guestBranch->active()->count() > 1] : null,
         ]);
 
@@ -210,6 +214,42 @@ class PublicMenuController extends Controller
             'languages' => $this->locales->names($restaurant),
             'logo' => $restaurant->logo?->url(),
         ];
+    }
+
+    /** Live banners and pop-ups for the guest menu, in the guest's language. @return list<array<string, mixed>> */
+    private function banners(Restaurant $restaurant, string $locale): array
+    {
+        $today = app(MenuAvailability::class)->now($restaurant)->startOfDay();
+
+        return Banner::with('image')->live($today)->orderBy('sort')->orderBy('id')->limit(8)->get()->map(fn (Banner $b) => [
+            'id' => $b->id, 'title' => $b->tr('title', $locale, $restaurant->locale), 'text' => $b->tr('text', $locale, $restaurant->locale) ?: null,
+            'button' => $b->tr('button', $locale, $restaurant->locale) ?: null, 'link' => $b->link_url, 'image' => $b->image?->url(), 'popup' => $b->is_popup,
+            // A changed banner shows its pop-up again.
+            'stamp' => $b->updated_at?->timestamp,
+        ])->all();
+    }
+
+    /**
+     * Other currencies a guest can view prices in, when the restaurant allows it and the admin set rates.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function currencies(Restaurant $restaurant): array
+    {
+        if (! $this->themes->settings($restaurant)['currency_switch']) {
+            return [];
+        }
+
+        $base = Currency::where('code', $restaurant->currency_code)->first();
+
+        if (! $base || ! $base->rate) {
+            return [];
+        }
+
+        return Currency::where('is_active', true)->whereNotNull('rate')->where('rate', '>', 0)->orderBy('code')->get()->map(fn (Currency $c) => [
+            'code' => $c->code, 'symbol' => $c->symbol, 'after' => $c->symbol_position === 'after', 'decimals' => (int) $c->decimals,
+            'decimal' => $c->decimal_separator, 'thousands' => $c->thousands_separator, 'factor' => (float) $c->rate / (float) $base->rate, 'base' => $c->code === $base->code,
+        ])->all();
     }
 
     /** @return array{symbol: string, after: bool, decimals: int, decimal: string, thousands: string} */

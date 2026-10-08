@@ -11,6 +11,11 @@
         'ordering' => $ordering,
         'scroll' => $settings['scroll'],
         'kiosk' => $kiosk,
+        'banners' => $banners,
+        'account' => $account,
+        'currencies' => $currencies,
+        'prefsKey' => 'qrmenu.prefs.'.$restaurant->id,
+        'pwa' => $kiosk ? null : ['worker' => $base.'/sw.js'],
         'menus' => $menus,
         'storageKey' => 'qrmenu.cart.'.$restaurant->id,
         'diet' => collect($dietary)->mapWithKeys(fn ($d) => [$d => __('menu.diet.'.$d)])->all(),
@@ -35,8 +40,19 @@
     <meta property="og:description" content="{{ $description }}">
     @if ($ogImage)<meta property="og:image" content="{{ $ogImage }}">@endif
     <meta name="theme-color" content="{{ $restaurant->brandColor() }}">
+    @unless ($kiosk)
+        <link rel="manifest" href="{{ $base }}/manifest.webmanifest">
+        <link rel="apple-touch-icon" href="{{ $base }}/pwa-icon-192.png">
+        <meta name="mobile-web-app-capable" content="yes">
+    @endunless
     @if ($noindex)<meta name="robots" content="noindex">@endif
     <style>{!! $themeCss !!}</style>
+    <style>
+        html[data-menu-large]{font-size:125%}
+        html[data-menu-contrast]{--menu-bg:#fff;--menu-surface:#fff;--menu-fg:#000;--menu-muted:#1f1f1f;--menu-line:#000}
+        html[data-menu-contrast] .menu-card{border:2px solid #000}
+        html[data-menu-calm] *,html[data-menu-calm] *::before,html[data-menu-calm] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+    </style>
     @if ($kiosk)<style>html{font-size:118%}.kiosk .menu-add{width:3.25rem;height:3.25rem}.kiosk .menu-chip{padding:.6rem 1.1rem}</style>@endif
     @vite(['resources/css/app.css', 'resources/js/storefront.js'])
     @livewireStyles
@@ -56,6 +72,14 @@
                         @if ($rating)<p class="mt-1 inline-flex items-center gap-1 text-sm font-semibold" aria-label="{{ trans_choice('marketing.review_count', $rating['count'], ['count' => $rating['count']]) }}, {{ number_format($rating['average'], 1) }}"><svg class="size-4 fill-current" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg><span class="tnum">{{ number_format($rating['average'], 1) }}</span><span class="font-normal opacity-80">({{ $rating['count'] }})</span></p>@endif
                     </div>
                 </div>
+                @if ($currencies)
+                    <label class="sr-only" for="cur">{{ __('customer.currency') }}</label>
+                    <select id="cur" x-model="curCode" class="shrink-0 rounded-full bg-black/15 px-2 py-1 text-xs font-bold text-inherit">
+                        @foreach ($currencies as $c)<option value="{{ $c['code'] }}" class="text-black">{{ $c['code'] }}</option>@endforeach
+                    </select>
+                @endif
+                @unless ($kiosk)<a href="{{ $base }}/account" class="shrink-0 rounded-full bg-black/15 px-2.5 py-1 text-xs font-bold">{{ $account ? ($account['name'] ?: __('customer.account_link')) : __('customer.account_link') }}</a>@endunless
+                <button type="button" x-show="installEvent" x-cloak x-on:click="install()" class="shrink-0 rounded-full bg-black/15 px-2.5 py-1 text-xs font-bold">{{ __('customer.install_app') }}</button>
                 @if ($settings['dark_toggle'])
                     <button type="button" x-on:click="toggleAlt()" class="grid size-8 shrink-0 place-items-center rounded-full bg-black/15" :aria-pressed="alt" aria-label="{{ __('customer.toggle_theme') }}"><x-ui.icon name="sun" size="4" /></button>
                 @endif
@@ -95,7 +119,7 @@
             </div>
             <button type="button" class="menu-card relative grid size-[2.9rem] shrink-0 place-items-center shadow-lg" x-on:click="filtersOpen = !filtersOpen" :aria-expanded="filtersOpen" aria-label="{{ __('customer.filters') }}">
                 <x-ui.icon name="sliders" size="5" />
-                <span x-show="diet.length + avoid.length" x-cloak class="menu-accent absolute -end-1 -top-1 grid size-4 place-items-center rounded-full text-[10px] font-bold" x-text="diet.length + avoid.length"></span>
+                <span x-show="filterCount" x-cloak class="menu-accent absolute -end-1 -top-1 grid size-4 place-items-center rounded-full text-[10px] font-bold" x-text="filterCount"></span>
             </button>
         </div>
         <div x-show="filtersOpen" x-cloak class="menu-card mt-2 space-y-3 p-3">
@@ -111,9 +135,55 @@
                     @foreach ($allergens as $a)<button type="button" class="menu-chip" :aria-pressed="avoid.includes('{{ $a }}')" x-on:click="toggleIn('avoid', '{{ $a }}')">{{ __('menu.allergen.'.$a) }}</button>@endforeach
                 </div>
             </div>
+            <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                    <p class="menu-muted mb-1.5 text-xs font-semibold uppercase tracking-wide">{{ __('customer.filter_spice') }}</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button type="button" class="menu-chip" :aria-pressed="spice === 0" x-on:click="spice = 0">{{ __('customer.filter_spice_any') }}</button>
+                        @foreach ([1, 2, 3] as $level)<button type="button" class="menu-chip" :aria-pressed="spice === {{ $level }}" x-on:click="spice = {{ $level }}">{{ str_repeat('🌶', $level) }}<span class="sr-only"> {{ __('menu.spice_'.$level) }}</span></button>@endforeach
+                    </div>
+                </div>
+                <div x-show="priceCeil > 0">
+                    <label for="max-price" class="menu-muted mb-1.5 flex items-center justify-between text-xs font-semibold uppercase tracking-wide"><span>{{ __('customer.filter_price') }}</span><span class="tnum normal-case" x-text="money(maxPrice * 100)"></span></label>
+                    <input id="max-price" type="range" min="0" :max="priceCeil" step="1" x-model.number="maxPrice" class="w-full accent-[var(--menu-accent)]">
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <button type="button" class="menu-chip" :aria-pressed="favOnly" x-on:click="favOnly = !favOnly">♥ {{ __('customer.filter_favorites') }}</button>
+                <label class="flex items-center gap-2 text-sm"><span class="menu-muted">{{ __('customer.sort') }}</span>
+                    <select x-model="sort" class="rounded-lg border bg-transparent px-2 py-1 text-sm menu-line">
+                        <option value="menu">{{ __('customer.sort_default') }}</option><option value="price_asc">{{ __('customer.sort_price_asc') }}</option><option value="price_desc">{{ __('customer.sort_price_desc') }}</option>
+                    </select></label>
+            </div>
+            <div>
+                <p class="menu-muted mb-1.5 text-xs font-semibold uppercase tracking-wide">{{ __('customer.a11y') }}</p>
+                <div class="flex flex-wrap gap-1.5">
+                    <button type="button" class="menu-chip" :aria-pressed="a11y.large" x-on:click="a11y.large = !a11y.large">{{ __('customer.a11y_large') }}</button>
+                    <button type="button" class="menu-chip" :aria-pressed="a11y.contrast" x-on:click="a11y.contrast = !a11y.contrast">{{ __('customer.a11y_contrast') }}</button>
+                    <button type="button" class="menu-chip" :aria-pressed="a11y.calm" x-on:click="a11y.calm = !a11y.calm">{{ __('customer.a11y_calm') }}</button>
+                </div>
+            </div>
             <button type="button" class="text-sm font-medium underline underline-offset-2" x-show="hasFilters" x-on:click="resetFilters()">{{ __('customer.reset_filters') }}</button>
         </div>
     </div>
+
+    {{-- Banners --}}
+    <section class="mx-auto mt-5 max-w-3xl" x-show="banners.length && !hasFilters" x-cloak aria-label="{{ __('marketing.banners_title') }}">
+        <div class="menu-scroll menu-snap flex gap-3 overflow-x-auto px-4 pb-1">
+            <template x-for="b in banners" :key="b.id">
+                <component :is="'div'">
+                    <article class="menu-card relative flex w-72 shrink-0 flex-col overflow-hidden sm:w-80">
+                        <img x-show="b.image" :src="b.image" alt="" loading="lazy" class="aspect-[16/7] w-full object-cover">
+                        <div class="p-3.5">
+                            <p class="display font-bold leading-snug" x-text="b.title"></p>
+                            <p class="menu-muted mt-1 text-sm leading-snug" x-show="b.text" x-text="b.text"></p>
+                            <a x-show="b.link" :href="b.link" :target="b.link && b.link.startsWith('http') ? '_blank' : null" rel="noopener" class="menu-btn mt-3 !px-3 !py-1.5 !text-sm" x-text="b.button || @js(__('customer.choose'))"></a>
+                        </div>
+                    </article>
+                </component>
+            </template>
+        </div>
+    </section>
 
     {{-- Most loved --}}
     <section class="mx-auto mt-6 max-w-3xl" x-show="featured.length > 0 && !hasFilters" x-cloak aria-label="{{ __('customer.most_loved') }}">
@@ -164,6 +234,7 @@
                     <div class="{{ $layout === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-3' }}">
                         <template x-for="p in c.products" :key="p.id">
                             <article class="menu-card relative overflow-hidden {{ $layout === 'list' ? 'flex gap-3 p-3' : 'flex flex-col' }}" :class="p.available ? '' : 'opacity-60'">
+                                <button type="button" class="menu-surface absolute end-2 top-2 z-10 grid size-8 place-items-center rounded-full text-base shadow" x-on:click.stop="toggleFav(p)" :aria-pressed="isFav(p)" :aria-label="(isFav(p) ? @js(__('customer.favorite_remove')) : @js(__('customer.favorite_add'))) + ' ' + p.name"><span :class="isFav(p) ? 'text-rose-500' : 'opacity-50'" x-text="isFav(p) ? '♥' : '♡'"></span></button>
                                 @if ($settings['show_images'] && $layout !== 'list')
                                     <div class="menu-img relative w-full overflow-hidden {{ $layout === 'grid' ? 'aspect-[4/3]' : 'aspect-[16/9]' }}">
                                         <button type="button" x-on:click="open(p)" tabindex="-1" aria-hidden="true" class="block size-full"><img :src="pic(p)" alt="" loading="lazy" class="size-full object-cover"></button>
@@ -177,11 +248,12 @@
                                         <span class="block text-[1.05rem] font-bold leading-snug" x-text="p.name"></span>
                                         <span class="menu-muted mt-1 line-clamp-2 block text-sm leading-snug" x-show="p.description" x-text="p.description"></span>
                                     </button>
-                                    <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs" x-show="!p.available || p.dietary.length || p.badges.length || (p.featured && {{ $layout === 'list' || ! $settings['show_images'] ? 'true' : 'false' }})">
+                                    <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs" x-show="!p.available || p.dietary.length || p.badges.length || p.spice > 0 || (p.featured && {{ $layout === 'list' || ! $settings['show_images'] ? 'true' : 'false' }})">
                                         <template x-for="b in p.badges" :key="b"><span class="menu-accent rounded-full px-2 py-0.5 font-semibold" x-text="cfg_badge[b]"></span></template>
                                         <span class="menu-accent rounded-full px-2 py-0.5 font-semibold" x-show="p.featured && p.available && {{ $layout === 'list' || ! $settings['show_images'] ? 'true' : 'false' }}">{{ __('customer.featured') }}</span>
                                         <span class="rounded-full border px-2 py-0.5 font-semibold menu-line" x-show="!p.available">{{ __('customer.sold_out') }}</span>
                                         <template x-for="d in p.dietary" :key="d"><span class="menu-muted rounded-full border px-2 py-0.5 menu-line" x-text="cfg_diet[d]"></span></template>
+                                        <span class="rounded-full border px-2 py-0.5 menu-line" x-show="p.spice > 0" :aria-label="@js(__('customer.spice_label'))" x-text="'🌶'.repeat(p.spice)"></span>
                                     </div>
                                     @if ($layout === 'list' || ! $settings['show_images'])
                                         <div class="mt-auto flex items-center justify-between gap-2 pt-3">
@@ -240,6 +312,19 @@
             </div>
         </div>
     @endif
+
+    {{-- Pop-up banner (once per visit) --}}
+    <div x-show="popup" x-cloak x-transition.opacity class="fixed inset-0 z-50 grid place-items-center bg-black/55 p-5" x-on:click.self="popup = null" role="dialog" aria-modal="true" :aria-label="popup ? popup.title : ''">
+        <article class="menu-page menu-card relative w-full max-w-sm overflow-hidden shadow-2xl">
+            <button type="button" class="menu-surface absolute end-2 top-2 z-10 grid size-9 place-items-center rounded-full shadow" x-on:click="popup = null" aria-label="{{ __('customer.close') }}"><x-ui.icon name="x" size="5" /></button>
+            <img x-show="popup && popup.image" :src="popup ? popup.image : ''" alt="" class="aspect-[16/9] w-full object-cover">
+            <div class="p-5">
+                <p class="display text-xl font-bold" x-text="popup ? popup.title : ''"></p>
+                <p class="menu-muted mt-1.5" x-show="popup && popup.text" x-text="popup ? popup.text : ''"></p>
+                <a x-show="popup && popup.link" :href="popup ? popup.link : '#'" x-on:click="popup = null" class="menu-btn mt-4" x-text="popup ? (popup.button || @js(__('customer.choose'))) : ''"></a>
+            </div>
+        </article>
+    </div>
 
     {{-- Confirmation toast --}}
     <div x-show="toast" x-cloak x-transition.opacity class="pointer-events-none fixed inset-x-0 bottom-24 z-40 flex justify-center px-4" role="status">
@@ -376,6 +461,7 @@
                 </div>
                 <button type="button" x-on:click="cartOpen = false" class="menu-card grid size-9 shrink-0 place-items-center" aria-label="{{ __('customer.close') }}"><x-ui.icon name="x" size="5" /></button>
             </div>
+            @if ($currencies)<p class="menu-muted px-5 pt-2 text-xs" x-show="curObj && !curObj.base" x-cloak>{{ __('customer.currency_note', ['base' => $restaurant->currency_code]) }}</p>@endif
 
             {{-- Step 1: the cart --}}
             <div class="overflow-y-auto px-5" x-show="stage === 'cart'">

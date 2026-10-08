@@ -50,6 +50,7 @@
                 <div class="mt-5 space-y-3">
                     <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="show_images" value="1" class="check" x-model="show_images">{{ __('menu.appearance.show_images') }}</label>
                     <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="dark_toggle" value="1" class="check" @checked($settings['dark_toggle'])>{{ __('menu.appearance.dark_toggle') }}</label>
+                    <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="currency_switch" value="1" class="check" @checked($settings['currency_switch'])>{{ __('menu.appearance.currency_switch') }}</label>
                     <div>
                         <label class="flex items-center gap-2.5 text-sm {{ $canRemoveCredit ? '' : 'opacity-60' }}"><input type="checkbox" name="hide_credit" value="1" class="check" @checked(! $settings['show_credit']) @disabled(! $canRemoveCredit)>{{ __('menu.appearance.hide_credit') }}</label>
                         @unless ($canRemoveCredit)<p class="mt-1 text-xs text-muted">{{ __('menu.appearance.hide_credit_locked') }}</p>@endunless

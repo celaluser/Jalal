@@ -30,6 +30,7 @@ return [
         'tables' => 'Tables & QR',
         'branches' => 'Branches',
         'floor_map' => 'Floor map',
+        'banners' => 'Banners',
         'restaurant' => 'Restaurant profile',
         'subscription' => 'Subscription',
     ],

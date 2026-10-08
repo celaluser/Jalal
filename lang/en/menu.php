@@ -59,6 +59,7 @@ return [
         'hero' => 'Header', 'heroes' => ['full' => 'Large, with a welcome line', 'compact' => 'Compact'],
         'scroll' => 'Long menus', 'scrolls' => ['all' => 'Show everything at once', 'infinite' => 'Load more while scrolling'],
         'dark_toggle' => 'Let guests switch between light and dark',
+        'currency_switch' => 'Let guests see prices in other currencies (approximate)',
         'sample_item' => 'Sample dish', 'sample_text' => 'A short, tasty description.', 'add' => 'Add',
     ],
 
@@ -77,6 +78,7 @@ return [
     'video_url' => 'Video link', 'video_hint' => 'A YouTube or Vimeo link, or a direct link to an .mp4 or .webm file. https only.', 'video_unsupported' => 'Use a YouTube, Vimeo or direct .mp4/.webm link that starts with https://.',
     'section_nutrition' => 'Nutrition', 'nutrition_help' => 'Per portion. Leave empty what you do not know.', 'portion_size' => 'Portion size', 'portion_hint' => 'For example 250 g or 12 inch.',
     'nutrient_protein' => 'Protein (g)', 'nutrient_carbs' => 'Carbs (g)', 'nutrient_fat' => 'Fat (g)', 'nutrient_fiber' => 'Fiber (g)', 'nutrient_sugar' => 'Sugar (g)', 'nutrient_sodium' => 'Sodium (mg)',
+    'spice_level' => 'Spiciness', 'spice_0' => 'Not spicy', 'spice_1' => 'Mild 🌶', 'spice_2' => 'Medium 🌶🌶', 'spice_3' => 'Hot 🌶🌶🌶',
     'cost_price' => 'Cost per portion', 'cost_price_hint' => 'Only you see this. It is used for profit figures.',
     'section_badges' => 'Badges', 'badge_new' => 'New', 'badge_popular' => 'Popular', 'badge_chef' => 'Chef’s pick', 'badge_limited' => 'Limited time', 'limited_until' => 'Available until', 'limited_until_hint' => 'The dish disappears from the menu after this day.',
     'section_availability' => 'When it is available', 'schedule' => 'Days and hours', 'schedule_help' => 'Leave empty to show it always. Pick days, hours, or both.', 'schedule_from' => 'From', 'schedule_to' => 'Until',

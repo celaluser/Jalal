@@ -29,7 +29,7 @@ class CurrencyController extends Controller
     public function update(Request $request, Currency $currency): RedirectResponse
     {
         $data = $this->validated($request, $currency);
-        $currency->update(['name' => $data['name'], 'symbol' => $data['symbol'], 'symbol_position' => $data['symbol_position'], 'decimals' => $data['decimals'], 'decimal_separator' => $data['decimal_separator'], 'thousands_separator' => $data['thousands_separator'], 'is_active' => $currency->is_default ? true : $request->boolean('is_active')]);
+        $currency->update(['name' => $data['name'], 'symbol' => $data['symbol'], 'symbol_position' => $data['symbol_position'], 'decimals' => $data['decimals'], 'decimal_separator' => $data['decimal_separator'], 'thousands_separator' => $data['thousands_separator'], 'rate' => $data['rate'] ?? null, 'is_active' => $currency->is_default ? true : $request->boolean('is_active')]);
 
         return back()->with('status', __('admin.saved'));
     }
@@ -42,6 +42,7 @@ class CurrencyController extends Controller
             'name' => ['required', 'string', 'max:80'], 'symbol' => ['required', 'string', 'max:12'],
             'symbol_position' => ['required', 'in:before,after'], 'decimals' => ['required', 'integer', 'between:0,4'],
             'decimal_separator' => ['required', 'string', 'max:1'], 'thousands_separator' => ['nullable', 'string', 'max:1'],
+            'rate' => ['nullable', 'numeric', 'gt:0', 'max:1000000000'],
         ]) + ['thousands_separator' => ''];
     }
 }
