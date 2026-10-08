@@ -14,7 +14,7 @@ return [
     'max_upload_kb' => 102400,
 
     /** Top-level locations an update may write to. Everything else is rejected. */
-    'allowed_roots' => ['app', 'bootstrap', 'config', 'database', 'lang', 'public', 'resources', 'routes', 'vendor', 'composer.json', 'composer.lock', 'artisan'],
+    'allowed_roots' => ['addons', 'app', 'bootstrap', 'config', 'database', 'lang', 'public', 'resources', 'routes', 'vendor', 'composer.json', 'composer.lock', 'artisan'],
 
     /** Never overwritten, even inside an allowed root. */
     'protected' => ['.env', 'storage', 'public/storage', 'bootstrap/cache', 'database/database.sqlite'],

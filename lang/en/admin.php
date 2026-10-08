@@ -25,6 +25,7 @@ return [
         'blog' => 'Blog',
         'pages' => 'Pages',
         'updates' => 'Updates',
+        'addons' => 'Add-ons',
         'system_status' => 'System status',
         'logs' => 'Logs',
         'backups' => 'Backups',

@@ -42,6 +42,7 @@ class AdminServiceProvider extends ServiceProvider
             ['system', 'logs', 'admin.system.logs', 'admin.system.logs*', [], 'file-text'],
             ['system', 'backups', 'admin.system.backups', 'admin.system.backups*', [], 'download'],
             ['system', 'updates', 'admin.updates.index', 'admin.updates.*', [], 'refresh'],
+            ['system', 'addons', 'admin.addons.index', 'admin.addons.*', [], 'layers'],
         ];
 
         foreach ($nav as [$group, $key, $route, $active, $params, $icon]) {

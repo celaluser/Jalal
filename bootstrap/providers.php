@@ -7,6 +7,7 @@ use App\Modules\Ai\Providers\AiServiceProvider;
 use App\Modules\Analytics\Providers\AnalyticsServiceProvider;
 use App\Modules\Auth\Providers\AuthServiceProvider;
 use App\Modules\Billing\Providers\BillingServiceProvider;
+use App\Modules\Addons\Providers\AddonsServiceProvider;
 use App\Modules\Api\Providers\ApiServiceProvider;
 use App\Modules\Branches\Providers\BranchesServiceProvider;
 use App\Modules\Cms\Providers\CmsServiceProvider;
@@ -54,4 +55,5 @@ return [
     InstallerServiceProvider::class,
     UpdaterServiceProvider::class,
     DemoServiceProvider::class,
+    AddonsServiceProvider::class, // keep last: add-ons use every registry above
 ];

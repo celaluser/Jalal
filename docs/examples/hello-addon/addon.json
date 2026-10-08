@@ -1,0 +1,10 @@
+{
+  "slug": "hello-addon",
+  "name": "Hello add-on",
+  "version": "1.0.0",
+  "author": "Your name",
+  "description": "Example: adds a menu entry, a public route and a table.",
+  "min_core": "1.0.0",
+  "namespace": "Addons\\HelloAddon\\",
+  "provider": "Addons\\HelloAddon\\HelloServiceProvider"
+}
