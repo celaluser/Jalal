@@ -110,4 +110,12 @@ return [
     'privacy_section' => 'Privacy', 'retention_months' => 'Erase guest personal data after (months)',
     'retention_help' => '0 keeps everything. Otherwise, guests who have not ordered for this long are deleted and their name, phone, e-mail and address are removed from old orders. The orders themselves (amounts, dishes) stay for your books.',
     'segment_birthday' => 'Birthday this month', 'autopilot_birthday' => 'Autopilot: birthday treat', 'birthday_percent' => 'Birthday discount (%)',
+    'segments_title' => 'Segments', 'segments_sub' => 'Save an audience once and pick it in any campaign. A guest must match every rule you fill in.',
+    'segment_name' => 'Name', 'segment_name_ph' => 'Regulars who went quiet', 'segment_rules_help' => 'Leave a rule empty to ignore it. Only guests who agreed to marketing are ever contacted.', 'segment_save' => 'Save segment',
+    'rule_min_orders' => 'At least this many orders', 'rule_max_orders' => 'At most this many orders', 'rule_min_spent' => 'Spent at least', 'rule_active_within' => 'Ordered within the last (days)', 'rule_inactive_for' => 'Not ordered for (days)', 'rule_joined_within' => 'New in the last (days)',
+    'rule_birthday' => 'Birthday', 'rule_birthday_this' => 'This month', 'rule_birthday_next' => 'Next month', 'rule_tier' => 'Tier',
+    'rule_value_this_month' => 'this month', 'rule_value_next_month' => 'next month', 'rule_value_bronze' => 'bronze', 'rule_value_silver' => 'silver', 'rule_value_gold' => 'gold',
+    'rule_label_min_orders' => ':value+ orders', 'rule_label_max_orders' => 'up to :value orders', 'rule_label_min_spent' => 'spent :value+', 'rule_label_active_within_days' => 'ordered in the last :value days', 'rule_label_inactive_for_days' => 'quiet for :value+ days',
+    'rule_label_joined_within_days' => 'new in the last :value days', 'rule_label_birthday' => 'birthday :value', 'rule_label_tier' => 'tier :value',
+    'segment_everyone' => 'Everyone', 'segment_reach' => '{0} nobody can be reached|{1} :count guest can be reached|[2,*] :count guests can be reached', 'segment_saved' => 'Segment saved.', 'segment_deleted' => 'Segment deleted.', 'segment_delete_confirm' => 'Delete this segment?', 'segments_empty' => 'No saved segments', 'segments_empty_text' => 'Create one above, then pick it when you write a campaign.',
 ];

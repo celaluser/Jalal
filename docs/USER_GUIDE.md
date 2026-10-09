@@ -24,7 +24,7 @@ Turn on **Reservations** (plan feature) to let guests book a table online. Set s
 
 - **Customers** are created from orders. Guests tick a box to receive marketing; you can only mail those who agreed, and every message has a stop link.
 - **Promo codes**, **loyalty rewards** (every Nth order), **gift cards**, **happy hour** pricing, **banners and pop-ups**.
-- **Campaigns** by e-mail, SMS or WhatsApp to a segment (new, regulars, VIP, lapsed). Your plan's monthly message allowance applies to SMS/WhatsApp.
+- **Campaigns** by e-mail, SMS or WhatsApp to a segment (new, regulars, VIP, lapsed, birthday this month, or your own **Segments** built from simple rules such as "3+ orders and quiet for 60 days"). Your plan's monthly message allowance applies to SMS/WhatsApp.
 - **Reviews**: guests rate after completed orders (stars and a 0-10 recommendation question). Reply from **Reviews**; send happy guests to your Google review link.
 - **Website & SEO**: a small About page, search titles and descriptions, opening hours for Google. **Loyalty & reviews** page also has the link-in-bio page, the printable flyer and the website button for your own site.
 

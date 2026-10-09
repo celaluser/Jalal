@@ -137,7 +137,8 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ **Ad pixels** (Meta, Google tag, TikTok): ids validated by pattern, loaded on the guest menu only when the guest does not send Do Not Track. This is not a full cookie-consent banner.
 - ✅ **Link-in-bio page** (`/links`), **printable A5 flyer** with the menu QR, **website button** script (`/widget.js`) and iframe snippet, **promo templates** (welcome, weekend, big order, flash sale).
 - ✅ **Birthdays** (day and month only, never the year): guests add it on their account page; segment "birthday this month"; optional autopilot sends one personal code on the day, once a year, only with marketing consent
-- 🔴 Not built: segment builder with free rules, A/B testing, automatic send-time optimisation.
+- ✅ **Saved segments** with free rules (order count range, spend, active/quiet for N days, new guests, birthday month, tier), live reach count, usable in campaigns
+- 🔴 Not built: A/B testing (no open tracking to pick a winner), automatic send-time optimisation.
 
 ## 9j. Mini website and SEO (v2 gap work)
 

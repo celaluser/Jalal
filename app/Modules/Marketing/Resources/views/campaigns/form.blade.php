@@ -13,7 +13,8 @@
             </div>
             <div>
                 <label for="segment" class="mb-1.5 block text-sm font-medium">{{ __('marketing.campaign_segment') }}</label>
-                <select id="segment" name="segment" class="field">@foreach (\App\Modules\Marketing\Services\Segments::ALL as $seg)<option value="{{ $seg }}" @selected(old('segment', $campaign?->segment ?? 'all') === $seg)>{{ __('marketing.segment_'.$seg) }}</option>@endforeach</select>
+                <select id="segment" name="segment" class="field">@foreach (\App\Modules\Marketing\Services\Segments::ALL as $seg)<option value="{{ $seg }}" @selected(old('segment', $campaign?->segment ?? 'all') === $seg)>{{ __('marketing.segment_'.$seg) }}</option>@endforeach
+                    @foreach ($customSegments as $cs)<option value="custom:{{ $cs->id }}" @selected(old('segment', $campaign?->segment) === 'custom:'.$cs->id)>{{ $cs->name }}</option>@endforeach</select>
             </div>
             <div class="sm:col-span-2" x-show="channel === 'email'"><x-ui.input name="subject" :label="__('marketing.campaign_subject')" :value="$campaign?->subject" maxlength="160" /></div>
         </div>

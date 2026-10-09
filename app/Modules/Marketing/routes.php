@@ -11,6 +11,7 @@ use App\Modules\Marketing\Http\Controllers\PriceRuleController;
 use App\Modules\Marketing\Http\Controllers\MarketingSettingsController;
 use App\Modules\Marketing\Http\Controllers\PromoController;
 use App\Modules\Marketing\Http\Controllers\ReviewController;
+use App\Modules\Marketing\Http\Controllers\SegmentController;
 use App\Modules\Marketing\Http\Controllers\UnsubscribeController;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenant;
 use Illuminate\Support\Facades\Route;
@@ -64,6 +65,10 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])-
             Route::post('pricing', [PriceRuleController::class, 'store'])->name('pricing.store');
             Route::post('pricing/{rule}/toggle', [PriceRuleController::class, 'toggle'])->whereNumber('rule')->name('pricing.toggle');
             Route::delete('pricing/{rule}', [PriceRuleController::class, 'destroy'])->whereNumber('rule')->name('pricing.destroy');
+
+            Route::get('segments', [SegmentController::class, 'index'])->name('segments.index');
+            Route::post('segments', [SegmentController::class, 'store'])->name('segments.store');
+            Route::delete('segments/{segment}', [SegmentController::class, 'destroy'])->whereNumber('segment')->name('segments.destroy');
 
             Route::get('gift-cards', [GiftCardController::class, 'index'])->name('gifts.index');
             Route::post('gift-cards', [GiftCardController::class, 'store'])->middleware('throttle:30,1')->name('gifts.store');

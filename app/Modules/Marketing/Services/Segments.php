@@ -2,6 +2,7 @@
 
 namespace App\Modules\Marketing\Services;
 
+use App\Modules\Marketing\Models\CustomerSegment;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -15,6 +16,13 @@ class Segments
     public function scope(Builder $query, string $segment, Restaurant $restaurant): Builder
     {
         $s = $this->settings->for($restaurant);
+
+        // A segment the owner saved: custom:<id>. An id that is gone (or belongs to another restaurant) reaches nobody.
+        if (preg_match('/^custom:(\d{1,6})$/', $segment, $m)) {
+            $saved = CustomerSegment::find((int) $m[1]);
+
+            return $saved ? app(SegmentRules::class)->apply($query, (array) $saved->rules, $restaurant) : $query->whereRaw('1 = 0');
+        }
 
         return match ($segment) {
             'new' => $query->where('orders_count', '<=', 1),

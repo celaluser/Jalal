@@ -15,6 +15,7 @@ return [
         'promos' => 'Promo codes',
         'campaigns' => 'Campaigns',
         'pricing' => 'Happy hour',
+        'segments' => 'Segments',
         'gifts' => 'Gift cards',
         'site' => 'Website & SEO',
         'integrations' => 'API & webhooks',
