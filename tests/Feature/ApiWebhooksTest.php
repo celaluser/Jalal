@@ -293,3 +293,23 @@ describe('orders, reservations and customers through the api', function () {
         }
     });
 });
+
+it('pins the connection to the address it checked, and refuses hosts that resolve to private ranges', function () {
+    $guard = new class extends UrlGuard
+    {
+        public array $answers = [];
+
+        protected function resolve(string $host): array
+        {
+            return $this->answers[$host] ?? [];
+        }
+    };
+    $guard->answers = ['hooks.example.com' => ['8.8.4.4'], 'sneaky.example.com' => ['8.8.8.8', '10.0.0.7'], 'internal.example.com' => ['127.0.0.1']];
+
+    expect($guard->pin('https://hooks.example.com/x'))->toBe(['host' => 'hooks.example.com', 'port' => 443, 'ip' => '8.8.4.4'])
+        ->and($guard->pin('https://hooks.example.com:8443/x')['port'])->toBe(8443)
+        ->and($guard->pin('https://sneaky.example.com/x'))->toBeNull()      // any private answer rejects the host
+        ->and($guard->pin('https://internal.example.com/x'))->toBeNull()
+        ->and($guard->pin('https://8.8.8.8/x'))->toBeNull()                 // IP literal: nothing to pin, and it is allowed on its own
+        ->and($guard->allowed('https://8.8.8.8/x'))->toBeTrue();
+});

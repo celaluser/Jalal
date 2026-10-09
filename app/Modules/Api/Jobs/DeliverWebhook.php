@@ -49,7 +49,14 @@ class DeliverWebhook implements ShouldQueue
                 throw new RuntimeException('URL not allowed');
             }
 
-            $response = Http::timeout(8)->withOptions(['allow_redirects' => false])->withHeaders([
+            $options = ['allow_redirects' => false];
+
+            if ($pin = $guard->pin($endpoint->url)) {
+                // Connect to the address that was just checked, not to whatever DNS answers a moment later.
+                $options['curl'] = [CURLOPT_RESOLVE => ["{$pin['host']}:{$pin['port']}:{$pin['ip']}"]];
+            }
+
+            $response = Http::timeout(8)->withOptions($options)->withHeaders([
                 'Content-Type' => 'application/json', 'User-Agent' => 'QRMenu-Webhook/1', 'X-Webhook-Id' => $delivery->uuid, 'X-Webhook-Event' => $delivery->event,
                 'X-Webhook-Signature' => 't='.$time.',v1='.hash_hmac('sha256', $time.'.'.$body, $endpoint->secret),
             ])->withBody($body, 'application/json')->post($endpoint->url);

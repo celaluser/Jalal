@@ -32,6 +32,27 @@ class UrlGuard
         return true;
     }
 
+    /**
+     * The address a delivery must connect to: the first public IP the host resolves to, checked here. Passing it to cURL (CURLOPT_RESOLVE)
+     * means the connection cannot be sent somewhere else by a second, different DNS answer between this check and the request.
+     * Null for a host given as an IP literal (nothing to pin) or one that does not resolve.
+     *
+     * @return array{host: string, port: int, ip: string}|null
+     */
+    public function pin(string $url): ?array
+    {
+        $parts = parse_url($url);
+        $host = trim($parts['host'] ?? '', '[]');
+
+        if ($host === '' || filter_var($host, FILTER_VALIDATE_IP) || ! $this->allowed($url)) {
+            return null;
+        }
+
+        $ip = $this->resolve($host)[0] ?? null;
+
+        return $ip ? ['host' => $host, 'port' => (int) ($parts['port'] ?? 443), 'ip' => $ip] : null;
+    }
+
     /** @return list<string> */
     protected function resolve(string $host): array
     {
