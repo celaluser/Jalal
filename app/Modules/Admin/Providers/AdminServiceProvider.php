@@ -34,6 +34,7 @@ class AdminServiceProvider extends ServiceProvider
             ['content', 'blog', 'admin.posts.index', 'admin.posts.*', [], 'pen'],
             ['content', 'pages', 'admin.pages.index', 'admin.pages.*', [], 'file-text'],
             ['system', 'languages', 'admin.languages.index', 'admin.languages.*', [], 'globe'],
+            ['content', 'themes', 'admin.themes.index', 'admin.themes.*', [], 'layout'],
             ['system', 'currencies', 'admin.currencies.index', 'admin.currencies.*', [], 'wallet'],
             ['system', 'translations', 'admin.translations.index', 'admin.translations.*', [], 'pen'],
             ['system', 'email_templates', 'admin.email-templates.index', 'admin.email-templates.*', [], 'mail'],

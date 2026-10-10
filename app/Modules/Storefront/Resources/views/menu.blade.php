@@ -62,6 +62,7 @@
         html[data-menu-contrast] .menu-card{border:2px solid #000}
         html[data-menu-calm] *,html[data-menu-calm] *::before,html[data-menu-calm] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
     </style>
+    @include('storefront::partials.theme-effects', ['part' => 'style'])
     @if ($kiosk)<style>html{font-size:118%}.kiosk .menu-add{width:3.25rem;height:3.25rem}.kiosk .menu-chip{padding:.6rem 1.1rem}</style>@endif
     @if ($pixels)
         {{-- Ad tracking loads only after the guest says yes (remembered on this device), and never when the browser sends Do Not Track. --}}
@@ -86,6 +87,7 @@
     @livewireStyles
 </head>
 <body class="menu-page min-h-screen pb-28 {{ $kiosk ? 'kiosk select-none' : '' }}" x-data="storefront(@js($config))" x-on:keydown.escape.window="closeAll()">
+    @include('storefront::partials.theme-effects', ['part' => 'body'])
     {{-- Hero: brand colour, restaurant, table and language --}}
     <header class="menu-hero relative overflow-hidden">
         <div class="mx-auto max-w-3xl px-4 {{ $settings['hero'] === 'full' ? 'pb-14' : 'pb-10' }} pt-5">

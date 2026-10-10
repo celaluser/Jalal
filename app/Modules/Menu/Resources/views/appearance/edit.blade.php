@@ -27,7 +27,7 @@
                                     <span class="mt-2 flex gap-1.5"><span class="h-8 flex-1 rounded" style="background: {{ $t['surface'] }}; border: 1px solid {{ $t['line'] }}"></span><span class="h-8 flex-1 rounded" style="background: {{ $t['surface'] }}; border: 1px solid {{ $t['line'] }}"></span></span>
                                     <span class="mt-2 block h-4 rounded" style="background: {{ $accent }}"></span>
                                 </span>
-                                <span class="block bg-surface px-3 py-2 text-sm font-medium">{{ __('menu.appearance.themes.'.$key) }}</span>
+                                <span class="block bg-surface px-3 py-2 text-sm font-medium">{{ $t['name'] }}</span>
                             </span>
                         </label>
                     @endforeach
@@ -57,6 +57,26 @@
                     </div>
                 </div>
             </x-ui.card>
+
+            <x-ui.card :title="__('menu.appearance.effects')" :description="__('menu.appearance.effects_help')">
+                <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    @foreach ([['scrollbar', config('themes.scrollbars'), 'scrollbars'], ['reveal', config('themes.reveals'), 'reveals'], ['card', config('themes.cards'), 'cards']] as [$field, $values, $group])
+                        <div>
+                            <label for="{{ $field }}" class="mb-1.5 block text-sm font-medium">{{ __('menu.appearance.'.$field) }}</label>
+                            <select id="{{ $field }}" name="{{ $field }}" class="field">
+                                @foreach ($values as $v)<option value="{{ $v }}" @selected($settings[$field] === $v)>{{ __('menu.appearance.'.$group.'.'.$v) }}</option>@endforeach
+                            </select>
+                        </div>
+                    @endforeach
+                    @foreach (['progress', 'animated_bg'] as $field)
+                        <div>
+                            <label for="{{ $field }}" class="mb-1.5 block text-sm font-medium">{{ __('menu.appearance.'.$field) }}</label>
+                            <select id="{{ $field }}" name="{{ $field }}" class="field"><option value="on" @selected($settings[$field])>{{ __('menu.appearance.on') }}</option><option value="off" @selected(! $settings[$field])>{{ __('menu.appearance.off') }}</option></select>
+                        </div>
+                    @endforeach
+                </div>
+            </x-ui.card>
+
 
             <div class="flex justify-end"><x-ui.button :block="false" size="lg">{{ __('admin.save') }}</x-ui.button></div>
         </div>

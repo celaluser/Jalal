@@ -32,6 +32,7 @@ return [
         'messaging' => 'SMS & WhatsApp',
         'languages' => 'Languages',
         'currencies' => 'Currencies',
+        'themes' => 'Menu themes',
         'translations' => 'Translations',
     ],
     'localization' => [
@@ -352,5 +353,19 @@ return [
         'enabled' => 'Let restaurants take online payments (plans must also include the Online payments feature)', 'commission' => 'Commission on online payments (%)', 'commission_hint' => 'Counted on the bill amount, not on tips. It is added to the restaurant’s next subscription invoice.',
         'allowed' => 'Gateways restaurants may use', 'allowed_hint' => 'Turn off a gateway you do not want to support.', 'volume' => 'Online payments by restaurant', 'none' => 'No online payments yet.',
         'restaurant' => 'Restaurant', 'payments' => 'Payments', 'volume_col' => 'Volume', 'commission_col' => 'Commission', 'unbilled' => 'Not yet invoiced',
+    ],
+
+    'themes' => [
+        'title' => 'Menu themes', 'subtitle' => 'The looks restaurants choose from for their guest menu. Edit any theme, switch it off, or make your own.',
+        'new' => 'New theme', 'copy' => 'Duplicate', 'edit' => 'Edit', 'reset' => 'Restore original', 'delete' => 'Delete', 'confirm_delete' => 'Delete this theme? Restaurants using it fall back to the default theme.',
+        'confirm_reset' => 'Restore this theme to how it shipped? Your changes to it are lost.',
+        'default' => 'Default', 'make_default' => 'Make default', 'enabled' => 'On', 'disabled' => 'Off', 'switch_on' => 'Switch on', 'switch_off' => 'Switch off', 'builtin' => 'Built in', 'custom' => 'Custom', 'dark' => 'Dark theme',
+        'saved' => 'Theme ":name" saved.', 'form_title' => 'Edit theme', 'name' => 'Name',
+        'colours' => 'Colours', 'bg' => 'Page background', 'bg2' => 'Second background colour', 'surface' => 'Card surface', 'fg' => 'Text', 'muted' => 'Secondary text', 'line' => 'Lines and borders',
+        'style' => 'Style', 'font' => 'Font', 'layout' => 'Product layout', 'radius' => 'Corners', 'bg_style' => 'Background', 'card' => 'Cards', 'motion' => 'Motion', 'scrollbar' => 'Scroll bar', 'reveal' => 'Reveal on scroll',
+        'progress' => 'Reading progress bar', 'animated_bg' => 'Slowly moving background',
+        'bg_styles' => ['solid' => 'Solid colour', 'gradient' => 'Gradient', 'mesh' => 'Colour mesh (uses the restaurant\'s brand colour)'],
+        'note' => 'Buttons and highlights always use each restaurant\'s own brand colour. Restaurants can still change font, layout, corners and motion for their own menu.',
+        'preview' => 'Preview',
     ],
 ];

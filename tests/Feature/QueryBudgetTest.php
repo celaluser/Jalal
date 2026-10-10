@@ -47,9 +47,20 @@ function qbCount(callable $request): int
 {
     DB::flushQueryLog();
     DB::enableQueryLog();
-    if (getenv('QB_TRACE')) { $seen = 0; DB::listen(function ($q) use (&$seen) { if (str_contains($q->sql, 'from "restaurants" where "restaurants"."id"') && ++$seen === 20) { file_put_contents('/tmp/trace.txt', collect(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 40))->map(fn ($f) => ($f['file'] ?? '').':'.($f['line'] ?? '').' '.($f['function'] ?? ''))->filter(fn ($l) => str_contains($l, '/app/') || str_contains($l, 'storage/framework/views'))->implode("\n")); } }); }
+    if (getenv('QB_TRACE')) {
+        $seen = 0;
+        DB::listen(function ($q) use (&$seen) {
+            if (str_contains($q->sql, 'from "restaurants" where "restaurants"."id"') && ++$seen === 20) {
+                file_put_contents('/tmp/trace.txt', collect(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 40))->map(fn ($f) => ($f['file'] ?? '').':'.($f['line'] ?? '').' '.($f['function'] ?? ''))->filter(fn ($l) => str_contains($l, '/app/') || str_contains($l, 'storage/framework/views'))->implode("\n"));
+            }
+        });
+    }
     $request();
-    $log = DB::getQueryLog(); $n = count($log); if (getenv("QB_DUMP")) { file_put_contents("/tmp/qlog.txt", collect($log)->pluck("query")->map(fn ($q) => preg_replace("/\d+/", "N", $q))->countBy()->sortDesc()->take(8)->map(fn ($c, $q) => "$c  $q")->implode("\n")); }
+    $log = DB::getQueryLog();
+    $n = count($log);
+    if (getenv('QB_DUMP')) {
+        file_put_contents('/tmp/qlog.txt', collect($log)->pluck('query')->map(fn ($q) => preg_replace("/\d+/", 'N', $q))->countBy()->sortDesc()->take(8)->map(fn ($c, $q) => "$c  $q")->implode("\n"));
+    }
     DB::disableQueryLog();
 
     return $n;

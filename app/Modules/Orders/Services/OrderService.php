@@ -7,6 +7,7 @@ use App\Modules\Billing\Services\LimitGuard;
 use App\Modules\Branches\Models\Branch;
 use App\Modules\Branches\Models\BranchProduct;
 use App\Modules\Core\Tenancy\TenantContext;
+use App\Modules\Inventory\Services\Recipes;
 use App\Modules\Marketing\Models\PromoCode;
 use App\Modules\Marketing\Services\PromoService;
 use App\Modules\Menu\Models\Product;
@@ -364,7 +365,7 @@ class OrderService
         }
 
         // Ingredients of recipes are used up too; they never block an order, the kitchen sees the shortage in the stock list.
-        app(\App\Modules\Inventory\Services\Recipes::class)->consume($wanted);
+        app(Recipes::class)->consume($wanted);
 
         $touched = false;
 
@@ -410,7 +411,7 @@ class OrderService
             }
         }
 
-        app(\App\Modules\Inventory\Services\Recipes::class)->consume($back, -1);
+        app(Recipes::class)->consume($back, -1);
 
         foreach ($back as $productId => $qty) {
             $own = $order->branch_id ? BranchProduct::where('branch_id', $order->branch_id)->where('product_id', $productId)->whereNotNull('stock_qty') : null;

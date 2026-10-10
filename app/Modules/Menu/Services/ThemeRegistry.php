@@ -12,23 +12,23 @@ use App\Modules\Tenancy\Models\Restaurant;
  */
 class ThemeRegistry
 {
-    public function __construct(private readonly LimitGuard $limits) {}
+    public function __construct(private readonly LimitGuard $limits, private readonly ThemeLibrary $library) {}
 
     /** @return array<string, array<string, mixed>> */
     public function themes(): array
     {
-        return config('themes.themes');
+        return $this->library->enabled();
     }
 
     /**
      * Effective settings: theme defaults, overridden by what the restaurant chose.
      *
-     * @return array{theme: string, font: string, layout: string, radius: string, show_images: bool, show_credit: bool, hero: string, scroll: string, dark_toggle: bool, currency_switch: bool}
+     * @return array<string, mixed>
      */
     public function settings(Restaurant $restaurant): array
     {
-        $key = array_key_exists($restaurant->theme, $this->themes()) ? $restaurant->theme : config('themes.default');
-        $base = $this->themes()[$key];
+        $key = array_key_exists((string) $restaurant->theme, $this->themes()) ? $restaurant->theme : $this->library->defaultKey();
+        $base = $this->themes()[$key] ?? $this->library->all()[$key];
         $own = (array) ($restaurant->branding['menu'] ?? []);
 
         return [
@@ -41,6 +41,14 @@ class ThemeRegistry
             'scroll' => $this->pick($own['scroll'] ?? null, config('themes.scrolls'), 'all'),
             'dark_toggle' => (bool) ($own['dark_toggle'] ?? false),
             'currency_switch' => (bool) ($own['currency_switch'] ?? false),
+            // Effects start from the theme; the restaurant may choose another one or switch them off.
+            'scrollbar' => $this->pick($own['scrollbar'] ?? null, config('themes.scrollbars'), $base['scrollbar']),
+            'reveal' => $this->pick($own['reveal'] ?? null, config('themes.reveals'), $base['reveal']),
+            'card' => $this->pick($own['card'] ?? null, config('themes.cards'), $base['card']),
+            'progress' => isset($own['progress']) && is_bool($own['progress']) ? $own['progress'] : $base['progress'],
+            'animated_bg' => isset($own['animated_bg']) && is_bool($own['animated_bg']) ? $own['animated_bg'] : $base['animated_bg'],
+            'bg_style' => $base['bg_style'],
+            'dark' => $base['dark'],
             // The "Powered by" credit can only be removed on plans that include the feature.
             'show_credit' => ! ($own['hide_credit'] ?? false) || ! $this->canRemoveCredit($restaurant),
         ];
@@ -60,12 +68,13 @@ class ThemeRegistry
     public function tokens(Restaurant $restaurant): array
     {
         $s = $this->settings($restaurant);
-        $theme = $this->themes()[$s['theme']];
+        $theme = $this->library->all()[$s['theme']];
         $accent = $restaurant->brandColor();
         $inkOnAccent = QrStyle::contrast($accent, '#0f1115') >= QrStyle::contrast($accent, '#ffffff');
 
         return [
             '--menu-bg' => $theme['bg'],
+            '--menu-bg-2' => $theme['bg2'],
             '--menu-surface' => $theme['surface'],
             '--menu-fg' => $theme['fg'],
             '--menu-muted' => $theme['muted'],
@@ -89,8 +98,8 @@ class ThemeRegistry
         }
 
         // Palette a guest switches to with the light/dark button: the opposite of the theme's own.
-        $theme = $this->themes()[$this->settings($restaurant)['theme']];
-        $alt = $this->themes()[$theme['dark'] ? 'modern' : 'midnight'];
+        $theme = $this->library->all()[$this->settings($restaurant)['theme']];
+        $alt = $this->library->all()[$theme['dark'] ? 'modern' : 'midnight'];
         $swap = '--menu-bg:'.$alt['bg'].';--menu-surface:'.$alt['surface'].';--menu-fg:'.$alt['fg'].';--menu-muted:'.$alt['muted'].';--menu-line:'.$alt['line'].';';
 
         return ":root{{$declarations}}:root[data-menu-alt]{{$swap}}";
@@ -109,6 +118,11 @@ class ThemeRegistry
             'scroll' => $data['scroll'] ?? 'all',
             'dark_toggle' => ! empty($data['dark_toggle']),
             'currency_switch' => ! empty($data['currency_switch']),
+            'scrollbar' => $data['scrollbar'] ?? null,
+            'reveal' => $data['reveal'] ?? null,
+            'card' => $data['card'] ?? null,
+            'progress' => ($data['progress'] ?? '') === '' ? null : $data['progress'] === 'on',
+            'animated_bg' => ($data['animated_bg'] ?? '') === '' ? null : $data['animated_bg'] === 'on',
             'hide_credit' => ! empty($data['hide_credit']) && $this->canRemoveCredit($restaurant),
         ];
 
@@ -129,6 +143,11 @@ class ThemeRegistry
             'dark_toggle' => ['nullable', 'boolean'],
             'currency_switch' => ['nullable', 'boolean'],
             'hide_credit' => ['nullable', 'boolean'],
+            'scrollbar' => ['nullable', 'in:'.implode(',', config('themes.scrollbars'))],
+            'reveal' => ['nullable', 'in:'.implode(',', config('themes.reveals'))],
+            'card' => ['nullable', 'in:'.implode(',', config('themes.cards'))],
+            'progress' => ['nullable', 'in:on,off'],
+            'animated_bg' => ['nullable', 'in:on,off'],
         ];
     }
 
