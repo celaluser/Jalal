@@ -12,7 +12,7 @@ Open, suspend, or sign in as an owner to help. Suspended restaurants' menus show
 
 ## Plans and subscriptions
 
-- A plan has a price per interval (monthly, yearly or one-time lifetime), a trial, limits (branches, tables, products, categories, staff, AI credits, messages per month) and features (custom domain, WhatsApp orders, online payments, reservations, analytics, remove branding, REST API & webhooks). Empty limit = unlimited.
+- A plan has a price per interval (monthly, yearly or one-time lifetime), a trial, limits (branches, tables, products, categories, staff, AI credits, messages per month, online orders per month, menu views per month) and features (custom domain, WhatsApp orders, online payments, reservations, analytics, remove branding, REST API & webhooks). Empty limit = unlimited.
 - Coupons, tax and invoicing settings, manual subscription assignment and renewal are under **Billing**.
 - Subscription payments are taken through the gateways you enable (Stripe, PayPal, Paddle, Mollie, Razorpay, Paystack, Flutterwave, iyzico, Mercado Pago, Midtrans, bank transfer). Add the keys under **Payment gateways**, and the webhook URLs shown there in each gateway's dashboard.
 - **Restaurant payments** controls whether restaurants may take online payments from guests with their own gateway accounts, and the optional platform commission.

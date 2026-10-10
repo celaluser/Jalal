@@ -201,6 +201,13 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Installer creates the storage link; if symlinks are forbidden, uploads are served by a built-in `/storage/...` route (images and PDFs only)
 - 🟡 The visitor-driven fallback does its work after the response only on PHP-FPM/FastCGI; on mod_php the visitor waits a moment. A real cron or the web address is still better
 
+## 9q. Market gaps closed after the competitor study (v2 gap work)
+
+- ✅ **Azerbaijani and Russian** for everything guests see (menu, ordering and tracking, reservations, marketing and review pages, allergen/diet labels) plus AZN and RUB currencies; the guest-translation tests cover them like Turkish and Arabic. 🟡 Written by the developer, **not reviewed by native speakers**; the restaurant panel and platform admin stay English (Turkish/Arabic panel texts are partial too). Russian plurals use explicit ranges (1, 2-4, 5+), so 11-14 read slightly off
+- ✅ **QR scan and menu-view analytics** (`/reports/visits`): hourly counters of table-QR scans and menu views, per day, per hour, per table, orders per 100 views. No cookies or visitor data are stored; reloads within 30 minutes and crawlers are not counted; kiosks are excluded
+- ✅ **Monthly plan limits**: `orders_per_month` (guest and API orders stop when used up; staff orders still go through; cancelled orders do not count) and `scans_per_month` (the menu shows "unavailable" for the rest of the month). Empty = unlimited, shown with the other usage bars
+- 🔴 Still open from the study: local payment gateways (Azerbaijan, PayTR/Param), local SMS providers, delivery marketplace connectors, external POS connectors (Loyverse, Square, WOLVOX), legal e-invoice/fiscal printer support, push-notification campaigns, supplier/purchase/recipe costing, .xlsx import, native store app, courier GPS tracking
+
 ## 10. AI (Phase 9)
 - ✅ Providers: OpenAI, Anthropic, Gemini; keys encrypted in admin settings; admin connection test
 - ✅ Write dish descriptions (tone, ingredient hints), translate into the menu languages (fills only empty fields), suggest allergens and diet labels (always confirmed by a person)

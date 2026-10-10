@@ -107,4 +107,5 @@ return [
     'zone_choose' => 'Bölgenizi seçin',
     'zone_min' => 'min.',
     'error_zone_required' => 'Lütfen teslimat bölgenizi seçin.',
+    'error_plan_limit' => 'Bu ay daha fazla online sipariş alamıyoruz. Lütfen personelle sipariş verin.',
 ];

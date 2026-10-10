@@ -11,6 +11,8 @@ class AnalyticsServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
+        $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
+        \App\Modules\Billing\Support\UsageRegistry::register('scans_per_month', fn (\App\Modules\Tenancy\Models\Restaurant $r) => app(\App\Modules\Analytics\Services\MenuVisits::class)->monthViews($r));
         $this->loadViewsFrom(__DIR__.'/../Resources/views', 'analytics');
         $this->loadRoutesFrom(__DIR__.'/../routes.php');
 

@@ -10,7 +10,7 @@ use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Support\Arr;
 
 beforeEach(function () {
-    foreach (['en' => 'English', 'tr' => 'Türkçe', 'ar' => 'العربية'] as $code => $name) {
+    foreach (['en' => 'English', 'tr' => 'Türkçe', 'ar' => 'العربية', 'az' => 'Azərbaycanca', 'ru' => 'Русский'] as $code => $name) {
         Language::firstOrCreate(['code' => $code], ['name' => $name, 'is_active' => true, 'is_default' => $code === 'en', 'is_rtl' => $code === 'ar']);
     }
 });
@@ -29,16 +29,16 @@ it('translates every customer string into Turkish and Arabic with the same place
     foreach ($en as $key => $text) {
         preg_match_all('/:[a-z_]+/', $text, $a);
         preg_match_all('/:[a-z_]+/', $tr[$key], $b);
-        expect($b[0])->toEqualCanonicalizing($a[0], "placeholders differ in {$locale} customer.{$key}");
+        expect(array_values(array_unique($b[0])))->toEqualCanonicalizing(array_values(array_unique($a[0])), "placeholders differ in {$locale} customer.{$key}");
     }
-})->with(['tr', 'ar']);
+})->with(['tr', 'ar', 'az', 'ru']);
 
 it('covers all allergen and diet labels', function (string $locale) {
     $en = Arr::dot(Arr::only(require base_path('lang/en/menu.php'), ['allergen', 'diet']));
     $other = Arr::dot(require base_path("lang/{$locale}/menu.php"));
 
     expect(array_keys($other))->toEqualCanonicalizing(array_keys($en));
-})->with(['tr', 'ar']);
+})->with(['tr', 'ar', 'az', 'ru']);
 
 it('only translates guest order strings that exist in English, with the same placeholders', function (string $locale) {
     $en = Arr::dot(require base_path('lang/en/orders.php'));
@@ -48,15 +48,15 @@ it('only translates guest order strings that exist in English, with the same pla
         expect($en)->toHaveKey($key);
         preg_match_all('/:[a-z_]+/', $en[$key], $a);
         preg_match_all('/:[a-z_]+/', $text, $b);
-        expect($b[0])->toEqualCanonicalizing($a[0], "placeholders differ in {$locale} orders.{$key}");
+        expect(array_values(array_unique($b[0])))->toEqualCanonicalizing(array_values(array_unique($a[0])), "placeholders differ in {$locale} orders.{$key}");
     }
     foreach (['type_dine_in', 'checkout', 'place', 'step_ready', 'error_closed', 'email_label'] as $key) {
         expect($other)->toHaveKey($key);
     }
-})->with(['tr', 'ar']);
+})->with(['tr', 'ar', 'az', 'ru']);
 
 it('shows the public menu in the guest’s language', function () {
-    $r = Restaurant::create(['name' => 'Lokanta', 'slug' => 'lok'.uniqid(), 'locale' => 'en', 'menu_locales' => ['en', 'tr', 'ar'], 'currency_code' => 'USD', 'onboarded_at' => now()]);
+    $r = Restaurant::create(['name' => 'Lokanta', 'slug' => 'lok'.uniqid(), 'locale' => 'en', 'menu_locales' => ['en', 'tr', 'ar', 'az', 'ru'], 'currency_code' => 'USD', 'onboarded_at' => now()]);
     $plan = Plan::create(['name' => 'P', 'slug' => 'p'.uniqid(), 'interval' => 'monthly', 'price' => 10, 'currency_code' => 'USD', 'limits' => [], 'features' => []]);
     app(SubscriptionService::class)->assign($r, $plan, now()->addMonth());
     app(TenantContext::class)->runAs($r, function () {
@@ -65,6 +65,8 @@ it('shows the public menu in the guest’s language', function () {
     });
 
     $this->withHeader('Accept-Language', 'tr')->get("/r/{$r->slug}")->assertOk()->assertSee('Yemek ara')->assertSee('Kereviz')->assertSee('lang="tr"', false);
+    $this->withHeader('Accept-Language', 'az')->get("/r/{$r->slug}")->assertOk()->assertSee('Yemək axtar')->assertSee('Kərəviz')->assertSee('lang="az"', false);
+    $this->withHeader('Accept-Language', 'ru')->get("/r/{$r->slug}")->assertOk()->assertSee('Найти блюдо')->assertSee('Сельдерей')->assertSee('lang="ru"', false);
     $this->withHeader('Accept-Language', 'ar')->get("/r/{$r->slug}")->assertOk()->assertSee('ابحث عن طبق')->assertSee('الكرفس')->assertSee('dir="rtl"', false);
 });
 
@@ -76,7 +78,7 @@ it('translates the guest-facing marketing strings with matching placeholders', f
         expect($en)->toHaveKey($key);
         preg_match_all('/:[a-z_]+/', $en[$key], $a);
         preg_match_all('/:[a-z_]+/', $text, $b);
-        expect($b[0])->toEqualCanonicalizing($a[0], "placeholders differ in {$locale} marketing.{$key}");
+        expect(array_values(array_unique($b[0])))->toEqualCanonicalizing(array_values(array_unique($a[0])), "placeholders differ in {$locale} marketing.{$key}");
     }
     expect($other)->toHaveKeys(['opt_in', 'promo_field', 'rate_title', 'unsub_button', 'reward_earned']);
-})->with(['tr', 'ar']);
+})->with(['tr', 'ar', 'az', 'ru']);

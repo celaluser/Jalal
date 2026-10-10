@@ -161,4 +161,5 @@ return [
     'print_token_renewed' => 'New address created. Update your bridge.', 'print_queued' => 'Sent to the printer queue.', 'print_kitchen' => 'Kitchen ticket', 'print_receipt' => 'Receipt',
 
     'staff_app' => 'Staff',
+    'error_plan_limit' => 'We cannot take more online orders this month. Please order with the staff.',
 ];

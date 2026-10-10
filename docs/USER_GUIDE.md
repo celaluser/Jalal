@@ -32,7 +32,7 @@ Turn on **Reservations** (plan feature) to let guests book a table online. Set s
 
 ## Reports
 
-**Reports** shows sales, best sellers, busy hours and customers. **Menu engineering** classifies dishes into stars, plowhorses, puzzles and dogs (enter each dish's cost price for margins). A weekly summary e-mail arrives on Mondays; switch it off on the Loyalty & reviews page.
+**Reports** shows sales, best sellers, busy hours and customers; **QR scans & views** shows how often your menu was opened and which tables are scanned; **Team & tables** shows what your team did and how fast tables turn. **Menu engineering** classifies dishes into stars, plowhorses, puzzles and dogs (enter each dish's cost price for margins). A weekly summary e-mail arrives on Mondays; switch it off on the Loyalty & reviews page.
 
 ## Team and branches
 

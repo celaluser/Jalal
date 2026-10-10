@@ -4,6 +4,7 @@ namespace App\Modules\Storefront\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Ai\Services\AiManager;
+use App\Modules\Analytics\Services\MenuVisits;
 use App\Modules\Billing\Services\LimitGuard;
 use App\Modules\Branches\Services\BranchMenu;
 use App\Modules\Branches\Services\GuestBranch;
@@ -64,6 +65,17 @@ class PublicMenuController extends Controller
         // An expired or missing subscription takes the menu offline politely, without a 404 that search engines would remember.
         if ($this->limits->plan($restaurant) === null) {
             return response()->view('storefront::unavailable', $this->shared($restaurant, $locale), 503)->header('Retry-After', '3600');
+        }
+
+        // A plan with a monthly cap on menu views takes the menu offline for the rest of the month once it is used up.
+        $cap = $this->limits->limit($restaurant, 'scans_per_month');
+
+        if ($cap !== null && app(MenuVisits::class)->monthViews($restaurant) >= $cap) {
+            return response()->view('storefront::unavailable', $this->shared($restaurant, $locale), 503)->header('Retry-After', '3600');
+        }
+
+        if (! $request->boolean('kiosk')) {
+            app(MenuVisits::class)->record($restaurant, $request, 'view');
         }
 
         $table = $this->currentTable($request, $restaurant);
@@ -132,6 +144,7 @@ class PublicMenuController extends Controller
 
         if ($table) {
             $request->session()->put("table.{$restaurant->id}", $table->id);
+            app(MenuVisits::class)->record($restaurant, $request, 'scan', $table->id);
         }
 
         // Stay on the host the guest scanned from: the table is remembered in this host's session.

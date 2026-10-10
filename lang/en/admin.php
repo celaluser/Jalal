@@ -131,7 +131,7 @@ return [
         'limit_products' => 'Products',
         'limit_categories' => 'Categories',
         'limit_staff' => 'Staff members',
-        'limit_ai_credits' => 'AI credits', 'limit_messages' => 'SMS / WhatsApp per month',
+        'limit_ai_credits' => 'AI credits', 'limit_messages' => 'SMS / WhatsApp per month', 'limit_orders_per_month' => 'Online orders per month', 'limit_scans_per_month' => 'Menu views per month',
         'feature_custom_domain' => 'Custom domain',
         'feature_whatsapp_orders' => 'WhatsApp orders',
         'feature_online_payments' => 'Online payments',

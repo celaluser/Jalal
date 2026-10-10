@@ -39,6 +39,21 @@ class ReportController extends Controller
         return view('analytics::menu', ['restaurant' => $restaurant, 'period' => $period, 'data' => $engineering->build($restaurant, $period)]);
     }
 
+    /** How often the menu was opened and table QR codes scanned (needs the analytics feature). */
+    public function visits(Request $request, \App\Modules\Analytics\Services\MenuVisits $visits): View
+    {
+        $restaurant = $request->user()->restaurant;
+        abort_unless($this->limits->hasFeature($restaurant, 'analytics'), 403);
+        $period = $this->reports->period($restaurant, in_array($request->query('range'), ['7', '30', '90'], true) ? $request->query('range') : '30');
+        $data = $visits->report($restaurant, $period);
+        $orders = \App\Modules\Orders\Models\Order::where('created_at', '>=', $period['from']->startOfDay()->utc())->where('created_at', '<=', $period['to']->endOfDay()->utc())->where('status', '!=', 'cancelled')->count();
+
+        return view('analytics::visits', [
+            'restaurant' => $restaurant, 'period' => $period, 'data' => $data, 'orders' => $orders,
+            'tables' => \App\Modules\Tables\Models\DiningTable::whereIn('id', collect($data['tables'])->pluck('table_id'))->pluck('name', 'id'),
+        ]);
+    }
+
     /** Team activity and table turnover (needs the analytics feature). */
     public function operations(Request $request, \App\Modules\Analytics\Services\OperationsReport $operations): View
     {

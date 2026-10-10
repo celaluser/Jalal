@@ -64,6 +64,13 @@ class OrderService
             throw new OrderException('closed');
         }
 
+        // A plan with a monthly order cap stops taking guest orders once it is used up (staff can still ring orders up).
+        $cap = app(\App\Modules\Billing\Services\LimitGuard::class)->limit($restaurant, 'orders_per_month');
+
+        if (! $staff && $cap !== null && Order::where('created_at', '>=', now()->startOfMonth())->where('status', '!=', 'cancelled')->count() >= $cap) {
+            throw new OrderException('plan_limit');
+        }
+
         if (! in_array($type, $staff ? OrderType::ALL : $this->settings->types($restaurant), true)) {
             throw new OrderException('type_unavailable');
         }

@@ -25,4 +25,8 @@ return [
     'ops_person' => 'Person', 'ops_accepted' => 'Accepted', 'ops_ready' => 'Marked ready', 'ops_completed' => 'Completed', 'ops_cancelled' => 'Cancelled', 'ops_accept_time' => 'Avg. time to accept',
     'ops_tables' => 'Table turnover', 'ops_tables_help' => 'Finished dine-in orders per table. Minutes = from order to completed, a stand-in for how long the table was busy.', 'ops_no_tables' => 'No finished dine-in orders in this period',
     'ops_table' => 'Table', 'ops_minutes' => 'Avg. minutes',
+    'visits_title' => 'QR scans & views', 'visits_sub' => 'How often guests opened your menu, :from – :to. Counted per hour; no personal data is kept.',
+    'visits_scans' => 'Table QR scans', 'visits_views' => 'Menu views', 'visits_orders' => 'Orders', 'visits_conversion' => 'Orders per 100 views',
+    'visits_by_day' => 'By day', 'visits_by_hour' => 'By hour of the day', 'visits_by_table' => 'Scans per table', 'visits_none' => 'No visits recorded in this period yet.',
+    'visits_note' => 'A refresh within 30 minutes in the same browser is not counted again, and crawlers are ignored. Counting starts when this feature is installed.',
 ];

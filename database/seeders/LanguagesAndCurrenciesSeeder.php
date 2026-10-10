@@ -14,6 +14,8 @@ class LanguagesAndCurrenciesSeeder extends Seeder
             ['code' => 'en', 'name' => 'English', 'native_name' => 'English', 'is_rtl' => false, 'is_default' => true, 'sort' => 1],
             ['code' => 'tr', 'name' => 'Turkish', 'native_name' => 'Türkçe', 'is_rtl' => false, 'is_default' => false, 'sort' => 2],
             ['code' => 'ar', 'name' => 'Arabic', 'native_name' => 'العربية', 'is_rtl' => true, 'is_default' => false, 'sort' => 3],
+            ['code' => 'az', 'name' => 'Azerbaijani', 'native_name' => 'Azərbaycanca', 'is_rtl' => false, 'is_default' => false, 'sort' => 4],
+            ['code' => 'ru', 'name' => 'Russian', 'native_name' => 'Русский', 'is_rtl' => false, 'is_default' => false, 'sort' => 5],
         ];
 
         foreach ($languages as $language) {
@@ -24,6 +26,8 @@ class LanguagesAndCurrenciesSeeder extends Seeder
             ['code' => 'USD', 'name' => 'US Dollar', 'symbol' => '$', 'symbol_position' => 'before', 'decimals' => 2, 'is_default' => true],
             ['code' => 'EUR', 'name' => 'Euro', 'symbol' => '€', 'symbol_position' => 'before', 'decimals' => 2, 'is_default' => false],
             ['code' => 'TRY', 'name' => 'Turkish Lira', 'symbol' => '₺', 'symbol_position' => 'after', 'decimals' => 2, 'decimal_separator' => ',', 'thousands_separator' => '.', 'is_default' => false],
+            ['code' => 'AZN', 'name' => 'Azerbaijani Manat', 'symbol' => '₼', 'symbol_position' => 'after', 'decimals' => 2, 'decimal_separator' => ',', 'thousands_separator' => ' ', 'is_default' => false],
+            ['code' => 'RUB', 'name' => 'Russian Ruble', 'symbol' => '₽', 'symbol_position' => 'after', 'decimals' => 2, 'decimal_separator' => ',', 'thousands_separator' => ' ', 'is_default' => false],
         ];
 
         foreach ($currencies as $currency) {
