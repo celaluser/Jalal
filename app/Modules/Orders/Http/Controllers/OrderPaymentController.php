@@ -99,7 +99,7 @@ class OrderPaymentController extends Controller
     }
 
     /** Server-to-server callback of the restaurant's gateway account. Authenticity is the gateway's job (signature or re-fetch). */
-    public function webhook(Request $request): JsonResponse
+    public function webhook(Request $request): JsonResponse|\Illuminate\Http\Response
     {
         $restaurant = $this->tenant->get();
         $code = (string) $request->route('gateway');
@@ -121,7 +121,7 @@ class OrderPaymentController extends Controller
                 : $this->online->finalize($notification->invoiceNumber, $notification);
         }
 
-        return response()->json(['ok' => true]);
+        return $gateway instanceof \App\Modules\Billing\Contracts\RepliesToWebhook ? $gateway->webhookReply() : response()->json(['ok' => true]);
     }
 
     /**

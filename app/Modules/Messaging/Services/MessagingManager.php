@@ -4,7 +4,9 @@ namespace App\Modules\Messaging\Services;
 
 use App\Modules\Core\Services\SettingsService;
 use App\Modules\Messaging\Contracts\MessageProvider;
+use App\Modules\Messaging\Providers\IletiMerkeziProvider;
 use App\Modules\Messaging\Providers\MessageBirdProvider;
+use App\Modules\Messaging\Providers\NetgsmProvider;
 use App\Modules\Messaging\Providers\TwilioProvider;
 use App\Modules\Messaging\Providers\VonageProvider;
 use App\Modules\Messaging\Providers\WhatsAppCloudProvider;
@@ -20,7 +22,7 @@ class MessagingManager
 
     public function __construct(private readonly SettingsService $settings)
     {
-        foreach ([new TwilioProvider, new VonageProvider, new MessageBirdProvider, new WhatsAppCloudProvider] as $p) {
+        foreach ([new TwilioProvider, new VonageProvider, new MessageBirdProvider, new WhatsAppCloudProvider, new NetgsmProvider, new IletiMerkeziProvider] as $p) {
             $this->register($p);
         }
     }

@@ -23,7 +23,7 @@ class PaymentCallbackController extends Controller
      * Server-to-server callback. The gateway proves authenticity (signature or API re-fetch);
      * failures are 400 (do not retry), processing errors bubble up as 500 so the gateway retries.
      */
-    public function webhook(Request $request, string $gateway): JsonResponse
+    public function webhook(Request $request, string $gateway): JsonResponse|\Illuminate\Http\Response
     {
         $driver = $this->gateways->find($gateway);
         abort_if($driver === null || ! $this->gateways->isEnabled($gateway), 404);
@@ -40,7 +40,7 @@ class PaymentCallbackController extends Controller
             $this->processor->handle($notification);
         }
 
-        return response()->json(['ok' => true]);
+        return $driver instanceof \App\Modules\Billing\Contracts\RepliesToWebhook ? $driver->webhookReply() : response()->json(['ok' => true]);
     }
 
     /**

@@ -10,7 +10,9 @@ use App\Modules\Billing\Gateways\MercadoPagoGateway;
 use App\Modules\Billing\Gateways\MidtransGateway;
 use App\Modules\Billing\Gateways\MollieGateway;
 use App\Modules\Billing\Gateways\PaddleGateway;
+use App\Modules\Billing\Gateways\EpointGateway;
 use App\Modules\Billing\Gateways\PayPalGateway;
+use App\Modules\Billing\Gateways\PaytrGateway;
 use App\Modules\Billing\Gateways\PaystackGateway;
 use App\Modules\Billing\Gateways\RazorpayGateway;
 use App\Modules\Billing\Gateways\StripeGateway;
@@ -28,7 +30,7 @@ class GatewayManager
 
     public function __construct(private readonly SettingsService $settings)
     {
-        foreach ([new StripeGateway, new PayPalGateway, new RazorpayGateway, new PaystackGateway, new FlutterwaveGateway, new MollieGateway, new IyzicoGateway, new PaddleGateway, new MercadoPagoGateway, new MidtransGateway, new BankTransferGateway] as $gateway) {
+        foreach ([new StripeGateway, new PayPalGateway, new RazorpayGateway, new PaystackGateway, new FlutterwaveGateway, new MollieGateway, new IyzicoGateway, new PaddleGateway, new MercadoPagoGateway, new MidtransGateway, new PaytrGateway, new EpointGateway, new BankTransferGateway] as $gateway) {
             $this->register($gateway);
         }
     }
