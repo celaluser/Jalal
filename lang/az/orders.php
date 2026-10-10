@@ -113,6 +113,7 @@ return [
     'call_waiter' => 'Ofisianti çağır',
     'ask_bill' => 'Hesab istə',
     'ask_water' => 'Su istəyirəm',
+    'ask_valet' => 'Avtomobilimi gətirin',
     'tab_title' => 'Masanın hesabı',
     'tab_text' => 'Bu masada sifariş edilən və hələ ödənilməyən hər şey.',
     'tab_empty' => 'Hələ ödəniləcək bir şey yoxdur.',

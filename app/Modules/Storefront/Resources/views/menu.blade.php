@@ -203,6 +203,7 @@
             <button type="button" class="menu-chip !px-3.5 !py-1.5 !text-sm !font-semibold" x-on:click="askService('waiter')">🙋 {{ __('orders.call_waiter') }}</button>
             <button type="button" class="menu-chip !px-3.5 !py-1.5 !text-sm !font-semibold" x-on:click="askService('bill')">🧾 {{ __('orders.ask_bill') }}</button>
             <button type="button" class="menu-chip !px-3.5 !py-1.5 !text-sm !font-semibold" x-on:click="askService('water')">💧 {{ __('orders.ask_water') }}</button>
+            <button type="button" class="menu-chip !px-3.5 !py-1.5 !text-sm !font-semibold" x-on:click="askService('valet')">🚗 {{ __('orders.ask_valet') }}</button>
             <button type="button" class="menu-chip !px-3.5 !py-1.5 !text-sm !font-semibold" x-on:click="openTab()">🍽 {{ __('orders.tab_title') }}</button>
         </div>
     </section>

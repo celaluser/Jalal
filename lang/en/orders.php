@@ -97,7 +97,7 @@ return [
     'notify_ready_dine_in' => ':restaurant: your order :number is ready.', 'notify_ready_takeaway' => ':restaurant: your order :number is ready to collect.', 'notify_ready_delivery' => ':restaurant: your order :number is ready and will leave soon.',
     'notify_ready_curbside' => ':restaurant: your order :number is ready, we are bringing it to your car.', 'notify_ready_room_service' => ':restaurant: your order :number is ready and on its way to your room.', 'notify_on_the_way' => ':restaurant: your order :number is on the way!',
     'msg_on_the_way' => 'Your order is on its way to you!', 'on_the_way' => 'On the way', 'dispatch' => 'Out for delivery', 'shared_tab' => 'Shared bill',
-    'requests' => 'Guest requests', 'request_waiter' => 'Needs the waiter', 'request_bill' => 'Wants the bill', 'request_water' => 'Wants water', 'request_other' => 'Needs help', 'request_done' => 'Done',
+    'requests' => 'Guest requests', 'request_waiter' => 'Needs the waiter', 'request_bill' => 'Wants the bill', 'request_water' => 'Wants water', 'request_valet' => 'Wants the car brought', 'ask_valet' => 'Bring my car', 'request_other' => 'Needs help', 'request_done' => 'Done',
     'request_sent' => 'Sent. Someone will be with you shortly.', 'call_waiter' => 'Call the waiter', 'ask_bill' => 'Ask for the bill', 'ask_water' => 'Water, please',
     'tab_title' => 'Table bill', 'tab_text' => 'Everything ordered at this table that is not paid yet.', 'tab_empty' => 'Nothing to pay yet.', 'tab_total' => 'Total for the table',
     'batch_title' => 'Prep list', 'batch_sub' => 'Everything still to make, added up across orders.', 'batch_summary' => '{0} No open orders|{1} From 1 open order|[2,*] From :count open orders',

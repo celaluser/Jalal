@@ -72,6 +72,7 @@ return [
     'call_waiter' => 'Garson çağır',
     'ask_bill' => 'Hesap iste',
     'ask_water' => 'Su lütfen',
+    'ask_valet' => 'Aracımı getirin',
     'tab_title' => 'Masa hesabı',
     'tab_text' => 'Bu masada verilen ve henüz ödenmemiş tüm siparişler.',
     'tab_empty' => 'Ödenecek bir şey yok.',

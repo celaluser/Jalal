@@ -169,13 +169,14 @@ it('lets a seated guest call the waiter and staff clear the request', function (
     $this->postJson($base.'/request', ['kind' => 'waiter'])->assertOk();
     $this->postJson($base.'/request', ['kind' => 'waiter'])->assertOk(); // same thing again: not a duplicate
     $this->postJson($base.'/request', ['kind' => 'bill'])->assertOk();
+    $this->postJson($base.'/request', ['kind' => 'valet'])->assertOk();
     $this->postJson($base.'/request', ['kind' => 'dance'])->assertStatus(422);
 
     $feed = $this->actingAs($waiter)->getJson(route('orders.feed'))->json('requests');
-    expect($feed)->toHaveCount(2)->and($feed[0]['table'])->toBe('T1')->and($feed[0]['kind'])->toBe('waiter');
+    expect($feed)->toHaveCount(3)->and($feed[0]['table'])->toBe('T1')->and($feed[0]['kind'])->toBe('waiter');
 
     $this->actingAs($waiter)->postJson(route('orders.requests.done', $feed[0]['id']))->assertOk();
-    expect($this->actingAs($waiter)->getJson(route('orders.feed'))->json('requests'))->toHaveCount(1);
+    expect($this->actingAs($waiter)->getJson(route('orders.feed'))->json('requests'))->toHaveCount(2);
 });
 
 it('sends a delivery out and tells the guest, once', function () {

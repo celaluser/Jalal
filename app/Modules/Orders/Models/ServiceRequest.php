@@ -10,7 +10,7 @@ class ServiceRequest extends Model
 {
     use BelongsToRestaurant;
 
-    public const KINDS = ['waiter', 'bill', 'water', 'other'];
+    public const KINDS = ['waiter', 'bill', 'water', 'valet', 'other'];
 
     protected $guarded = ['id', 'restaurant_id'];
 
