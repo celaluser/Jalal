@@ -10,6 +10,7 @@ use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Marketing\Models\Campaign;
 use App\Modules\Marketing\Models\CampaignRecipient;
 use App\Modules\Marketing\Models\Customer;
+use App\Modules\Marketing\Models\PushSubscriber;
 use App\Modules\Marketing\Models\CustomerSegment;
 use App\Modules\Marketing\Models\GiftCard;
 use App\Modules\Marketing\Models\PriceRule;
@@ -442,4 +443,25 @@ describe('saved segments', function () {
         $this->actingAs($manager)->delete(route('segments.destroy', $seg->id))->assertRedirect();
         expect(gxIn($r, fn () => CustomerSegment::count()))->toBe(0);
     });
+});
+
+it('stores a push opt-in once per browser and sends a push campaign to subscribers only', function () {
+    [$r] = gxShop();
+    $owner = gxUser($r, 'restaurant_owner');
+    $payload = ['endpoint' => 'https://push.example/abc', 'keys' => ['p256dh' => 'BKey', 'auth' => 'aut']];
+
+    $this->post('/r/'.$r->slug.'/offers/push', $payload)->assertOk();
+    $this->post('/r/'.$r->slug.'/offers/push', $payload)->assertOk();
+    $this->post('/r/'.$r->slug.'/offers/push', ['endpoint' => 'http://insecure.example', 'keys' => ['p256dh' => 'a', 'auth' => 'b']])->assertSessionHasErrors('endpoint');
+
+    expect(PushSubscriber::allTenants()->where('restaurant_id', $r->id)->count())->toBe(1);
+
+    $this->actingAs($owner)->post(route('campaigns.store'), ['name' => 'Happy Friday', 'channel' => 'push', 'body' => '2 for 1 on desserts tonight', 'segment' => 'all'])->assertRedirect();
+    $campaign = gxIn($r, fn () => Campaign::first());
+    expect($campaign->channel)->toBe('push');
+
+    $this->actingAs($owner)->post(route('campaigns.send', $campaign->id))->assertRedirect();
+
+    $campaign = Campaign::allTenants()->find($campaign->id);
+    expect($campaign->status)->toBe(Campaign::SENT)->and($campaign->recipients_count)->toBe(1);
 });

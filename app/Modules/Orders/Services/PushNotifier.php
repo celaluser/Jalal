@@ -92,4 +92,45 @@ class PushNotifier
             return false;
         }
     }
+
+    /**
+     * One message to many browsers (a marketing campaign).
+     *
+     * @param  iterable<array{endpoint: string, p256dh: string, auth: string}>  $targets
+     * @return array{sent: int, failed: int, gone: list<string>} gone = endpoints the push service no longer knows
+     */
+    public function broadcast(iterable $targets, string $title, string $body, string $url): array
+    {
+        $result = ['sent' => 0, 'failed' => 0, 'gone' => []];
+        $keys = $this->keys();
+
+        if (! $keys || ! class_exists(WebPush::class)) {
+            return $result;
+        }
+
+        try {
+            $push = new WebPush(['VAPID' => ['subject' => config('app.url'), 'publicKey' => $keys['public'], 'privateKey' => $keys['private']]], ['TTL' => 86400], 8);
+            $payload = json_encode(['title' => $title, 'body' => $body, 'url' => $url]);
+
+            foreach ($targets as $t) {
+                $push->queueNotification(Subscription::create(['endpoint' => $t['endpoint'], 'publicKey' => $t['p256dh'], 'authToken' => $t['auth'], 'contentEncoding' => 'aes128gcm']), $payload);
+            }
+
+            foreach ($push->flush() as $report) {
+                if ($report->isSuccess()) {
+                    $result['sent']++;
+                } else {
+                    $result['failed']++;
+
+                    if ($report->isSubscriptionExpired()) {
+                        $result['gone'][] = $report->getEndpoint();
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        return $result;
+    }
 }

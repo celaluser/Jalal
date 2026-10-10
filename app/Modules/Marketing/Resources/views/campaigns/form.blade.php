@@ -8,8 +8,9 @@
         <div class="grid gap-4 sm:grid-cols-2" x-data="{ channel: @js(old('channel', $campaign?->channel ?? 'email')) }">
             <div>
                 <label for="channel" class="mb-1.5 block text-sm font-medium">{{ __('marketing.campaign_channel') }}</label>
-                <select id="channel" name="channel" x-model="channel" class="field">@foreach (['email', 'sms', 'whatsapp'] as $c)<option value="{{ $c }}">{{ __('marketing.channel_'.$c) }}</option>@endforeach</select>
-                <p class="mt-1.5 text-xs text-muted" x-show="channel !== 'email'" x-cloak>{{ __('marketing.channel_help') }}</p>
+                <select id="channel" name="channel" x-model="channel" class="field">@foreach (['email', 'sms', 'whatsapp', 'push'] as $c)<option value="{{ $c }}">{{ __('marketing.channel_'.$c) }}</option>@endforeach</select>
+                <p class="mt-1.5 text-xs text-muted" x-show="channel === 'sms' || channel === 'whatsapp'" x-cloak>{{ __('marketing.channel_help') }}</p>
+                <p class="mt-1.5 text-xs text-muted" x-show="channel === 'push'" x-cloak>{{ __('marketing.channel_push_help') }}</p>
             </div>
             <div>
                 <label for="segment" class="mb-1.5 block text-sm font-medium">{{ __('marketing.campaign_segment') }}</label>

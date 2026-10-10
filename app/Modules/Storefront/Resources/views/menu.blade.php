@@ -345,6 +345,22 @@
             </div>
         @endif
 
+        @if (! empty($pushKey))
+            <div class="pb-2 pt-4 text-center" x-data="{ msg: '', done: false, async go() {
+                try {
+                    if (!('serviceWorker' in navigator) || !('PushManager' in window) || (await Notification.requestPermission()) !== 'granted') { this.msg = @js(__('marketing.push_denied')); return; }
+                    const reg = await navigator.serviceWorker.register(@js($restaurant->publicUrl('sw.js'))).then(() => navigator.serviceWorker.ready);
+                    const raw = atob(@js($pushKey).replace(/-/g, '+').replace(/_/g, '/'));
+                    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Uint8Array.from(raw, (c) => c.charCodeAt(0)) });
+                    const res = await fetch(@js($restaurant->publicUrl('offers/push')), { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': @js(csrf_token()) }, body: JSON.stringify(sub.toJSON()) });
+                    this.done = res.ok; this.msg = res.ok ? @js(__('marketing.push_on')) : @js(__('marketing.push_denied'));
+                } catch (e) { this.msg = @js(__('marketing.push_denied')); }
+            } }">
+                <button type="button" class="menu-btn menu-btn-quiet" x-show="!done" x-on:click="go()">{{ __('marketing.push_offer') }}</button>
+                <p class="menu-muted mt-2 text-sm" x-show="msg" x-text="msg" role="status"></p>
+            </div>
+        @endif
+
         @if ($settings['show_credit'])
             <p class="menu-muted pb-4 pt-2 text-center text-xs">{{ __('customer.powered_by', ['name' => config('app.name')]) }}</p>
         @endif

@@ -102,8 +102,8 @@ class CampaignController extends Controller
         $email = $request->input('channel', 'email') === 'email';
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'], 'subject' => [$email ? 'required' : 'nullable', 'string', 'max:160'],
-            'channel' => ['nullable', 'in:email,sms,whatsapp'], 'segment' => ['nullable', Rule::in(array_merge(Segments::ALL, CustomerSegment::pluck('id')->map(fn ($id) => 'custom:'.$id)->all()))],
-            'body' => ['required', 'string', 'max:'.($email ? 10000 : 600)], 'min_orders' => ['nullable', 'integer', 'min:0', 'max:1000'],
+            'channel' => ['nullable', 'in:email,sms,whatsapp,push'], 'segment' => ['nullable', Rule::in(array_merge(Segments::ALL, CustomerSegment::pluck('id')->map(fn ($id) => 'custom:'.$id)->all()))],
+            'body' => ['required', 'string', 'max:'.($email ? 10000 : ($request->input('channel') === 'push' ? 180 : 600))], 'min_orders' => ['nullable', 'integer', 'min:0', 'max:1000'],
         ]);
 
         // SMS and WhatsApp have no subject line; the column still needs something to show in lists.

@@ -9,6 +9,7 @@ use App\Modules\Marketing\Http\Controllers\GrowthToolsController;
 use App\Modules\Marketing\Http\Controllers\GuestReviewController;
 use App\Modules\Marketing\Http\Controllers\MarketingSettingsController;
 use App\Modules\Marketing\Http\Controllers\PriceRuleController;
+use App\Modules\Marketing\Http\Controllers\PushOptInController;
 use App\Modules\Marketing\Http\Controllers\PromoController;
 use App\Modules\Marketing\Http\Controllers\ReviewController;
 use App\Modules\Marketing\Http\Controllers\SegmentController;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 // Guest: rate an order from its tracking page, on /r/{slug} and on a restaurant's own domain.
 $guest = function () {
     Route::post('order/{token}/review', [GuestReviewController::class, 'store'])->where('token', '[a-z0-9]{24}')->middleware('throttle:10,1')->name('review.store');
+    Route::post('offers/push', [PushOptInController::class, 'store'])->middleware('throttle:10,1')->name('push.optin');
     Route::get('links', [GrowthToolsController::class, 'links'])->name('links');
     Route::get('widget.js', [GrowthToolsController::class, 'script'])->name('widget');
 };

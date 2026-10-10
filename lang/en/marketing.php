@@ -78,7 +78,8 @@ return [
     'ai_assistant' => 'Menu assistant on the guest menu (AI)', 'ai_assistant_hint' => 'Guests can ask about dishes, diets and allergens. It answers only from your menu, and every answer uses one AI credit.',
 
     // Growth: channels, segments, happy hour, gift cards, NPS, pixels, link page, flyer, widget.
-    'campaign_channel' => 'Channel', 'channel_email' => 'E-mail', 'channel_sms' => 'SMS', 'channel_whatsapp' => 'WhatsApp',
+    'campaign_channel' => 'Channel', 'channel_email' => 'E-mail', 'channel_sms' => 'SMS', 'channel_whatsapp' => 'WhatsApp', 'channel_push' => 'Push notification',
+    'channel_push_help' => 'Sent to browsers whose guests tapped "Get offers" on your menu. The campaign name is the title, the text is the message (180 characters at most). Segments do not apply.', 'push_offer' => 'Get offers', 'push_on' => 'You will get our offers.', 'push_denied' => 'Notifications are blocked or not supported in this browser.',
     'channel_help' => 'Sent to guests who agreed to marketing and left a phone number. Needs an SMS/WhatsApp provider in Settings, and uses your monthly message allowance. Max 600 characters; use {{name}} for the guest name.',
     'campaign_segment' => 'Audience', 'segment_all' => 'Everyone', 'segment_new' => 'New guests (0-1 orders)', 'segment_regulars' => 'Regulars (silver tier and up)', 'segment_vip' => 'VIP (gold tier)', 'segment_lapsed' => 'Lapsed guests',
     'sms_stop' => 'Stop messages: :url',

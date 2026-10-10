@@ -114,6 +114,7 @@ class PublicMenuController extends Controller
             'reserveUrl' => app(ReservationSettings::class)->active($restaurant) ? rtrim($request->getPathInfo(), '/').'/reserve' : null,
             'assistantUrl' => app(MarketingSettings::class)->get($restaurant, 'ai_assistant') && app(AiManager::class)->configured() && ! $request->boolean('kiosk') ? rtrim($request->getPathInfo(), '/').'/assistant' : null,
             'banners' => $this->banners($restaurant, $locale),
+            'pushKey' => $request->boolean('kiosk') ? null : (app(\App\Modules\Orders\Services\PushNotifier::class)->configured() ? app(\App\Modules\Orders\Services\PushNotifier::class)->publicKey() : null),
             'pixels' => $request->boolean('kiosk') ? [] : array_filter(app(MarketingSettings::class)->for($restaurant), fn ($v, $k) => str_starts_with($k, 'pixel_') && $v !== '', ARRAY_FILTER_USE_BOTH),
             'happy' => $this->happyHour($restaurant),
             'account' => ($c = AccountController::current($request, $restaurant->id)) ? ['name' => $c->name, 'phone' => $c->phone, 'email' => $c->email] : null,
