@@ -155,7 +155,7 @@ it('creates a backup that restores into a fresh database with the same rows', fu
 
     unset($pdo);
     @unlink($target);
-});
+})->skip(fn () => \Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite', 'The restore check loads the dump into SQLite, so it only makes sense on a SQLite run.');
 
 it('creates, downloads and deletes backups from the panel', function () {
     $this->actingAs($this->admin)->post(route('admin.system.backups.store'))->assertRedirect()->assertSessionHas('status');

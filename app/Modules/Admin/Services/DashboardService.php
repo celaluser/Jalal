@@ -63,10 +63,12 @@ class DashboardService
      */
     public function mrr(): float
     {
+        $interval = Subscription::allTenants()->getQuery()->getGrammar()->wrap('interval');
         $sum = Subscription::allTenants()
             ->where('status', 'active')
             ->where('currency_code', $this->currency())
-            ->selectRaw("SUM(CASE interval WHEN 'monthly' THEN price WHEN 'yearly' THEN price / 12.0 ELSE 0 END) AS mrr")
+            // "interval" is a reserved word in MySQL and MariaDB, so the column name goes through the driver's quoting.
+            ->selectRaw("SUM(CASE {$interval} WHEN 'monthly' THEN price WHEN 'yearly' THEN price / 12.0 ELSE 0 END) AS mrr")
             ->value('mrr');
 
         return round((float) $sum, 2);
