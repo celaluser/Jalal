@@ -12,7 +12,9 @@
         </x-ui.card>
 
         <x-ui.card :title="__('domains.subdomain')" :description="__('domains.subdomain_help')">
-            @if ($domains->subdomainsAvailable())
+            @if ($domains->subdomainsAvailable() && ! $domains->subdomainAllowed($restaurant))
+                <x-ui.alert type="warning"><span class="flex flex-wrap items-center justify-between gap-2"><span>{{ __('store.address_locked') }}</span><a class="font-semibold underline" href="{{ route('store.show', 'feature:subdomain') }}">{{ __('store.get_in_store') }}</a></span></x-ui.alert>
+            @elseif ($domains->subdomainsAvailable())
                 <form method="POST" action="{{ route('domains.subdomain') }}" class="space-y-3" x-data="{ v: @js(old('subdomain', $restaurant->subdomain)) }">
                     @csrf @method('PUT')
                     <div class="flex items-stretch gap-2" dir="ltr">
@@ -61,7 +63,7 @@
                     </div>
                 @endif
             @elseif ($domains->customDomainNeedsUpgrade($restaurant))
-                <x-ui.alert type="warning"><span class="flex flex-wrap items-center justify-between gap-2"><span>{{ __('domains.custom_upgrade') }}</span><a class="font-semibold underline" href="{{ route('billing.index') }}">{{ __('domains.upgrade') }}</a></span></x-ui.alert>
+                <x-ui.alert type="warning"><span class="flex flex-wrap items-center justify-between gap-2"><span>{{ __('domains.custom_upgrade') }}</span><a class="font-semibold underline" href="{{ route('store.show', 'feature:custom_domain') }}">{{ __('domains.upgrade') }}</a></span></x-ui.alert>
             @else
                 <p class="text-sm text-muted">{{ __('domains.custom_off') }}</p>
             @endif

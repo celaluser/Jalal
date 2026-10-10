@@ -33,6 +33,8 @@ return [
         'languages' => 'Languages',
         'currencies' => 'Currencies',
         'themes' => 'Menu themes',
+        'store' => 'Store catalog',
+        'store_sales' => 'Store sales',
         'translations' => 'Translations',
     ],
     'localization' => [
@@ -140,6 +142,8 @@ return [
         'feature_analytics' => 'Analytics',
         'feature_remove_branding' => 'Remove "Powered by"',
         'feature_api' => 'REST API & webhooks',
+        'feature_subdomain' => 'Own address on our domain',
+        'feature_premium_themes' => 'All premium themes',
         'deactivated_instead' => 'This plan has subscribers, so it was deactivated instead of deleted.',
         'deleted' => 'Plan deleted.',
     ],

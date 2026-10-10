@@ -9,6 +9,7 @@ use App\Modules\Billing\Payments\PaymentNotification;
 use App\Modules\Billing\Support\Money;
 use App\Modules\Core\Mail\SafeMail;
 use App\Modules\Core\Mail\TemplatedMail;
+use App\Modules\Store\Services\Entitlements;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -94,6 +95,12 @@ class PaymentProcessor
      */
     public function activate(Invoice $invoice, ?string $gateway = null, ?string $reference = null): Invoice
     {
+        if ($invoice->store_slug !== null) {
+            app(Entitlements::class)->grantFromInvoice($invoice);
+
+            return $invoice;
+        }
+
         if ($invoice->subscription_id !== null || $invoice->plan_id === null) {
             return $invoice; // already linked (manual assignment) or nothing to activate
         }

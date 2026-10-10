@@ -63,7 +63,8 @@ class Entitlements
                 $running->update(['ends_at' => $ends, 'invoice_id' => $invoiceId ?? $running->invoice_id, 'source' => $source === 'purchase' ? 'purchase' : $running->source]);
                 $entitlement = $running;
             } else {
-                $entitlement = Entitlement::allTenants()->create(['restaurant_id' => $restaurant->id, 'item_slug' => $slug, 'status' => 'active', 'source' => $source, 'starts_at' => now(), 'ends_at' => $ends, 'invoice_id' => $invoiceId]);
+                $entitlement = (new Entitlement)->forceFill(['restaurant_id' => $restaurant->id, 'item_slug' => $slug, 'status' => 'active', 'source' => $source, 'starts_at' => now(), 'ends_at' => $ends, 'invoice_id' => $invoiceId]);
+                $entitlement->save();
             }
 
             $this->forget();

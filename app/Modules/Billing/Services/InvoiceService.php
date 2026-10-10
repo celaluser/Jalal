@@ -122,6 +122,41 @@ class InvoiceService
         }
     }
 
+    /** An invoice for something from the store (a theme or a premium feature), not for a plan. */
+    public function createForStore(Restaurant $restaurant, string $description, float $price, string $currency, string $slug, ?int $months): Invoice
+    {
+        $amounts = $this->calculate($price);
+
+        for ($attempt = 0; ; $attempt++) {
+            try {
+                return Invoice::create([
+                    'restaurant_id' => $restaurant->id,
+                    'store_slug' => $slug,
+                    'store_months' => $months,
+                    'number' => $this->nextNumber(),
+                    'status' => $amounts['total'] === 0 ? 'paid' : 'open',
+                    'currency_code' => strtoupper($currency),
+                    'subtotal' => $amounts['subtotal'] / 100,
+                    'discount_amount' => 0,
+                    'credit_used' => 0,
+                    'tax_name' => $this->settings->get('billing.tax_name', 'VAT'),
+                    'tax_rate' => $amounts['rate'],
+                    'tax_amount' => $amounts['tax'] / 100,
+                    'total' => $amounts['total'] / 100,
+                    'items' => [['description' => $description, 'quantity' => 1, 'amount' => $amounts['subtotal'] / 100]],
+                    'billing' => $this->billingSnapshot($restaurant),
+                    'issued_at' => now(),
+                    'due_at' => now()->addDays(7),
+                    'paid_at' => $amounts['total'] === 0 ? now() : null,
+                ]);
+            } catch (UniqueConstraintViolationException $e) {
+                if ($attempt >= 3) {
+                    throw $e;
+                }
+            }
+        }
+    }
+
     public function markPaid(Invoice $invoice, ?string $gateway = null, ?string $reference = null): Invoice
     {
         if ($invoice->status === 'paid') {

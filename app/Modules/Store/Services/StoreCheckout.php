@@ -4,6 +4,7 @@ namespace App\Modules\Store\Services;
 
 use App\Modules\Billing\Exceptions\BillingException;
 use App\Modules\Billing\Models\Invoice;
+use App\Modules\Billing\Payments\CheckoutResult;
 use App\Modules\Billing\Services\CheckoutService;
 use App\Modules\Billing\Services\InvoiceService;
 use App\Modules\Tenancy\Models\Restaurant;
@@ -34,7 +35,9 @@ class StoreCheckout
 
         return [
             'price' => round($item['price'] * $units, 2),
-            'months' => match ($item['billing']) { 'monthly' => $units, 'yearly' => $units * 12, default => null },
+            'months' => match ($item['billing']) {
+                'monthly' => $units, 'yearly' => $units * 12, default => null
+            },
             'label' => match ($item['billing']) {
                 'one_time' => __('store.line_once', ['name' => $item['name']]),
                 'monthly' => trans_choice('store.line_months', $units, ['name' => $item['name'], 'count' => $units]),
@@ -44,7 +47,7 @@ class StoreCheckout
     }
 
     /**
-     * @return array{invoice: Invoice, result: \App\Modules\Billing\Payments\CheckoutResult|null}
+     * @return array{invoice: Invoice, result: CheckoutResult|null}
      *
      * @throws BillingException
      */

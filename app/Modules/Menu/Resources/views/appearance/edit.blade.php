@@ -20,14 +20,14 @@
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-3" role="radiogroup">
                     @foreach ($themes as $key => $t)
                         <label class="cursor-pointer">
-                            <input type="radio" name="theme" value="{{ $key }}" x-model="theme" class="peer sr-only">
+                            <input type="radio" name="theme" value="{{ $key }}" x-model="theme" class="peer sr-only" @disabled($t['locked'])>
                             <span class="block overflow-hidden rounded-2xl border border-line-strong transition peer-checked:border-accent-600 peer-checked:ring-2 peer-checked:ring-accent-600/30 peer-focus-visible:ring-2 peer-focus-visible:ring-accent-500">
                                 <span class="block p-3" style="background: {{ $t['bg'] }}">
                                     <span class="block h-2 w-10 rounded" style="background: {{ $t['fg'] }}"></span>
                                     <span class="mt-2 flex gap-1.5"><span class="h-8 flex-1 rounded" style="background: {{ $t['surface'] }}; border: 1px solid {{ $t['line'] }}"></span><span class="h-8 flex-1 rounded" style="background: {{ $t['surface'] }}; border: 1px solid {{ $t['line'] }}"></span></span>
                                     <span class="mt-2 block h-4 rounded" style="background: {{ $accent }}"></span>
                                 </span>
-                                <span class="block bg-surface px-3 py-2 text-sm font-medium">{{ $t['name'] }}</span>
+                                <span class="flex items-center justify-between gap-2 bg-surface px-3 py-2 text-sm font-medium">{{ $t['name'] }}@if ($t['locked'])<a href="{{ route('store.show', 'theme:'.$key) }}" class="text-xs font-semibold text-accent-700 underline" onclick="event.stopPropagation()">{{ __('store.unlock') }}</a>@endif</span>
                             </span>
                         </label>
                     @endforeach

@@ -18,7 +18,7 @@ class Plan extends Model
     public const LIMITS = ['branches', 'tables', 'products', 'categories', 'staff', 'ai_credits', 'messages', 'orders_per_month', 'scans_per_month'];
 
     /** On/off feature switches. */
-    public const FEATURES = ['custom_domain', 'whatsapp_orders', 'online_payments', 'reservations', 'analytics', 'remove_branding', 'api'];
+    public const FEATURES = ['custom_domain', 'whatsapp_orders', 'online_payments', 'reservations', 'analytics', 'remove_branding', 'api', 'subdomain', 'premium_themes'];
 
     protected $guarded = [];
 

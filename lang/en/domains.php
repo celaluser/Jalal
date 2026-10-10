@@ -11,6 +11,6 @@ return [
     'record_type' => 'Type', 'record_host' => 'Host', 'record_value' => 'Value', 'cname_hint' => 'Also point the domain to us with a CNAME record to :target (or follow the instructions below).',
     'platform_instructions' => 'Instructions from the platform', 'check_dns' => 'Check DNS', 'copy' => 'Copy', 'copied' => 'Copied',
     'verified_now' => 'Your domain is connected.', 'not_found_yet' => 'We could not find the DNS record yet. Check it and try again in a few minutes.', 'verified_manual' => 'Domain verified',
-    'error_unavailable' => 'This is not available for your restaurant.', 'error_invalid' => 'That does not look like a valid address.', 'error_reserved' => 'That name is reserved. Choose another.',
+    'error_upgrade' => 'Your own address is a store feature. Get it in the store first.', 'error_unavailable' => 'This is not available for your restaurant.', 'error_invalid' => 'That does not look like a valid address.', 'error_reserved' => 'That name is reserved. Choose another.',
     'error_taken' => 'That address is already used by another restaurant.', 'error_platform' => 'You cannot use the platform’s own domain here.',
 ];

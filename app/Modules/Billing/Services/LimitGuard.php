@@ -3,6 +3,7 @@
 namespace App\Modules\Billing\Services;
 
 use App\Modules\Billing\Models\Plan;
+use App\Modules\Store\Services\StoreAccess;
 use App\Modules\Tenancy\Models\Restaurant;
 
 /**
@@ -45,6 +46,7 @@ class LimitGuard
 
     public function hasFeature(Restaurant $restaurant, string $feature): bool
     {
-        return (bool) $this->plan($restaurant)?->hasFeature($feature);
+        // The plan decides first; otherwise the store may give it (free for everyone, bought, tried or granted).
+        return (bool) $this->plan($restaurant)?->hasFeature($feature) || app(StoreAccess::class)->featureGranted($restaurant, $feature);
     }
 }

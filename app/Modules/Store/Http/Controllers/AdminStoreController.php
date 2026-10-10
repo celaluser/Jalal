@@ -4,6 +4,7 @@ namespace App\Modules\Store\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Billing\Models\Invoice;
+use App\Modules\Core\Models\Currency;
 use App\Modules\Store\Models\Entitlement;
 use App\Modules\Store\Services\Catalog;
 use App\Modules\Store\Services\Entitlements;
@@ -30,7 +31,7 @@ class AdminStoreController extends Controller
 
     public function edit(string $slug): View
     {
-        return view('store::admin.edit', ['item' => $this->catalog->find($slug) ?? abort(404), 'currencies' => \App\Modules\Core\Models\Currency::where('is_active', true)->pluck('code')]);
+        return view('store::admin.edit', ['item' => $this->catalog->find($slug) ?? abort(404), 'currencies' => Currency::where('is_active', true)->pluck('code')]);
     }
 
     public function update(Request $request, string $slug): RedirectResponse

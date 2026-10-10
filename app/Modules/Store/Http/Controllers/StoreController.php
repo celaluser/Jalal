@@ -14,6 +14,7 @@ use App\Modules\Store\Services\StoreCheckout;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -107,8 +108,8 @@ class StoreController extends Controller
      * Where this restaurant stands with an item.
      *
      * @param  array<string, mixed>  $item
-     * @return array{status: string, until: ?\Illuminate\Support\Carbon}
-     *             status: free | plan | owned | buy | upgrade
+     * @return array{status: string, until: ?Carbon}
+     *                                               status: free | plan | owned | buy | upgrade
      */
     private function state(Restaurant $restaurant, array $item): array
     {

@@ -42,3 +42,13 @@ Landing page sections, blog posts and free pages are edited under **Website**. L
 - Two-factor sign-in on your admin account (Profile).
 - Real queue worker (not `sync`) and the cron job running.
 - Back up the `.env` file, the database and `storage/app/public`.
+
+## Store: selling themes and premium features
+Open **Billing, Store catalog**. Every plan feature and every menu theme is listed. Click **Edit** to choose:
+- **Free for everyone**: all restaurants can use it.
+- **With plans only**: only plans that include it (set under Plans; themes use the "All premium themes" plan switch) or restaurants you give it to by hand. This is how features worked before the store.
+- **For sale**: restaurants can buy it in their Store. Choose one time (for good), rented by the month or rented by the year, the price and currency, an optional free trial, and the name, short line and details restaurants see. Plans that include the item keep it free.
+
+Payments use the gateways you set up for subscriptions, with the same tax settings. A paid invoice unlocks the item at once (bank transfer: when you mark the invoice paid). Rentals do not renew by themselves: restaurants extend them from the item page, and the item locks again when time runs out (a theme falls back to your default theme).
+
+**Billing, Store sales** shows what restaurants own, store revenue per currency, and lets you give an item to a restaurant (for some months or for good) or take it back.

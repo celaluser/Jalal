@@ -51,3 +51,6 @@ Invite staff and give them a role (manager, waiter, kitchen, cashier, bar, deliv
 
 ## Inventory and recipes
 Open **Inventory & recipes** in the menu group. Add ingredients (unit, stock, warning level), record deliveries (this updates the cost per unit as a weighted average), and open **Recipes** to say what goes into one portion of each dish. From then on every order uses up the ingredients, a cancelled order gives them back, and the dish's cost price (used by the menu engineering report) follows the recipe. Orders are never blocked by missing ingredients; the stock simply shows a negative number so you can recount.
+
+## Store
+**Settings, Store** lists themes and premium features. Free ones show "Free" or "Included in your plan". Items for sale show the price and whether it is a one-time purchase or a rental. Open an item to read the details, try it free (when offered), pick a payment method and pay. Rentals can be extended from the same page before they end. In **Appearance**, themes you do not own show "Unlock". Only the account owner can buy.

@@ -2,7 +2,7 @@
 
 namespace App\Modules\Store\Providers;
 
-use App\Modules\Core\Support\AdminNav;
+use App\Modules\Admin\Support\AdminNav;
 use App\Modules\Core\Support\RestaurantNav;
 use App\Modules\Store\Console\ExpireStoreItems;
 use App\Modules\Store\Services\Catalog;

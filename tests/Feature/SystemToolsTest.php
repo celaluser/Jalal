@@ -10,6 +10,7 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -155,7 +156,7 @@ it('creates a backup that restores into a fresh database with the same rows', fu
 
     unset($pdo);
     @unlink($target);
-})->skip(fn () => \Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite', 'The restore check loads the dump into SQLite, so it only makes sense on a SQLite run.');
+})->skip(fn () => DB::getDriverName() !== 'sqlite', 'The restore check loads the dump into SQLite, so it only makes sense on a SQLite run.');
 
 it('creates, downloads and deletes backups from the panel', function () {
     $this->actingAs($this->admin)->post(route('admin.system.backups.store'))->assertRedirect()->assertSessionHas('status');

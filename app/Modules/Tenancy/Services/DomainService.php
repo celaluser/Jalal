@@ -49,11 +49,21 @@ class DomainService
         return self::TXT_PREFIX.'.'.$restaurant->custom_domain;
     }
 
-    /** @throws InvalidArgumentException code: reserved | taken | invalid | unavailable */
+    /** Whether the restaurant's plan (or the store) allows its own address on the platform domain. */
+    public function subdomainAllowed(Restaurant $restaurant): bool
+    {
+        return $this->limits->hasFeature($restaurant, 'subdomain');
+    }
+
+    /** @throws InvalidArgumentException code: reserved | taken | invalid | unavailable | upgrade */
     public function setSubdomain(Restaurant $restaurant, ?string $subdomain, bool $force = false): void
     {
         if (! $force && ! $this->subdomainsAvailable()) {
             throw new InvalidArgumentException('unavailable');
+        }
+
+        if (! $force && trim((string) $subdomain) !== '' && ! $this->subdomainAllowed($restaurant)) {
+            throw new InvalidArgumentException('upgrade');
         }
 
         $value = $subdomain === null || trim($subdomain) === '' ? null : Str::lower(trim($subdomain));

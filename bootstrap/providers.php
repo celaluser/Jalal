@@ -13,14 +13,15 @@ use App\Modules\Branches\Providers\BranchesServiceProvider;
 use App\Modules\Cms\Providers\CmsServiceProvider;
 use App\Modules\Core\Providers\CoreServiceProvider;
 use App\Modules\Demo\Providers\DemoServiceProvider;
-use App\Modules\Inventory\Providers\InventoryServiceProvider;
 use App\Modules\Installer\Providers\InstallerServiceProvider;
+use App\Modules\Inventory\Providers\InventoryServiceProvider;
 use App\Modules\Licensing\Providers\LicensingServiceProvider;
 use App\Modules\Marketing\Providers\MarketingServiceProvider;
 use App\Modules\Menu\Providers\MenuServiceProvider;
 use App\Modules\Messaging\Providers\MessagingServiceProvider;
 use App\Modules\Orders\Providers\OrdersServiceProvider;
 use App\Modules\Reservations\Providers\ReservationsServiceProvider;
+use App\Modules\Store\Providers\StoreServiceProvider;
 use App\Modules\Storefront\Providers\StorefrontServiceProvider;
 use App\Modules\Support\Providers\SupportServiceProvider;
 use App\Modules\Tables\Providers\TablesServiceProvider;
@@ -41,6 +42,7 @@ return [
     MenuServiceProvider::class,
     BranchesServiceProvider::class,
     InventoryServiceProvider::class,
+    StoreServiceProvider::class,
     ApiServiceProvider::class,
     TablesServiceProvider::class,
     OrdersServiceProvider::class,

@@ -2,6 +2,8 @@
 
 use App\Models\User;
 use App\Modules\Auth\Support\Permissions;
+use App\Modules\Billing\Exceptions\BillingException;
+use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Payments\GatewayManager;
 use App\Modules\Billing\Services\LimitGuard;
@@ -16,6 +18,7 @@ use App\Modules\Store\Services\Entitlements;
 use App\Modules\Store\Services\StoreAccess;
 use App\Modules\Store\Services\StoreCheckout;
 use App\Modules\Tenancy\Models\Restaurant;
+use App\Modules\Tenancy\Services\DomainService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Carbon;
 use Spatie\Permission\PermissionRegistrar;
@@ -101,7 +104,7 @@ it('rents by the month, extends from the end date, and stops when it runs out', 
     stoBuy($r, 'feature:api', 1);
     expect(Entitlement::allTenants()->count())->toBe(1)->and(Entitlement::allTenants()->first()->ends_at->toDateString())->toBe('2026-05-10');
 
-    $invoice = \App\Modules\Billing\Models\Invoice::allTenants()->latest('id')->first();
+    $invoice = Invoice::allTenants()->latest('id')->first();
     expect((float) $invoice->total)->toBe(5.0)->and($invoice->store_slug)->toBe('feature:api');
 
     Carbon::setTestNow('2026-05-11 12:00:00');
@@ -119,7 +122,7 @@ it('prices by quantity and sells one-time items for good', function () {
     expect((float) app(StoreCheckout::class)->quote(app(Catalog::class)->find('feature:api'), 2)['price'])->toBe(100.0);
     stoBuy($r, 'theme:neon');
     expect(Entitlement::allTenants()->first()->ends_at)->toBeNull();
-    expect(fn () => app(StoreCheckout::class)->start($r, 'feature:analytics', 1, 'bank_transfer'))->toThrow(\App\Modules\Billing\Exceptions\BillingException::class);
+    expect(fn () => app(StoreCheckout::class)->start($r, 'feature:analytics', 1, 'bank_transfer'))->toThrow(BillingException::class);
 });
 
 it('locks a paid theme until it is owned or a plan unlocks all themes', function () {
@@ -161,7 +164,7 @@ it('shows the restaurant store, takes a purchase and keeps staff without billing
     $this->actingAs($owner)->get(route('store.show', 'feature:nope'))->assertNotFound();
 
     $this->actingAs($owner)->post(route('store.buy', 'feature:api'), ['gateway' => 'bank_transfer', 'units' => 3])->assertRedirect(route('store.show', 'feature:api'))->assertSessionHas('instructions');
-    expect(\App\Modules\Billing\Models\Invoice::allTenants()->where('restaurant_id', $r->id)->whereNotNull('store_slug')->first())->toMatchArray(['status' => 'open'])
+    expect(Invoice::allTenants()->where('restaurant_id', $r->id)->whereNotNull('store_slug')->first())->toMatchArray(['status' => 'open'])
         ->and(app(LimitGuard::class)->hasFeature($r, 'api'))->toBeFalse();
 
     $this->actingAs($owner)->post(route('store.buy', 'feature:api'), ['gateway' => 'bank_transfer', 'units' => 7])->assertSessionHasErrors('units');
@@ -199,7 +202,7 @@ it('lets the super admin price, hide, reset, give and take back items', function
 it('can make the own subdomain a paid feature', function () {
     config(['tenancy.subdomains_enabled' => true, 'tenancy.base_domain' => 'menu.test']);
     [$r] = stoShop();
-    $domains = app(\App\Modules\Tenancy\Services\DomainService::class);
+    $domains = app(DomainService::class);
     $domains->setSubdomain($r, 'free-one');
     expect($r->fresh()->subdomain)->toBe('free-one');
 

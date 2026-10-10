@@ -3,6 +3,7 @@
 namespace App\Modules\Menu\Services;
 
 use App\Modules\Billing\Services\LimitGuard;
+use App\Modules\Store\Services\StoreAccess;
 use App\Modules\Tables\Qr\QrStyle;
 use App\Modules\Tenancy\Models\Restaurant;
 
@@ -12,7 +13,7 @@ use App\Modules\Tenancy\Models\Restaurant;
  */
 class ThemeRegistry
 {
-    public function __construct(private readonly LimitGuard $limits, private readonly ThemeLibrary $library) {}
+    public function __construct(private readonly LimitGuard $limits, private readonly ThemeLibrary $library, private readonly StoreAccess $access) {}
 
     /** @return array<string, array<string, mixed>> */
     public function themes(): array
@@ -27,7 +28,7 @@ class ThemeRegistry
      */
     public function settings(Restaurant $restaurant): array
     {
-        $key = array_key_exists((string) $restaurant->theme, $this->themes()) ? $restaurant->theme : $this->library->defaultKey();
+        $key = array_key_exists((string) $restaurant->theme, $this->themes()) && $this->access->themeAllowed($restaurant, $restaurant->theme) ? $restaurant->theme : $this->fallbackFor($restaurant);
         $base = $this->themes()[$key] ?? $this->library->all()[$key];
         $own = (array) ($restaurant->branding['menu'] ?? []);
 
@@ -56,6 +57,30 @@ class ThemeRegistry
             // The "Powered by" credit can only be removed on plans that include the feature.
             'show_credit' => ! ($own['hide_credit'] ?? false) || ! $this->canRemoveCredit($restaurant),
         ];
+    }
+
+    /** The theme shown when the chosen one is gone, switched off or not (or no longer) unlocked: the default if usable, else the first free one. */
+    public function fallbackFor(Restaurant $restaurant): string
+    {
+        $default = $this->library->defaultKey();
+
+        if ($this->access->themeAllowed($restaurant, $default)) {
+            return $default;
+        }
+
+        foreach (array_keys($this->themes()) as $key) {
+            if ($this->access->themeAllowed($restaurant, $key)) {
+                return $key;
+            }
+        }
+
+        return $default;
+    }
+
+    /** Whether the restaurant may choose this theme (it is free, owned, or unlocked by the plan). */
+    public function allowed(Restaurant $restaurant, string $theme): bool
+    {
+        return $this->access->themeAllowed($restaurant, $theme);
     }
 
     public function canRemoveCredit(Restaurant $restaurant): bool

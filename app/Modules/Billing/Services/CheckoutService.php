@@ -35,6 +35,18 @@ class CheckoutService
         $coupon = $couponCode ? $this->coupons->validate($couponCode, $plan) : null;
         $invoice = $this->invoices->create($restaurant, $plan, null, $coupon, $this->proration->credit($restaurant, $plan));
 
+        return $this->payInvoice($restaurant, $invoice, $gatewayCode);
+    }
+
+    /**
+     * Takes an open invoice to the chosen gateway (plans and store items alike).
+     *
+     * @return array{invoice: Invoice, result: CheckoutResult|null}
+     *
+     * @throws BillingException
+     */
+    public function payInvoice(Restaurant $restaurant, Invoice $invoice, string $gatewayCode): array
+    {
         // Free plan or a coupon covering everything: no gateway involved.
         if ($invoice->status === 'paid') {
             $this->processor->settle($invoice, 'free');

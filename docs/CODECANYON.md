@@ -20,6 +20,7 @@ Launch your own QR menu and online ordering platform. Restaurants get a menu, or
 - Subscription payments: Stripe, PayPal, Paddle, Mollie, Razorpay, Paystack, Flutterwave, iyzico, PayTR, Epoint, Mercado Pago, Midtrans, bank transfer.
 - Your landing page, blog and pages, edited in the browser. Languages and translations editable online (English complete; Turkish and Arabic for guest texts), right-to-left support.
 - Custom domains and subdomains for restaurants (VPS or DNS access needed), white-label option per plan.
+- A store where restaurants buy or rent themes and premium features (own address, custom domain, no branding...), with prices, trials and grants set by you.
 - Signed one-click updates, add-ons, backups, system status, activity log, two-factor sign-in.
 - REST API and signed webhooks.
 
