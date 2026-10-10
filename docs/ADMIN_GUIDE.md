@@ -14,7 +14,7 @@ Open, suspend, or sign in as an owner to help. Suspended restaurants' menus show
 
 - A plan has a price per interval (monthly, yearly or one-time lifetime), a trial, limits (branches, tables, products, categories, staff, AI credits, messages per month, online orders per month, menu views per month) and features (custom domain, WhatsApp orders, online payments, reservations, analytics, remove branding, REST API & webhooks). Empty limit = unlimited.
 - Coupons, tax and invoicing settings, manual subscription assignment and renewal are under **Billing**.
-- Subscription payments are taken through the gateways you enable (Stripe, PayPal, Paddle, Mollie, Razorpay, Paystack, Flutterwave, iyzico, Mercado Pago, Midtrans, bank transfer). Add the keys under **Payment gateways**, and the webhook URLs shown there in each gateway's dashboard.
+- Subscription payments are taken through the gateways you enable (Stripe, PayPal, Paddle, Mollie, Razorpay, Paystack, Flutterwave, iyzico, PayTR, Epoint, Mercado Pago, Midtrans, bank transfer). Add the keys under **Payment gateways**, and the webhook URLs shown there in each gateway's dashboard.
 - **Restaurant payments** controls whether restaurants may take online payments from guests with their own gateway accounts, and the optional platform commission.
 
 ## Content
@@ -23,7 +23,7 @@ Landing page sections, blog posts and free pages are edited under **Website**. L
 
 ## Messaging and AI
 
-- **SMS & WhatsApp**: choose a provider per channel (Twilio, Vonage, MessageBird, WhatsApp Cloud API). Keys are stored encrypted. Restaurants spend their plan's monthly message allowance.
+- **SMS & WhatsApp**: choose a provider per channel (Twilio, Vonage, MessageBird, WhatsApp Cloud API, Netgsm, İleti Merkezi). Keys are stored encrypted. Restaurants spend their plan's monthly message allowance.
 - **AI**: choose OpenAI, Anthropic or Gemini (or a compatible endpoint) and enter the key. Each restaurant has monthly AI credits per plan; credits are charged only for usable answers.
 
 ## Maintenance
