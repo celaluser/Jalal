@@ -34,6 +34,7 @@ return [
         'ordering' => 'Ordering',
         'tables' => 'Tables & QR',
         'branches' => 'Branches',
+        'inventory' => 'Inventory & recipes',
         'floor_map' => 'Floor map',
         'banners' => 'Banners',
         'online_payments' => 'Online payments',

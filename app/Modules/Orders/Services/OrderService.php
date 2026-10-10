@@ -363,6 +363,9 @@ class OrderService
             }
         }
 
+        // Ingredients of recipes are used up too; they never block an order, the kitchen sees the shortage in the stock list.
+        app(\App\Modules\Inventory\Services\Recipes::class)->consume($wanted);
+
         $touched = false;
 
         // A branch that keeps its own portions of a dish sells from those; everyone else from the shared stock.
@@ -406,6 +409,8 @@ class OrderService
                 }
             }
         }
+
+        app(\App\Modules\Inventory\Services\Recipes::class)->consume($back, -1);
 
         foreach ($back as $productId => $qty) {
             $own = $order->branch_id ? BranchProduct::where('branch_id', $order->branch_id)->where('product_id', $productId)->whereNotNull('stock_qty') : null;

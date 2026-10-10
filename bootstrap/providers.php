@@ -13,6 +13,7 @@ use App\Modules\Branches\Providers\BranchesServiceProvider;
 use App\Modules\Cms\Providers\CmsServiceProvider;
 use App\Modules\Core\Providers\CoreServiceProvider;
 use App\Modules\Demo\Providers\DemoServiceProvider;
+use App\Modules\Inventory\Providers\InventoryServiceProvider;
 use App\Modules\Installer\Providers\InstallerServiceProvider;
 use App\Modules\Licensing\Providers\LicensingServiceProvider;
 use App\Modules\Marketing\Providers\MarketingServiceProvider;
@@ -39,6 +40,7 @@ return [
     SupportServiceProvider::class,
     MenuServiceProvider::class,
     BranchesServiceProvider::class,
+    InventoryServiceProvider::class,
     ApiServiceProvider::class,
     TablesServiceProvider::class,
     OrdersServiceProvider::class,
