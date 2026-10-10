@@ -1,0 +1,32 @@
+<?php
+
+return [
+    'title' => 'Reports', 'subtitle' => 'Sales from :from to :to. Cancelled orders are not counted as sales.',
+    'range_today' => 'Today', 'range_yesterday' => 'Yesterday', 'range_7' => 'Last 7 days', 'range_30' => 'Last 30 days', 'range_90' => 'Last 90 days', 'range_custom' => 'Custom', 'from' => 'From', 'to' => 'To', 'apply' => 'Apply',
+    'export' => 'Export orders (CSV)', 'empty_title' => 'No orders in this period', 'empty_text' => 'Pick another period, or wait for the first orders to arrive.', 'no_data' => 'No data yet.',
+    'revenue' => 'Sales', 'orders' => 'Orders', 'average' => 'Average order', 'cancel_rate' => 'Cancelled', 'vs_previous' => 'vs previous period', 'cancelled_count' => '{0} none|{1} 1 order|[2,*] :count orders',
+    'revenue_by_day' => 'Sales by day',
+    'best_sellers' => 'Best sellers', 'items_sold' => '{0} Nothing sold|{1} 1 item sold|[2,*] :count items sold',
+    'how_they_order' => 'How guests order', 'by_type' => 'Order type', 'by_payment' => 'Payment', 'by_source' => 'Channel',
+    'busy_hours' => 'Busy hours', 'busiest' => 'Busiest: :day at :hour (:count orders)', 'cell_orders' => '{0} no orders|{1} 1 order|[2,*] :count orders',
+    'mon' => 'Mon', 'tue' => 'Tue', 'wed' => 'Wed', 'thu' => 'Thu', 'fri' => 'Fri', 'sat' => 'Sat', 'sun' => 'Sun',
+    'new_customers' => 'New customers', 'returning_customers' => 'Returning customers', 'discounts' => 'Discounts given', 'ready_time' => 'Average time to ready', 'ready_time_hint' => 'From order placed to marked ready.', 'minutes' => ':count min',
+    'locked_title' => 'More reports on a higher plan', 'locked_text' => 'Best sellers, busy hours, customers, longer periods and CSV export come with the analytics feature.', 'upgrade' => 'Upgrade plan',
+
+    'eng_title' => 'Menu engineering', 'eng_sub' => 'Which dishes earn their place, :from – :to. Needs a cost price on the dishes.',
+    'class_star' => 'Stars', 'class_plowhorse' => 'Plowhorses', 'class_puzzle' => 'Puzzles', 'class_dog' => 'Dogs',
+    'class_star_tip' => 'Popular and profitable. Keep and promote.', 'class_plowhorse_tip' => 'Popular, low margin. Raise the price or trim the cost.',
+    'class_puzzle_tip' => 'Profitable but rare. Move up the menu or recommend.', 'class_dog_tip' => 'Rare and low margin. Rework or remove.',
+    'food_cost' => 'Food cost :percent% of sales (dishes with a cost price)', 'thresholds' => 'Popular from :pop sold · profitable from :margin per portion',
+    'eng_dishes' => 'Dishes by profit', 'dish' => 'Dish', 'sold' => 'Sold', 'unit_margin' => 'Per portion', 'margin' => 'Profit', 'class' => 'Class', 'by_category' => 'Sales by category',
+    'no_cost' => '{1} :count dish has no cost price and is not classified|[2,*] :count dishes have no cost price and are not classified',
+    'ops_title' => 'Team & tables', 'ops_sub' => 'What your team did and how fast tables turn, :from – :to.',
+    'ops_staff' => 'Team activity', 'ops_staff_help' => 'Counts what each signed-in person did with orders. Automatic steps and guest actions are not included.', 'ops_no_staff' => 'No team activity in this period',
+    'ops_person' => 'Person', 'ops_accepted' => 'Accepted', 'ops_ready' => 'Marked ready', 'ops_completed' => 'Completed', 'ops_cancelled' => 'Cancelled', 'ops_accept_time' => 'Avg. time to accept',
+    'ops_tables' => 'Table turnover', 'ops_tables_help' => 'Finished dine-in orders per table. Minutes = from order to completed, a stand-in for how long the table was busy.', 'ops_no_tables' => 'No finished dine-in orders in this period',
+    'ops_table' => 'Table', 'ops_minutes' => 'Avg. minutes',
+    'visits_title' => 'QR scans & views', 'visits_sub' => 'How often guests opened your menu, :from – :to. Counted per hour; no personal data is kept.',
+    'visits_scans' => 'Table QR scans', 'visits_views' => 'Menu views', 'visits_orders' => 'Orders', 'visits_conversion' => 'Orders per 100 views',
+    'visits_by_day' => 'By day', 'visits_by_hour' => 'By hour of the day', 'visits_by_table' => 'Scans per table', 'visits_none' => 'No visits recorded in this period yet.',
+    'visits_note' => 'A refresh within 30 minutes in the same browser is not counted again, and crawlers are ignored. Counting starts when this feature is installed.',
+];

@@ -1,0 +1,36 @@
+# Shared-hosting safety net.
+# The web root of this application is the "public" folder. When the whole package is uploaded straight into public_html
+# (the usual mistake on shared hosting), this file sends every request to public/ and keeps the private files closed.
+# Best practice is still to point the domain at the public folder (see documentation/installation.html).
+
+Options -Indexes
+DirectoryIndex index.php
+
+# Private files are never served, even if rewriting is switched off.
+<FilesMatch "^(\.|artisan$|composer\.|package(-lock)?\.json$|vite\.config\.js$|phpunit\.xml|CHANGELOG|README|LICENSE)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Keep headers that PHP needs for the API and CSRF
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Hidden files and folders (except .well-known for certificates) are closed
+    RewriteRule (^|/)\.(?!well-known/) - [F,L]
+
+    # Private folders are closed
+    RewriteRule ^(app|bootstrap|config|database|docs|lang|resources|routes|tests|vendor|addons|node_modules|dist|marketplace)(/|$) - [F,L,NC]
+
+    # Everything else is answered from public/
+    RewriteCond %{REQUEST_URI} !^/public/ [NC]
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

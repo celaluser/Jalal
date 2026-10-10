@@ -1,0 +1,269 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/bricolage-grotesque';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../../app/Modules/**/*.blade.php';
+/* Icon and avatar sizes are built at runtime (size-{n}), so the scanner cannot see them. */
+@source inline("size-{3,4,5,6,7,8,9,10,11,12,14,16,20,24,44}");
+
+/* Dark mode is toggled by a `dark` class on <html> (see resources/js/app.js). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens.
+ *
+ * Identity: the square modules of a QR code. Ink for structure, saffron for the one primary action
+ * on a screen, basil for links and "you are here". Surfaces/lines/text are semantic variables that
+ * swap in dark mode, so components never need `dark:` pairs.
+ */
+@theme {
+    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Arabic', sans-serif;
+    --font-display: 'Bricolage Grotesque Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+
+    /* Ink: neutrals with a faint blue cast */
+    --color-ink-50: #f5f6f8;
+    --color-ink-100: #eceef2;
+    --color-ink-200: #dcdfe6;
+    --color-ink-300: #c3c8d3;
+    --color-ink-400: #9aa1b0;
+    --color-ink-500: #6f7787;
+    --color-ink-600: #525a6a;
+    --color-ink-700: #3a4150;
+    --color-ink-800: #252a35;
+    --color-ink-900: #181b23;
+    --color-ink-950: #0f1115;
+
+    /* Saffron: the primary action. Text on it is always ink-950 (10.7:1). */
+    --color-brand-50: #fff8e6;
+    --color-brand-100: #ffeeba;
+    --color-brand-200: #ffe08a;
+    --color-brand-300: #ffd05c;
+    --color-brand-400: #ffc02e;
+    --color-brand-500: #ffb020;
+    --color-brand-600: #e69500;
+    --color-brand-700: #b87400;
+    --color-brand-800: #8a5700;
+    --color-brand-900: #5c3a00;
+
+    /* Basil: links, active navigation, success. accent-700 on white is 6.9:1. */
+    --color-accent-50: #e8f7f2;
+    --color-accent-100: #c5ebe0;
+    --color-accent-200: #93d9c6;
+    --color-accent-300: #5cc2a6;
+    --color-accent-400: #2fa88a;
+    --color-accent-500: #1c8e73;
+    --color-accent-600: #137a62;
+    --color-accent-700: #0e6350;
+    --color-accent-800: #0b4d3e;
+    --color-accent-900: #073629;
+
+    --radius-card: 1rem;
+    --shadow-card: 0 1px 2px rgb(15 17 21 / 0.04), 0 1px 3px rgb(15 17 21 / 0.06);
+    --shadow-pop: 0 10px 30px -8px rgb(15 17 21 / 0.18), 0 2px 6px rgb(15 17 21 / 0.06);
+}
+
+:root {
+    --canvas: #f5f6f8;
+    --surface: #ffffff;
+    --surface-2: #eef0f4;
+    --line: #e3e6ec;
+    --line-strong: #cfd4de;
+    --fg: #14161b;
+    --muted: #5d6577;
+    --link: #0e6350;
+    /* Text on the primary colour; the admin palette sets it to white for dark primaries. */
+    --on-brand: #0f1115;
+
+    --viz-series-1: #2a78d6;
+    --viz-grid: #e8e7e3;
+    --viz-muted: #6b6a66;
+}
+
+:root.dark {
+    --canvas: #0c0e12;
+    --surface: #14171d;
+    --surface-2: #1c2028;
+    --line: #262b35;
+    --line-strong: #343a47;
+    --fg: #eef0f4;
+    --muted: #a2a9b8;
+    --link: #5cc2a6;
+
+    --viz-series-1: #3987e5;
+    --viz-grid: #2c2c29;
+    --viz-muted: #a3a29b;
+}
+
+@theme inline {
+    --color-canvas: var(--canvas);
+    --color-surface: var(--surface);
+    --color-surface-2: var(--surface-2);
+    --color-line: var(--line);
+    --color-line-strong: var(--line-strong);
+    --color-fg: var(--fg);
+    --color-muted: var(--muted);
+    --color-link: var(--link);
+}
+
+@layer base {
+  /* A grid with no column template gets one implicit column sized by its widest content, which pushes phone screens sideways.
+     Utilities such as grid-cols-2 or sm:grid-cols-3 still win because they live in a later layer. */
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .grid > * { min-width: 0; }
+  /* Long unbroken strings (URLs, keys, codes) wrap instead of widening the page. */
+  code, pre { overflow-wrap: anywhere; }
+  pre { white-space: pre-wrap; }
+
+  /* Fingers need bigger targets than pointers (44px is the comfortable size, 40px the floor used here).
+     :where() keeps these rules weaker than any utility class, so a component can still choose its own size. */
+  @media (pointer: coarse) {
+    :where(.btn) { min-height: 2.75rem; }
+    :where(.btn-sm) { min-height: 2.5rem; padding-inline: 0.875rem; }
+    :where(button, [role='button'], summary, select, a.flex, a.inline-flex, a.block, a.grid) { min-height: 2.5rem; }
+    :where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='hidden'], [type='color'], [type='file'])) { min-height: 2.5rem; }
+    :where(button.size-7, button.size-8, button.size-9) { min-width: 2.5rem; }
+    :where(.check, input[type='checkbox'], input[type='radio']) { min-width: 1.25rem; min-height: 1.25rem; }
+    :where(.menu-add) { min-width: 2.75rem; min-height: 2.75rem; }
+    :where(.menu-hero a, .menu-chip) { min-height: 2.5rem; display: inline-flex; align-items: center; }
+    :where(footer a) { display: inline-block; padding-block: 0.5rem; }
+  }
+    html { color-scheme: light; }
+    html.dark { color-scheme: dark; }
+
+    body {
+        background-color: var(--canvas);
+        color: var(--fg);
+        font-family: var(--font-sans);
+        font-feature-settings: 'cv11', 'ss01';
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+    }
+
+    ::selection { background: var(--color-brand-200); color: var(--color-ink-950); }
+
+    :focus-visible {
+        outline: 2px solid var(--color-accent-500);
+        outline-offset: 2px;
+        border-radius: 0.375rem;
+    }
+
+    [x-cloak] { display: none !important; }
+
+    /* Respect the OS setting: motion is decoration here, never the only carrier of meaning. */
+    @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+    }
+}
+
+@layer components {
+    /* Buttons ---------------------------------------------------------- */
+    .btn {
+        @apply inline-flex select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition duration-150 disabled:pointer-events-none disabled:opacity-50;
+    }
+    .btn-primary { @apply bg-brand-500 shadow-sm hover:bg-brand-400 active:bg-brand-600; color: var(--on-brand); }
+    .btn-secondary { @apply border border-line-strong bg-surface text-fg shadow-sm hover:bg-surface-2; }
+    .btn-ghost { @apply text-fg hover:bg-surface-2; }
+    .btn-dark { @apply bg-ink-950 text-white shadow-sm hover:bg-ink-800 dark:bg-white dark:text-ink-950 dark:hover:bg-ink-100; }
+    .btn-danger { @apply bg-red-600 text-white shadow-sm hover:bg-red-700; }
+    .btn-sm { @apply gap-1.5 rounded-lg px-3 py-1.5 text-[13px]; }
+    .btn-lg { @apply rounded-2xl px-6 py-3.5 text-base; }
+
+    /* Filter chips (category tabs in staff order entry) */
+    .chip { @apply inline-flex shrink-0 items-center rounded-full border border-line-strong bg-surface px-3.5 py-1.5 text-sm font-medium text-muted transition hover:text-fg; }
+    .chip-active { @apply border-ink-950 bg-ink-950 text-white hover:text-white dark:border-white dark:bg-white dark:text-ink-950 dark:hover:text-ink-950; }
+
+    /* Form controls ---------------------------------------------------- */
+    .field {
+        @apply block w-full rounded-xl border border-line-strong bg-surface px-3.5 py-2.5 text-sm text-fg shadow-sm transition placeholder:text-ink-400 focus:border-accent-500 focus:outline-none focus:ring-4 focus:ring-accent-500/15;
+    }
+    .field[aria-invalid='true'] { @apply border-red-500 focus:border-red-500 focus:ring-red-500/15; }
+    select.field { @apply appearance-none bg-no-repeat pe-10; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%236f7787' stroke-width='1.8'%3E%3Cpath d='m5 8 5 5 5-5'/%3E%3C/svg%3E"); background-position: right 0.75rem center; background-size: 1.1rem; }
+    [dir='rtl'] select.field { background-position: left 0.75rem center; }
+    .check { @apply size-4 rounded border-line-strong bg-surface text-accent-600 focus:ring-2 focus:ring-accent-500/30; }
+
+    /* Surfaces --------------------------------------------------------- */
+    .card { @apply rounded-2xl border border-line bg-surface shadow-card; }
+    .card-pad { @apply p-5 sm:p-6; }
+
+    .badge { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium; }
+    .badge-neutral { @apply bg-surface-2 text-muted; }
+    .badge-success { @apply bg-accent-50 text-accent-800 dark:bg-accent-900/50 dark:text-accent-200; }
+    .badge-warning { @apply bg-brand-100 text-brand-900 dark:bg-brand-900/40 dark:text-brand-200; }
+    .badge-danger { @apply bg-red-50 text-red-800 dark:bg-red-950/60 dark:text-red-200; }
+    .badge-info { @apply bg-blue-50 text-blue-800 dark:bg-blue-950/60 dark:text-blue-200; }
+
+    /* Data tables ------------------------------------------------------ */
+    .table { @apply w-full text-sm; }
+    .table thead th { @apply whitespace-nowrap border-b border-line bg-surface-2/60 px-4 py-2.5 text-start text-xs font-semibold uppercase tracking-wide text-muted; }
+    .table tbody td { @apply border-b border-line px-4 py-3 align-middle; }
+    .table tbody tr:last-child td { @apply border-b-0; }
+    .table tbody tr { @apply transition-colors hover:bg-surface-2/50; }
+
+    .link { @apply font-medium text-link underline-offset-2 hover:underline; }
+    .eyebrow { @apply text-xs font-semibold uppercase tracking-[0.14em] text-muted; }
+    .display { font-family: var(--font-display); letter-spacing: -0.02em; font-optical-sizing: auto; }
+}
+
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* Soft entrance for page content; skipped with reduced motion (see base layer). */
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise 0.35s ease-out both; }
+@keyframes float-y { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.float-y { animation: float-y 6s ease-in-out infinite; }
+
+/* Long-form content (blog posts, static pages) rendered from Markdown. */
+.article { font-size: 1.0625rem; line-height: 1.8; color: var(--fg); }
+.article > * + * { margin-top: 1.25em; }
+.article h2 { font-family: var(--font-display); font-size: 1.75rem; font-weight: 600; line-height: 1.2; letter-spacing: -0.02em; margin-top: 2.2em; }
+.article h3 { font-family: var(--font-display); font-size: 1.35rem; font-weight: 600; margin-top: 1.8em; }
+.article a { color: var(--link); text-decoration: underline; text-underline-offset: 3px; }
+.article ul, .article ol { padding-inline-start: 1.4em; }
+.article ul { list-style: disc; } .article ol { list-style: decimal; }
+.article li + li { margin-top: 0.4em; }
+.article blockquote { border-inline-start: 3px solid var(--color-brand-500); padding-inline-start: 1.1em; color: var(--muted); font-style: italic; }
+.article img { border-radius: 1rem; }
+.article code { font-size: 0.9em; background: var(--surface-2); padding: 0.15em 0.4em; border-radius: 0.375rem; }
+.article pre { background: var(--color-ink-950); color: #eceef2; padding: 1.1em 1.25em; border-radius: 1rem; overflow-x: auto; }
+.article pre code { background: none; padding: 0; }
+.article hr { border-color: var(--line); margin-block: 2.5em; }
+
+/*
+ * Customer menu. Colours, radius and font come from the restaurant's theme (ThemeRegistry::css()),
+ * so these classes never hard-code a palette.
+ */
+.menu-page { background: var(--menu-bg); color: var(--menu-fg); font-family: var(--menu-font); -webkit-font-smoothing: antialiased; }
+.menu-surface { background: var(--menu-surface); }
+.menu-card { background: var(--menu-surface); border: 1px solid var(--menu-line); border-radius: var(--menu-radius); }
+.menu-line { border-color: var(--menu-line); }
+.menu-muted { color: var(--menu-muted); }
+.menu-accent { background: var(--menu-accent); color: var(--menu-accent-fg); }
+.menu-accent-text { color: var(--menu-accent); }
+.menu-btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; border-radius: var(--menu-radius); padding: .625rem 1rem; font-weight: 600; font-size: .9rem; background: var(--menu-accent); color: var(--menu-accent-fg); transition: filter .15s, opacity .15s; }
+.menu-btn:hover:not(:disabled) { filter: brightness(1.06); }
+.menu-btn:disabled { opacity: .45; cursor: not-allowed; }
+.menu-btn-quiet { background: transparent; color: var(--menu-fg); border: 1px solid var(--menu-line); }
+.menu-chip { display: inline-flex; align-items: center; gap: .35rem; border-radius: 999px; border: 1px solid var(--menu-line); padding: .35rem .8rem; font-size: .8rem; font-weight: 500; white-space: nowrap; background: var(--menu-surface); }
+.menu-chip[aria-pressed='true'], .menu-chip[aria-current='true'] { background: var(--menu-fg); color: var(--menu-bg); border-color: var(--menu-fg); }
+.menu-radius { border-radius: var(--menu-radius); }
+.menu-page :focus-visible { outline: 2px solid var(--menu-accent); outline-offset: 2px; }
+.menu-scroll::-webkit-scrollbar { display: none; }
+.menu-scroll { scrollbar-width: none; }
+
+.menu-hero { background: linear-gradient(135deg, var(--menu-accent) 0%, var(--menu-accent-2) 100%); color: var(--menu-accent-fg); }
+@keyframes menu-pop { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.menu-pop { animation: menu-pop .38s ease-out; }
+@keyframes menu-rise { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.menu-rise { animation: menu-rise .5s ease-out both; }
+.menu-add { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 999px; background: var(--menu-accent); color: var(--menu-accent-fg); box-shadow: 0 6px 16px -4px rgb(0 0 0 / .35); transition: transform .12s, filter .15s; }
+.menu-add:hover:not(:disabled) { filter: brightness(1.08); }
+.menu-add:active:not(:disabled) { transform: scale(.88); }
+.menu-add:disabled { opacity: .4; box-shadow: none; }
+.menu-snap { scroll-snap-type: x mandatory; }
+.menu-snap > * { scroll-snap-align: start; }
+.menu-img { background: var(--menu-line); }
+.menu-img img { transition: transform .5s ease; }
+.menu-card:hover .menu-img img { transform: scale(1.04); }
+.menu-divide > * + * { border-top: 1px solid var(--menu-line); }
