@@ -18,3 +18,6 @@
 | Images do not show after moving servers | Run `php artisan storage:link`. |
 
 Still stuck? Open a ticket with the platform or the vendor's support channel and include the last lines of `storage/logs/laravel.log`.
+
+## "Forbidden" when opening the site
+The web server is looking at the application folder instead of `public/` (it finds no `index.php`, and listing folders is off). Fix, in order of preference: point the domain's document root at the `public` folder; or keep the package root `.htaccess` and `index.php` next to `app/` (they route requests into `public/`) and make sure the host allows `.htaccess` (`AllowOverride All`) and `mod_rewrite`. Nginx has no `.htaccess`: set `root` to the `public` folder. If the site was open in this state, open `https://your-site/.env`: if it downloads, change the database password and `APP_KEY`-dependent secrets and fix the setup first.

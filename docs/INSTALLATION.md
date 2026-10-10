@@ -14,6 +14,7 @@ No Node.js or Composer is needed on the server: `vendor/` and the compiled asset
 
 1. Upload the zip and extract it **above** the web root if you can, for example `~/qrmenu/`. Point the domain's document root at `~/qrmenu/public`.
    If you cannot change the document root, extract into a folder and ask your host to point the domain to its `public` subfolder.
+   **If the whole package ended up inside `public_html`** (no way to change the document root), it still works: the `.htaccess` and `index.php` in the package root send every request to `public/` and close the private folders (`app`, `vendor`, `storage`, `.env` and so on). Keep both files, and check that `https://your-site/.env` shows "Forbidden" or "Not found". Without that `.htaccess` the site shows "Forbidden" and your `.env` could be downloaded.
 2. Create an empty MySQL database and user (or choose SQLite in the installer).
 3. Open `https://your-domain/install` and follow the steps: requirements check, licence, database, administrator account.
 4. Add the cron job (cPanel → Cron Jobs, every minute). **No terminal or `php` path? Use the web address instead**: the last installer page (and *Admin → System status*) shows `https://your-domain/cron/<secret>`; call it every minute with `wget -q -O /dev/null <address>` or any free cron service. It runs the scheduler and the queue inside the web request. With neither a cron job nor the web address, the script falls back to doing the work after visitors' page loads (Admin → System status → fallback mode).

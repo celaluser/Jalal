@@ -22,3 +22,13 @@ it('puts the language buttons in the user menu on phones and keeps every layout 
     $shell = file_get_contents(resource_path('views/components/layouts/shell.blade.php'));
     expect($shell)->toContain('hidden sm:block')->toContain('sm:hidden');
 });
+
+it('ships a root .htaccess and index.php so a package uploaded into public_html still works and stays closed', function () {
+    $htaccess = file_get_contents(base_path('.htaccess'));
+    expect($htaccess)->toContain('public/$1')->toContain('Options -Indexes')->toContain('vendor')->toContain('Require all denied');
+    expect(file_get_contents(base_path('index.php')))->toContain('public/index.php');
+
+    foreach (['app', 'bootstrap', 'config', 'database', 'lang', 'resources', 'routes', 'storage'] as $dir) {
+        expect(file_exists(base_path($dir.'/.htaccess')))->toBeTrue("{$dir}/.htaccess");
+    }
+});

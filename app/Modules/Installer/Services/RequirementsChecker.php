@@ -38,6 +38,14 @@ class RequirementsChecker
         $envOk = is_file(base_path('.env')) ? is_writable(base_path('.env')) : is_writable(base_path());
         $checks[] = ['label' => 'Writable: .env', 'ok' => $envOk, 'detail' => $envOk ? 'OK' : 'Not writable'];
 
+        // The web root should be the public folder. If the whole package sits in the web root, the root .htaccess must be there to close the private files.
+        $root = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+
+        if ($root !== false && $root === realpath(base_path())) {
+            $guarded = is_file(base_path('.htaccess')) && is_file(base_path('index.php'));
+            $checks[] = ['label' => 'Web root is the application folder', 'ok' => $guarded, 'detail' => $guarded ? 'Protected by the root .htaccess' : 'Upload .htaccess and index.php from the package root, or point the domain at the public folder'];
+        }
+
         return $checks;
     }
 
