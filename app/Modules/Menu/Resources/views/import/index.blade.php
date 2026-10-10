@@ -39,7 +39,7 @@
             @csrf
             <div>
                 <label for="file" class="mb-1.5 block text-sm font-medium">{{ __('menu.import_file') }}</label>
-                <input id="file" type="file" name="file" accept=".csv,text/csv,text/plain" required class="field !py-2">
+                <input id="file" type="file" name="file" accept=".csv,.xlsx,text/csv,text/plain" required class="field !py-2">
                 <p class="mt-1.5 text-xs text-muted">{{ __('menu.import_columns') }}</p>
             </div>
             <x-ui.button :block="false">{{ __('menu.import_check') }}</x-ui.button>

@@ -4,6 +4,7 @@ namespace App\Modules\Menu\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Menu\Services\CsvMenuImport;
+use App\Modules\Menu\Services\XlsxReader;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -22,12 +23,27 @@ class MenuImportController extends Controller
 
     public function preview(Request $request): RedirectResponse
     {
-        $request->validate(['file' => ['required', 'file', 'mimes:csv,txt', 'max:1024']]);
+        $request->validate(['file' => ['required', 'file', 'mimes:csv,txt,xlsx', 'max:1024']]);
 
         try {
-            $result = $this->import->parse($request->file('file')->getRealPath(), $request->user()->restaurant);
+            $file = $request->file('file');
+            $path = $file->getRealPath();
+            $temp = null;
+
+            // An Excel file is turned into CSV text first, then goes through the same checks and preview.
+            if (strtolower($file->getClientOriginalExtension()) === 'xlsx') {
+                $temp = tempnam(sys_get_temp_dir(), 'xl');
+                file_put_contents($temp, app(XlsxReader::class)->toCsv($path));
+                $path = $temp;
+            }
+
+            $result = $this->import->parse($path, $request->user()->restaurant);
         } catch (InvalidArgumentException $e) {
             return back()->withErrors(['file' => __('menu.import_error_'.$e->getMessage())]);
+        } finally {
+            if (! empty($temp)) {
+                @unlink($temp);
+            }
         }
 
         $request->session()->put('menu_import_rows', $result['rows']);

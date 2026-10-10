@@ -130,3 +130,50 @@ it('rejects other file types, offers a sample, and is for people who manage the 
     app(PermissionRegistrar::class)->setPermissionsTeamId(config('tenancy.platform_team_id'));
     $this->actingAs($waiter)->get(route('menu.import'))->assertForbidden();
 });
+
+function ciXlsx(array $rows): string
+{
+    $strings = [];
+    $sheet = '';
+    foreach ($rows as $r => $row) {
+        $sheet .= '<row r="'.($r + 1).'">';
+        foreach ($row as $c => $v) {
+            $ref = chr(65 + $c).($r + 1);
+            if (is_numeric($v)) {
+                $sheet .= '<c r="'.$ref.'"><v>'.$v.'</v></c>';
+            } else {
+                $strings[] = $v;
+                $sheet .= '<c r="'.$ref.'" t="s"><v>'.(count($strings) - 1).'</v></c>';
+            }
+        }
+        $sheet .= '</row>';
+    }
+    $path = tempnam(sys_get_temp_dir(), 'xl').'.xlsx';
+    $zip = new ZipArchive;
+    $zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+    $zip->addFromString('xl/worksheets/sheet1.xml', '<?xml version="1.0"?><worksheet><sheetData>'.$sheet.'</sheetData></worksheet>');
+    $zip->addFromString('xl/sharedStrings.xml', '<?xml version="1.0"?><sst>'.implode('', array_map(fn ($s) => '<si><t>'.htmlspecialchars($s).'</t></si>', $strings)).'</sst>');
+    $zip->close();
+
+    return $path;
+}
+
+it('imports an Excel file through the same preview as a CSV', function () {
+    [$r, $owner] = ciShop();
+    $path = ciXlsx([['Category', 'Dish', 'Price'], ['Soups', 'Lentil & Co', 4.5], ['Soups', 'Tomato', 5]]);
+    $file = new UploadedFile($path, 'menu.xlsx', null, null, true);
+
+    $this->actingAs($owner)->post(route('menu.import.preview'), ['file' => $file])->assertRedirect(route('menu.import'));
+    $this->actingAs($owner)->post(route('menu.import.apply'))->assertRedirect();
+
+    $names = app(TenantContext::class)->runAs($r, fn () => Product::all()->map(fn ($p) => $p->tr('name'))->sort()->values()->all());
+    expect($names)->toBe(['Lentil & Co', 'Tomato']);
+});
+
+it('rejects a broken Excel file without crashing', function () {
+    [$r, $owner] = ciShop();
+    $bad = tempnam(sys_get_temp_dir(), 'xl');
+    file_put_contents($bad, 'not a zip');
+
+    $this->actingAs($owner)->post(route('menu.import.preview'), ['file' => new UploadedFile($bad, 'menu.xlsx', null, null, true)])->assertSessionHasErrors('file');
+});

@@ -97,6 +97,7 @@ return [
     'import_check' => 'Check the file', 'import_new_dishes' => 'New dishes', 'import_updates' => 'Dishes to update', 'import_new_categories' => 'New categories', 'import_problems' => 'Rows with problems', 'import_skipped' => 'These rows are skipped:',
     'import_line' => 'Line :line', 'import_err_missing_name' => 'category or dish name is empty', 'import_err_bad_price' => 'the price is not a number', 'import_err_bad_stock' => 'stock must be a whole number', 'import_err_duplicate' => 'the same dish appears twice in the file',
     'import_update' => 'Update', 'import_new' => 'New', 'import_more' => '…and :count more rows.', 'import_apply' => 'Import :count rows', 'import_try_again' => 'Try another file', 'import_done' => ':created dishes added, :updated updated, :categories new categories.',
+    'import_error_unreadable' => 'This Excel file could not be read. Save it as .xlsx or .csv and try again.',
     'import_error_empty' => 'The file is empty.', 'import_error_too_big' => 'The file is too big (1 MB at most).', 'import_error_too_many' => 'Too many rows (1,000 at most). Split the file.', 'import_error_header' => 'The first row must name the columns, at least Category, Dish and Price.',
     'mode_orders' => 'Guests can order', 'mode_orders_help' => 'The menu takes orders.', 'mode_view_only' => 'View-only menu', 'mode_view_only_help' => 'Guests see the menu but cannot order.', 'mode_switch_view_only' => 'Switch to view-only', 'mode_switch_orders' => 'Start taking orders',
 ];
