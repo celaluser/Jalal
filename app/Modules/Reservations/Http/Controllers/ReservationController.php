@@ -53,6 +53,14 @@ class ReservationController extends Controller
         return redirect()->route('reservations.index', ['date' => $data['date']])->with('status', __('reservations.created'));
     }
 
+    /** The restaurant paid a "refund due" deposit back by hand (in the gateway's dashboard). */
+    public function depositRefunded(int $reservation): RedirectResponse
+    {
+        app(\App\Modules\Reservations\Services\ReservationDeposits::class)->markRefunded(Reservation::findOrFail($reservation));
+
+        return back();
+    }
+
     public function status(Request $request, int $reservation): RedirectResponse
     {
         $restaurant = $request->user()->restaurant;

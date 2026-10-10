@@ -20,12 +20,16 @@
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div><p class="display text-xl font-bold">{{ $r->starts_at->setTimezone($tz)->format('H:i') }} <span class="text-base font-medium">· {{ $r->name }} · {{ trans_choice('reservations.people', $r->party_size, ['count' => $r->party_size]) }}</span></p>
                             <p class="text-sm text-muted">{{ collect([$r->phone, $r->email])->filter()->implode(' · ') }}@if ($r->note) · “{{ $r->note }}”@endif</p></div>
-                        <x-ui.badge :tone="['pending' => 'warning', 'confirmed' => 'info', 'seated' => 'success', 'completed' => 'neutral', 'cancelled' => 'danger', 'no_show' => 'danger'][$r->status]" dot>{{ __('reservations.status_'.$r->status) }}</x-ui.badge>
+                        <x-ui.badge :tone="['awaiting' => 'warning', 'pending' => 'warning', 'confirmed' => 'info', 'seated' => 'success', 'completed' => 'neutral', 'cancelled' => 'danger', 'no_show' => 'danger'][$r->status] ?? 'neutral'" dot>{{ __('reservations.status_'.$r->status) }}</x-ui.badge>
                     </div>
                     <div class="mt-3 flex flex-wrap items-center gap-2">
                         <form method="POST" action="{{ route('reservations.table', $r->id) }}" class="flex items-center gap-1">@csrf
                             <select name="table_id" class="field !w-auto !py-1.5 text-sm" onchange="this.form.submit()" aria-label="{{ __('reservations.table') }}"><option value="">{{ __('reservations.no_table') }}</option>@foreach ($tables as $t)<option value="{{ $t->id }}" @selected($r->table_id === $t->id)>{{ table_label($t->name) }}@if ($t->seats) ({{ $t->seats }})@endif</option>@endforeach</select></form>
-                        @foreach (['pending' => ['confirmed', 'cancelled'], 'confirmed' => ['seated', 'no_show', 'cancelled'], 'seated' => ['completed']][$r->status] ?? [] as $to)
+                        @if ($r->deposit_cents > 0)
+                            <x-ui.badge :tone="['paid' => 'success', 'applied' => 'success', 'pending' => 'warning', 'refund_due' => 'danger', 'forfeited' => 'neutral', 'refunded' => 'neutral', 'failed' => 'neutral'][$r->deposit_status] ?? 'neutral'">{{ __('reservations.deposit_badge', ['amount' => $restaurant->money($r->deposit_cents / 100), 'state' => __('reservations.deposit_'.$r->deposit_status)]) }}</x-ui.badge>
+                            @if ($r->deposit_status === 'refund_due')<form method="POST" action="{{ route('reservations.deposit.refunded', $r->id) }}">@csrf<button class="btn btn-secondary btn-sm">{{ __('reservations.deposit_mark_refunded') }}</button></form>@endif
+                        @endif
+                        @foreach (['awaiting' => ['cancelled'], 'pending' => ['confirmed', 'cancelled'], 'confirmed' => ['seated', 'no_show', 'cancelled'], 'seated' => ['completed']][$r->status] ?? [] as $to)
                             <form method="POST" action="{{ route('reservations.status', $r->id) }}">@csrf<input type="hidden" name="status" value="{{ $to }}"><button class="btn btn-sm {{ in_array($to, ['cancelled', 'no_show'], true) ? 'btn-ghost' : 'btn-secondary' }}">{{ __('reservations.action_'.$to) }}</button></form>
                         @endforeach
                     </div>

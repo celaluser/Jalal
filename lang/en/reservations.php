@@ -16,4 +16,13 @@ return [
     'max_covers' => 'Seats at once', 'max_covers_hint' => 'Used only when you have not set up tables.', 'remind' => 'Reminder e-mail (hours before)', 'remind_hint' => '0 switches reminders off.',
     'reserve_link' => 'Reserve a table',
     'sms_reminder' => 'Reminder from :restaurant: your table for :party is on :when. Change or cancel: :url',
+    'status_awaiting' => 'Awaiting deposit', 'action_awaiting' => 'Awaiting deposit',
+    'deposit_title' => 'Deposit: :amount per guest', 'deposit_terms' => 'You pay it now to hold the table (it is held for :minutes minutes). Cancel at least :hours hours before and it is paid back; later or if you do not come, the restaurant keeps it. It counts towards your bill when you visit.',
+    'deposit_pay_with' => 'Pay with', 'book_and_pay' => 'Book and pay the deposit', 'pay_deposit' => 'Pay the deposit', 'awaiting_text' => 'Your table is held while you pay the :amount deposit.',
+    'deposit_line' => 'Deposit :amount: :state', 'deposit_badge' => 'Deposit :amount · :state',
+    'deposit_none' => 'none', 'deposit_pending' => 'waiting for payment', 'deposit_paid' => 'paid', 'deposit_applied' => 'counts towards the bill', 'deposit_refunded' => 'paid back', 'deposit_refund_due' => 'to pay back', 'deposit_forfeited' => 'kept by the restaurant', 'deposit_failed' => 'not paid',
+    'deposit_mark_refunded' => 'Mark as paid back', 'error_payment_unavailable' => 'Online payment is not available right now. Please try again later.', 'error_payment_failed' => 'The payment page could not be opened. Please try again.',
+    'deposit_for' => 'Table deposit for :party',
+    'deposit_setting' => 'Deposit per guest', 'deposit_setting_hint' => '0 = no deposit. Needs online payments (your plan and a gateway set up under Online payments). Not asked from bookings staff type in.', 'deposit_hold' => 'Hold an unpaid booking for (minutes)',
+    'deposit_refund' => 'Pay back when cancelled at least (hours before)', 'deposit_refund_hint' => 'Later cancellations and no-shows keep the deposit. Stripe refunds happen automatically; other gateways show "to pay back" for you to refund by hand.',
 ];

@@ -11,6 +11,8 @@ $guest = function () {
     Route::get('reserve/slots', [GuestReservationController::class, 'slots'])->middleware('throttle:60,1')->name('reserve.slots');
     Route::post('reserve', [GuestReservationController::class, 'store'])->middleware('throttle:6,1')->name('reserve.store');
     Route::get('reserve/{token}', [GuestReservationController::class, 'show'])->where('token', '[a-z0-9]{24}')->name('reserve.show');
+    Route::post('reserve/{token}/pay', [GuestReservationController::class, 'payDeposit'])->where('token', '[a-z0-9]{24}')->middleware('throttle:10,1')->name('reserve.pay');
+    Route::match(['get', 'post'], 'reserve/{token}/pay/return', [GuestReservationController::class, 'depositReturn'])->where('token', '[a-z0-9]{24}')->middleware('throttle:30,1')->name('reserve.pay.return');
     Route::post('reserve/{token}/cancel', [GuestReservationController::class, 'cancel'])->where('token', '[a-z0-9]{24}')->middleware('throttle:10,1')->name('reserve.cancel');
 };
 
@@ -22,6 +24,7 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])-
         Route::get('/', [ReservationController::class, 'index'])->name('index');
         Route::post('/', [ReservationController::class, 'store'])->name('store');
         Route::post('{reservation}/status', [ReservationController::class, 'status'])->whereNumber('reservation')->name('status');
+        Route::post('{reservation}/deposit-refunded', [ReservationController::class, 'depositRefunded'])->whereNumber('reservation')->name('deposit.refunded');
         Route::post('{reservation}/table', [ReservationController::class, 'table'])->whereNumber('reservation')->name('table');
     });
     Route::middleware('permission:reservations.manage')->group(function () {

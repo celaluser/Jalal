@@ -26,7 +26,7 @@ Errors: `401` bad/expired token, `403` missing ability or plan without API, `404
 | GET | `/orders/{id}` | `orders:read` | Includes items and customer |
 | POST | `/orders` | `orders:write` | Places an order with the guest-menu rules (type, `lines[]` with `product_id`, `qty`, `options`, `variant_id`, optional customer fields, `promo_code`). Send an `Idempotency-Key` header so a retry never creates a second order |
 | GET | `/reservations` | `reservations:read` | Filters `status`, `from`, `to` |
-| POST | `/reservations` | `reservations:write` | `name`, `party_size`, `date`, `time` (+ phone/e-mail); must fit a free slot |
+| POST | `/reservations` | `reservations:write` | `name`, `party_size`, `date`, `time` (+ phone/e-mail); must fit a free slot. When the restaurant asks for a deposit the reservation comes back as `awaiting` with `deposit_cents`; send the guest to `manage_url` to pay it |
 | POST | `/reservations/{id}/status` | `reservations:write` | `confirmed`, `seated`, `completed`, `cancelled`, `no_show` |
 | GET | `/customers` | `customers:read` | Search with `q`; paginated |
 | POST | `/orders/{id}/status` | `orders:write` | Body `status` (`accepted`, `preparing`, `ready`, `completed`, `cancelled`), optional `reason`. Same rules as the panel; invalid moves return `422` with `code` |

@@ -124,7 +124,8 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ Online booking page with live free times (opening hours, slot length, stay length, largest party, notice, days ahead), table-aware or seats-at-once capacity, manual or automatic confirmation
 - ✅ Guest private link to view/cancel; e-mails for received, confirmed, cancelled and a reminder before the visit (editable templates)
 - ✅ Staff day view: confirm, assign a table (smallest fitting one is picked), seat, finish, no-show, take phone bookings (even into a full slot, on purpose)
-- 🟡 Plan feature `reservations` gates it; no deposit/prepayment. SMS/WhatsApp reminders go out with the e-mail reminder when a provider is set up (tested with faked HTTP)
+- ✅ **Deposits**: optional amount per guest, paid through the restaurant's own gateway (plan feature `online_payments`). The booking is "awaiting" and holds its table for a few minutes, then is confirmed by the verified payment (or goes to staff when manual confirmation is on); unpaid bookings are released automatically (`reservations:expire`); a late payment for a lost table is paid back. Cancel early (or by the restaurant) = refund (automatic for Stripe, otherwise "to pay back" for staff to do by hand and tick off); late cancel or no-show = restaurant keeps it; seated = counts towards the bill. Tested against faked Stripe responses only
+- 🟡 `reservations` plan feature gates it. SMS/WhatsApp reminders go out with the e-mail reminder when a provider is set up (tested with faked HTTP). Staff-made bookings never need a deposit; the deposit is not deducted automatically on the order, staff see the amount
 
 ## 9i. Marketing growth (v2 gap work)
 

@@ -25,6 +25,9 @@
                 <x-ui.input name="lead_minutes" type="number" min="0" :label="__('reservations.lead')" :value="$s['lead_minutes']" required />
                 <x-ui.input name="days_ahead" type="number" min="1" max="365" :label="__('reservations.days_ahead')" :value="$s['days_ahead']" required />
                 <x-ui.input name="max_covers" type="number" min="1" :label="__('reservations.max_covers')" :value="$s['max_covers']" :hint="__('reservations.max_covers_hint')" required />
+ <x-ui.input name="deposit_per_person" type="number" step="0.01" min="0" :label="__('reservations.deposit_setting')" :value="$s['deposit_per_person']" :hint="__('reservations.deposit_setting_hint')" />
+                <x-ui.input name="deposit_hold_minutes" type="number" min="5" max="120" :label="__('reservations.deposit_hold')" :value="$s['deposit_hold_minutes']" />
+                <x-ui.input name="deposit_refund_hours" type="number" min="0" max="720" :label="__('reservations.deposit_refund')" :value="$s['deposit_refund_hours']" :hint="__('reservations.deposit_refund_hint')" />
                 <x-ui.input name="remind_hours" type="number" min="0" max="48" :label="__('reservations.remind')" :value="$s['remind_hours']" :hint="__('reservations.remind_hint')" required />
             </div>
         </x-ui.card>

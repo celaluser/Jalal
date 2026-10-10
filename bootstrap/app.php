@@ -16,7 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // iyzico posts the customer back from its hosted page; confirmation is re-checked server-side.
-        $middleware->validateCsrfTokens(except: ['billing/return/*', 'auth/social/apple/callback', '*/pay/*/webhook', 'pay/*/webhook', '*/order/*/pay/return', 'order/*/pay/return', 'print/*']);
+        $middleware->validateCsrfTokens(except: ['billing/return/*', 'auth/social/apple/callback', '*/pay/*/webhook', 'pay/*/webhook', '*/order/*/pay/return', 'order/*/pay/return', '*/reserve/*/pay/return', 'reserve/*/pay/return', 'print/*']);
 
         $middleware->web(append: [\App\Modules\Core\Http\Middleware\SecurityHeaders::class, \App\Modules\Admin\Http\Middleware\PseudoCron::class]);
 

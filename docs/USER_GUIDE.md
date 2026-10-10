@@ -20,6 +20,8 @@
 
 Turn on **Reservations** (plan feature) to let guests book a table online. Set slot length, stay length, notice period and opening hours. Confirm, seat and mark no-shows on the day view.
 
+**Deposits**: set an amount per guest in *Reservation settings* (needs online payments with your own gateway account). Guests pay right after booking, the table is held for the minutes you choose, and unpaid bookings are released by themselves. Cancel early and the deposit goes back (automatically with Stripe; with other gateways the booking shows *to pay back* and you refund it in the gateway's dashboard, then press *Mark as paid back*). Late cancellations and no-shows keep the deposit. When the guest comes, the day view shows the deposit so you can take it off the bill.
+
 ## Marketing
 
 - **Customers** are created from orders. Guests tick a box to receive marketing; you can only mail those who agreed, and every message has a stop link.

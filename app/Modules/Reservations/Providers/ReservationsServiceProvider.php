@@ -4,6 +4,7 @@ namespace App\Modules\Reservations\Providers;
 
 use App\Modules\Core\Mail\EmailTemplateRegistry;
 use App\Modules\Core\Support\RestaurantNav;
+use App\Modules\Reservations\Console\ExpireDeposits;
 use App\Modules\Reservations\Console\SendReminders;
 use Illuminate\Support\ServiceProvider;
 
@@ -15,7 +16,7 @@ class ReservationsServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
         $this->loadViewsFrom(__DIR__.'/../Resources/views', 'reservations');
         $this->loadRoutesFrom(__DIR__.'/../routes.php');
-        $this->commands([SendReminders::class]);
+        $this->commands([SendReminders::class, ExpireDeposits::class]);
 
         RestaurantNav::add('orders', 'panel.nav.reservations', 'reservations.index', 'reservations.index', icon: 'clock', can: 'orders.create');
         RestaurantNav::add('settings', 'panel.nav.reservation_settings', 'reservations.settings', 'reservations.settings', icon: 'sliders', can: 'reservations.manage');

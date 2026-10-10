@@ -42,6 +42,9 @@ class ApiResources
             'id' => $r->id, 'status' => $r->status, 'name' => $r->name, 'phone' => $r->phone, 'email' => $r->email, 'party_size' => $r->party_size,
             'starts_at' => $r->starts_at?->toIso8601String(), 'duration_minutes' => $r->duration_minutes, 'table_id' => $r->table_id, 'note' => $r->note, 'source' => $r->source,
             'created_at' => $r->created_at?->toIso8601String(),
+            'deposit_cents' => $r->deposit_cents, 'deposit_status' => $r->deposit_status,
+            // Guests manage (and pay a deposit for) their booking here.
+            'manage_url' => ($restaurant = \App\Modules\Tenancy\Models\Restaurant::find($r->restaurant_id))?->publicUrl('reserve/'.$r->token),
         ];
     }
 

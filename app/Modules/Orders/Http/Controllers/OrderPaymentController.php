@@ -115,7 +115,10 @@ class OrderPaymentController extends Controller
         }
 
         if ($notification !== null) {
-            $this->online->finalize($notification->invoiceNumber, $notification);
+            // "D…" references are reservation deposits, everything else is an order payment.
+            \App\Modules\Reservations\Services\ReservationDeposits::isDepositReference($notification->invoiceNumber)
+                ? app(\App\Modules\Reservations\Services\ReservationDeposits::class)->finalize($notification->invoiceNumber, $notification)
+                : $this->online->finalize($notification->invoiceNumber, $notification);
         }
 
         return response()->json(['ok' => true]);

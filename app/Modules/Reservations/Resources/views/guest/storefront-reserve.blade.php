@@ -34,7 +34,17 @@
         </div>
         <p class="menu-muted text-xs">{{ __('reservations.contact_help') }}</p>
         <div><label for="note" class="mb-1 block text-sm font-semibold">{{ __('reservations.note') }}</label><textarea id="note" name="note" rows="2" maxlength="300" class="menu-card w-full px-3 py-2.5">{{ old('note') }}</textarea></div>
-        <button class="menu-btn w-full !py-3.5" :disabled="!time">{{ __('reservations.book') }}</button>
+        @if ($deposit)
+            <div class="menu-card space-y-2 p-3 text-sm">
+                <p class="font-semibold">{{ __('reservations.deposit_title', ['amount' => $deposit['per_person']]) }}</p>
+                <p class="menu-muted">{{ __('reservations.deposit_terms', ['hours' => $deposit['refund_hours'], 'minutes' => $deposit['hold']]) }}</p>
+                @if (count($deposit['gateways']) > 1)
+                    <label class="block"><span class="mb-1 block font-semibold">{{ __('reservations.deposit_pay_with') }}</span>
+                        <select name="gateway" class="menu-card w-full px-3 py-2.5">@foreach ($deposit['gateways'] as $code => $name)<option value="{{ $code }}">{{ $name }}</option>@endforeach</select></label>
+                @endif
+            </div>
+        @endif
+        <button class="menu-btn w-full !py-3.5" :disabled="!time">{{ $deposit ? __('reservations.book_and_pay') : __('reservations.book') }}</button>
     </form>
 </main>
 <script>

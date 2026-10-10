@@ -12,15 +12,16 @@ class Reservation extends Model
 {
     use BelongsToRestaurant;
 
-    public const ACTIVE = ['pending', 'confirmed', 'seated'];
+    /** 'awaiting' = booked but the deposit is not paid yet; the table is held for a few minutes. */
+    public const ACTIVE = ['awaiting', 'pending', 'confirmed', 'seated'];
 
-    public const STATUSES = ['pending', 'confirmed', 'seated', 'completed', 'cancelled', 'no_show'];
+    public const STATUSES = ['awaiting', 'pending', 'confirmed', 'seated', 'completed', 'cancelled', 'no_show'];
 
     protected $guarded = ['id', 'restaurant_id', 'token'];
 
     protected function casts(): array
     {
-        return ['starts_at' => 'datetime', 'reminded_at' => 'datetime', 'party_size' => 'integer', 'duration_minutes' => 'integer'];
+        return ['starts_at' => 'datetime', 'reminded_at' => 'datetime', 'deposit_paid_at' => 'datetime', 'deposit_cents' => 'integer', 'party_size' => 'integer', 'duration_minutes' => 'integer'];
     }
 
     public function table(): BelongsTo

@@ -44,13 +44,22 @@ class ReservationService
             throw new InvalidArgumentException('not_available');
         }
 
+        // A guest booking that needs a deposit waits for the payment before it counts as a booking; staff bookings never do.
+        $deposit = $staff ? 0 : $this->settings->depositCents($restaurant, (int) $data['party_size']);
+
         $res = new Reservation([
             'name' => mb_substr(trim(strip_tags($data['name'])), 0, 80), 'phone' => $data['phone'] ?? null, 'email' => isset($data['email']) ? mb_strtolower($data['email']) : null,
             'party_size' => (int) $data['party_size'], 'starts_at' => $at->utc(), 'duration_minutes' => $s['duration_minutes'],
-            'status' => $s['auto_confirm'] || $staff ? 'confirmed' : 'pending', 'source' => $source,
+            'status' => $deposit > 0 ? 'awaiting' : ($s['auto_confirm'] || $staff ? 'confirmed' : 'pending'), 'source' => $source,
             'note' => isset($data['note']) ? mb_substr(trim(strip_tags($data['note'])), 0, 300) ?: null : null, 'locale' => $data['locale'] ?? app()->getLocale(),
         ]);
-        $res->forceFill(['token' => Str::lower(Str::random(24))])->save();
+        $res->forceFill(['token' => Str::lower(Str::random(24)), 'deposit_cents' => $deposit, 'deposit_status' => $deposit > 0 ? 'pending' : 'none'])->save();
+
+        if ($res->status === 'awaiting') {
+            event(new ReservationBooked($res));
+
+            return $res; // the confirmation e-mail goes out once the deposit is paid (see ReservationDeposits::finalize)
+        }
 
         if ($res->status === 'confirmed') {
             $res->update(['table_id' => $this->availability->pickTable($restaurant, $res)?->id]);
@@ -76,9 +85,9 @@ class ReservationService
         return $res;
     }
 
-    public function setStatus(Restaurant $restaurant, Reservation $res, string $to): Reservation
+    public function setStatus(Restaurant $restaurant, Reservation $res, string $to, string $by = 'staff'): Reservation
     {
-        $allowed = ['pending' => ['confirmed', 'cancelled'], 'confirmed' => ['seated', 'cancelled', 'no_show'], 'seated' => ['completed']][$res->status] ?? [];
+        $allowed = ['awaiting' => ['cancelled'], 'pending' => ['confirmed', 'cancelled'], 'confirmed' => ['seated', 'cancelled', 'no_show'], 'seated' => ['completed']][$res->status] ?? [];
 
         if (! in_array($to, $allowed, true)) {
             throw new InvalidArgumentException('invalid_transition');
@@ -90,6 +99,7 @@ class ReservationService
 
         $from = $res->status;
         $res->update(['status' => $to]);
+        app(ReservationDeposits::class)->settle($restaurant, $res, $to, $by);
         event(new ReservationStatusChanged($res, $from, $to));
 
         if ($to === 'cancelled') {
@@ -102,11 +112,11 @@ class ReservationService
     /** A guest cancels from their own link, up to the start. */
     public function cancelByGuest(Restaurant $restaurant, Reservation $res): Reservation
     {
-        if (! in_array($res->status, ['pending', 'confirmed'], true) || $res->starts_at->isPast()) {
+        if (! in_array($res->status, ['awaiting', 'pending', 'confirmed'], true) || $res->starts_at->isPast()) {
             throw new InvalidArgumentException('cannot_cancel');
         }
 
-        return $this->setStatus($restaurant, $res, 'cancelled');
+        return $this->setStatus($restaurant, $res, 'cancelled', 'guest');
     }
 
     /** A text-message reminder (SMS or WhatsApp, whichever the platform has set up). Silent when there is no provider, no number or no allowance left. */
