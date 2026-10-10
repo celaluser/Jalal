@@ -2,17 +2,32 @@
     <x-ui.page-header :title="__('ui.welcome', ['name' => strtok($user->name, ' ')])" :description="$restaurant ? __('tenancy.dashboard_sub', ['restaurant' => $restaurant->name]) : null" />
 
     @if ($restaurant)
-        <div class="grid gap-5 lg:grid-cols-3">
-            {{-- Public menu address: the thing a restaurant shares first --}}
-            <div class="relative flex flex-col justify-between gap-8 overflow-hidden rounded-2xl bg-ink-950 p-6 text-white shadow-card lg:col-span-2" x-data="{ copied: false }">
-                <x-ui.qr-pattern class="pointer-events-none absolute -end-8 -top-8 size-52 text-white/[0.07]" :seed="9" />
-                <div class="relative"><p class="text-sm font-medium text-ink-300">{{ __('tenancy.menu_address') }}</p>
-                <p class="display mt-2 break-all text-2xl font-semibold sm:text-3xl">{{ $menuUrl }}</p></div>
-                <div class="relative flex flex-wrap gap-2">
-                    <button type="button" class="btn btn-primary btn-sm" x-on:click="navigator.clipboard.writeText(@js($menuUrl)).then(() => { copied = true; setTimeout(() => copied = false, 1800) })">
-                        <x-ui.icon name="check" size="4" x-show="copied" x-cloak /><span x-text="copied ? @js(__('tenancy.copied')) : @js(__('tenancy.copy_link'))"></span>
-                    </button>
+        <div class="grid items-start gap-5 lg:grid-cols-3">
+            <div class="space-y-5 lg:col-span-2">
+                {{-- Public menu address: the thing a restaurant shares first --}}
+                <div class="relative flex flex-col justify-between gap-8 overflow-hidden rounded-2xl bg-ink-950 p-6 text-white shadow-card" x-data="{ copied: false }">
+                    <x-ui.qr-pattern class="pointer-events-none absolute -end-8 -top-8 size-52 text-white/[0.07]" :seed="9" />
+                    <div class="relative"><p class="text-sm font-medium text-ink-300">{{ __('tenancy.menu_address') }}</p>
+                    <p class="display mt-2 break-all text-2xl font-semibold sm:text-3xl">{{ $menuUrl }}</p></div>
+                    <div class="relative flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-primary btn-sm" x-on:click="navigator.clipboard.writeText(@js($menuUrl)).then(() => { copied = true; setTimeout(() => copied = false, 1800) })">
+                            <x-ui.icon name="check" size="4" x-show="copied" x-cloak /><span x-text="copied ? @js(__('tenancy.copied')) : @js(__('tenancy.copy_link'))"></span>
+                        </button>
+                    </div>
                 </div>
+
+            <div class="grid gap-5 sm:grid-cols-2">
+                @can('support.manage')
+                    <a href="{{ route('support.index') }}" class="card group flex items-start gap-4 p-5 transition hover:border-line-strong hover:shadow-pop">
+                        <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2"><x-ui.icon name="life-buoy" size="5" /></span>
+                        <span><span class="block font-semibold">{{ __('tenancy.help_title') }}</span><span class="mt-0.5 block text-sm text-muted">{{ __('tenancy.help_text') }}</span></span>
+                    </a>
+                @endcan
+                <a href="{{ route('two-factor.show') }}" class="card group flex items-start gap-4 p-5 transition hover:border-line-strong hover:shadow-pop">
+                    <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2"><x-ui.icon name="shield" size="5" /></span>
+                    <span><span class="block font-semibold">{{ __('auth.two_factor') }}</span><span class="mt-0.5 block text-sm text-muted">{{ $user->hasTwoFactorEnabled() ? __('tenancy.two_factor_on') : __('tenancy.two_factor_off') }}</span></span>
+                </a>
+            </div>
             </div>
 
             <x-ui.card :title="__('tenancy.your_plan')">
@@ -31,19 +46,6 @@
                     <x-ui.empty icon="layers" :title="__('tenancy.no_plan')" :text="__('tenancy.no_plan_text')" class="!py-6" />
                 @endif
             </x-ui.card>
-        </div>
-
-        <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            @can('support.manage')
-                <a href="{{ route('support.index') }}" class="card group flex items-start gap-4 p-5 transition hover:border-line-strong hover:shadow-pop">
-                    <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2"><x-ui.icon name="life-buoy" size="5" /></span>
-                    <span><span class="block font-semibold">{{ __('tenancy.help_title') }}</span><span class="mt-0.5 block text-sm text-muted">{{ __('tenancy.help_text') }}</span></span>
-                </a>
-            @endcan
-            <a href="{{ route('two-factor.show') }}" class="card group flex items-start gap-4 p-5 transition hover:border-line-strong hover:shadow-pop">
-                <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-2"><x-ui.icon name="shield" size="5" /></span>
-                <span><span class="block font-semibold">{{ __('auth.two_factor') }}</span><span class="mt-0.5 block text-sm text-muted">{{ $user->hasTwoFactorEnabled() ? __('tenancy.two_factor_on') : __('tenancy.two_factor_off') }}</span></span>
-            </a>
         </div>
     @endif
 </x-layouts.app>
