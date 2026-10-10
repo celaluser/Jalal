@@ -37,6 +37,7 @@
                         $selects = [
                             ['font', array_keys(config('themes.fonts')), 'menu.appearance.fonts.', false], ['layout', config('themes.layouts'), 'menu.appearance.layouts.', false], ['radius', array_keys(config('themes.radii')), 'menu.appearance.radii.', true],
                             ['bg_style', config('themes.backgrounds'), 'admin.themes.bg_styles.', true], ['card', config('themes.cards'), 'menu.appearance.cards.', true], ['scrollbar', config('themes.scrollbars'), 'menu.appearance.scrollbars.', true], ['reveal', config('themes.reveals'), 'menu.appearance.reveals.', false],
+                            ['decor', config('themes.decors'), 'menu.appearance.decors.', false], ['button', config('themes.buttons'), 'menu.appearance.buttons.', false], ['heading', config('themes.headings'), 'menu.appearance.headings.', false], ['hover', config('themes.hovers'), 'menu.appearance.hovers.', false],
                         ];
                     @endphp
                     @foreach ($selects as [$field, $values, $prefix, $bind])

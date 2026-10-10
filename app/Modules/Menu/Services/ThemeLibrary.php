@@ -155,6 +155,10 @@ class ThemeLibrary
             'card' => ['required', 'in:'.implode(',', config('themes.cards'))],
             'scrollbar' => ['required', 'in:'.implode(',', config('themes.scrollbars'))],
             'reveal' => ['required', 'in:'.implode(',', config('themes.reveals'))],
+            'decor' => ['required', 'in:'.implode(',', config('themes.decors'))],
+            'button' => ['required', 'in:'.implode(',', config('themes.buttons'))],
+            'heading' => ['required', 'in:'.implode(',', config('themes.headings'))],
+            'hover' => ['required', 'in:'.implode(',', config('themes.hovers'))],
             'progress' => ['nullable', 'boolean'],
             'animated_bg' => ['nullable', 'boolean'],
         ];
@@ -172,7 +176,7 @@ class ThemeLibrary
             $out[$c] = strtolower((string) $data[$c]);
         }
 
-        foreach (['font', 'layout', 'radius', 'bg_style', 'card', 'scrollbar', 'reveal'] as $f) {
+        foreach (['font', 'layout', 'radius', 'bg_style', 'card', 'scrollbar', 'reveal', 'decor', 'button', 'heading', 'hover'] as $f) {
             $out[$f] = (string) $data[$f];
         }
 
@@ -208,6 +212,10 @@ class ThemeLibrary
             'card' => $pick($t['card'] ?? null, config('themes.cards'), 'flat'),
             'scrollbar' => $pick($t['scrollbar'] ?? null, config('themes.scrollbars'), 'default'),
             'reveal' => $pick($t['reveal'] ?? null, config('themes.reveals'), 'none'),
+            'decor' => $pick($t['decor'] ?? null, config('themes.decors'), 'none'),
+            'button' => $pick($t['button'] ?? null, config('themes.buttons'), 'solid'),
+            'heading' => $pick($t['heading'] ?? null, config('themes.headings'), 'plain'),
+            'hover' => $pick($t['hover'] ?? null, config('themes.hovers'), 'none'),
             'progress' => (bool) ($t['progress'] ?? false),
             'animated_bg' => (bool) ($t['animated_bg'] ?? false),
         ];

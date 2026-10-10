@@ -60,7 +60,7 @@
 
             <x-ui.card :title="__('menu.appearance.effects')" :description="__('menu.appearance.effects_help')">
                 <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    @foreach ([['scrollbar', config('themes.scrollbars'), 'scrollbars'], ['reveal', config('themes.reveals'), 'reveals'], ['card', config('themes.cards'), 'cards']] as [$field, $values, $group])
+                    @foreach ([['scrollbar', config('themes.scrollbars'), 'scrollbars'], ['reveal', config('themes.reveals'), 'reveals'], ['card', config('themes.cards'), 'cards'], ['decor', config('themes.decors'), 'decors'], ['button', config('themes.buttons'), 'buttons'], ['heading', config('themes.headings'), 'headings'], ['hover', config('themes.hovers'), 'hovers']] as [$field, $values, $group])
                         <div>
                             <label for="{{ $field }}" class="mb-1.5 block text-sm font-medium">{{ __('menu.appearance.'.$field) }}</label>
                             <select id="{{ $field }}" name="{{ $field }}" class="field">

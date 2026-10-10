@@ -39,3 +39,6 @@ Pitfalls: with the sync queue, jobs run immediately; tenant-scoped relations ret
 ## Building the manual
 
 `php artisan docs:licenses` then `php artisan docs:build` writes `docs/html/index.html`.
+
+## Responsive check
+`docs/tools/responsive-audit.js` opens every admin, panel, guest and public page at a phone width (default 360 px, set `W=320` for the smallest) and prints the pages that scroll sideways or have tiny touch targets. Run it against a demo install after changing layouts or CSS. Rules that keep pages from widening: grids start from a single `minmax(0, 1fr)` column (`resources/css/app.css`), flex children that hold long text carry `min-w-0`, and wide tables sit in an `overflow-x-auto` wrapper.

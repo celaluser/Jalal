@@ -108,6 +108,27 @@
 }
 
 @layer base {
+  /* A grid with no column template gets one implicit column sized by its widest content, which pushes phone screens sideways.
+     Utilities such as grid-cols-2 or sm:grid-cols-3 still win because they live in a later layer. */
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .grid > * { min-width: 0; }
+  /* Long unbroken strings (URLs, keys, codes) wrap instead of widening the page. */
+  code, pre { overflow-wrap: anywhere; }
+  pre { white-space: pre-wrap; }
+
+  /* Fingers need bigger targets than pointers (44px is the comfortable size, 40px the floor used here).
+     :where() keeps these rules weaker than any utility class, so a component can still choose its own size. */
+  @media (pointer: coarse) {
+    :where(.btn) { min-height: 2.75rem; }
+    :where(.btn-sm) { min-height: 2.5rem; padding-inline: 0.875rem; }
+    :where(button, [role='button'], summary, select, a.flex, a.inline-flex, a.block, a.grid) { min-height: 2.5rem; }
+    :where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='hidden'], [type='color'], [type='file'])) { min-height: 2.5rem; }
+    :where(button.size-7, button.size-8, button.size-9) { min-width: 2.5rem; }
+    :where(.check, input[type='checkbox'], input[type='radio']) { min-width: 1.25rem; min-height: 1.25rem; }
+    :where(.menu-add) { min-width: 2.75rem; min-height: 2.75rem; }
+    :where(.menu-hero a, .menu-chip) { min-height: 2.5rem; display: inline-flex; align-items: center; }
+    :where(footer a) { display: inline-block; padding-block: 0.5rem; }
+  }
     html { color-scheme: light; }
     html.dark { color-scheme: dark; }
 

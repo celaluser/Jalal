@@ -42,7 +42,7 @@ function mtShop(string $theme = 'aurora', array $menu = []): array
 function mtData(array $over = []): array
 {
     return $over + ['name' => 'Custom', 'dark' => '1', 'bg' => '#101820', 'bg2' => '#203040', 'surface' => '#182430', 'fg' => '#f0f0f0', 'muted' => '#aab0b8', 'line' => '#2c3a48', 'font' => 'display', 'layout' => 'cards', 'radius' => 'round',
-        'bg_style' => 'gradient', 'card' => 'glass', 'scrollbar' => 'glow', 'reveal' => 'rise', 'progress' => '1'];
+        'bg_style' => 'gradient', 'card' => 'glass', 'scrollbar' => 'glow', 'reveal' => 'rise', 'decor' => 'orbs', 'button' => 'gradient', 'heading' => 'glow', 'hover' => 'lift', 'progress' => '1'];
 }
 
 it('ships three dynamic themes with their own motion settings', function () {
@@ -120,4 +120,16 @@ it('rejects bad colours and unknown styles, and always keeps one theme on', func
     expect(app(ThemeLibrary::class)->enabled())->not->toBeEmpty();
     $this->actingAs($admin)->post(route('admin.themes.default', 'sunset'))->assertRedirect();
     expect(app(ThemeLibrary::class)->defaultKey())->toBe('sunset');
+});
+
+it('draws the decoration, gradient buttons and card hover of a theme, and lets a restaurant turn them off', function () {
+    [$r, $owner] = mtShop('neon');
+    $html = $this->get('/r/'.$r->slug)->assertOk()->getContent();
+    expect($html)->toContain('background-size:44px 44px')->toContain('.menu-card:hover{box-shadow')->toContain('text-shadow:0 0 14px');
+
+    $this->actingAs($owner)->put(route('appearance.update'), ['theme' => 'neon', 'font' => 'sans', 'layout' => 'cards', 'radius' => 'soft', 'decor' => 'none', 'button' => 'solid', 'heading' => 'plain', 'hover' => 'none'])->assertSessionHasNoErrors();
+    $html = $this->get('/r/'.$r->slug)->assertOk()->getContent();
+    expect($html)->not->toContain('background-size:44px 44px')->not->toContain('.menu-card:hover{box-shadow')->not->toContain('text-shadow:0 0 14px');
+
+    $this->actingAs($owner)->put(route('appearance.update'), ['theme' => 'neon', 'font' => 'sans', 'layout' => 'cards', 'radius' => 'soft', 'decor' => 'fireworks'])->assertSessionHasErrors('decor');
 });

@@ -363,6 +363,7 @@ return [
         'saved' => 'Theme ":name" saved.', 'form_title' => 'Edit theme', 'name' => 'Name',
         'colours' => 'Colours', 'bg' => 'Page background', 'bg2' => 'Second background colour', 'surface' => 'Card surface', 'fg' => 'Text', 'muted' => 'Secondary text', 'line' => 'Lines and borders',
         'style' => 'Style', 'font' => 'Font', 'layout' => 'Product layout', 'radius' => 'Corners', 'bg_style' => 'Background', 'card' => 'Cards', 'motion' => 'Motion', 'scrollbar' => 'Scroll bar', 'reveal' => 'Reveal on scroll',
+        'decor' => 'Background decoration', 'button' => 'Buttons', 'heading' => 'Headings', 'hover' => 'Card on touch or hover',
         'progress' => 'Reading progress bar', 'animated_bg' => 'Slowly moving background',
         'bg_styles' => ['solid' => 'Solid colour', 'gradient' => 'Gradient', 'mesh' => 'Colour mesh (uses the restaurant\'s brand colour)'],
         'note' => 'Buttons and highlights always use each restaurant\'s own brand colour. Restaurants can still change font, layout, corners and motion for their own menu.',

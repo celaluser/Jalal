@@ -47,10 +47,10 @@
         <div x-show="open" x-cloak x-transition.opacity class="fixed inset-0 z-30 bg-ink-950/60 backdrop-blur-sm {{ $tablet ? '' : 'lg:hidden' }}" x-on:click="open = false"></div>
 
         <div class="flex min-w-0 flex-1 flex-col">
-            <header class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur sm:px-6">
+            <header class="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-line bg-surface/85 px-3 backdrop-blur sm:gap-3 sm:px-6">
                 <button type="button" class="grid size-9 place-items-center rounded-lg text-muted hover:bg-surface-2 {{ $tablet ? '' : 'lg:hidden' }}" x-on:click="open = true" aria-controls="sidebar" aria-label="{{ __('ui.menu') }}"><x-ui.icon name="menu" /></button>
                 <p class="min-w-0 flex-1 truncate text-sm font-medium text-muted">{{ $title }}</p>
-                <x-ui.language-switcher />
+                <div class="hidden sm:block"><x-ui.language-switcher /></div>
                 <x-ui.theme-toggle />
                 <div class="relative" x-data="{ menu: false }" x-on:click.outside="menu = false" x-on:keydown.escape="menu = false">
                     <button type="button" class="flex items-center gap-2 rounded-xl p-1 pe-2 transition hover:bg-surface-2" x-on:click="menu = !menu" aria-haspopup="menu" :aria-expanded="menu">
@@ -60,6 +60,8 @@
                     </button>
                     <div x-show="menu" x-cloak x-transition.origin.top.right role="menu" class="absolute end-0 mt-2 w-60 overflow-hidden rounded-xl border border-line bg-surface shadow-pop">
                         <div class="border-b border-line px-4 py-3"><p class="truncate text-sm font-semibold">{{ $user->name }}</p><p class="truncate text-xs text-muted">{{ $user->email }}</p></div>
+                        {{-- The header has no room for the language buttons on a phone, so they live here. --}}
+                        <div class="border-b border-line px-3 py-2 sm:hidden"><x-ui.language-switcher /></div>
                         <div class="p-1.5 text-sm">
                             @if ($user->restaurant_id)
                                 <form method="POST" action="{{ route('tablet.toggle') }}">@csrf<button role="menuitem" class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-start hover:bg-surface-2"><x-ui.icon name="layout" size="4" class="text-muted" />{{ $tablet ? __('ui.tablet_off') : __('ui.tablet_on') }}</button></form>

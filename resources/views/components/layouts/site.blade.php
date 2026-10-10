@@ -24,7 +24,7 @@
                     @if ($logo)<img src="{{ $logo }}" alt="" class="h-8 w-auto">@else<x-ui.qr-mark size="8" />@endif
                     <span class="display text-lg font-semibold">{{ config('app.name') }}</span>
                 </a>
-                <nav class="hidden items-center gap-1 text-sm font-medium md:flex" aria-label="{{ __('site.nav.label') }}">
+                <nav class="hidden items-center gap-1 text-sm font-medium lg:flex" aria-label="{{ __('site.nav.label') }}">
                     @foreach ($links as $url => $label)<a href="{{ $url }}" class="rounded-lg px-3 py-2 text-muted transition hover:bg-surface-2 hover:text-fg">{{ $label }}</a>@endforeach
                 </nav>
                 <div class="flex items-center gap-2">
@@ -36,10 +36,10 @@
                         <a href="{{ route('login') }}" class="btn btn-ghost btn-sm hidden sm:inline-flex">{{ __('auth.login') }}</a>
                         @if ($registration)<a href="{{ route('register') }}" class="btn btn-primary btn-sm hidden sm:inline-flex">{{ __('site.nav.start') }}</a>@endif
                     @endauth
-                    <button type="button" class="grid size-9 place-items-center rounded-lg text-muted hover:bg-surface-2 md:hidden" x-on:click="open = !open" :aria-expanded="open" aria-controls="mobile-nav" aria-label="{{ __('ui.menu') }}"><x-ui.icon name="menu" x-show="!open" /><x-ui.icon name="x" x-show="open" x-cloak /></button>
+                    <button type="button" class="grid size-9 place-items-center rounded-lg text-muted hover:bg-surface-2 lg:hidden" x-on:click="open = !open" :aria-expanded="open" aria-controls="mobile-nav" aria-label="{{ __('ui.menu') }}"><x-ui.icon name="menu" x-show="!open" /><x-ui.icon name="x" x-show="open" x-cloak /></button>
                 </div>
             </div>
-            <div id="mobile-nav" x-show="open" x-cloak x-transition class="border-t border-line bg-surface px-4 pb-5 pt-3 md:hidden">
+            <div id="mobile-nav" x-show="open" x-cloak x-transition class="border-t border-line bg-surface px-4 pb-5 pt-3 lg:hidden">
                 <nav class="flex flex-col text-base font-medium" aria-label="{{ __('site.nav.label') }}">
                     @foreach ($links as $url => $label)<a href="{{ $url }}" x-on:click="open = false" class="rounded-lg px-3 py-3 hover:bg-surface-2">{{ $label }}</a>@endforeach
                 </nav>

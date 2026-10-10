@@ -22,7 +22,7 @@
         </aside>
 
         <div class="flex flex-col px-5 py-8 sm:px-10">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-wrap items-center justify-between gap-3">
                 <a href="{{ route('home') }}" class="flex items-center gap-2.5 lg:invisible">
                     <x-ui.qr-mark size="8" /><span class="display font-semibold">{{ config('app.name') }}</span>
                 </a>
