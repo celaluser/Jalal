@@ -10,13 +10,14 @@ use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Marketing\Models\Campaign;
 use App\Modules\Marketing\Models\CampaignRecipient;
 use App\Modules\Marketing\Models\Customer;
+use App\Modules\Marketing\Models\CustomerSegment;
 use App\Modules\Marketing\Models\GiftCard;
 use App\Modules\Marketing\Models\PriceRule;
 use App\Modules\Marketing\Models\PromoCode;
-use App\Modules\Marketing\Models\Review;
 use App\Modules\Marketing\Services\CampaignService;
 use App\Modules\Marketing\Services\GiftCards;
 use App\Modules\Marketing\Services\Nps;
+use App\Modules\Marketing\Services\SegmentRules;
 use App\Modules\Marketing\Services\Segments;
 use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\Product;
@@ -25,6 +26,7 @@ use App\Modules\Orders\Exceptions\OrderException;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\OrderService;
 use App\Modules\Orders\Support\OrderStatus;
+use App\Modules\Storefront\Http\Controllers\AccountController;
 use App\Modules\Storefront\Services\CartPricing;
 use App\Modules\Tenancy\Models\Restaurant;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -346,7 +348,7 @@ describe('birthdays', function () {
     it('lets a guest save day and month, never the year, and rejects impossible dates', function () {
         [$r] = gxShop();
         $c = gxCustomer($r, ['email' => 'bday@example.com']);
-        $session = [\App\Modules\Storefront\Http\Controllers\AccountController::sessionKey($r->id) => $c->id];
+        $session = [AccountController::sessionKey($r->id) => $c->id];
 
         $this->withSession($session)->put("/r/{$r->slug}/account", ['name' => 'Ada', 'birth_month' => 2, 'birth_day' => 29])->assertSessionHasNoErrors();
         expect($c->fresh()->only(['birth_month', 'birth_day']))->toBe(['birth_month' => 2, 'birth_day' => 29]);
@@ -396,7 +398,7 @@ describe('saved segments', function () {
         gxCustomer($r, ['orders_count' => 1, 'total_cents' => 900, 'last_order_at' => now()->subDays(90)]);           // too few orders
         gxCustomer($r, ['orders_count' => 5, 'total_cents' => 20000, 'last_order_at' => now()->subDays(90), 'marketing_opt_in' => false]);
 
-        $segment = gxIn($r, fn () => \App\Modules\Marketing\Models\CustomerSegment::create(['name' => 'Gone quiet', 'rules' => app(\App\Modules\Marketing\Services\SegmentRules::class)->clean(['min_orders' => 3, 'inactive_for_days' => 60, 'min_spent' => '100'])]));
+        $segment = gxIn($r, fn () => CustomerSegment::create(['name' => 'Gone quiet', 'rules' => app(SegmentRules::class)->clean(['min_orders' => 3, 'inactive_for_days' => 60, 'min_spent' => '100'])]));
         $ids = gxIn($r, fn () => app(CampaignService::class)->audience(new Campaign(['channel' => 'email', 'segment' => 'custom:'.$segment->id, 'min_orders' => 0]), $r)->pluck('id')->all());
         expect($ids)->toBe([$quiet->id]);
     });
@@ -406,7 +408,7 @@ describe('saved segments', function () {
         $gold = gxCustomer($r, ['orders_count' => 9]);
         $silver = gxCustomer($r, ['orders_count' => 4, 'birth_month' => now()->addMonthNoOverflow()->month]);
         $bronze = gxCustomer($r, ['orders_count' => 1]);
-        $rules = app(\App\Modules\Marketing\Services\SegmentRules::class);
+        $rules = app(SegmentRules::class);
         $match = fn (array $in) => gxIn($r, fn () => $rules->apply(Customer::query(), $in, $r)->pluck('id')->sort()->values()->all());
 
         expect($match(['tier' => 'gold']))->toBe([$gold->id])->and($match(['tier' => 'silver']))->toBe([$silver->id])->and($match(['tier' => 'bronze']))->toBe([$bronze->id])
@@ -416,7 +418,7 @@ describe('saved segments', function () {
     it('ignores unknown or malformed rules, and a missing segment reaches nobody', function () {
         [$r] = gxShop();
         gxCustomer($r);
-        $rules = app(\App\Modules\Marketing\Services\SegmentRules::class);
+        $rules = app(SegmentRules::class);
         expect($rules->clean(['evil' => '1; drop table customers', 'min_orders' => 'abc', 'tier' => 'platinum', 'birthday' => 'whenever', 'min_spent' => '-5']))->toBe(['min_orders' => 0]);
         $ids = gxIn($r, fn () => app(CampaignService::class)->audience(new Campaign(['channel' => 'email', 'segment' => 'custom:9999', 'min_orders' => 0]), $r)->pluck('id')->all());
         expect($ids)->toBe([]);
@@ -427,7 +429,7 @@ describe('saved segments', function () {
         [$other] = gxShop();
         $manager = gxUser($r, 'manager');
         $this->actingAs($manager)->post(route('segments.store'), ['name' => 'Big spenders', 'min_spent' => '250', 'min_orders' => 2])->assertRedirect();
-        $seg = gxIn($r, fn () => \App\Modules\Marketing\Models\CustomerSegment::first());
+        $seg = gxIn($r, fn () => CustomerSegment::first());
         expect($seg->rules)->toBe(['min_orders' => 2, 'min_spent' => 25000]);
 
         $this->actingAs($manager)->get(route('segments.index'))->assertOk()->assertSee('Big spenders')->assertSee('2+ orders');
@@ -438,6 +440,6 @@ describe('saved segments', function () {
         $this->actingAs(gxUser($other, 'manager'))->delete(route('segments.destroy', $seg->id))->assertNotFound();
         $this->actingAs(gxUser($r, 'waiter'))->get(route('segments.index'))->assertForbidden();
         $this->actingAs($manager)->delete(route('segments.destroy', $seg->id))->assertRedirect();
-        expect(gxIn($r, fn () => \App\Modules\Marketing\Models\CustomerSegment::count()))->toBe(0);
+        expect(gxIn($r, fn () => CustomerSegment::count()))->toBe(0);
     });
 });

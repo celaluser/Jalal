@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Billing\Services\LimitGuard;
 use App\Modules\Reservations\Models\Reservation;
 use App\Modules\Reservations\Services\Availability;
+use App\Modules\Reservations\Services\ReservationDeposits;
 use App\Modules\Reservations\Services\ReservationService;
 use App\Modules\Reservations\Services\ReservationSettings;
 use App\Modules\Tables\Models\DiningTable;
@@ -56,7 +57,7 @@ class ReservationController extends Controller
     /** The restaurant paid a "refund due" deposit back by hand (in the gateway's dashboard). */
     public function depositRefunded(int $reservation): RedirectResponse
     {
-        app(\App\Modules\Reservations\Services\ReservationDeposits::class)->markRefunded(Reservation::findOrFail($reservation));
+        app(ReservationDeposits::class)->markRefunded(Reservation::findOrFail($reservation));
 
         return back();
     }

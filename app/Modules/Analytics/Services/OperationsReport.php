@@ -5,6 +5,7 @@ namespace App\Modules\Analytics\Services;
 use App\Models\User;
 use App\Modules\Orders\Support\OrderStatus;
 use App\Modules\Tenancy\Models\Restaurant;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 class OperationsReport
 {
     /**
-     * @param  array{from: \Carbon\CarbonImmutable, to: \Carbon\CarbonImmutable}  $period
+     * @param  array{from: CarbonImmutable, to: CarbonImmutable}  $period
      * @return array{staff: list<array<string, mixed>>, tables: list<array<string, mixed>>}
      */
     public function build(Restaurant $restaurant, array $period): array

@@ -3,8 +3,11 @@
 namespace App\Modules\Analytics\Providers;
 
 use App\Modules\Analytics\Console\WeeklyDigest;
+use App\Modules\Analytics\Services\MenuVisits;
+use App\Modules\Billing\Support\UsageRegistry;
 use App\Modules\Core\Mail\EmailTemplateRegistry;
 use App\Modules\Core\Support\RestaurantNav;
+use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Support\ServiceProvider;
 
 class AnalyticsServiceProvider extends ServiceProvider
@@ -12,7 +15,7 @@ class AnalyticsServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../Database/Migrations');
-        \App\Modules\Billing\Support\UsageRegistry::register('scans_per_month', fn (\App\Modules\Tenancy\Models\Restaurant $r) => app(\App\Modules\Analytics\Services\MenuVisits::class)->monthViews($r));
+        UsageRegistry::register('scans_per_month', fn (Restaurant $r) => app(MenuVisits::class)->monthViews($r));
         $this->loadViewsFrom(__DIR__.'/../Resources/views', 'analytics');
         $this->loadRoutesFrom(__DIR__.'/../routes.php');
 

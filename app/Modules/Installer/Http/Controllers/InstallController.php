@@ -3,6 +3,7 @@
 namespace App\Modules\Installer\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Admin\Services\WebCron;
 use App\Modules\Installer\Services\DatabaseConnector;
 use App\Modules\Installer\Services\InstallerService;
 use App\Modules\Installer\Services\RequirementsChecker;
@@ -139,7 +140,7 @@ class InstallController extends Controller
 
     public function finished(): View
     {
-        return view('installer::finished', ['step' => 5, 'cronUrl' => url('/cron/'.app(\App\Modules\Admin\Services\WebCron::class)->token())]);
+        return view('installer::finished', ['step' => 5, 'cronUrl' => url('/cron/'.app(WebCron::class)->token())]);
     }
 
     /** SQLite files must live inside the project's database folder. */

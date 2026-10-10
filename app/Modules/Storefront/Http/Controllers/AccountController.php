@@ -7,6 +7,7 @@ use App\Modules\Core\Mail\SafeMail;
 use App\Modules\Core\Mail\TemplatedMail;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Marketing\Models\Customer;
+use App\Modules\Marketing\Models\Review;
 use App\Modules\Marketing\Services\CustomerService;
 use App\Modules\Menu\Services\ThemeRegistry;
 use App\Modules\Orders\Models\Order;
@@ -14,7 +15,9 @@ use App\Modules\Storefront\Services\MenuLocale;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Optional guest account, no password: a guest who ordered with an e-mail address asks for a sign-in link,
@@ -93,7 +96,7 @@ class AccountController extends Controller
         $day = $data['birth_day'] ?? null;
 
         if (($month === null) !== ($day === null) || ($month !== null && ! checkdate((int) $month, (int) $day, 2000))) {
-            throw \Illuminate\Validation\ValidationException::withMessages(['birth_day' => __('customer.birthday_invalid')]);
+            throw ValidationException::withMessages(['birth_day' => __('customer.birthday_invalid')]);
         }
 
         $customer->forceFill(['name' => $data['name'] ?? null, 'phone' => $data['phone'] ?? null, 'birth_month' => $month, 'birth_day' => $day])->save();
@@ -109,7 +112,7 @@ class AccountController extends Controller
     }
 
     /** Right of access: everything this restaurant holds about the signed-in guest, as a JSON download. */
-    public function export(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    public function export(Request $request): StreamedResponse
     {
         $customer = $this->mustBeSignedIn($request);
         $orders = Order::with('items')->where('customer_id', $customer->id)->orderBy('id')->get();
@@ -120,7 +123,7 @@ class AccountController extends Controller
                 'number' => $o->number, 'placed_at' => $o->created_at->toIso8601String(), 'status' => $o->status, 'type' => $o->type, 'total_cents' => $o->total_cents, 'currency' => $o->currency_code,
                 'delivery_address' => $o->delivery_address, 'note' => $o->note, 'items' => $o->items->map(fn ($i) => ['name' => $i->name, 'qty' => $i->qty, 'total_cents' => $i->total_cents])->all(),
             ])->all(),
-            'reviews' => \App\Modules\Marketing\Models\Review::where('customer_id', $customer->id)->get(['rating', 'nps', 'comment', 'created_at'])->all(),
+            'reviews' => Review::where('customer_id', $customer->id)->get(['rating', 'nps', 'comment', 'created_at'])->all(),
         ];
 
         return response()->streamDownload(fn () => print json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 'my-data.json', ['Content-Type' => 'application/json']);

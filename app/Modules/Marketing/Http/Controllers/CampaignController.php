@@ -6,10 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Modules\Marketing\Models\Campaign;
 use App\Modules\Marketing\Models\CustomerSegment;
 use App\Modules\Marketing\Services\CampaignService;
-use App\Modules\Marketing\Services\Segments;
 use App\Modules\Marketing\Services\MarketingSettings;
+use App\Modules\Marketing\Services\Segments;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use InvalidArgumentException;
 
@@ -101,7 +102,7 @@ class CampaignController extends Controller
         $email = $request->input('channel', 'email') === 'email';
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'], 'subject' => [$email ? 'required' : 'nullable', 'string', 'max:160'],
-            'channel' => ['nullable', 'in:email,sms,whatsapp'], 'segment' => ['nullable', \Illuminate\Validation\Rule::in(array_merge(Segments::ALL, CustomerSegment::pluck('id')->map(fn ($id) => 'custom:'.$id)->all()))],
+            'channel' => ['nullable', 'in:email,sms,whatsapp'], 'segment' => ['nullable', Rule::in(array_merge(Segments::ALL, CustomerSegment::pluck('id')->map(fn ($id) => 'custom:'.$id)->all()))],
             'body' => ['required', 'string', 'max:'.($email ? 10000 : 600)], 'min_orders' => ['nullable', 'integer', 'min:0', 'max:1000'],
         ]);
 

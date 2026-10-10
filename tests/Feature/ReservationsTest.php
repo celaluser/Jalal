@@ -8,12 +8,16 @@ use App\Modules\Core\Mail\TemplatedMail;
 use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Models\Language;
 use App\Modules\Core\Tenancy\TenantContext;
+use App\Modules\Messaging\Services\MessagingManager;
 use App\Modules\Reservations\Models\Reservation;
 use App\Modules\Reservations\Services\ReservationSettings;
 use App\Modules\Tables\Models\DiningTable;
 use App\Modules\Tenancy\Models\Restaurant;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Http\Client\Factory;
+use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
@@ -84,7 +88,7 @@ it('books a table, tells the guest, and lets them cancel from their link', funct
 });
 
 it('refuses times that are taken, past, or not offered, and bookings with no way to reach the guest', function () {
-    $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class); // this test books more often than the real limit allows
+    $this->withoutMiddleware(ThrottleRequests::class); // this test books more often than the real limit allows
     [$r] = rsShop(['max_covers' => 4]);
     rsBook($this, $r, ['party_size' => 4])->assertRedirect();
     rsBook($this, $r, ['party_size' => 2])->assertSessionHasErrors('time');          // 13:00 is full
@@ -207,18 +211,18 @@ it('reminds guests once, only for confirmed bookings inside the window', functio
 
 it('also texts the reminder to guests with only a phone number, in their language, once', function () {
     Mail::fake();
-    $m = app(\App\Modules\Messaging\Services\MessagingManager::class);
+    $m = app(MessagingManager::class);
     $m->save($m->find('twilio'), ['account_sid' => 'AC1', 'auth_token' => 'tok', 'from' => '+15550001111']);
     $m->choose('sms', 'twilio');
-    \Illuminate\Support\Facades\Http::swap(new \Illuminate\Http\Client\Factory);
-    \Illuminate\Support\Facades\Http::fake(['api.twilio.com/*' => \Illuminate\Support\Facades\Http::response(['sid' => 'SM1'], 201)]);
+    Http::swap(new Factory);
+    Http::fake(['api.twilio.com/*' => Http::response(['sid' => 'SM1'], 201)]);
 
     [$r] = rsShop(['remind_hours' => 3, 'auto_confirm' => true, 'lead_minutes' => 0]);
     app(TenantContext::class)->runAs($r, fn () => (new Reservation(['name' => 'Tuna', 'phone' => '+90 532 111 22 33', 'party_size' => 4, 'starts_at' => now()->addHour()->toDateTimeString(), 'duration_minutes' => 90, 'status' => 'confirmed', 'locale' => 'tr']))->forceFill(['token' => Str::lower(Str::random(24))])->save());
     $this->artisan('reservations:remind')->assertSuccessful();
     $this->artisan('reservations:remind')->assertSuccessful();
 
-    \Illuminate\Support\Facades\Http::assertSentCount(1);
-    \Illuminate\Support\Facades\Http::assertSent(fn ($q) => $q['To'] === '+905321112233' && str_contains($q['Body'], 'hatırlatma') && str_contains($q['Body'], '4 kişilik'));
+    Http::assertSentCount(1);
+    Http::assertSent(fn ($q) => $q['To'] === '+905321112233' && str_contains($q['Body'], 'hatırlatma') && str_contains($q['Body'], '4 kişilik'));
     Mail::assertNothingSent();
 });

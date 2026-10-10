@@ -5,8 +5,10 @@ use App\Modules\Addons\Services\AddonInstaller;
 use App\Modules\Addons\Services\AddonManager;
 use App\Modules\Auth\Support\Permissions;
 use App\Modules\Updater\Exceptions\UpdateException;
+use App\Modules\Updater\Services\UpdatePackage;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -22,7 +24,7 @@ beforeEach(function () {
     ]);
 });
 
-afterEach(fn () => \Illuminate\Support\Facades\File::deleteDirectory($this->dir));
+afterEach(fn () => File::deleteDirectory($this->dir));
 
 /** Builds a signed add-on zip with a service provider that adds a route and a table. @return array{0: string, 1: string} zip path, slug */
 function adPackage(array $over = [], array $files = [], ?string $secret = null, ?string $slug = null): array
@@ -182,5 +184,5 @@ it('installs add-ons signed by a trusted author key, but never accepts that key 
 
     config(['addons.trusted_keys' => [base64_encode(sodium_crypto_sign_publickey($author))]]);
     expect(app(AddonInstaller::class)->install($zip)['slug'])->toBe($slug);
-    expect(fn () => \App\Modules\Updater\Services\UpdatePackage::open($zip))->toThrow(UpdateException::class); // the update path ignores it
+    expect(fn () => UpdatePackage::open($zip))->toThrow(UpdateException::class); // the update path ignores it
 });

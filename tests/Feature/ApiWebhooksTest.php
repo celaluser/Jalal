@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Modules\Api\Jobs\DeliverWebhook;
 use App\Modules\Api\Models\ApiToken;
 use App\Modules\Api\Models\WebhookDelivery;
 use App\Modules\Api\Models\WebhookEndpoint;
@@ -10,7 +11,9 @@ use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Services\SubscriptionService;
 use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Models\Language;
+use App\Modules\Core\Services\SettingsService;
 use App\Modules\Core\Tenancy\TenantContext;
+use App\Modules\Marketing\Models\Customer;
 use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\Product;
 use App\Modules\Orders\Models\Order;
@@ -176,7 +179,7 @@ describe('webhooks', function () {
         expect($d->response_code)->toBe(500)->and($d->error)->toBe('HTTP 500');
 
         $hook->forceFill(['failures' => WebhookEndpoint::MAX_FAILURES - 1])->save();
-        $job = new \App\Modules\Api\Jobs\DeliverWebhook($d->id);
+        $job = new DeliverWebhook($d->id);
         $job->withFakeQueueInteractions();
         $job->job = null;
         // the last allowed try has failed: the delivery is marked failed and the endpoint switches off
@@ -253,7 +256,7 @@ describe('orders, reservations and customers through the api', function () {
         Http::swap(new Factory);
         Http::fake(['8.8.8.8/*' => Http::response('ok', 200)]);
         [$r] = apShop();
-        app(\App\Modules\Core\Services\SettingsService::class)->set('reservations.config', json_encode(['enabled' => true, 'auto_confirm' => false]), $r->id);
+        app(SettingsService::class)->set('reservations.config', json_encode(['enabled' => true, 'auto_confirm' => false]), $r->id);
         $hook = app(TenantContext::class)->runAs($r, function () {
             $e = new WebhookEndpoint(['url' => 'https://8.8.8.8/hook', 'events' => ['reservation.created', 'reservation.status_changed']]);
             $e->secret = 'whsec_t';
@@ -276,8 +279,8 @@ describe('orders, reservations and customers through the api', function () {
     it('lists and searches customers of this restaurant only', function () {
         [$r] = apShop();
         [$other] = apShop();
-        app(TenantContext::class)->runAs($r, fn () => \App\Modules\Marketing\Models\Customer::create(['name' => 'Alice Smith', 'email' => 'alice@example.com', 'marketing_opt_in' => true]));
-        app(TenantContext::class)->runAs($other, fn () => \App\Modules\Marketing\Models\Customer::create(['name' => 'Alice Other', 'email' => 'other@example.com']));
+        app(TenantContext::class)->runAs($r, fn () => Customer::create(['name' => 'Alice Smith', 'email' => 'alice@example.com', 'marketing_opt_in' => true]));
+        app(TenantContext::class)->runAs($other, fn () => Customer::create(['name' => 'Alice Other', 'email' => 'other@example.com']));
         $h = ['Authorization' => 'Bearer '.apToken($r)];
         $this->getJson('/api/v1/customers', $h)->assertForbidden(); // default test token has no customers:read
         $h = ['Authorization' => 'Bearer '.apToken($r, ['customers:read'])];

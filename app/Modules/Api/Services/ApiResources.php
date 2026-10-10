@@ -7,6 +7,7 @@ use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\Product;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Reservations\Models\Reservation;
+use App\Modules\Tenancy\Models\Restaurant;
 
 /** The JSON shape of orders and dishes in the API and in webhooks. Money is always in minor units (cents). */
 class ApiResources
@@ -44,7 +45,7 @@ class ApiResources
             'created_at' => $r->created_at?->toIso8601String(),
             'deposit_cents' => $r->deposit_cents, 'deposit_status' => $r->deposit_status,
             // Guests manage (and pay a deposit for) their booking here.
-            'manage_url' => ($restaurant = \App\Modules\Tenancy\Models\Restaurant::find($r->restaurant_id))?->publicUrl('reserve/'.$r->token),
+            'manage_url' => ($restaurant = Restaurant::find($r->restaurant_id))?->publicUrl('reserve/'.$r->token),
         ];
     }
 

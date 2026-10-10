@@ -3,6 +3,7 @@
 namespace App\Modules\Orders\Services;
 
 use App\Models\User;
+use App\Modules\Billing\Services\LimitGuard;
 use App\Modules\Branches\Models\Branch;
 use App\Modules\Branches\Models\BranchProduct;
 use App\Modules\Core\Tenancy\TenantContext;
@@ -65,7 +66,7 @@ class OrderService
         }
 
         // A plan with a monthly order cap stops taking guest orders once it is used up (staff can still ring orders up).
-        $cap = app(\App\Modules\Billing\Services\LimitGuard::class)->limit($restaurant, 'orders_per_month');
+        $cap = app(LimitGuard::class)->limit($restaurant, 'orders_per_month');
 
         if (! $staff && $cap !== null && Order::where('created_at', '>=', now()->startOfMonth())->where('status', '!=', 'cancelled')->count() >= $cap) {
             throw new OrderException('plan_limit');

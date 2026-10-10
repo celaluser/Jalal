@@ -8,6 +8,7 @@ use App\Modules\Cms\Models\BlogPost;
 use App\Modules\Cms\Models\Page;
 use App\Modules\Cms\Services\LandingContent;
 use App\Modules\Core\Services\SettingsService;
+use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Storefront\Http\Controllers\PublicMenuController;
 use App\Modules\Tenancy\Services\TenantResolver;
 use Illuminate\Database\Eloquent\Builder;
@@ -58,7 +59,7 @@ class SiteController extends Controller
     {
         // A restaurant's own domain has its own sitemap.
         if ($restaurant = $tenants->fromHost($request)) {
-            app(\App\Modules\Core\Tenancy\TenantContext::class)->set($restaurant);
+            app(TenantContext::class)->set($restaurant);
 
             return app(\App\Modules\Storefront\Http\Controllers\SiteController::class)->sitemap();
         }

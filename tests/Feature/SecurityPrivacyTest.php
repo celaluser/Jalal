@@ -16,6 +16,7 @@ use App\Modules\Storefront\Http\Controllers\AccountController;
 use App\Modules\Tenancy\Models\Restaurant;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Mail;
+use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
@@ -118,7 +119,7 @@ describe('data retention', function () {
     it('is configured from the loyalty page and validated', function () {
         [$r] = spShop();
         $owner = User::factory()->create(['restaurant_id' => $r->id]);
-        $reg = app(\Spatie\Permission\PermissionRegistrar::class);
+        $reg = app(PermissionRegistrar::class);
         $reg->setPermissionsTeamId($r->id);
         $owner->assignRole('restaurant_owner');
         $reg->setPermissionsTeamId(config('tenancy.platform_team_id'));

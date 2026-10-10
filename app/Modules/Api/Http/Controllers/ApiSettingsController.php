@@ -4,7 +4,6 @@ namespace App\Modules\Api\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Api\Models\ApiToken;
-use App\Modules\Api\Models\WebhookDelivery;
 use App\Modules\Api\Models\WebhookEndpoint;
 use App\Modules\Api\Services\ApiTokens;
 use App\Modules\Api\Services\UrlGuard;

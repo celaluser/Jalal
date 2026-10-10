@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Modules\Analytics\Services\MenuEngineering;
+use App\Modules\Analytics\Services\OperationsReport;
 use App\Modules\Analytics\Services\ReportService;
 use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Services\SubscriptionService;
@@ -11,7 +12,9 @@ use App\Modules\Core\Models\Language;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\Product;
+use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\OrderService;
+use App\Modules\Tables\Models\DiningTable;
 use App\Modules\Tenancy\Models\Restaurant;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Mail;
@@ -74,7 +77,7 @@ it('ignores cancelled orders and other restaurants', function () {
     [$other, $od] = meShop();
     meSell($other, $od, 'star', 50);
     meSell($r, $d, 'star', 2);
-    app(TenantContext::class)->runAs($r, fn () => \App\Modules\Orders\Models\Order::first()->forceFill(['status' => 'cancelled'])->save());
+    app(TenantContext::class)->runAs($r, fn () => Order::first()->forceFill(['status' => 'cancelled'])->save());
     expect(meBuild($r)['items'])->toBe([])->and(meBuild($r)['unclassified'])->toBe([]);
 });
 
@@ -90,9 +93,9 @@ it('shows the page and CSV to owners with the analytics feature only, and escape
 
     $this->actingAs($u)->get(route('reports.menu'))->assertOk()->assertSee('Menu engineering')->assertSee('Stars');
     $csv = $this->actingAs($u)->get(route('reports.menu.export'))->assertOk()->streamedContent();
-    expect($csv)->toContain("'=HYPERLINK")->not->toContain(",=HYPERLINK");
+    expect($csv)->toContain("'=HYPERLINK")->not->toContain(',=HYPERLINK');
 
-    [$basic, , ] = meShop(false);
+    [$basic] = meShop(false);
     $b = User::factory()->create(['restaurant_id' => $basic->id]);
     $reg->setPermissionsTeamId($basic->id);
     $b->assignRole('restaurant_owner');
@@ -120,7 +123,7 @@ describe('team and tables report', function () {
         [$r, $d] = meShop();
         $ana = User::factory()->create(['restaurant_id' => $r->id, 'name' => 'Ana']);
         $bob = User::factory()->create(['restaurant_id' => $r->id, 'name' => 'Bob']);
-        $table = app(TenantContext::class)->runAs($r, fn () => \App\Modules\Tables\Models\DiningTable::create(['name' => 'T7']));
+        $table = app(TenantContext::class)->runAs($r, fn () => DiningTable::create(['name' => 'T7']));
         $place = fn () => app(TenantContext::class)->runAs($r, fn () => app(OrderService::class)->place($r, ['type' => 'dine_in', 'table_id' => $table->id, 'payment_method' => 'cash', 'customer_name' => 'G', 'customer_phone' => '+1 555 111 2222', 'lines' => [['product_id' => $d['star']->id, 'qty' => 1]]]));
         $o1 = $place();
         $o2 = $place();
@@ -132,10 +135,10 @@ describe('team and tables report', function () {
             $svc->transition($o1, 'completed', $ana);
             $svc->transition($o2, 'accepted', $bob);
             $svc->transition($o2, 'cancelled', $bob, 'test');
-            \App\Modules\Orders\Models\Order::whereKey($o1->id)->update(['created_at' => now()->subMinutes(50), 'completed_at' => now()]);
+            Order::whereKey($o1->id)->update(['created_at' => now()->subMinutes(50), 'completed_at' => now()]);
         });
 
-        $data = app(TenantContext::class)->runAs($r, fn () => app(\App\Modules\Analytics\Services\OperationsReport::class)->build($r, app(ReportService::class)->period($r, '30')));
+        $data = app(TenantContext::class)->runAs($r, fn () => app(OperationsReport::class)->build($r, app(ReportService::class)->period($r, '30')));
         $ana = collect($data['staff'])->firstWhere('name', 'Ana');
         $bob = collect($data['staff'])->firstWhere('name', 'Bob');
         expect($ana)->toMatchArray(['accepted' => 1, 'ready' => 1, 'completed' => 1, 'cancelled' => 0])->and($bob)->toMatchArray(['accepted' => 1, 'cancelled' => 1, 'completed' => 0])

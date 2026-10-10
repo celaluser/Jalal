@@ -4,8 +4,12 @@ namespace App\Modules\Analytics\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Analytics\Services\MenuEngineering;
+use App\Modules\Analytics\Services\MenuVisits;
+use App\Modules\Analytics\Services\OperationsReport;
 use App\Modules\Analytics\Services\ReportService;
 use App\Modules\Billing\Services\LimitGuard;
+use App\Modules\Orders\Models\Order;
+use App\Modules\Tables\Models\DiningTable;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -40,22 +44,22 @@ class ReportController extends Controller
     }
 
     /** How often the menu was opened and table QR codes scanned (needs the analytics feature). */
-    public function visits(Request $request, \App\Modules\Analytics\Services\MenuVisits $visits): View
+    public function visits(Request $request, MenuVisits $visits): View
     {
         $restaurant = $request->user()->restaurant;
         abort_unless($this->limits->hasFeature($restaurant, 'analytics'), 403);
         $period = $this->reports->period($restaurant, in_array($request->query('range'), ['7', '30', '90'], true) ? $request->query('range') : '30');
         $data = $visits->report($restaurant, $period);
-        $orders = \App\Modules\Orders\Models\Order::where('created_at', '>=', $period['from']->startOfDay()->utc())->where('created_at', '<=', $period['to']->endOfDay()->utc())->where('status', '!=', 'cancelled')->count();
+        $orders = Order::where('created_at', '>=', $period['from']->startOfDay()->utc())->where('created_at', '<=', $period['to']->endOfDay()->utc())->where('status', '!=', 'cancelled')->count();
 
         return view('analytics::visits', [
             'restaurant' => $restaurant, 'period' => $period, 'data' => $data, 'orders' => $orders,
-            'tables' => \App\Modules\Tables\Models\DiningTable::whereIn('id', collect($data['tables'])->pluck('table_id'))->pluck('name', 'id'),
+            'tables' => DiningTable::whereIn('id', collect($data['tables'])->pluck('table_id'))->pluck('name', 'id'),
         ]);
     }
 
     /** Team activity and table turnover (needs the analytics feature). */
-    public function operations(Request $request, \App\Modules\Analytics\Services\OperationsReport $operations): View
+    public function operations(Request $request, OperationsReport $operations): View
     {
         $restaurant = $request->user()->restaurant;
         abort_unless($this->limits->hasFeature($restaurant, 'analytics'), 403);

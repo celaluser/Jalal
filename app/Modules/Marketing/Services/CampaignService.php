@@ -2,6 +2,7 @@
 
 namespace App\Modules\Marketing\Services;
 
+use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Marketing\Jobs\SendCampaign;
 use App\Modules\Marketing\Mail\CampaignMail;
 use App\Modules\Marketing\Models\Campaign;
@@ -11,6 +12,7 @@ use App\Modules\Messaging\Services\Messenger;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use InvalidArgumentException;
 use Throwable;
 
@@ -22,7 +24,7 @@ class CampaignService
     /** Guests who said yes to marketing, can be reached on the campaign's channel, did not unsubscribe, and are in its segment. */
     public function audience(Campaign $campaign, ?Restaurant $restaurant = null): Builder
     {
-        $restaurant ??= app(\App\Modules\Core\Tenancy\TenantContext::class)->get();
+        $restaurant ??= app(TenantContext::class)->get();
         $query = Customer::query()->where('marketing_opt_in', true)->whereNull('unsubscribed_at')
             ->where('orders_count', '>=', (int) $campaign->min_orders);
 
@@ -123,7 +125,7 @@ class CampaignService
     {
         $body = str_replace(['{{name}}', '{{restaurant}}'], [$customer->name ?: '', $restaurant->name], (string) $campaign->body);
 
-        return trim($body)."\n".__('marketing.sms_stop', ['url' => \Illuminate\Support\Facades\URL::signedRoute('marketing.unsubscribe', ['customer' => $customer->id])]);
+        return trim($body)."\n".__('marketing.sms_stop', ['url' => URL::signedRoute('marketing.unsubscribe', ['customer' => $customer->id])]);
     }
 
     /** A copy to the person writing the campaign, with the real layout and a working unsubscribe link. */

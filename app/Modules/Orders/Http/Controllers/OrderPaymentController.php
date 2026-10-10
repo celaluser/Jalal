@@ -3,6 +3,7 @@
 namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Billing\Contracts\RepliesToWebhook;
 use App\Modules\Billing\Exceptions\GatewayException;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Orders\Exceptions\OrderException;
@@ -12,9 +13,11 @@ use App\Modules\Orders\Services\OnlinePayments;
 use App\Modules\Orders\Services\PaymentLedger;
 use App\Modules\Orders\Services\RestaurantGateways;
 use App\Modules\Orders\Support\OrderStatus;
+use App\Modules\Reservations\Services\ReservationDeposits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 
 /** The guest pays from their phone: the whole bill, an equal share, any amount, or the whole table, with an optional tip. */
@@ -99,7 +102,7 @@ class OrderPaymentController extends Controller
     }
 
     /** Server-to-server callback of the restaurant's gateway account. Authenticity is the gateway's job (signature or re-fetch). */
-    public function webhook(Request $request): JsonResponse|\Illuminate\Http\Response
+    public function webhook(Request $request): JsonResponse|Response
     {
         $restaurant = $this->tenant->get();
         $code = (string) $request->route('gateway');
@@ -116,12 +119,12 @@ class OrderPaymentController extends Controller
 
         if ($notification !== null) {
             // "D…" references are reservation deposits, everything else is an order payment.
-            \App\Modules\Reservations\Services\ReservationDeposits::isDepositReference($notification->invoiceNumber)
-                ? app(\App\Modules\Reservations\Services\ReservationDeposits::class)->finalize($notification->invoiceNumber, $notification)
+            ReservationDeposits::isDepositReference($notification->invoiceNumber)
+                ? app(ReservationDeposits::class)->finalize($notification->invoiceNumber, $notification)
                 : $this->online->finalize($notification->invoiceNumber, $notification);
         }
 
-        return $gateway instanceof \App\Modules\Billing\Contracts\RepliesToWebhook ? $gateway->webhookReply() : response()->json(['ok' => true]);
+        return $gateway instanceof RepliesToWebhook ? $gateway->webhookReply() : response()->json(['ok' => true]);
     }
 
     /**

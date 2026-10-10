@@ -10,6 +10,7 @@ use App\Modules\Messaging\Exceptions\MessagingException;
 use App\Modules\Messaging\Providers\IletiMerkeziProvider;
 use App\Modules\Messaging\Providers\NetgsmProvider;
 use App\Modules\Messaging\Services\MessagingManager;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -94,7 +95,7 @@ describe('local SMS', function () {
         (new NetgsmProvider)->send('sms', '+90 532 111 22 33', 'Hello', $cfg);
         Http::assertSent(fn ($q) => $q['msgheader'] === 'MYSHOP' && $q['messages'][0]['no'] === '905321112233' && $q->hasHeader('Authorization'));
 
-        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::swap(new Factory);
         Http::fake(['api.netgsm.com.tr/*' => Http::response(['code' => '30'])]);
         expect(fn () => (new NetgsmProvider)->send('sms', '+905321112233', 'x', $cfg))->toThrow(MessagingException::class);
     });
@@ -105,7 +106,7 @@ describe('local SMS', function () {
         (new IletiMerkeziProvider)->send('sms', '+905321112233', 'Hello', $cfg);
         Http::assertSent(fn ($q) => $q['request']['authentication']['hash'] === hash_hmac('sha256', 'pub', 'sec') && $q['request']['order']['message']['receipents']['number'] === ['905321112233']);
 
-        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::swap(new Factory);
         Http::fake(['api.iletimerkezi.com/*' => Http::response(['response' => ['status' => ['code' => 401, 'message' => 'bad']]])]);
         expect(fn () => (new IletiMerkeziProvider)->send('sms', '+905321112233', 'x', $cfg))->toThrow(MessagingException::class);
     });

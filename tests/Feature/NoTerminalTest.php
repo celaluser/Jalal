@@ -6,6 +6,7 @@ use App\Modules\Admin\Services\WebCron;
 use App\Modules\Auth\Support\Permissions;
 use App\Modules\Core\Models\Language;
 use App\Modules\Core\Models\Setting;
+use App\Modules\Core\Services\SettingsService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -73,7 +74,7 @@ describe('visitor-driven fallback', function () {
 
         Cache::forget(SystemInfo::SCHEDULER_KEY);
         Setting::updateOrCreate(['key' => 'system.web_cron'], ['value' => 'off']);
-        app(\App\Modules\Core\Services\SettingsService::class)->set('system.web_cron', 'off');
+        app(SettingsService::class)->set('system.web_cron', 'off');
         $cron->maybeRunAfterResponse();
         expect(Cache::get(SystemInfo::SCHEDULER_KEY))->toBeNull();
     });

@@ -14,10 +14,16 @@ trait HasTranslations
     {
         $values = array_filter((array) ($this->{$attribute} ?? []), fn ($v) => is_string($v) && trim($v) !== '');
 
-        foreach ([$locale ?? app()->getLocale(), $default, $this->restaurant?->locale] as $candidate) {
+        // The restaurant's language is only looked up when nothing else matched and the caller gave no default:
+        // loading it for every dish of a menu would cost one query per dish.
+        foreach ([$locale ?? app()->getLocale(), $default] as $candidate) {
             if ($candidate !== null && isset($values[$candidate])) {
                 return $values[$candidate];
             }
+        }
+
+        if ($default === null && $values !== [] && ($own = $this->restaurant?->locale) !== null && isset($values[$own])) {
+            return $values[$own];
         }
 
         return (string) (reset($values) ?: '');

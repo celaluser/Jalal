@@ -13,6 +13,7 @@ use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Marketing\Models\Banner;
 use App\Modules\Marketing\Models\PromoCode;
 use App\Modules\Marketing\Services\MarketingSettings;
+use App\Modules\Marketing\Services\PriceRules;
 use App\Modules\Marketing\Services\PromoService;
 use App\Modules\Marketing\Services\ReviewService;
 use App\Modules\Menu\Services\MenuAvailability;
@@ -199,7 +200,7 @@ class PublicMenuController extends Controller
     /** Happy-hour rules running now, for the banner on the menu (prices in the cart already include them). @return list<array{name: string, percent: int}> */
     private function happyHour(Restaurant $restaurant): array
     {
-        return app(\App\Modules\Marketing\Services\PriceRules::class)->running(app(MenuAvailability::class)->now($restaurant))
+        return app(PriceRules::class)->running(app(MenuAvailability::class)->now($restaurant))
             ->map(fn ($r) => ['name' => $r->name, 'percent' => $r->percent, 'until' => $r->to_time])->values()->all();
     }
 

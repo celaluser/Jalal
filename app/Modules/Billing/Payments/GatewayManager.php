@@ -4,16 +4,16 @@ namespace App\Modules\Billing\Payments;
 
 use App\Modules\Billing\Contracts\PaymentGatewayInterface;
 use App\Modules\Billing\Gateways\BankTransferGateway;
+use App\Modules\Billing\Gateways\EpointGateway;
 use App\Modules\Billing\Gateways\FlutterwaveGateway;
 use App\Modules\Billing\Gateways\IyzicoGateway;
 use App\Modules\Billing\Gateways\MercadoPagoGateway;
 use App\Modules\Billing\Gateways\MidtransGateway;
 use App\Modules\Billing\Gateways\MollieGateway;
 use App\Modules\Billing\Gateways\PaddleGateway;
-use App\Modules\Billing\Gateways\EpointGateway;
 use App\Modules\Billing\Gateways\PayPalGateway;
-use App\Modules\Billing\Gateways\PaytrGateway;
 use App\Modules\Billing\Gateways\PaystackGateway;
+use App\Modules\Billing\Gateways\PaytrGateway;
 use App\Modules\Billing\Gateways\RazorpayGateway;
 use App\Modules\Billing\Gateways\StripeGateway;
 use App\Modules\Core\Services\SettingsService;

@@ -4,6 +4,7 @@ namespace App\Modules\Reservations\Services;
 
 use App\Modules\Billing\Services\LimitGuard;
 use App\Modules\Core\Services\SettingsService;
+use App\Modules\Orders\Services\RestaurantGateways;
 use App\Modules\Tenancy\Models\Restaurant;
 
 /** How a restaurant takes bookings. Stored as one JSON setting per restaurant. */
@@ -38,7 +39,7 @@ class ReservationSettings
     {
         $per = (int) round((float) $this->for($restaurant)['deposit_per_person'] * 100);
 
-        return $per > 0 && $party > 0 && app(\App\Modules\Orders\Services\RestaurantGateways::class)->availableFor($restaurant) !== [] ? $per * $party : 0;
+        return $per > 0 && $party > 0 && app(RestaurantGateways::class)->availableFor($restaurant) !== [] ? $per * $party : 0;
     }
 
     /** On, and the plan includes reservations. */

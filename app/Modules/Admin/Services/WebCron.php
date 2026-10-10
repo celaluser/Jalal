@@ -4,8 +4,8 @@ namespace App\Modules\Admin\Services;
 
 use App\Modules\Core\Services\SettingsService;
 use Illuminate\Console\Scheduling\CallbackEvent;
-use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;

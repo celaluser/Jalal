@@ -3,11 +3,12 @@
 namespace App\Modules\Reservations\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Billing\Exceptions\GatewayException;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Menu\Services\ThemeRegistry;
+use App\Modules\Orders\Services\RestaurantGateways;
 use App\Modules\Reservations\Models\Reservation;
 use App\Modules\Reservations\Services\Availability;
-use App\Modules\Orders\Services\RestaurantGateways;
 use App\Modules\Reservations\Services\ReservationDeposits;
 use App\Modules\Reservations\Services\ReservationService;
 use App\Modules\Reservations\Services\ReservationSettings;
@@ -15,6 +16,7 @@ use App\Modules\Storefront\Services\MenuLocale;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use InvalidArgumentException;
 
@@ -91,8 +93,8 @@ class GuestReservationController extends Controller
                 if ($n !== null && $n->invoiceNumber === $res->deposit_reference) {
                     $this->deposits->finalize((string) $res->deposit_reference, $n);
                 }
-            } catch (\App\Modules\Billing\Exceptions\GatewayException $e) {
-                \Illuminate\Support\Facades\Log::warning('Reservation deposit return could not be confirmed', ['reservation' => $res->id, 'reason' => $e->getMessage()]);
+            } catch (GatewayException $e) {
+                Log::warning('Reservation deposit return could not be confirmed', ['reservation' => $res->id, 'reason' => $e->getMessage()]);
             }
         }
 

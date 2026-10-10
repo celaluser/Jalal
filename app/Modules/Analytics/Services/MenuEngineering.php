@@ -4,6 +4,7 @@ namespace App\Modules\Analytics\Services;
 
 use App\Modules\Orders\Support\OrderStatus;
 use App\Modules\Tenancy\Models\Restaurant;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -23,7 +24,7 @@ class MenuEngineering
     public const CLASSES = ['star', 'plowhorse', 'puzzle', 'dog'];
 
     /**
-     * @param  array{from: \Carbon\CarbonImmutable, to: \Carbon\CarbonImmutable}  $period
+     * @param  array{from: CarbonImmutable, to: CarbonImmutable}  $period
      * @return array{items: list<array<string, mixed>>, unclassified: list<array<string, mixed>>, categories: list<array<string, mixed>>, food_cost_percent: ?float, thresholds: array{popularity: float, margin: int}}
      */
     public function build(Restaurant $restaurant, array $period): array

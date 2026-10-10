@@ -196,7 +196,7 @@ class CustomerOrderController extends Controller
 
         return [
             'reward' => $reward ? ['code' => $reward->code, 'text' => $loyalty->describe($restaurant, $reward), 'until' => $reward->ends_at?->toFormattedDateString()] : null,
-            'review' => ['open' => $reviews->canReview($restaurant, $order), 'nps' => (bool) app(\App\Modules\Marketing\Services\MarketingSettings::class)->get($restaurant, 'nps_enabled'), 'rating' => $review?->rating, 'reply' => $review?->reply,
+            'review' => ['open' => $reviews->canReview($restaurant, $order), 'nps' => (bool) app(MarketingSettings::class)->get($restaurant, 'nps_enabled'), 'rating' => $review?->rating, 'reply' => $review?->reply,
                 // Happy guests are invited to review the restaurant publicly too (the link is the owner's own).
                 'redirect' => $review && $review->rating >= (int) app(MarketingSettings::class)->get($restaurant, 'review_min') && ($url = (string) app(MarketingSettings::class)->get($restaurant, 'review_url')) !== '' ? $url : null],
         ];

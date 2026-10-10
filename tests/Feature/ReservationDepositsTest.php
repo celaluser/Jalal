@@ -14,6 +14,7 @@ use App\Modules\Reservations\Services\ReservationSettings;
 use App\Modules\Tenancy\Models\Restaurant;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Http\Client\Factory;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\PermissionRegistrar;
@@ -24,7 +25,7 @@ beforeEach(function () {
     Currency::firstOrCreate(['code' => 'USD'], ['name' => 'US Dollar', 'symbol' => '$', 'is_active' => true]);
     Mail::fake();
     Http::swap(new Factory);
-    $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class); // numeric throttles share one counter per IP
+    $this->withoutMiddleware(ThrottleRequests::class); // numeric throttles share one counter per IP
 });
 
 function rdShop(array $cfg = [], bool $stripe = true): array

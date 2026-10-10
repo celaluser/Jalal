@@ -3,6 +3,7 @@
 namespace App\Modules\Billing\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Billing\Contracts\RepliesToWebhook;
 use App\Modules\Billing\Exceptions\GatewayException;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Payments\GatewayManager;
@@ -10,6 +11,7 @@ use App\Modules\Billing\Services\PaymentProcessor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 
 class PaymentCallbackController extends Controller
@@ -23,7 +25,7 @@ class PaymentCallbackController extends Controller
      * Server-to-server callback. The gateway proves authenticity (signature or API re-fetch);
      * failures are 400 (do not retry), processing errors bubble up as 500 so the gateway retries.
      */
-    public function webhook(Request $request, string $gateway): JsonResponse|\Illuminate\Http\Response
+    public function webhook(Request $request, string $gateway): JsonResponse|Response
     {
         $driver = $this->gateways->find($gateway);
         abort_if($driver === null || ! $this->gateways->isEnabled($gateway), 404);
@@ -40,7 +42,7 @@ class PaymentCallbackController extends Controller
             $this->processor->handle($notification);
         }
 
-        return $driver instanceof \App\Modules\Billing\Contracts\RepliesToWebhook ? $driver->webhookReply() : response()->json(['ok' => true]);
+        return $driver instanceof RepliesToWebhook ? $driver->webhookReply() : response()->json(['ok' => true]);
     }
 
     /**

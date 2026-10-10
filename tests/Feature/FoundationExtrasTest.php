@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+use App\Modules\Auth\Support\Permissions;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Services\InvoiceService;
@@ -10,9 +12,11 @@ use App\Modules\Core\Models\Media;
 use App\Modules\Core\Services\FileUploader;
 use App\Modules\Core\Services\SettingsService;
 use App\Modules\Tenancy\Models\Restaurant;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
     Language::firstOrCreate(['code' => 'en'], ['name' => 'English', 'is_active' => true, 'is_default' => true]);
@@ -131,10 +135,10 @@ describe('landing look', function () {
     });
 
     it('lets the admin choose the look', function () {
-        $this->seed(Database\Seeders\RolesAndPermissionsSeeder::class);
-        $admin = App\Models\User::factory()->create();
-        app(Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId(config('tenancy.platform_team_id'));
-        $admin->assignRole(App\Modules\Auth\Support\Permissions::SUPER_ADMIN);
+        $this->seed(RolesAndPermissionsSeeder::class);
+        $admin = User::factory()->create();
+        app(PermissionRegistrar::class)->setPermissionsTeamId(config('tenancy.platform_team_id'));
+        $admin->assignRole(Permissions::SUPER_ADMIN);
 
         $this->actingAs($admin)->get(route('admin.landing.edit'))->assertOk()->assertSee('Midnight');
         $this->actingAs($admin)->put(route('admin.landing.update'), ['locale' => 'en', 'theme' => 'midnight', 'hero' => ['title' => 'T', 'cta_label' => 'Go'], 'pricing' => ['title' => 'P']])->assertSessionHasNoErrors();

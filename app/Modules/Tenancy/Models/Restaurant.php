@@ -74,7 +74,10 @@ class Restaurant extends Model
     /** Format a price with the restaurant's currency (symbol, position, separators). */
     public function money(float|int|string $amount): string
     {
-        $currency = $this->currency_code ? Currency::where('code', $this->currency_code)->first() : null;
+        // One lookup per currency per request: menus format hundreds of prices.
+        static $known = [];
+        $code = (string) $this->currency_code;
+        $currency = $code === '' ? null : ($known[$code] ??= Currency::where('code', $code)->first());
 
         return $currency ? $currency->format($amount) : number_format((float) $amount, 2);
     }

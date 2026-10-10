@@ -4,6 +4,7 @@ use App\Models\User;
 use App\Modules\Analytics\Services\MenuVisits;
 use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Services\SubscriptionService;
+use App\Modules\Billing\Services\UsageReport;
 use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Models\Language;
 use App\Modules\Core\Tenancy\TenantContext;
@@ -147,7 +148,7 @@ describe('monthly plan limits', function () {
         expect(Plan::LIMITS)->toContain('orders_per_month', 'scans_per_month');
         [$r, $d] = vlShop(['orders_per_month' => 5, 'scans_per_month' => 100]);
         vlOrder($r, $d);
-        $usage = app(TenantContext::class)->runAs($r, fn () => collect(app(\App\Modules\Billing\Services\UsageReport::class)->for($r))->keyBy('key'));
+        $usage = app(TenantContext::class)->runAs($r, fn () => collect(app(UsageReport::class)->for($r))->keyBy('key'));
         expect($usage['orders_per_month']['used'])->toBe(1)->and($usage['orders_per_month']['limit'])->toBe(5);
     });
 });

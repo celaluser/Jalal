@@ -5,6 +5,7 @@ namespace App\Modules\Analytics\Services;
 use App\Modules\Menu\Services\MenuAvailability;
 use App\Modules\Tenancy\Models\Restaurant;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -38,7 +39,7 @@ class MenuVisits
         $this->bump($restaurant, $kind, $tableId, $this->availability->now($restaurant));
     }
 
-    public function bump(Restaurant $restaurant, string $kind, int $tableId, \Carbon\CarbonInterface $local): void
+    public function bump(Restaurant $restaurant, string $kind, int $tableId, CarbonInterface $local): void
     {
         try {
             $where = ['restaurant_id' => $restaurant->id, 'day' => $local->toDateString(), 'hour' => $local->hour, 'table_id' => $tableId, 'kind' => $kind];

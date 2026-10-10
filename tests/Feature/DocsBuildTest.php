@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\BuildDocs;
 use Illuminate\Support\Facades\File;
 
 it('builds the HTML manual from the Markdown guides, stripping raw HTML', function () {
@@ -19,7 +20,7 @@ it('lists every bundled PHP package with its licence', function () {
 });
 
 it('keeps the guides that the manual links to', function () {
-    foreach (array_keys(\App\Console\Commands\BuildDocs::PAGES) as $file) {
+    foreach (array_keys(BuildDocs::PAGES) as $file) {
         expect(is_file($file === 'CHANGELOG.md' ? base_path($file) : base_path('docs/'.$file)))->toBeTrue($file);
     }
 });

@@ -2,11 +2,13 @@
 
 namespace App\Modules\Orders\Providers;
 
+use App\Modules\Billing\Support\UsageRegistry;
 use App\Modules\Core\Mail\EmailTemplateRegistry;
 use App\Modules\Core\Support\RestaurantNav;
 use App\Modules\Orders\Listeners\AutoPrint;
 use App\Modules\Orders\Listeners\NotifyGuest;
 use App\Modules\Orders\Listeners\SendOrderEmails;
+use App\Modules\Orders\Models\Order;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -21,7 +23,7 @@ class OrdersServiceProvider extends ServiceProvider
         RestaurantNav::add('orders', 'panel.nav.orders', 'orders.board', 'orders.board|orders.show', icon: 'bell', can: 'orders.view');
         RestaurantNav::add('orders', 'panel.nav.shifts', 'shifts.index', 'shifts.*', icon: 'wallet', can: 'payments.manage');
         RestaurantNav::add('orders', 'panel.nav.courier', 'courier.index', 'courier.*', icon: 'truck', can: 'delivery.view');
-        \App\Modules\Billing\Support\UsageRegistry::register('orders_per_month', fn () => \App\Modules\Orders\Models\Order::where('created_at', '>=', now()->startOfMonth())->where('status', '!=', 'cancelled')->count());
+        UsageRegistry::register('orders_per_month', fn () => Order::where('created_at', '>=', now()->startOfMonth())->where('status', '!=', 'cancelled')->count());
         RestaurantNav::add('settings', 'panel.nav.delivery_zones', 'delivery.zones', 'delivery.zones*', icon: 'store', can: 'delivery.manage');
         RestaurantNav::add('orders', 'panel.nav.new_order', 'orders.pos.index', icon: 'plus', can: 'orders.create');
         RestaurantNav::add('settings', 'panel.nav.online_payments', 'payments.settings', 'payments.settings*', icon: 'credit-card', can: 'payments.manage');

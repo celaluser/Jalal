@@ -4,19 +4,19 @@ namespace App\Modules\Api\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Api\Services\ApiResources;
+use App\Modules\Marketing\Models\Customer;
 use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\Product;
 use App\Modules\Orders\Exceptions\OrderException;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\OrderService;
 use App\Modules\Orders\Support\OrderStatus;
-use App\Modules\Marketing\Models\Customer;
+use App\Modules\Orders\Support\OrderType;
 use App\Modules\Reservations\Models\Reservation;
 use App\Modules\Reservations\Services\ReservationService;
 use Illuminate\Http\JsonResponse;
-use InvalidArgumentException;
-use App\Modules\Orders\Support\OrderType;
 use Illuminate\Http\Request;
+use InvalidArgumentException;
 
 /** REST API v1: the menu and the orders of the token's restaurant. */
 class ApiController extends Controller
