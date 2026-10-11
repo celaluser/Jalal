@@ -46,7 +46,7 @@
                     @foreach ($checks as $check)
                         <li class="flex items-center gap-2">
                             <span class="grid size-5 shrink-0 place-items-center rounded-full {{ $check['ok'] ? 'bg-accent-100 text-accent-800 dark:bg-accent-900/50 dark:text-accent-200' : 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300' }}"><x-ui.icon :name="$check['ok'] ? 'check' : 'x'" size="3" /></span>
-                            <span dir="ltr"><bdi>{{ $check['label'] }}</bdi></span>
+                            <span dir="ltr" class="min-w-0 [overflow-wrap:anywhere]"><bdi>{{ $check['label'] }}</bdi></span>
                             <span class="sr-only">{{ $check['ok'] ? __('admin.system.state_ok') : __('admin.system.state_never') }}</span>
                         </li>
                     @endforeach

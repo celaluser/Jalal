@@ -18,16 +18,16 @@
                     @endforeach
                 </ul>
             </div>
-            <p class="relative text-sm text-ink-500">&copy; {{ now()->year }} {{ config('app.name') }}</p>
+            <p class="relative text-sm text-ink-400">&copy; {{ now()->year }} {{ config('app.name') }}</p>
         </aside>
 
         <div class="flex flex-col px-5 py-8 sm:px-10">
-            <div class="flex flex-wrap items-center justify-between gap-3">
+            <header class="flex flex-wrap items-center justify-between gap-3">
                 <a href="{{ route('home') }}" class="flex items-center gap-2.5 lg:invisible">
                     <x-ui.qr-mark size="8" /><span class="display font-semibold">{{ config('app.name') }}</span>
                 </a>
                 <div class="flex items-center gap-2"><x-ui.language-switcher /><x-ui.theme-toggle /></div>
-            </div>
+            </header>
             <main class="rise mx-auto flex w-full flex-1 flex-col justify-center py-10 {{ $wide ? 'max-w-xl' : 'max-w-sm' }}">
                 @if ($heading)
                     <h1 class="display text-3xl font-semibold">{{ $heading }}</h1>

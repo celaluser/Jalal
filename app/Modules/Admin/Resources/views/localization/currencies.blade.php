@@ -1,7 +1,7 @@
 <x-layouts.admin :title="__('admin.nav.currencies')">
     <x-ui.page-header :title="__('admin.nav.currencies')" :description="__('admin.localization.currencies_sub')" />
     <x-ui.table class="mb-6">
-        <thead><tr><th>{{ __('admin.localization.code') }}</th><th>{{ __('admin.localization.name') }}</th><th>{{ __('admin.localization.symbol') }}</th><th>{{ __('admin.localization.position') }}</th><th>{{ __('admin.localization.decimals') }}</th><th>{{ __('admin.localization.separators') }}</th><th>{{ __('admin.localization.rate') }}</th><th>{{ __('admin.localization.preview') }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ __('admin.localization.code') }}</th><th>{{ __('admin.localization.name') }}</th><th>{{ __('admin.localization.symbol') }}</th><th>{{ __('admin.localization.position') }}</th><th>{{ __('admin.localization.decimals') }}</th><th>{{ __('admin.localization.separators') }}</th><th>{{ __('admin.localization.rate') }}</th><th>{{ __('admin.localization.preview') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>
         <tbody>
             @foreach ($currencies as $c)
                 <tr>

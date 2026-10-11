@@ -84,7 +84,7 @@
         <div class="mx-auto max-w-xl px-4 pb-16 pt-6 text-center">
             <p class="text-sm font-semibold opacity-90">{{ $restaurant->name }}</p>
             <p class="mt-4 text-sm font-medium opacity-90">{{ __('orders.your_number') }}</p>
-            <p class="display tnum menu-rise text-6xl font-bold leading-none">{{ $order->label() }}</p>
+            <h1 class="display tnum menu-rise text-6xl font-bold leading-none">{{ $order->label() }}</h1>
             <p class="mt-3 text-sm opacity-90">{{ __('orders.track_sub') }}</p>
         </div>
     </header>

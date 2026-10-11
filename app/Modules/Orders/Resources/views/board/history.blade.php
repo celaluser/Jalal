@@ -22,7 +22,7 @@
         <div class="card"><x-ui.empty icon="inbox" :title="__('orders.history_empty')" :text="__('orders.history_empty_text')" /></div>
     @else
         <x-ui.table>
-            <thead><tr><th>#</th><th>{{ __('orders.history_when') }}</th><th>{{ __('orders.history_type') }}</th><th>{{ __('orders.customer') }}</th><th>{{ __('orders.history_status') }}</th><th class="text-end">{{ __('orders.total') }}</th><th></th></tr></thead>
+            <thead><tr><th>#</th><th>{{ __('orders.history_when') }}</th><th>{{ __('orders.history_type') }}</th><th>{{ __('orders.customer') }}</th><th>{{ __('orders.history_status') }}</th><th class="text-end">{{ __('orders.total') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>
             <tbody>
                 @foreach ($orders as $o)
                     <tr>

@@ -35,7 +35,7 @@
                 @endif
                 {{-- Hit target is the whole slot, much larger than the mark --}}
                 <rect x="{{ $left + $slot * $n }}" y="{{ $top }}" width="{{ $slot }}" height="{{ $plotH }}" fill="transparent"
-                      x-on:mouseenter="i = {{ $n }}" x-on:mouseleave="i = null" x-on:focus="i = {{ $n }}" x-on:blur="i = null" tabindex="0"
+                      x-on:mouseenter="i = {{ $n }}" x-on:mouseleave="i = null" x-on:focus="i = {{ $n }}" x-on:blur="i = null" tabindex="0" role="img"
                       aria-label="{{ $labels[$n] }}: {{ $fmt($value) }}"/>
             @endforeach
             @foreach ($labelAt as $n)
@@ -51,7 +51,7 @@
             </div>
         @endforeach
     </div>
-    <details class="mt-2 text-xs text-gray-500">
+    <details class="mt-2 text-xs text-muted">
         <summary class="cursor-pointer">{{ __('admin.chart.table_view') }}</summary>
         <table class="mt-1 w-full">
             <tbody>

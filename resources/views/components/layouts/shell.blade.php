@@ -24,7 +24,7 @@
                     @php($visible = collect($items)->filter(fn ($i) => \Illuminate\Support\Facades\Route::has($i['route']) && (! $i['can'] || $user?->can($i['can']))))
                     @if ($visible->isNotEmpty())
                         <div>
-                            <p class="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-500">{{ __($section === __('admin.panel') ? 'admin.nav.group_'.$group : 'panel.nav.group_'.$group) }}</p>
+                            <p class="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-400">{{ __($section === __('admin.panel') ? 'admin.nav.group_'.$group : 'panel.nav.group_'.$group) }}</p>
                             <ul class="space-y-0.5">
                                 @foreach ($visible as $item)
                                     @php($active = request()->routeIs(...explode('|', $item['active'])))
@@ -42,7 +42,7 @@
                     @endif
                 @endforeach
             </nav>
-            <div class="shrink-0 border-t border-white/10 p-4 text-xs text-ink-500">v{{ config('version.current') }}</div>
+            <div class="shrink-0 border-t border-white/10 p-4 text-xs text-ink-400">v{{ config('version.current') }}</div>
         </aside>
         <div x-show="open" x-cloak x-transition.opacity class="fixed inset-0 z-30 bg-ink-950/60 backdrop-blur-sm {{ $tablet ? '' : 'lg:hidden' }}" x-on:click="open = false"></div>
 

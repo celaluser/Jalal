@@ -5,7 +5,7 @@
         <x-ui.button :block="false" icon="search">{{ __('admin.filter') }}</x-ui.button>
     </form>
     <x-ui.table>
-        <thead><tr><th>{{ __('billing.invoice') }}</th><th>{{ __('admin.restaurants.name') }}</th><th class="text-end">{{ __('billing.total') }}</th><th>{{ __('admin.status') }}</th><th>{{ __('billing.issued') }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ __('billing.invoice') }}</th><th>{{ __('admin.restaurants.name') }}</th><th class="text-end">{{ __('billing.total') }}</th><th>{{ __('admin.status') }}</th><th>{{ __('billing.issued') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>
         <tbody>
         @forelse ($invoices as $invoice)
             <tr>

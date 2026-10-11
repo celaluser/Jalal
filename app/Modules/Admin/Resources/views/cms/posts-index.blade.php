@@ -3,7 +3,7 @@
         <x-slot:actions><a href="{{ route('admin.posts.create') }}" class="btn btn-primary"><x-ui.icon name="plus" size="4" />{{ __('admin.cms.new_post') }}</a></x-slot:actions>
     </x-ui.page-header>
     <x-ui.table>
-        <thead><tr><th>{{ __('admin.cms.title') }}</th><th>{{ __('admin.cms.language') }}</th><th>{{ __('admin.status') }}</th><th>{{ __('admin.cms.publish_date') }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ __('admin.cms.title') }}</th><th>{{ __('admin.cms.language') }}</th><th>{{ __('admin.status') }}</th><th>{{ __('admin.cms.publish_date') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>
         <tbody>
         @forelse ($posts as $post)
             @php($state = ! $post->is_published ? 'draft' : ($post->published_at?->isFuture() ? 'scheduled' : 'published'))

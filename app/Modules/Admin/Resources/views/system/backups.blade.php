@@ -10,7 +10,7 @@
     <x-ui.alert type="warning" class="mb-4">{{ __('admin.system.backup_warning') }}</x-ui.alert>
 
     <x-ui.table>
-        <thead><tr><th>{{ __('admin.system.backup_name') }}</th><th>{{ __('admin.system.backup_size') }}</th><th>{{ __('admin.system.backup_date') }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ __('admin.system.backup_name') }}</th><th>{{ __('admin.system.backup_size') }}</th><th>{{ __('admin.system.backup_date') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>
         <tbody>
         @forelse ($backups as $b)
             <tr>

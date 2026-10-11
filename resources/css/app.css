@@ -115,6 +115,8 @@
   /* Long unbroken strings (URLs, keys, codes) wrap instead of widening the page. */
   code, pre { overflow-wrap: anywhere; }
   pre { white-space: pre-wrap; }
+  /* A fieldset is as wide as its widest child unless told otherwise, which widens grids and forms. */
+  fieldset { min-width: 0; }
 
   /* Fingers need bigger targets than pointers (44px is the comfortable size, 40px the floor used here).
      :where() keeps these rules weaker than any utility class, so a component can still choose its own size. */

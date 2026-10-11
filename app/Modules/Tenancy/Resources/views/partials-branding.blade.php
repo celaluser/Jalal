@@ -1,5 +1,5 @@
 {{-- Branding fields with a live preview. Expects $restaurant. --}}
-<div x-data="{ color: @js(old('color', $restaurant->brandColor())), logo: @js($restaurant->logo?->url()), name: @js($restaurant->name) }" class="grid gap-6 sm:grid-cols-2">
+<div x-data="{ color: @js(old('color', $restaurant->brandColor())), logo: @js($restaurant->logo?->url()), name: @js($restaurant->name), get fg() { const h = this.color.replace('#', ''); if (h.length !== 6) { return '#0f1115'; } const [r, g, b] = [0, 2, 4].map((i) => { const c = parseInt(h.substr(i, 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }); const l = 0.2126 * r + 0.7152 * g + 0.0722 * b; return 1.05 / (l + 0.05) >= (l + 0.05) / 0.0559 ? '#ffffff' : '#0f1115'; } }" class="grid gap-6 sm:grid-cols-2">
     <div class="space-y-5">
         <div>
             <label for="logo" class="mb-1.5 block text-sm font-medium">{{ __('onboarding.logo') }}</label>
@@ -29,7 +29,7 @@
             <div class="flex items-center gap-3 p-4" :style="`background:${color}`">
                 <template x-if="logo"><img :src="logo" alt="" class="size-10 rounded-xl bg-white object-cover"></template>
                 <template x-if="!logo"><span class="grid size-10 place-items-center rounded-xl bg-white/90 text-sm font-bold text-ink-950" x-text="name.slice(0, 1).toUpperCase()"></span></template>
-                <span class="display truncate text-base font-semibold text-ink-950" x-text="name"></span>
+                <span class="display truncate text-base font-semibold" :style="`color:${fg}`" x-text="name"></span>
             </div>
             <div class="space-y-2 p-4">
                 <div class="h-3 w-24 rounded bg-surface-2"></div>

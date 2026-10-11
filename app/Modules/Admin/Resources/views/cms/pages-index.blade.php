@@ -3,7 +3,7 @@
         <x-slot:actions><a href="{{ route('admin.pages.create') }}" class="btn btn-primary"><x-ui.icon name="plus" size="4" />{{ __('admin.cms.new_page') }}</a></x-slot:actions>
     </x-ui.page-header>
     <x-ui.table>
-        <thead><tr><th>{{ __('admin.cms.title') }}</th><th>{{ __('admin.cms.slug') }}</th><th>{{ __('admin.cms.language') }}</th><th>{{ __('admin.status') }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ __('admin.cms.title') }}</th><th>{{ __('admin.cms.slug') }}</th><th>{{ __('admin.cms.language') }}</th><th>{{ __('admin.status') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>
         <tbody>
         @forelse ($pages as $page)
             <tr>

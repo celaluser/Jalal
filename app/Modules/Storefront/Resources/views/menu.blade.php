@@ -144,7 +144,7 @@
         @if (session('table_invalid'))<p class="menu-card menu-muted mb-3 px-3 py-2 text-sm" role="status">{{ __('customer.table_invalid') }}</p>@endif
 
         {{-- Search and filters --}}
-        <div class="flex gap-2">
+        <div class="flex gap-2" role="search">
             <div class="menu-card relative flex-1 shadow-lg">
                 <x-ui.icon name="search" size="4" class="menu-muted pointer-events-none absolute start-3.5 top-1/2 -translate-y-1/2" />
                 <input type="search" x-model="q" placeholder="{{ __('customer.search_placeholder') }}" aria-label="{{ __('customer.search') }}" class="w-full bg-transparent py-3 ps-10 pe-3 text-sm placeholder:opacity-60 focus:outline-none">
@@ -295,7 +295,7 @@
                     <p class="menu-muted mb-3 text-sm" x-show="c.description" x-text="c.description"></p>
                     <div class="{{ $layout === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-3' }}">
                         <template x-for="p in c.products" :key="p.id">
-                            <article class="menu-card relative overflow-hidden {{ $layout === 'list' ? 'flex gap-3 p-3' : 'flex flex-col' }}" :class="p.available ? '' : 'opacity-60'">
+                            <article class="menu-card relative overflow-hidden {{ $layout === 'list' ? 'flex gap-3 p-3' : 'flex flex-col' }}" :class="p.available ? '' : 'saturate-50'">
                                 <button type="button" class="menu-surface absolute end-2 top-2 z-10 grid size-8 place-items-center rounded-full text-base shadow" x-on:click.stop="toggleFav(p)" :aria-pressed="isFav(p)" :aria-label="(isFav(p) ? @js(__('customer.favorite_remove')) : @js(__('customer.favorite_add'))) + ' ' + p.name"><span :class="isFav(p) ? 'text-rose-500' : 'opacity-50'" x-text="isFav(p) ? '♥' : '♡'"></span></button>
                                 @if ($settings['show_images'] && $layout !== 'list')
                                     <div class="menu-img relative w-full overflow-hidden {{ $layout === 'grid' ? 'aspect-[4/3]' : 'aspect-[16/9]' }}">

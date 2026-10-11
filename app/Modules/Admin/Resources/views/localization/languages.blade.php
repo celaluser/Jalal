@@ -1,7 +1,7 @@
 <x-layouts.admin :title="__('admin.nav.languages')">
     <x-ui.page-header :title="__('admin.nav.languages')" :description="__('admin.localization.languages_sub')" />
     <x-ui.table class="mb-6">
-        <thead><tr><th>{{ __('admin.localization.code') }}</th><th>{{ __('admin.localization.name') }}</th><th>{{ __('admin.localization.rtl') }}</th><th>{{ __('admin.status') }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ __('admin.localization.code') }}</th><th>{{ __('admin.localization.name') }}</th><th>{{ __('admin.localization.rtl') }}</th><th>{{ __('admin.status') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>
         <tbody>
             @foreach ($languages as $l)
                 <tr>

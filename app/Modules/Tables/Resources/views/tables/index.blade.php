@@ -28,7 +28,7 @@
                             <div class="flex items-start gap-3">
                                 <div class="size-20 shrink-0 overflow-hidden rounded-xl ring-1 ring-line [&>svg]:size-full" aria-hidden="true">{!! $qr->svg($restaurant, $table, $style) !!}</div>
                                 <div class="min-w-0 flex-1">
-                                    <h3 class="display truncate text-lg font-semibold">{{ $table->name }}</h3>
+                                    <h2 class="display truncate text-lg font-semibold">{{ $table->name }}</h2>
                                     <p class="mt-0.5 text-sm text-muted">{{ $table->area?->name ?? __('tables.no_area') }}@if ($table->seats) · {{ __('tables.seats_count', ['count' => $table->seats]) }}@endif</p>
                                     @unless ($table->is_active)<x-ui.badge class="mt-1.5">{{ __('tables.inactive') }}</x-ui.badge>@endunless
                                 </div>

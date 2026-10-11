@@ -12,7 +12,7 @@
                 <span class="inline-flex min-w-11 justify-center rounded-lg border border-line-strong px-2.5 py-1.5 text-sm transition peer-checked:border-accent-600 peer-checked:bg-accent-50 peer-checked:font-medium peer-focus-visible:ring-2 peer-focus-visible:ring-accent-500 dark:peer-checked:bg-accent-900/20">{{ $name }}</span></label>
         @endforeach
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-2">
         <input type="time" name="schedule[from]" value="{{ old('schedule.from', $schedule['from'] ?? '') }}" class="field !w-auto" aria-label="{{ __('menu.schedule_from') }}">
         <span class="text-muted">–</span>
         <input type="time" name="schedule[to]" value="{{ old('schedule.to', $schedule['to'] ?? '') }}" class="field !w-auto" aria-label="{{ __('menu.schedule_to') }}">

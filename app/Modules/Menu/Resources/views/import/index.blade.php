@@ -20,7 +20,7 @@
 
         @if ($preview['total'])
             <x-ui.table class="mb-5">
-                <thead><tr><th>{{ __('menu.category') }}</th><th>{{ __('menu.name') }}</th><th class="text-end">{{ __('menu.price') }}</th><th>{{ __('menu.stock_col_stock') }}</th><th></th></tr></thead>
+                <thead><tr><th>{{ __('menu.category') }}</th><th>{{ __('menu.name') }}</th><th class="text-end">{{ __('menu.price') }}</th><th>{{ __('menu.stock_col_stock') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>
                 <tbody>@foreach ($preview['sample'] as $r)
                     <tr><td>{{ $r['category'] }}</td><td class="font-medium">{{ $r['dish'] }}</td><td class="tnum text-end">{{ number_format($r['price'], 2) }}</td><td class="tnum">{{ $r['stock'] ?? '—' }}</td>
                         <td><x-ui.badge :tone="$r['exists'] ? 'info' : 'success'">{{ $r['exists'] ? __('menu.import_update') : __('menu.import_new') }}</x-ui.badge></td></tr>

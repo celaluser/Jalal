@@ -59,14 +59,14 @@
                     <a href="{{ route('home') }}" class="flex items-center gap-2.5"><x-ui.qr-mark size="9" /><span class="display text-lg font-semibold text-white">{{ config('app.name') }}</span></a>
                     <p class="mt-4 max-w-xs text-sm text-ink-400">{{ __('site.footer.tagline') }}</p>
                 </div>
-                <nav aria-label="{{ __('site.footer.product') }}"><p class="eyebrow !text-ink-500">{{ __('site.footer.product') }}</p>
+                <nav aria-label="{{ __('site.footer.product') }}"><p class="eyebrow !text-ink-400">{{ __('site.footer.product') }}</p>
                     <ul class="mt-4 space-y-2.5 text-sm"><li><a class="hover:text-white" href="{{ route('home') }}#features">{{ __('site.nav.features') }}</a></li><li><a class="hover:text-white" href="{{ route('home') }}#pricing">{{ __('site.nav.pricing') }}</a></li><li><a class="hover:text-white" href="{{ route('home') }}#faq">{{ __('site.nav.faq') }}</a></li></ul></nav>
-                <nav aria-label="{{ __('site.footer.resources') }}"><p class="eyebrow !text-ink-500">{{ __('site.footer.resources') }}</p>
+                <nav aria-label="{{ __('site.footer.resources') }}"><p class="eyebrow !text-ink-400">{{ __('site.footer.resources') }}</p>
                     <ul class="mt-4 space-y-2.5 text-sm"><li><a class="hover:text-white" href="{{ route('blog.index') }}">{{ __('site.nav.blog') }}</a></li><li><a class="hover:text-white" href="{{ route('login') }}">{{ __('auth.login') }}</a></li></ul></nav>
-                <nav aria-label="{{ __('site.nav.footer') }}"><p class="eyebrow !text-ink-500">{{ __('site.footer.legal') }}</p>
+                <nav aria-label="{{ __('site.nav.footer') }}"><p class="eyebrow !text-ink-400">{{ __('site.footer.legal') }}</p>
                     <ul class="mt-4 space-y-2.5 text-sm">@forelse ($footerPages as $page)<li><a class="hover:text-white" href="{{ route('pages.show', $page->slug) }}">{{ $page->title }}</a></li>@empty<li class="text-ink-500">—</li>@endforelse</ul></nav>
             </div>
-            <div class="relative border-t border-white/10"><div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-xs text-ink-500 sm:px-6"><p>&copy; {{ now()->year }} {{ config('app.name') }}</p><x-ui.language-switcher /></div></div>
+            <div class="relative border-t border-white/10"><div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-xs text-ink-400 sm:px-6"><p>&copy; {{ now()->year }} {{ config('app.name') }}</p><x-ui.language-switcher /></div></div>
         </footer>
     </div>
 </x-layouts.base>

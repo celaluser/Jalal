@@ -3,7 +3,7 @@
         <x-slot:actions><a href="{{ route('admin.announcements.create') }}" class="btn btn-primary"><x-ui.icon name="plus" size="4" />{{ __('admin.announcements.new') }}</a></x-slot:actions>
     </x-ui.page-header>
     <x-ui.table>
-        <thead><tr><th>{{ __('admin.cms.title') }}</th><th>{{ __('admin.announcements.level') }}</th><th>{{ __('admin.announcements.window') }}</th><th>{{ __('admin.status') }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ __('admin.cms.title') }}</th><th>{{ __('admin.announcements.level') }}</th><th>{{ __('admin.announcements.window') }}</th><th>{{ __('admin.status') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>
         <tbody>
         @forelse ($announcements as $a)
             @php($state = ! $a->is_active ? 'inactive' : ($a->starts_at?->isFuture() ? 'scheduled' : ($a->ends_at?->isPast() ? 'ended' : 'live')))

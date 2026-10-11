@@ -104,13 +104,13 @@
             @endphp
             <x-ui.card :title="__('analytics.busy_hours')" :description="$peak ? __('analytics.busiest', ['day' => $days[$peak['d']], 'hour' => sprintf('%02d:00', $peak['h']), 'count' => $peak['n']]) : null" class="mt-5">
                 <div class="overflow-x-auto" dir="ltr">
-                    <div class="grid min-w-[560px] gap-[3px]" style="grid-template-columns: 2.5rem repeat(24, minmax(0, 1fr))" role="table" aria-label="{{ __('analytics.busy_hours') }}">
+                    <div class="grid min-w-[560px] gap-[3px]" style="grid-template-columns: 2.5rem repeat(24, minmax(0, 1fr))" role="img" aria-label="{{ __('analytics.busy_hours') }}{{ $peak ? ': '.__('analytics.busiest', ['day' => $days[$peak['d']], 'hour' => sprintf('%02d:00', $peak['h']), 'count' => $peak['n']]) : '' }}">
                         <span></span>
                         @for ($h = 0; $h < 24; $h++)<span class="text-center text-[10px] text-muted tnum">{{ $h % 3 === 0 ? $h : '' }}</span>@endfor
                         @foreach ($report['heatmap'] as $d => $hours)
                             <span class="pe-1 text-end text-xs text-muted">{{ $days[$d] }}</span>
                             @foreach ($hours as $h => $n)
-                                <span role="cell" class="aspect-square rounded-[4px] border border-line" title="{{ $days[$d] }} {{ sprintf('%02d:00', $h) }}: {{ trans_choice('analytics.cell_orders', $n, ['count' => $n]) }}" aria-label="{{ $days[$d] }} {{ sprintf('%02d:00', $h) }}: {{ $n }}"
+                                <span aria-hidden="true" class="aspect-square rounded-[4px] border border-line" title="{{ $days[$d] }} {{ sprintf('%02d:00', $h) }}: {{ trans_choice('analytics.cell_orders', $n, ['count' => $n]) }}"
                                       style="background: {{ $n ? 'color-mix(in srgb, var(--viz-series-1) '.max(14, round($n / $max * 100)).'%, transparent)' : 'transparent' }}"></span>
                             @endforeach
                         @endforeach

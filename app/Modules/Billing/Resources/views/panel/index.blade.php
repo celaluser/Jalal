@@ -88,7 +88,7 @@
     {{-- Invoices --}}
     <h2 class="display mb-3 mt-8 text-xl font-semibold">{{ __('billing.invoices') }}</h2>
     <x-ui.table>
-        <thead><tr><th>{{ __('billing.invoice_number') }}</th><th>{{ __('billing.invoice_date') }}</th><th>{{ __('billing.invoice_total') }}</th><th>{{ __('admin.status') }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ __('billing.invoice_number') }}</th><th>{{ __('billing.invoice_date') }}</th><th>{{ __('billing.invoice_total') }}</th><th>{{ __('admin.status') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>
         <tbody>
         @forelse ($invoices as $inv)
             <tr>

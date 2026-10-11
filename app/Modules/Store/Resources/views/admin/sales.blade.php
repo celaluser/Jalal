@@ -21,7 +21,7 @@
     </x-ui.card>
 
     <x-ui.table>
-        <thead><tr><th>{{ __('store.admin.restaurant') }}</th><th>{{ __('store.admin.item') }}</th><th>{{ __('store.admin.source') }}</th><th>{{ __('store.admin.status') }}</th><th>{{ __('store.admin.ends') }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ __('store.admin.restaurant') }}</th><th>{{ __('store.admin.item') }}</th><th>{{ __('store.admin.source') }}</th><th>{{ __('store.admin.status') }}</th><th>{{ __('store.admin.ends') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>
         <tbody>
             @foreach ($rows as $e)
                 <tr>

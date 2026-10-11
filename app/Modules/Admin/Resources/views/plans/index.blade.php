@@ -3,7 +3,7 @@
         <x-slot:actions><a href="{{ route('admin.plans.create') }}" class="btn btn-primary"><x-ui.icon name="plus" size="4" />{{ __('admin.plans.new') }}</a></x-slot:actions>
     </x-ui.page-header>
     <x-ui.table>
-        <thead><tr><th>{{ __('admin.plans.name') }}</th><th>{{ __('admin.plans.price') }}</th><th>{{ __('admin.plans.trial') }}</th><th>{{ __('admin.plans.subscribers') }}</th><th>{{ __('admin.status') }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ __('admin.plans.name') }}</th><th>{{ __('admin.plans.price') }}</th><th>{{ __('admin.plans.trial') }}</th><th>{{ __('admin.plans.subscribers') }}</th><th>{{ __('admin.status') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>
         <tbody>
         @forelse ($plans as $plan)
             <tr>

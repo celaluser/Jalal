@@ -12,7 +12,7 @@
     </div>
 
     <x-ui.table>
-        <thead><tr><th>{{ __('store.admin.item') }}</th><th>{{ __('store.admin.mode') }}</th><th>{{ __('store.admin.price') }}</th><th>{{ __('store.admin.owners') }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ __('store.admin.item') }}</th><th>{{ __('store.admin.mode') }}</th><th>{{ __('store.admin.price') }}</th><th>{{ __('store.admin.owners') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>
         <tbody>
             @foreach ($items as $i)
                 <tr>
