@@ -123,9 +123,9 @@ class InvoiceService
     }
 
     /** An invoice for something from the store (a theme or a premium feature), not for a plan. */
-    public function createForStore(Restaurant $restaurant, string $description, float $price, string $currency, string $slug, ?int $months): Invoice
+    public function createForStore(Restaurant $restaurant, string $description, float $price, string $currency, string $slug, ?int $months, ?Coupon $coupon = null): Invoice
     {
-        $amounts = $this->calculate($price);
+        $amounts = $this->calculate($price, $coupon);
 
         for ($attempt = 0; ; $attempt++) {
             try {
@@ -137,13 +137,14 @@ class InvoiceService
                     'status' => $amounts['total'] === 0 ? 'paid' : 'open',
                     'currency_code' => strtoupper($currency),
                     'subtotal' => $amounts['subtotal'] / 100,
-                    'discount_amount' => 0,
+                    'discount_amount' => $amounts['discount'] / 100,
                     'credit_used' => 0,
+                    'coupon_code' => $coupon?->code,
                     'tax_name' => $this->settings->get('billing.tax_name', 'VAT'),
                     'tax_rate' => $amounts['rate'],
                     'tax_amount' => $amounts['tax'] / 100,
                     'total' => $amounts['total'] / 100,
-                    'items' => [['description' => $description, 'quantity' => 1, 'amount' => $amounts['subtotal'] / 100]],
+                    'items' => array_values(array_filter([['description' => $description, 'quantity' => 1, 'amount' => $amounts['subtotal'] / 100], $amounts['discount'] > 0 ? ['description' => __('billing.coupon').' '.$coupon->code, 'quantity' => 1, 'amount' => -$amounts['discount'] / 100] : null])),
                     'billing' => $this->billingSnapshot($restaurant),
                     'issued_at' => now(),
                     'due_at' => now()->addDays(7),

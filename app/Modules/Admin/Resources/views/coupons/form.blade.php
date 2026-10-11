@@ -9,6 +9,16 @@
             <x-ui.input name="max_uses" type="number" min="1" :label="__('admin.coupons.max_uses')" :value="old('max_uses', $coupon->max_uses)" placeholder="∞" />
             <x-ui.input name="starts_at" type="date" :label="__('admin.coupons.starts')" :value="old('starts_at', $coupon->starts_at?->toDateString())" />
             <x-ui.input name="expires_at" type="date" :label="__('admin.coupons.expires')" :value="old('expires_at', $coupon->expires_at?->toDateString())" />
+            <div class="sm:col-span-2"><x-ui.select name="applies_to" :label="__('admin.coupons.applies_to')" :value="old('applies_to', $coupon->applies_to ?? 'plans')" :options="['plans' => __('admin.coupons.applies_plans'), 'store' => __('admin.coupons.applies_store'), 'all' => __('admin.coupons.applies_all')]" :hint="__('admin.coupons.applies_help')" /></div>
+            <fieldset class="sm:col-span-2">
+                <legend class="mb-1 text-sm font-medium">{{ __('admin.coupons.store_items') }}</legend>
+                <p class="mb-3 text-xs text-muted">{{ __('admin.coupons.store_items_help') }}</p>
+                <div class="grid max-h-48 gap-x-6 gap-y-2 overflow-y-auto sm:grid-cols-2">
+                    @foreach ($storeItems as $slug => $i)
+                        <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="store_slugs[]" value="{{ $slug }}" @checked(in_array($slug, old('store_slugs', $coupon->store_slugs ?? []))) class="check"> {{ $i['name'] }}</label>
+                    @endforeach
+                </div>
+            </fieldset>
             <fieldset class="sm:col-span-2">
                 <legend class="mb-1 text-sm font-medium">{{ __('admin.coupons.plans') }}</legend>
                 <p class="mb-3 text-xs text-muted">{{ __('admin.coupons.plans_help') }}</p>

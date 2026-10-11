@@ -40,7 +40,8 @@ class StoreController extends Controller
             'restaurant' => $restaurant,
             'themes' => $items->where('kind', 'theme'),
             'features' => $items->where('kind', 'feature'),
-            'tab' => $request->query('tab') === 'features' ? 'features' : 'themes',
+            'bundles' => $items->where('kind', 'bundle')->filter(fn ($i) => $i['state']['status'] !== 'upgrade' || $i['visible']),
+            'tab' => in_array($request->query('tab'), ['features', 'bundles'], true) ? $request->query('tab') : 'themes',
         ]);
     }
 
@@ -58,6 +59,8 @@ class StoreController extends Controller
             'gateways' => $this->gateways->availableFor($item['currency']),
             'canTrial' => $item['trial_days'] > 0 && $this->catalog->purchasable($item) && ! $this->entitlements->everHad($restaurant, $slug) && $state['status'] === 'buy',
             'plan' => $this->limits->plan($restaurant),
+            'contains' => collect($item['items'] ?? [])->map(fn ($s) => $this->catalog->find($s))->filter()->values(),
+            'worth' => ($item['kind'] ?? '') === 'bundle' ? $this->catalog->bundleWorth($item, $item['currency']) : 0.0,
         ]);
     }
 
@@ -67,10 +70,11 @@ class StoreController extends Controller
         $data = $request->validate([
             'gateway' => ['required', 'string', Rule::in(array_keys($this->gateways->availableFor($item['currency'])))],
             'units' => ['nullable', 'integer', Rule::in($this->checkout->units($item))],
+            'coupon' => ['nullable', 'string', 'max:60'],
         ]);
 
         try {
-            $outcome = $this->checkout->start($request->user()->restaurant, $slug, (int) ($data['units'] ?? 1), $data['gateway']);
+            $outcome = $this->checkout->start($request->user()->restaurant, $slug, (int) ($data['units'] ?? 1), $data['gateway'], ($data['coupon'] ?? '') ?: null);
         } catch (BillingException $e) {
             return back()->withInput()->withErrors(['checkout' => $e->getMessage()]);
         }
@@ -127,6 +131,14 @@ class StoreController extends Controller
         }
 
         $owned = $this->entitlements->current($restaurant, $item['slug']);
+
+        if ($item['kind'] === 'bundle') {
+            return match (true) {
+                $owned !== null => ['status' => 'owned', 'until' => $owned->ends_at],
+                $this->catalog->purchasable($item) => ['status' => 'buy', 'until' => null],
+                default => ['status' => 'upgrade', 'until' => null],
+            };
+        }
 
         return match (true) {
             $item['mode'] === 'free' => ['status' => 'free', 'until' => null],

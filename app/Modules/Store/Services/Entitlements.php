@@ -49,6 +49,13 @@ class Entitlements
     public function grant(Restaurant $restaurant, string $slug, ?int $months, string $source = 'admin', ?int $invoiceId = null, ?int $days = null): Entitlement
     {
         return DB::transaction(function () use ($restaurant, $slug, $months, $source, $invoiceId, $days) {
+            // A bundle gives every item in it for the same time, besides its own record (which carries the invoice).
+            if (str_starts_with($slug, 'bundle:') && ($bundle = $this->catalog->find($slug))) {
+                foreach ($bundle['items'] as $child) {
+                    $this->grant($restaurant, $child, $months, $source, null, $days);
+                }
+            }
+
             $running = $this->current($restaurant, $slug);
 
             if ($running && $running->ends_at === null) {
@@ -60,7 +67,7 @@ class Entitlements
             $ends = $forGood ? null : ($days !== null ? $start->copy()->addDays($days) : $start->copy()->addMonthsNoOverflow((int) $months));
 
             if ($running) {
-                $running->update(['ends_at' => $ends, 'invoice_id' => $invoiceId ?? $running->invoice_id, 'source' => $source === 'purchase' ? 'purchase' : $running->source]);
+                $running->update(['reminded_at' => null, 'ends_at' => $ends, 'invoice_id' => $invoiceId ?? $running->invoice_id, 'source' => $source === 'purchase' ? 'purchase' : $running->source]);
                 $entitlement = $running;
             } else {
                 $entitlement = (new Entitlement)->forceFill(['restaurant_id' => $restaurant->id, 'item_slug' => $slug, 'status' => 'active', 'source' => $source, 'starts_at' => now(), 'ends_at' => $ends, 'invoice_id' => $invoiceId]);

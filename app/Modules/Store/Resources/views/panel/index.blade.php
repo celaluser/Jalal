@@ -1,10 +1,10 @@
-@php($sets = ['themes' => $themes, 'features' => $features])
+@php($sets = ['themes' => $themes, 'features' => $features, 'bundles' => $bundles])
 <x-layouts.app :title="__('store.title')">
     <x-ui.page-header :title="__('store.title')" :description="__('store.subtitle')" />
     @if (session('status'))<x-ui.alert type="success" class="mb-4">{{ session('status') }}</x-ui.alert>@endif
 
     <div class="mb-5 flex gap-1 rounded-xl bg-surface-2 p-1 text-sm font-semibold sm:w-fit" role="tablist">
-        @foreach (['themes', 'features'] as $t)
+        @foreach (collect(['themes', 'features', 'bundles'])->reject(fn ($t) => $t === 'bundles' && $bundles->isEmpty()) as $t)
             <a href="{{ route('store.index', ['tab' => $t]) }}" role="tab" aria-selected="{{ $tab === $t ? 'true' : 'false' }}" @class(['flex-1 rounded-lg px-4 py-2 text-center sm:flex-none', 'bg-surface shadow-sm' => $tab === $t, 'text-muted' => $tab !== $t])>{{ __('store.tab_'.$t) }} <span class="text-xs text-muted">{{ $sets[$t]->count() }}</span></a>
         @endforeach
     </div>

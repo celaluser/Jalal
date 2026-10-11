@@ -1,7 +1,21 @@
 <x-layouts.admin :title="$item['name']">
-    <x-ui.page-header :title="$item['name']" :description="__('store.admin.edit_sub')" :back="['url' => route('admin.store.index'), 'label' => __('store.admin.title')]" />
-    <form method="POST" action="{{ route('admin.store.update', $item['slug']) }}" class="max-w-3xl space-y-5" x-data="{ mode: @js(old('mode', $item['mode'])) }">
-        @csrf @method('PUT')
+    <x-ui.page-header :title="$item['name'] ?: __('store.admin.new_bundle')" :description="__('store.admin.edit_sub')" :back="['url' => route('admin.store.index'), 'label' => __('store.admin.title')]" />
+    @php($isBundle = $item['kind'] === 'bundle')
+    <form method="POST" action="{{ $item['slug'] ? route('admin.store.update', $item['slug']) : route('admin.store.bundles.store') }}" class="max-w-3xl space-y-5" x-data="{ mode: @js(old('mode', $item['mode'])) }">
+        @csrf @if ($item['slug']) @method('PUT') @endif
+        @if ($isBundle)
+            <x-ui.card :title="__('store.admin.bundle_items')">
+                <p class="mb-3 text-sm text-muted">{{ __('store.admin.bundle_help') }}</p>
+                <div class="grid max-h-60 gap-x-6 gap-y-2 overflow-y-auto sm:grid-cols-2">
+                    @foreach ($choices as $slug => $c)
+                        <label class="flex items-center gap-2.5 text-sm"><input type="checkbox" name="items[]" value="{{ $slug }}" class="check" @checked(in_array($slug, old('items', $item['items'] ?? [])))>{{ $c['name'] }} <span class="text-xs text-muted">({{ __('store.admin.kind_'.$c['kind']) }})</span></label>
+                    @endforeach
+                </div>
+                @error('items')<p class="mt-2 text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
+            </x-ui.card>
+            <input type="hidden" name="mode" value="paid">
+        @endif
+        @unless ($isBundle)
         <x-ui.card :title="__('store.admin.availability')">
             <div class="grid gap-2" role="radiogroup">
                 @foreach (\App\Modules\Store\Services\Catalog::MODES as $m)
@@ -13,6 +27,7 @@
             </div>
             @error('mode')<p class="mt-2 text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
         </x-ui.card>
+        @endunless
 
         <x-ui.card :title="__('store.admin.pricing')" x-show="mode === 'paid'" x-cloak>
             <div class="grid gap-4 sm:grid-cols-2">

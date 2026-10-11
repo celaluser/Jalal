@@ -3,12 +3,15 @@
 use App\Models\User;
 use App\Modules\Auth\Support\Permissions;
 use App\Modules\Billing\Exceptions\BillingException;
+use App\Modules\Billing\Models\Coupon;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Payments\GatewayManager;
+use App\Modules\Billing\Services\CouponService;
 use App\Modules\Billing\Services\LimitGuard;
 use App\Modules\Billing\Services\PaymentProcessor;
 use App\Modules\Billing\Services\SubscriptionService;
+use App\Modules\Core\Mail\TemplatedMail;
 use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Models\Language;
 use App\Modules\Menu\Services\ThemeRegistry;
@@ -21,6 +24,7 @@ use App\Modules\Tenancy\Models\Restaurant;
 use App\Modules\Tenancy\Services\DomainService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
@@ -222,4 +226,68 @@ it('hides items the platform switched off from the store but keeps them for owne
 
     app(Entitlements::class)->grant($r, 'feature:api', null, 'admin');
     $this->actingAs($owner)->get(route('store.show', 'feature:api'))->assertOk();
+});
+
+it('takes a store coupon off the invoice and keeps plan coupons out of the store', function () {
+    stoSell('feature:api', ['price' => 20]);
+    [$r, $owner] = stoShop();
+    $coupon = Coupon::create(['code' => 'STORE25', 'type' => 'percent', 'value' => 25, 'applies_to' => 'store', 'is_active' => true]);
+    Coupon::create(['code' => 'PLANONLY', 'type' => 'percent', 'value' => 50, 'applies_to' => 'plans', 'is_active' => true]);
+    Coupon::create(['code' => 'THEMEONLY', 'type' => 'percent', 'value' => 50, 'applies_to' => 'store', 'store_slugs' => ['theme:aurora'], 'is_active' => true]);
+
+    $this->actingAs($owner)->post(route('store.buy', 'feature:api'), ['gateway' => 'bank_transfer', 'coupon' => 'PLANONLY'])->assertSessionHasErrors('checkout');
+    $this->actingAs($owner)->post(route('store.buy', 'feature:api'), ['gateway' => 'bank_transfer', 'coupon' => 'THEMEONLY'])->assertSessionHasErrors('checkout');
+    $this->actingAs($owner)->post(route('store.buy', 'feature:api'), ['gateway' => 'bank_transfer', 'coupon' => 'store25'])->assertSessionHasNoErrors();
+
+    $invoice = Invoice::allTenants()->where('restaurant_id', $r->id)->whereNotNull('store_slug')->latest('id')->first();
+    expect((float) $invoice->total)->toBe(15.0)->and($invoice->coupon_code)->toBe('STORE25');
+    app(PaymentProcessor::class)->settle($invoice, 'manual');
+    expect($coupon->fresh()->used_count)->toBe(1)->and(app(LimitGuard::class)->hasFeature($r, 'api'))->toBeTrue();
+
+    // A plan checkout cannot use a store-only coupon.
+    expect(fn () => app(CouponService::class)->validate('STORE25', Plan::first()))->toThrow(BillingException::class);
+});
+
+it('sells a bundle: one price, every item inside unlocked for the same time', function () {
+    stoSell('theme:aurora', ['price' => 5]);
+    stoSell('feature:api', ['price' => 8]);
+    $admin = stoAdmin();
+    [$r, $owner] = stoShop();
+
+    $this->actingAs($admin)->post(route('admin.store.bundles.store'), ['name' => 'Pro pack', 'billing' => 'monthly', 'price' => 9, 'currency_code' => 'USD', 'items' => ['theme:aurora']])->assertSessionHasErrors('items');
+    $this->actingAs($admin)->post(route('admin.store.bundles.store'), ['name' => 'Pro pack', 'billing' => 'monthly', 'price' => 9, 'currency_code' => 'USD', 'summary' => 'Everything', 'visible' => 1, 'items' => ['theme:aurora', 'feature:api', 'bundle:nope']])->assertRedirect();
+    $bundle = collect(app(Catalog::class)->all())->first(fn ($i) => $i['kind'] === 'bundle');
+    expect($bundle['name'])->toBe('Pro pack')->and($bundle['items'])->toBe(['theme:aurora', 'feature:api'])->and(app(Catalog::class)->bundleWorth($bundle, 'USD'))->toBe(13.0);
+
+    $this->actingAs($owner)->get(route('store.index', ['tab' => 'bundles']))->assertOk()->assertSee('Pro pack');
+    $this->actingAs($owner)->get(route('store.show', $bundle['slug']))->assertOk()->assertSee('You save');
+
+    Carbon::setTestNow('2026-03-01 10:00:00');
+    stoBuy($r, $bundle['slug'], 3);
+    expect(app(LimitGuard::class)->hasFeature($r, 'api'))->toBeTrue()->and(app(StoreAccess::class)->themeAllowed($r, 'aurora'))->toBeTrue();
+    expect(Entitlement::allTenants()->get()->map(fn ($e) => $e->item_slug.' '.$e->ends_at->toDateString())->sort()->values()->all())->toBe(['bundle:'.substr($bundle['slug'], 7).' 2026-06-01', 'feature:api 2026-06-01', 'theme:aurora 2026-06-01']);
+
+    $this->actingAs($admin)->delete(route('admin.store.reset', $bundle['slug']))->assertRedirect();
+    expect(app(Catalog::class)->find($bundle['slug']))->toBeNull();
+});
+
+it('reminds owners a week before a rental ends, once, and again after it is extended', function () {
+    stoSell('feature:api');
+    [$r, $owner] = stoShop();
+    $r->forceFill(['owner_id' => $owner->id])->save();
+    Mail::fake();
+    Carbon::setTestNow('2026-06-01 09:00:00');
+    stoBuy($r, 'feature:api', 1); // ends 2026-07-01
+
+    Carbon::setTestNow('2026-06-20 09:00:00');
+    $this->artisan('store:remind')->assertSuccessful();
+    Mail::assertNotSent(TemplatedMail::class, fn ($m) => $m->templateKey === 'store_expiring');
+
+    Carbon::setTestNow('2026-06-26 09:00:00');
+    $this->artisan('store:remind')->assertSuccessful();
+    $this->artisan('store:remind')->assertSuccessful();
+    expect(Mail::sent(TemplatedMail::class, fn ($m) => $m->templateKey === 'store_expiring')->count())->toBe(1);
+
+    stoBuy($r, 'feature:api', 1); // extended to 2026-08-01: re-armed
+    expect(Entitlement::allTenants()->first()->reminded_at)->toBeNull();
 });

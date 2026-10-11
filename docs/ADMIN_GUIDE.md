@@ -52,3 +52,5 @@ Open **Billing, Store catalog**. Every plan feature and every menu theme is list
 Payments use the gateways you set up for subscriptions, with the same tax settings. A paid invoice unlocks the item at once (bank transfer: when you mark the invoice paid). Rentals do not renew by themselves: restaurants extend them from the item page, and the item locks again when time runs out (a theme falls back to your default theme).
 
 **Billing, Store sales** shows what restaurants own, store revenue per currency, and lets you give an item to a restaurant (for some months or for good) or take it back.
+
+**Store coupons and bundles.** Under Billing, Coupons choose "Valid for": plans, store items or both, and optionally limit a coupon to chosen store items. Under Store catalog, "New bundle" sells several themes and features together for one price; restaurants see how much they save and every item inside unlocks for the same time. A reminder e-mail goes out a week before a rented item ends (change the text under E-mail templates).

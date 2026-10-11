@@ -5,7 +5,7 @@ use App\Modules\Store\Http\Controllers\AdminStoreController;
 use App\Modules\Store\Http\Controllers\StoreController;
 use Illuminate\Support\Facades\Route;
 
-$slug = '(feature|theme):[a-z0-9_]+';
+$slug = '(feature|theme|bundle):[a-z0-9_]+';
 
 // The restaurant's store. Anyone on staff may look; buying needs the billing permission.
 Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])->prefix('store')->name('store.')->group(function () use ($slug) {
@@ -21,6 +21,8 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])-
 Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', 'permission:platform.manage'])->prefix('admin/store')->name('admin.store.')->group(function () use ($slug) {
     Route::get('/', [AdminStoreController::class, 'index'])->name('index');
     Route::get('sales', [AdminStoreController::class, 'sales'])->name('sales');
+    Route::get('bundles/create', [AdminStoreController::class, 'createBundle'])->name('bundles.create');
+    Route::post('bundles', [AdminStoreController::class, 'storeBundle'])->name('bundles.store');
     Route::post('grant', [AdminStoreController::class, 'grant'])->name('grant');
     Route::delete('entitlements/{entitlement}', [AdminStoreController::class, 'revoke'])->whereNumber('entitlement')->name('revoke');
     Route::get('{slug}/edit', [AdminStoreController::class, 'edit'])->where('slug', $slug)->name('edit');

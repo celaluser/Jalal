@@ -2,6 +2,9 @@
 
 namespace App\Modules\Inventory\Services;
 
+use App\Modules\Core\Mail\SafeMail;
+use App\Modules\Core\Mail\TemplatedMail;
+use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Inventory\Models\Ingredient;
 use App\Modules\Inventory\Models\Purchase;
 use App\Modules\Inventory\Models\RecipeLine;
@@ -25,9 +28,37 @@ class Recipes
             return;
         }
 
+        $touched = [];
+
         foreach (RecipeLine::whereIn('product_id', array_keys($portions))->get() as $line) {
             Ingredient::whereKey($line->ingredient_id)->update(['stock_qty' => DB::raw('stock_qty - '.((float) $line->qty * $portions[$line->product_id] * $factor))]);
+            $touched[] = $line->ingredient_id;
         }
+
+        if ($factor > 0 && $touched !== []) {
+            $this->warnLow(array_unique($touched));
+        }
+    }
+
+    /**
+     * E-mails the owner once per dip when an ingredient reaches its warning level; topping the stock up re-arms it.
+     *
+     * @param  list<int>  $ids
+     */
+    private function warnLow(array $ids): void
+    {
+        $restaurant = app(TenantContext::class)->get();
+        $low = Ingredient::whereIn('id', $ids)->whereNotNull('low_at')->whereNull('low_notified_at')->get()->filter(fn (Ingredient $i) => $i->stock_qty <= $i->low_at);
+
+        if (! $restaurant || $low->isEmpty()) {
+            return;
+        }
+
+        // Marked first: a failing mail server must not mean one e-mail per order.
+        Ingredient::whereIn('id', $low->pluck('id'))->update(['low_notified_at' => now()]);
+
+        $list = $low->map(fn (Ingredient $i) => $i->name.' ('.max(0, round($i->stock_qty, 3)).' '.$i->unit.')')->implode(', ');
+        SafeMail::send($restaurant->owner?->email, new TemplatedMail('ingredient_low', ['restaurant' => $restaurant->name, 'items' => $list, 'inventory_url' => url('/inventory')], $restaurant->locale));
     }
 
     /** Stock in from a delivery: adds to the stock and moves the unit cost towards what was just paid (weighted average). */
@@ -38,7 +69,7 @@ class Recipes
             $onHand = max(0.0, $ingredient->stock_qty);
             $average = $onHand + $qty > 0 ? (($onHand * (float) $ingredient->unit_cost) + ($qty * $unitCost)) / ($onHand + $qty) : $unitCost;
 
-            $ingredient->update(['stock_qty' => $ingredient->stock_qty + $qty, 'unit_cost' => round($ingredient->unit_cost === null ? $unitCost : $average, 4), 'supplier_id' => $supplierId ?: $ingredient->supplier_id]);
+            $ingredient->update(['low_notified_at' => $ingredient->low_at !== null && $ingredient->stock_qty + $qty > $ingredient->low_at ? null : $ingredient->low_notified_at, 'stock_qty' => $ingredient->stock_qty + $qty, 'unit_cost' => round($ingredient->unit_cost === null ? $unitCost : $average, 4), 'supplier_id' => $supplierId ?: $ingredient->supplier_id]);
             $this->recost(RecipeLine::where('ingredient_id', $ingredient->id)->pluck('product_id')->all());
 
             return Purchase::create(['ingredient_id' => $ingredient->id, 'supplier_id' => $supplierId, 'qty' => $qty, 'unit_cost' => $unitCost, 'purchased_on' => $date ?: now()->toDateString(), 'note' => $note]);

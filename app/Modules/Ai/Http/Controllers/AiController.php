@@ -74,21 +74,49 @@ class AiController extends Controller
         return $this->respond($request, fn () => $this->ai->importMenu($restaurant, $data['text'], $restaurant->locale, $request->user()));
     }
 
-    /** A photo or screenshot of a menu, read by a model that can see. */
+    /** One photo or screenshot of a menu, or several pages (up to 5), read by a model that can see. Pages are merged by category name. */
     public function importPhoto(Request $request): JsonResponse
     {
-        $request->validate(['photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:4096']]);
-        $file = $request->file('photo');
-        $mime = (string) (@getimagesize($file->getRealPath())['mime'] ?? '');
+        $request->validate([
+            'photo' => ['required_without:photos', 'file', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'photos' => ['required_without:photo', 'array', 'min:1', 'max:5'],
+            'photos.*' => ['file', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ]);
 
-        if (! in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) {
-            return response()->json(['error' => 'bad_file', 'message' => __('ai.error_bad_file')], 422);
+        $files = array_values(array_filter(array_merge((array) $request->file('photos', []), [$request->file('photo')])));
+        $images = [];
+
+        foreach ($files as $file) {
+            $mime = (string) (@getimagesize($file->getRealPath())['mime'] ?? '');
+
+            if (! in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) {
+                return response()->json(['error' => 'bad_file', 'message' => __('ai.error_bad_file')], 422);
+            }
+
+            $images[] = ['mime' => $mime, 'base64' => base64_encode((string) file_get_contents($file->getRealPath()))];
         }
 
         $restaurant = $request->user()->restaurant;
-        $image = ['mime' => $mime, 'base64' => base64_encode((string) file_get_contents($file->getRealPath()))];
 
-        return $this->respond($request, fn () => $this->ai->importMenuFromImage($restaurant, $image, $restaurant->locale, $request->user()));
+        return $this->respond($request, function () use ($images, $restaurant, $request) {
+            $merged = [];
+            $warnings = [];
+
+            foreach ($images as $image) {
+                $page = $this->ai->importMenuFromImage($restaurant, $image, $restaurant->locale, $request->user());
+                $warnings = array_merge($warnings, $page['warnings'] ?? []);
+
+                foreach ($page['categories'] ?? [] as $category) {
+                    $key = mb_strtolower(trim($category['name']));
+                    $merged[$key]['name'] ??= $category['name'];
+                    $merged[$key]['items'] = array_merge($merged[$key]['items'] ?? [], $category['items']);
+                }
+            }
+
+            $categories = array_slice(array_values($merged), 0, AiAssistant::IMPORT_MAX_CATEGORIES);
+
+            return ['categories' => $categories, 'warnings' => array_values(array_unique($warnings)), 'items' => (int) collect($categories)->sum(fn ($c) => count($c['items']))];
+        });
     }
 
     /** A PDF menu: its text is read on this server, then handled like pasted text. Scanned PDFs have no text; use the photo import for those. */

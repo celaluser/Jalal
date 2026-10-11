@@ -1,6 +1,6 @@
 @php($money = fn ($amount) => \App\Modules\Core\Models\Currency::where('code', $item['currency'])->first()?->format($amount) ?? number_format($amount, 2).' '.$item['currency'])
 <x-layouts.app :title="$item['name']">
-    <x-ui.page-header :title="$item['name']" :back="['url' => route('store.index', ['tab' => $item['kind'] === 'theme' ? 'themes' : 'features']), 'label' => __('store.title')]">
+    <x-ui.page-header :title="$item['name']" :back="['url' => route('store.index', ['tab' => ['theme' => 'themes', 'feature' => 'features', 'bundle' => 'bundles'][$item['kind']]]), 'label' => __('store.title')]">
         <x-slot:actions>@include('store::panel.badge', ['item' => $item])</x-slot:actions>
     </x-ui.page-header>
     @if (session('status'))<x-ui.alert type="success" class="mb-4">{{ session('status') }}</x-ui.alert>@endif
@@ -16,6 +16,12 @@
                 @if ($item['kind'] === 'theme')<a href="{{ route('appearance.edit') }}" class="btn btn-secondary btn-sm mt-4">{{ __('store.open_appearance') }}</a>@endif
                 @if ($item['key'] === 'custom_domain' || $item['key'] === 'subdomain')<a href="{{ route('domains.index') }}" class="btn btn-secondary btn-sm mt-4">{{ __('store.open_domains') }}</a>@endif
             </x-ui.card>
+            @if ($contains->isNotEmpty())
+                <x-ui.card :title="__('store.bundle_contains')">
+                    <ul class="space-y-1 text-sm">@foreach ($contains as $c)<li class="flex justify-between gap-3"><span>{{ $c['name'] }}</span><span class="text-muted">{{ __('store.admin.kind_'.$c['kind']) }}</span></li>@endforeach</ul>
+                    @if ($worth > $item['price'])<p class="mt-3 text-sm font-medium text-accent-700 dark:text-accent-300">{{ __('store.bundle_saves', ['amount' => $money($worth - $item['price'])]) }}</p>@endif
+                </x-ui.card>
+            @endif
             @if ($owned)
                 <x-ui.card :title="__('store.yours')">
                     <p class="text-sm">{{ $owned->ends_at ? __('store.valid_until', ['date' => $owned->ends_at->isoFormat('LL')]) : __('store.valid_forever') }}
@@ -43,6 +49,7 @@
                                     <p class="text-sm text-muted">{{ __('billing.no_gateways_text') }}</p>
                                 @endforelse
                             </div>
+                            <div class="mt-4"><label for="coupon" class="mb-1.5 block text-sm font-medium">{{ __('billing.coupon') }}</label><input id="coupon" name="coupon" value="{{ old('coupon') }}" class="field uppercase" maxlength="60" autocomplete="off"></div>
                             <p class="mt-3 text-xs text-muted">{{ __('store.tax_note') }}</p>
                             <button class="btn btn-primary btn-lg mt-4 w-full" @disabled(! count($gateways))>{{ $item['billing'] === 'one_time' ? __('store.buy') : ($item['state']['status'] === 'owned' ? __('store.extend') : __('store.rent')) }}</button>
                         </x-ui.card>

@@ -54,6 +54,15 @@ class Catalog
             $items[$slug] = $this->build($slug, 'theme', $key, $theme['name'], $this->trans('store.theme_summary'), 'free', $rows->get($slug), $currency, 1000 + $sort++);
         }
 
+        foreach ($rows as $slug => $row) {
+            if (! str_starts_with($slug, 'bundle:')) {
+                continue;
+            }
+
+            $contained = array_values(array_filter((array) $row->bundle_items, fn ($s) => isset($items[$s])));
+            $items[$slug] = $this->build($slug, 'bundle', substr($slug, 7), (string) ($row->name ?: __('store.bundle')), $this->trans('store.bundle_summary'), 'paid', $row, $currency, 500 + $sort++) + ['items' => $contained];
+        }
+
         uasort($items, fn ($a, $b) => [$a['sort'], $a['name']] <=> [$b['sort'], $b['name']]);
 
         return $this->items = $items;
@@ -84,7 +93,45 @@ class Catalog
         $this->forget();
     }
 
-    /** Back to the defaults. */
+    /**
+     * Makes a bundle: several items sold together for one price.
+     *
+     * @param  list<string>  $slugs
+     * @param  array<string, mixed>  $data  validated by rules()
+     */
+    public function createBundle(array $slugs, array $data): string
+    {
+        $slug = 'bundle:'.Str::lower(Str::random(6));
+        $this->save($slug, $data);
+        StoreItem::where('slug', $slug)->update(['bundle_items' => json_encode($this->bundleSlugs($slugs))]);
+        $this->forget();
+
+        return $slug;
+    }
+
+    /** @param list<string> $slugs */
+    public function setBundleItems(string $slug, array $slugs): void
+    {
+        StoreItem::where('slug', $slug)->update(['bundle_items' => json_encode($this->bundleSlugs($slugs))]);
+        $this->forget();
+    }
+
+    /** What the items of a bundle would cost bought one by one (items that are not for sale count nothing). */
+    public function bundleWorth(array $bundle, string $currency): float
+    {
+        return round(collect($bundle['items'] ?? [])->map(fn ($s) => $this->find($s))->filter(fn ($i) => $i && $this->purchasable($i) && $i['currency'] === $currency)->sum('price'), 2);
+    }
+
+    /**
+     * @param  list<string>  $slugs
+     * @return list<string>
+     */
+    private function bundleSlugs(array $slugs): array
+    {
+        return array_values(array_filter(array_unique($slugs), fn ($s) => ! str_starts_with($s, 'bundle:') && $this->find($s) !== null));
+    }
+
+    /** Back to the defaults (a bundle is deleted). */
     public function reset(string $slug): void
     {
         StoreItem::where('slug', $slug)->delete();

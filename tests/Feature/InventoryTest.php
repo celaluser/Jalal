@@ -4,6 +4,7 @@ use App\Models\User;
 use App\Modules\Auth\Support\Permissions;
 use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Services\SubscriptionService;
+use App\Modules\Core\Mail\TemplatedMail;
 use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Models\Language;
 use App\Modules\Core\Tenancy\TenantContext;
@@ -15,6 +16,7 @@ use App\Modules\Orders\Services\OrderService;
 use App\Modules\Orders\Support\OrderStatus;
 use App\Modules\Tenancy\Models\Restaurant;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
@@ -84,4 +86,26 @@ it('keeps other restaurants’ ingredients out of reach and rejects bad input', 
     $this->actingAs($owner1)->post(route('inventory.purchase'), ['ingredient_id' => $theirs->id, 'qty' => 1, 'unit_cost' => 1])->assertNotFound();
     $this->actingAs($owner1)->post(route('inventory.store'), ['name' => 'X', 'unit' => 'bushel'])->assertSessionHasErrors('unit');
     expect(Ingredient::allTenants()->find($theirs->id)->name)->toBe('Secret');
+});
+
+it('warns the owner once when an ingredient reaches its level and again after a restock', function () {
+    [$r, $owner, $d] = ivShop();
+    $r->forceFill(['owner_id' => $owner->id])->save();
+    Mail::fake();
+    $flour = app(TenantContext::class)->runAs($r, fn () => Ingredient::create(['name' => 'Flour', 'unit' => 'kg', 'stock_qty' => 1.0, 'low_at' => 0.5, 'unit_cost' => 2]));
+    $this->actingAs($owner)->put(route('inventory.recipe.update', $d['soup']->id), ['qty' => [$flour->id => '0.3']]);
+    $sent = fn () => Mail::sent(TemplatedMail::class, fn ($m) => $m->templateKey === 'ingredient_low')->count();
+
+    ivOrder($r, $d['soup']->id, 1); // 1.0 -> 0.7: still above the level
+    expect($sent())->toBe(0);
+    ivOrder($r, $d['soup']->id, 1); // 0.7 -> 0.4: warns
+    ivOrder($r, $d['soup']->id, 1); // 0.4 -> 0.1: already warned
+    expect($sent())->toBe(1);
+
+    $this->actingAs($owner)->post(route('inventory.purchase'), ['ingredient_id' => $flour->id, 'qty' => 5, 'unit_cost' => 2])->assertRedirect();
+    ivOrder($r, $d['soup']->id, 1);
+    expect($sent())->toBe(1);
+    $this->actingAs($owner)->put(route('inventory.update', $flour->id), ['name' => 'Flour', 'unit' => 'kg', 'stock_qty' => 0.55, 'low_at' => 0.5]); // low again after the next order
+    ivOrder($r, $d['soup']->id, 1);
+    expect($sent())->toBe(2);
 });

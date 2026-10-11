@@ -29,7 +29,7 @@ return [
     'button_import' => 'Import with AI',
     'need_name' => 'Enter the name first.',
 
-    'import_photo' => 'Or a photo of the menu', 'import_photo_cost' => 'A photo costs :count AI credits. Works with printed menus and screenshots.', 'import_pdf' => 'Or a PDF menu', 'import_pdf_hint' => 'PDFs with real text only. For a scanned PDF, take a photo of the page instead.',
+    'import_photo' => 'Or a photo of the menu', 'import_photo_cost' => 'A photo costs :count AI credits (each page of up to 5 is counted). Works with printed menus and screenshots.', 'import_pdf' => 'Or a PDF menu', 'import_pdf_hint' => 'PDFs with real text only. For a scanned PDF, take a photo of the page instead.',
     'error_bad_file' => 'That file could not be read. Try a clear JPG, PNG or PDF.', 'error_pdf_no_text' => 'This PDF has no readable text (it is probably a scan). Use the photo import instead.',
     'bulk_title' => 'Translate the whole menu', 'bulk_text' => 'Fills in every missing translation for dishes and categories, in the background. Languages you locked are never touched. Each item uses translation credits.', 'bulk_start' => 'Translate everything missing',
     'bulk_running' => 'Translating…', 'bulk_done' => 'Done: :n texts translated.', 'bulk_stopped' => 'Stopped early (no credits left or the AI service is not available). What was done is kept.',

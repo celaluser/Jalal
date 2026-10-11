@@ -5,6 +5,7 @@ namespace App\Modules\Admin\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Billing\Models\Coupon;
 use App\Modules\Billing\Models\Plan;
+use App\Modules\Store\Services\Catalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -19,7 +20,7 @@ class CouponController extends Controller
 
     public function create(): View
     {
-        return view('admin::coupons.form', ['coupon' => new Coupon(['type' => 'percent', 'is_active' => true]), 'plans' => Plan::orderBy('name')->get()]);
+        return view('admin::coupons.form', ['coupon' => new Coupon(['type' => 'percent', 'is_active' => true]), 'plans' => Plan::orderBy('name')->get(), 'storeItems' => app(Catalog::class)->all()]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -31,7 +32,7 @@ class CouponController extends Controller
 
     public function edit(Coupon $coupon): View
     {
-        return view('admin::coupons.form', ['coupon' => $coupon, 'plans' => Plan::orderBy('name')->get()]);
+        return view('admin::coupons.form', ['coupon' => $coupon, 'plans' => Plan::orderBy('name')->get(), 'storeItems' => app(Catalog::class)->all()]);
     }
 
     public function update(Request $request, Coupon $coupon): RedirectResponse
@@ -65,6 +66,9 @@ class CouponController extends Controller
             'expires_at' => ['nullable', 'date', 'after:starts_at'],
             'plan_ids' => ['nullable', 'array'],
             'plan_ids.*' => ['integer', 'exists:plans,id'],
+            'applies_to' => ['nullable', Rule::in(['plans', 'store', 'all'])],
+            'store_slugs' => ['nullable', 'array'],
+            'store_slugs.*' => ['string', Rule::in(array_keys(app(Catalog::class)->all()))],
         ]);
 
         return [
@@ -75,6 +79,8 @@ class CouponController extends Controller
             'starts_at' => $data['starts_at'] ?? null,
             'expires_at' => $data['expires_at'] ?? null,
             'plan_ids' => ! empty($data['plan_ids']) ? array_map('intval', $data['plan_ids']) : null,
+            'applies_to' => $data['applies_to'] ?? 'plans',
+            'store_slugs' => ! empty($data['store_slugs']) ? array_values($data['store_slugs']) : null,
             'is_active' => $request->boolean('is_active'),
         ];
     }

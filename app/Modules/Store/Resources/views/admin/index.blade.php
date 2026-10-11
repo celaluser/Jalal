@@ -1,12 +1,12 @@
 @php($money = fn ($i) => \App\Modules\Core\Models\Currency::where('code', $i['currency'])->first()?->format($i['price']) ?? number_format($i['price'], 2).' '.$i['currency'])
 <x-layouts.admin :title="__('store.admin.title')">
     <x-ui.page-header :title="__('store.admin.title')" :description="__('store.admin.subtitle')">
-        <x-slot:actions><a href="{{ route('admin.store.sales') }}" class="btn btn-secondary">{{ __('store.admin.sales') }}</a></x-slot:actions>
+        <x-slot:actions><a href="{{ route('admin.store.bundles.create') }}" class="btn btn-secondary">{{ __('store.admin.new_bundle') }}</a><a href="{{ route('admin.store.sales') }}" class="btn btn-secondary">{{ __('store.admin.sales') }}</a></x-slot:actions>
     </x-ui.page-header>
     @if (session('status'))<x-ui.alert type="success" class="mb-4">{{ session('status') }}</x-ui.alert>@endif
 
     <div class="mb-4 flex flex-wrap gap-1 rounded-xl bg-surface-2 p-1 text-sm font-semibold sm:w-fit">
-        @foreach ([null => 'all', 'feature' => 'features', 'theme' => 'themes'] as $k => $label)
+        @foreach ([null => 'all', 'feature' => 'features', 'theme' => 'themes', 'bundle' => 'bundles'] as $k => $label)
             <a href="{{ route('admin.store.index', $k ? ['kind' => $k] : []) }}" @class(['rounded-lg px-4 py-2', 'bg-surface shadow-sm' => $kind === $k, 'text-muted' => $kind !== $k])>{{ __('store.admin.tab_'.$label) }}</a>
         @endforeach
     </div>

@@ -314,3 +314,14 @@ it('lets the owner switch the assistant on and offers the draft button on review
     $this->actingAs($owner)->get(route('reviews.index'))->assertOk()->assertSee(__('ai.draft_reply'));
     $this->actingAs($owner)->get(route('reports.index'))->assertOk();
 });
+
+it('reads several pages of a menu in one go and merges them by category', function () {
+    axConfigure();
+    [$r, $owner] = axShop(100);
+    axHttp(['api.openai.com/*' => Http::response(axAnswer(axMenu()))]);
+    $res = $this->actingAs($owner)->post(route('ai.import.photo'), ['photos' => [axPng(), axPng()]], ['Accept' => 'application/json'])->assertOk();
+
+    expect($res->json('items'))->toBe(4)->and($res->json('categories'))->toHaveCount(1)->and($res->json('categories.0.items'))->toHaveCount(4);
+    expect(axIn($r, fn () => AiUsage::count()))->toBe(2);
+    $this->actingAs($owner)->postJson(route('ai.import.photo'), ['photos' => array_fill(0, 6, axPng())])->assertStatus(422);
+});

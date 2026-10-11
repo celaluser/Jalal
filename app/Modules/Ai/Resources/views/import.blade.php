@@ -19,7 +19,7 @@
                     </div>
                     <div class="mt-5 grid gap-3 border-t border-line pt-4 sm:grid-cols-2">
                         <div><label class="mb-1 block text-sm font-medium" for="menu-photo">{{ __('ai.import_photo') }}</label>
-                            <input id="menu-photo" type="file" accept="image/png,image/jpeg,image/webp" class="field file:me-3 file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-sm" x-on:change="upload(cfg.photo, 'photo', $event)" :disabled="busy">
+                            <input id="menu-photo" type="file" multiple accept="image/png,image/jpeg,image/webp" class="field file:me-3 file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-sm" x-on:change="upload(cfg.photo, 'photo', $event)" :disabled="busy">
                             <p class="mt-1 text-xs text-muted">{{ __('ai.import_photo_cost', ['count' => $photoCost]) }}</p></div>
                         <div><label class="mb-1 block text-sm font-medium" for="menu-pdf">{{ __('ai.import_pdf') }}</label>
                             <input id="menu-pdf" type="file" accept="application/pdf" class="field file:me-3 file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-sm" x-on:change="upload(cfg.pdf, 'pdf', $event)" :disabled="busy">
@@ -105,10 +105,11 @@
                         this.busy = false;
                     },
                     async upload(url, field, event) {
-                        const file = event.target.files[0];
-                        if (!file) { return; }
+                        const files = [...event.target.files].slice(0, 5);
+                        if (!files.length) { return; }
                         this.busy = true; this.error = '';
-                        const form = new FormData(); form.append(field, file);
+                        const form = new FormData();
+                        if (field === 'photo') { files.forEach((f) => form.append('photos[]', f)); } else { form.append(field, files[0]); }
                         try {
                             const res = await fetch(url, { method: 'POST', headers: { Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf }, body: form });
                             const data = await res.json().catch(() => ({}));

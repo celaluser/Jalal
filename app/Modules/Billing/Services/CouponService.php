@@ -29,6 +29,22 @@ class CouponService
         return $coupon;
     }
 
+    /** @throws BillingException with a translated reason */
+    public function validateForStore(string $code, string $slug): Coupon
+    {
+        $coupon = Coupon::where('code', strtoupper(trim($code)))->first();
+
+        if (! $coupon) {
+            throw new BillingException(__('coupon.not_found'));
+        }
+
+        if ($reason = $coupon->rejectionForStore($slug)) {
+            throw new BillingException(__($reason));
+        }
+
+        return $coupon;
+    }
+
     /**
      * Count a use, atomically: the row is only updated while uses remain, so two parallel
      * checkouts cannot both take the last use.

@@ -6,6 +6,7 @@ use App\Modules\Billing\Exceptions\BillingException;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Payments\CheckoutResult;
 use App\Modules\Billing\Services\CheckoutService;
+use App\Modules\Billing\Services\CouponService;
 use App\Modules\Billing\Services\InvoiceService;
 use App\Modules\Tenancy\Models\Restaurant;
 
@@ -51,7 +52,7 @@ class StoreCheckout
      *
      * @throws BillingException
      */
-    public function start(Restaurant $restaurant, string $slug, int $units, string $gatewayCode): array
+    public function start(Restaurant $restaurant, string $slug, int $units, string $gatewayCode, ?string $couponCode = null): array
     {
         $item = $this->catalog->find($slug);
 
@@ -60,7 +61,8 @@ class StoreCheckout
         }
 
         $quote = $this->quote($item, $units);
-        $invoice = $this->invoices->createForStore($restaurant, $quote['label'], $quote['price'], $item['currency'], $slug, $quote['months']);
+        $coupon = $couponCode ? app(CouponService::class)->validateForStore($couponCode, $slug) : null;
+        $invoice = $this->invoices->createForStore($restaurant, $quote['label'], $quote['price'], $item['currency'], $slug, $quote['months'], $coupon);
 
         return $this->checkout->payInvoice($restaurant, $invoice, $gatewayCode);
     }

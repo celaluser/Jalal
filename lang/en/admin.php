@@ -192,6 +192,8 @@ return [
         'expires' => 'Expires',
         'plans' => 'Valid for plans',
         'plans_help' => 'Select none to allow every plan.',
+        'applies_to' => 'Valid for', 'applies_plans' => 'Plans only', 'applies_store' => 'Store items only', 'applies_all' => 'Plans and store items', 'applies_help' => 'Store coupons are used when a restaurant buys or rents a theme or feature.',
+        'store_items' => 'Store items', 'store_items_help' => 'Select none to allow every store item (when the coupon is valid for the store).',
         'deleted' => 'Coupon deleted.',
     ],
     'billing' => [

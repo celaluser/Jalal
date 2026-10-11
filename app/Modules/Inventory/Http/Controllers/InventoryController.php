@@ -47,7 +47,14 @@ class InventoryController extends Controller
 
     public function update(Request $request, Ingredient $ingredient): RedirectResponse
     {
-        $ingredient->update($this->validated($request) + ['stock_qty' => (float) $request->input('stock_qty', $ingredient->stock_qty)]);
+        $data = $this->validated($request) + ['stock_qty' => (float) $request->input('stock_qty', $ingredient->stock_qty)];
+
+        // Topping the stock up above the warning level re-arms the low-stock e-mail.
+        if (isset($data['low_at']) && $data['stock_qty'] > (float) $data['low_at']) {
+            $data['low_notified_at'] = null;
+        }
+
+        $ingredient->update($data);
         $this->recipes->recost(RecipeLine::where('ingredient_id', $ingredient->id)->pluck('product_id')->all());
 
         return back()->with('status', __('inventory.saved'));

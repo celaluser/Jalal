@@ -25,12 +25,14 @@ return [
     'owner_only' => 'Only the account owner can buy. Ask them to open this page.', 'upgrade_text' => 'This comes with higher plans. Look at the plans to unlock it.', 'see_plans' => 'See plans', 'included_text' => 'You already have this. Nothing more to do.',
     'unlocked' => 'Unlocked.', 'trial_started' => 'Your trial has started.', 'trial_unavailable' => 'The trial is not available for this item.', 'not_for_sale' => 'This item is not for sale.',
     'line_once' => ':name (one-time)', 'line_months' => '{1} :name (1 month)|[2,*] :name (:count months)', 'line_years' => '{1} :name (1 year)|[2,*] :name (:count years)',
+    'bundle' => 'Bundle', 'bundle_summary' => 'Several items for one price.', 'tab_bundles' => 'Bundles', 'bundle_contains' => 'What is in it', 'bundle_saves' => 'You save :amount compared with buying the items one by one.',
     'locked' => 'Locked', 'unlock' => 'Unlock in the store', 'theme_locked_help' => 'This theme needs unlocking in the store.', 'address_locked' => 'Getting your own address is a store feature.', 'get_in_store' => 'Get it in the store',
     'notice_ending' => ':name ends on :date.',
 
     'admin' => [
         'title' => 'Store', 'subtitle' => 'Decide for every feature and theme whether it is free, comes with plans, or can be bought, and set the price.',
         'sales' => 'Purchases & grants', 'sales_sub' => 'What restaurants own, what they paid, and a way to give something away.',
+        'new_bundle' => 'New bundle', 'bundle_items' => 'What the bundle contains', 'bundle_help' => 'Pick at least two items. Buying the bundle gives all of them for the same time, for one price.', 'bundle_needs' => 'A bundle needs a name and a price above zero.', 'kind_bundle' => 'Bundle', 'tab_bundles' => 'Bundles',
         'tab_all' => 'Everything', 'tab_features' => 'Features', 'tab_themes' => 'Themes', 'kind_feature' => 'Feature', 'kind_theme' => 'Theme',
         'item' => 'Item', 'mode' => 'Availability', 'price' => 'Price', 'owners' => 'Owners now', 'hidden' => 'hidden in the store',
         'mode_free' => 'Free for everyone', 'mode_plan' => 'With plans only', 'mode_paid' => 'For sale',

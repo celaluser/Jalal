@@ -13,6 +13,6 @@ class StoreItem extends Model
 
     protected function casts(): array
     {
-        return ['price' => 'float', 'visible' => 'boolean'];
+        return ['price' => 'float', 'visible' => 'boolean', 'bundle_items' => 'array'];
     }
 }
