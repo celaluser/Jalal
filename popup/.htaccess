@@ -1,0 +1,79 @@
+# =============================================================
+#  KURULUM SONRASI SÜRÜM  —  public_html/popup/.htaccess
+#
+#  Bu dosyayı mevcut .htaccess'in ÜZERİNE yaz (elle silme yapma).
+#  popup-cron.php artık web'den açılamaz; cron komut satırından
+#  çalıştığı için etkilenmez.
+# =============================================================
+
+# Klasör içeriği listelenemesin
+Options -Indexes
+
+# Bu klasör sitenin yönlendirme kurallarından etkilenmesin
+<IfModule mod_rewrite.c>
+    RewriteEngine Off
+</IfModule>
+
+# ---------- VARSAYILAN: HER ŞEY KAPALI ----------
+# popup-cron.php, popup-template.js, services.json, log dosyaları...
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>
+
+# ---------- AÇIK #1: embed.js ----------
+<Files "embed.js">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</Files>
+
+# ---------- AÇIK #2: data.php ----------
+<Files "data.php">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</Files>
+
+# ---------- AÇIK #3: stat.php (gösterim/tıklama sayacı) ----------
+<Files "stat.php">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</Files>
+
+# ---------- AÇIK #4: cron-run.php (HTTP cron tetikleyici) ----------
+# Uzun bir anahtar olmadan hiçbir şey yapmaz, sadece güncellemeyi tetikler.
+<Files "cron-run.php">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</Files>
+
+# ---------- embed.js: CORS + cache ----------
+<IfModule mod_headers.c>
+    <Files "embed.js">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Cache-Control "public, max-age=300"
+        Header set X-Content-Type-Options "nosniff"
+    </Files>
+</IfModule>

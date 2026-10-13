@@ -1,0 +1,89 @@
+{
+    "schema_version": 3,
+    "enabled": true,
+    "autos": [
+        {
+            "id": "auto",
+            "name": "Otomatik servis popup",
+            "enabled": true,
+            "priority": 10,
+            "theme": "",
+            "schedule": {
+                "hours": {
+                    "from": "",
+                    "to": ""
+                },
+                "days": [],
+                "dateFrom": "",
+                "dateTo": ""
+            },
+            "trigger": {
+                "type": "load",
+                "scrollPercent": 50
+            },
+            "targeting": {
+                "devices": [],
+                "sources": []
+            },
+            "segment": {
+                "login": "",
+                "balanceMin": "",
+                "balanceMax": "",
+                "ordersMin": "",
+                "ordersMax": "",
+                "visitor": "",
+                "visitMin": 0,
+                "countries": []
+            },
+            "rules": null,
+            "pages": null,
+            "count": 3,
+            "sort": "cheapest",
+            "skip_zero": true,
+            "category_mode": "first",
+            "category_manual": "",
+            "skip_categories": [],
+            "currency": "₼",
+            "currency_before": false,
+            "decimals": "auto",
+            "price_multiplier": 1,
+            "order_url": "https://panelbaku.com/?service={id}",
+            "subtitle": "Sifarişləriniz üçün ən uyğun {category} servisini seçin.",
+            "badge_template": "{category}",
+            "badge_strip_emoji": true
+        }
+    ],
+    "popups": [],
+    "client": {
+        "delay": 1200,
+        "footer": "Bağlamaq üçün istənilən yerə klikləyin",
+        "openInNewTab": false,
+        "maxAgeHours": 0,
+        "forceTheme": "",
+        "tzOffset": 240,
+        "maxPerLoad": 2,
+        "queueGapMs": 700,
+        "rules": {
+            "perDay": 3,
+            "perSession": 1,
+            "minGapMinutes": 60,
+            "maxTotal": 0,
+            "clickCooldownDays": 7
+        },
+        "pages": {
+            "mode": "exclude",
+            "patterns": []
+        },
+        "stats": {
+            "enabled": true,
+            "url": ""
+        },
+        "segment": {
+            "varName": "PANEL_USER"
+        },
+        "killCheck": {
+            "enabled": true,
+            "url": ""
+        }
+    }
+}

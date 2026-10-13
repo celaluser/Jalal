@@ -1,0 +1,47 @@
+# =============================================================
+#  uplow.us  →  public_html/popup/admin/.htaccess
+#
+#  Üst klasördeki .htaccess her şeyi kapatıyor. Bu dosya önce
+#  o kısıtlamayı bu klasör için sıfırlar, sonra sadece hassas
+#  dosyaları tekrar kapatır.
+# =============================================================
+
+Options -Indexes
+DirectoryIndex index.php
+
+# ---------- 1) Miras alınan "her şey kapalı" kuralını sıfırla ----------
+<IfModule mod_authz_core.c>
+    Require all granted
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Allow from all
+</IfModule>
+
+# ---------- 2) Doğrudan açılmaması gereken dosyaları kapat ----------
+<FilesMatch "^(auth|view-.*)\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "\.(txt|json|log|md|old|bak)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# ---------- 3) Panel arama motorlarına düşmesin ----------
+<IfModule mod_headers.c>
+    Header set X-Robots-Tag "noindex, nofollow, noarchive"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "no-referrer"
+</IfModule>
