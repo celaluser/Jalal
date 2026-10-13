@@ -15,6 +15,38 @@ class DashboardService
 {
     public function __construct(private readonly SettingsService $settings) {}
 
+    /** The super admin can show sample numbers while the platform is still empty (demo, screenshots, a first look). */
+    public function demoEnabled(): bool
+    {
+        return $this->settings->get('general.demo_stats') === '1';
+    }
+
+    /**
+     * Fixed, believable sample figures: the same every time, so screenshots do not change between reloads.
+     *
+     * @return array{totals: array<string, int|float>, signups: array{labels: list<string>, values: list<int>}, revenue: array{labels: list<string>, values: list<float>}}
+     */
+    public function demo(int $days = 30, int $months = 12): array
+    {
+        $signups = $revenue = ['labels' => [], 'values' => []];
+
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $signups['labels'][] = now()->subDays($i)->toDateString();
+            $signups['values'][] = (int) round(3 + 2.5 * sin($i / 2.3) + ($days - $i) / 9 + (($i * 7) % 4));
+        }
+
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $revenue['labels'][] = Carbon::now()->startOfMonth()->subMonths($i)->format('Y-m');
+            $revenue['values'][] = round(1450 + ($months - $i) * 410 + (($i * 37) % 5) * 55, 2);
+        }
+
+        return [
+            'totals' => ['restaurants' => 248, 'suspended' => 6, 'active_subscriptions' => 187, 'trials' => 34, 'new_30d' => array_sum($signups['values']), 'mrr' => end($revenue['values']) - 310.0],
+            'signups' => $signups,
+            'revenue' => $revenue,
+        ];
+    }
+
     public function currency(): string
     {
         return (string) $this->settings->get('billing.currency', 'USD');

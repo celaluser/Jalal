@@ -19,16 +19,36 @@
                 </a>
                 <button type="button" class="grid size-8 place-items-center rounded-lg text-ink-400 hover:bg-white/10 lg:hidden" x-on:click="open = false" aria-label="{{ __('ui.close') }}"><x-ui.icon name="x" /></button>
             </div>
-            <nav class="flex-1 space-y-6 overflow-y-auto px-3 pb-6 pt-2 text-sm">
+            @php($total = collect($groups)->flatten(1)->count())
+            <nav class="flex min-h-0 flex-1 flex-col text-sm" aria-label="{{ __('ui.menu') }}"
+                 x-data="{ q: '', closed: (() => { try { return JSON.parse(localStorage.getItem('nav.closed.{{ $home }}') || '[]') } catch (e) { return [] } })(),
+                           toggle(g) { this.closed = this.closed.includes(g) ? this.closed.filter(x => x !== g) : [...this.closed, g]; try { localStorage.setItem('nav.closed.{{ $home }}', JSON.stringify(this.closed)) } catch (e) {} },
+                           shown(g, force) { return this.q !== '' || force || ! this.closed.includes(g) },
+                           match(label) { return this.q === '' || label.toLowerCase().includes(this.q.toLowerCase()) } }">
+                @if ($total > 8)
+                    <div class="px-3 pb-2 pt-1">
+                        <label class="relative block">
+                            <span class="sr-only">{{ __('ui.search') }}</span>
+                            <x-ui.icon name="search" size="4" class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-ink-400" />
+                            <input type="search" x-model="q" placeholder="{{ __('ui.search') }}" class="w-full rounded-lg border-0 bg-white/5 py-2 pe-3 ps-9 text-sm text-white placeholder:text-ink-400 focus:bg-white/10 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                        </label>
+                    </div>
+                @endif
+                <div class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-6 pt-1">
                 @foreach ($groups as $group => $items)
                     @php($visible = collect($items)->filter(fn ($i) => \Illuminate\Support\Facades\Route::has($i['route']) && (! $i['can'] || $user?->can($i['can']))))
                     @if ($visible->isNotEmpty())
-                        <div>
-                            <p class="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-400">{{ __($section === __('admin.panel') ? 'admin.nav.group_'.$group : 'panel.nav.group_'.$group) }}</p>
-                            <ul class="space-y-0.5">
+                        @php($hasActive = $visible->contains(fn ($i) => request()->routeIs(...explode('|', $i['active']))))
+                        <div x-show="q === '' || {{ Js::from($visible->map(fn ($i) => mb_strtolower(__($i['label'])))->values()) }}.some(l => l.includes(q.toLowerCase()))">
+                            <button type="button" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-400 transition hover:bg-white/5 hover:text-ink-200"
+                                    x-on:click="toggle('{{ $group }}')" :aria-expanded="shown('{{ $group }}', {{ $hasActive ? 'true' : 'false' }})">
+                                <span>{{ __($section === __('admin.panel') ? 'admin.nav.group_'.$group : 'panel.nav.group_'.$group) }}</span>
+                                <x-ui.icon name="chevron-down" size="4" class="transition" x-bind:class="shown('{{ $group }}', {{ $hasActive ? 'true' : 'false' }}) ? '' : '-rotate-90 rtl:rotate-90'" />
+                            </button>
+                            <ul class="mt-0.5 space-y-0.5" x-show="shown('{{ $group }}', {{ $hasActive ? 'true' : 'false' }})">
                                 @foreach ($visible as $item)
                                     @php($active = request()->routeIs(...explode('|', $item['active'])))
-                                    <li>
+                                    <li x-show="match({{ Js::from(mb_strtolower(__($item['label']))) }})">
                                         <a href="{{ route($item['route'], $item['params']) }}" @if ($active) aria-current="page" @endif
                                            @class(['group relative flex items-center gap-3 rounded-lg px-3 py-2 font-medium transition', 'bg-white/10 text-white' => $active, 'text-ink-300 hover:bg-white/5 hover:text-white' => ! $active])>
                                             @if ($active)<span class="absolute inset-y-1.5 start-0 w-[3px] rounded-full bg-brand-500"></span>@endif
@@ -41,6 +61,7 @@
                         </div>
                     @endif
                 @endforeach
+                </div>
             </nav>
             <div class="shrink-0 border-t border-white/10 p-4 text-xs text-ink-400">v{{ config('version.current') }}</div>
         </aside>

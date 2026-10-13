@@ -19,7 +19,15 @@ class EnsureInstalled
         $isInstallerRoute = $request->is('install', 'install/*');
 
         if ($this->installer->isInstalled()) {
-            abort_if($isInstallerRoute, 404);
+            // The last wizard page is still shown for a short while after the install (it holds the cron address);
+            // anyone arriving later, for example from an old bookmark, is sent to the sign-in page.
+            if ($request->is('install/finished') && $this->installer->justInstalled()) {
+                return $next($request);
+            }
+
+            if ($isInstallerRoute) {
+                return $request->is('install', 'install/finished') ? redirect()->route('login') : abort(404);
+            }
 
             return $next($request);
         }

@@ -353,3 +353,25 @@ describe('navigation', function () {
             ->assertSee('<option value="Europe/Istanbul" selected', false);
     });
 });
+
+it('shows sample statistics on the dashboard only while the switch is on', function () {
+    $this->actingAs($this->admin)->get(route('admin.dashboard'))->assertOk()->assertDontSee(__('admin.dashboard.demo_notice'));
+
+    app(SettingsService::class)->set('general.demo_stats', '1');
+
+    $this->actingAs($this->admin)->get(route('admin.dashboard'))->assertOk()->assertSee(__('admin.dashboard.demo_notice'))->assertSee('248');
+    expect(Restaurant::count())->toBe(0);
+
+    app(SettingsService::class)->set('general.demo_stats', '0');
+    $this->actingAs($this->admin)->get(route('admin.dashboard'))->assertDontSee(__('admin.dashboard.demo_notice'));
+});
+
+it('groups the admin menu into collapsible sections that keep every link', function () {
+    $html = $this->actingAs($this->admin)->get(route('admin.dashboard'))->assertOk()->getContent();
+
+    foreach (['group_platform', 'group_billing', 'group_payments', 'group_content', 'group_localization', 'group_system'] as $group) {
+        expect($html)->toContain(e(__('admin.nav.'.$group)));
+    }
+
+    expect($html)->toContain(route('admin.languages.index'))->toContain(route('admin.settings.payments'))->toContain('aria-expanded');
+});

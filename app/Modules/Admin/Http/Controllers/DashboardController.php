@@ -11,11 +11,14 @@ class DashboardController extends Controller
 {
     public function __invoke(DashboardService $dashboard): View
     {
+        $demo = $dashboard->demoEnabled() ? $dashboard->demo() : null;
+
         return view('admin::dashboard', [
-            'totals' => $dashboard->totals(),
+            'isDemo' => $demo !== null,
+            'totals' => $demo['totals'] ?? $dashboard->totals(),
             'currency' => $dashboard->currency(),
-            'signups' => $dashboard->signupsByDay(30),
-            'revenue' => $dashboard->revenueByMonth(12),
+            'signups' => $demo['signups'] ?? $dashboard->signupsByDay(30),
+            'revenue' => $demo['revenue'] ?? $dashboard->revenueByMonth(12),
             'latest' => $dashboard->latestRestaurants(),
             'tickets' => $dashboard->openTickets(),
             'restaurantNames' => Restaurant::withTrashed()->pluck('name', 'id'),

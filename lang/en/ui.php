@@ -6,6 +6,7 @@ return [
     'tablet_on' => 'Tablet mode', 'tablet_off' => 'Leave tablet mode',
     'language' => 'Language',
     'menu' => 'Menu',
+    'search' => 'Search menu',
     'account' => 'Account',
     'close' => 'Close',
     'website' => 'Public website',

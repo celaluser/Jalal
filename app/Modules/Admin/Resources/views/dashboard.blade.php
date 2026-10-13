@@ -6,6 +6,10 @@
         </x-slot:actions>
     </x-ui.page-header>
 
+    @if ($isDemo)
+        <x-ui.alert type="warning">{{ __('admin.dashboard.demo_notice') }} <a class="font-medium underline" href="{{ route('admin.settings.section', 'general') }}">{{ __('admin.dashboard.demo_turn_off') }}</a></x-ui.alert>
+    @endif
+
     <div class="grid gap-4 lg:grid-cols-12">
         <x-ui.stat hero :label="__('admin.dashboard.mrr')" :value="number_format($totals['mrr'], 2).' '.$currency" :hint="__('admin.dashboard.mrr_hint')" class="lg:col-span-4" />
         <div class="grid grid-cols-2 gap-4 lg:col-span-8">

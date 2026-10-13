@@ -109,7 +109,8 @@ it('stores the licence encrypted and marks unreachable checks as unverified', fu
 });
 
 it('hides the wizard once installed', function () {
-    $this->get('/install')->assertNotFound();
+    $this->get('/install')->assertRedirect(route('login'));
+    $this->get('/install/license')->assertNotFound();
 });
 
 describe('before installation', function () {
@@ -235,4 +236,17 @@ it('opens the installer even when the configured sqlite file does not exist', fu
     } finally {
         config(['database.default' => $default]);
     }
+});
+
+it('shows the finished page right after installing and sends later visitors to the sign-in page', function () {
+    $lock = sys_get_temp_dir().'/lock-'.uniqid();
+    config(['installer.force_installed' => false, 'installer.lock_file' => $lock]);
+
+    file_put_contents($lock, '{}');
+    $this->get('/install/finished')->assertOk();
+    $this->get('/install/database')->assertNotFound();
+
+    touch($lock, time() - 3600);
+    $this->get('/install/finished')->assertRedirect(route('login'));
+    $this->get('/install')->assertRedirect(route('login'));
 });

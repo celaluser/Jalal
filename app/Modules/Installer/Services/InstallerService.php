@@ -21,6 +21,14 @@ class InstallerService
         private readonly LicenseManager $licenses,
     ) {}
 
+    /** True during the first minutes after the wizard finished, so its last page can still be opened. */
+    public function justInstalled(): bool
+    {
+        $file = (string) config('installer.lock_file');
+
+        return is_file($file) && filemtime($file) > time() - 900;
+    }
+
     public function isInstalled(): bool
     {
         return config('installer.force_installed') || is_file(config('installer.lock_file'));
