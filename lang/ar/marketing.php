@@ -348,7 +348,7 @@ return [
     'rule_label_birthday' => 'عيد الميلاد :value',
     'rule_label_tier' => 'الفئة :value',
     'segment_everyone' => 'الجميع',
-    'segment_reach' => '{0} لا يمكن الوصول إلى أحد|{1} يمكن الوصول إلى ضيف واحد|[2,*] يمكن الوصول إلى :count ضيوف',
+    'segment_reach' => '{0} لا يمكن الوصول إلى أحد|{1} يمكن الوصول إلى :count ضيف|[2,*] يمكن الوصول إلى :count ضيوف',
     'segment_saved' => 'تم حفظ الشريحة.',
     'segment_deleted' => 'تم حذف الشريحة.',
     'segment_delete_confirm' => 'هل تريد حذف هذه الشريحة؟',
