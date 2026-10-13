@@ -385,4 +385,5 @@ return [
         'note' => 'Buttons and highlights always use each restaurant\'s own brand colour. Restaurants can still change font, layout, corners and motion for their own menu.',
         'preview' => 'Preview',
     ],
+    'actions' => 'Actions',
 ];

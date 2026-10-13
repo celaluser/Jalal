@@ -20,7 +20,7 @@ class CoreServiceProvider extends ServiceProvider
     {
         // Scoped: a fresh, empty context per request and per queue job.
         $this->app->scoped(TenantContext::class);
-        $this->app->singleton(SettingsService::class);
+        $this->app->scoped(SettingsService::class); // scoped: per request and per queue job, so a long-running worker never serves old settings
 
         // extend() rather than singleton(): the translation provider is deferred and would override a plain binding.
         $this->app->extend('translation.loader', fn ($loader, $app) => new DatabaseTranslationLoader($app['files'], $app['path.lang']));

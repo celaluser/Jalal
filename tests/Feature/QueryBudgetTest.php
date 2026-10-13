@@ -93,3 +93,17 @@ it('keeps staff pages flat as data grows', function () {
         expect($big - $small)->toBeLessThanOrEqual(8, "{$route}: {$small} vs {$big} queries");
     }
 });
+
+it('keeps both dashboards within a small query budget', function () {
+    [$r, $owner] = qbShop(2, 2);
+    $this->actingAs($owner)->get(route('dashboard'))->assertOk();
+    $mine = qbCount(fn () => $this->actingAs($owner)->get(route('dashboard'))->assertOk());
+
+    $admin = User::factory()->create();
+    app(PermissionRegistrar::class)->setPermissionsTeamId(config('tenancy.platform_team_id'));
+    $admin->assignRole(Permissions::SUPER_ADMIN);
+    $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk();
+    $platform = qbCount(fn () => $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk());
+
+    expect($mine)->toBeLessThanOrEqual(32)->and($platform)->toBeLessThanOrEqual(24);
+});

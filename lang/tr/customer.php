@@ -70,4 +70,10 @@ return [
     'about_day_0' => 'Pazartesi', 'about_day_1' => 'Salı', 'about_day_2' => 'Çarşamba', 'about_day_3' => 'Perşembe', 'about_day_4' => 'Cuma', 'about_day_5' => 'Cumartesi', 'about_day_6' => 'Pazar',
     'account_export' => 'Verilerimi indir', 'consent_title' => 'Çerezler', 'consent_text' => 'Kampanyalarımızı ölçmek için reklam çerezleri kullanabilir miyiz? Menü her iki durumda da aynı çalışır.', 'consent_accept' => 'Kabul et', 'consent_decline' => 'Hayır, teşekkürler',
     'birthday' => 'Doğum günü (isteğe bağlı)', 'birth_month' => 'Ay', 'birth_day' => 'Gün', 'birthday_help' => 'Yalnızca gün ve ay, yıl asla istenmez. Bizden haber almayı kabul ettiyseniz size doğum günü sürprizi gönderebiliriz.', 'birthday_invalid' => 'Lütfen geçerli bir gün ve ay seçin.',
+    'choose_size' => 'Boyut seçin',
+    'combo_included' => 'Dahil',
+    'from_price' => 'başlayan',
+    'main_menu' => 'Ana menü',
+    'nutrition' => 'Besin değerleri',
+    'watch_video' => 'Videoyu izle',
 ];

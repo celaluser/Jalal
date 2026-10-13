@@ -678,4 +678,5 @@ return [
         'note' => 'Düymələr və vurğular həmişə hər restoranın öz brend rəngindən istifadə edir. Restoranlar öz menyuları üçün şrifti, düzümü, künclər və hərəkəti yenə də dəyişə bilər.',
         'preview' => 'Önizləmə',
     ],
+    'actions' => 'Əməliyyatlar',
 ];

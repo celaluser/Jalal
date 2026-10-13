@@ -130,4 +130,10 @@ return [
     'birth_day' => 'Gün',
     'birthday_help' => 'Yalnız gün və ay, heç vaxt il yox. Bizdən xəbər almağa razılıq vermisinizsə, ad günü hədiyyəsi göndərə bilərik.',
     'birthday_invalid' => 'Zəhmət olmasa real gün və ay seçin.',
+    'choose_size' => 'Ölçü seçin',
+    'combo_included' => 'Daxildir',
+    'from_price' => 'başlayan',
+    'main_menu' => 'Əsas menyu',
+    'nutrition' => 'Qida dəyəri',
+    'watch_video' => 'Videoya bax',
 ];

@@ -34,3 +34,13 @@ DirectoryIndex index.php
     RewriteCond %{REQUEST_URI} !^/public/ [NC]
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
+
+# Speed: compress text, and let browsers keep the versioned files in /build for a year (their names change on every release).
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml application/javascript text/javascript application/json application/xml image/svg+xml
+</IfModule>
+<IfModule mod_headers.c>
+    <If "%{REQUEST_URI} =~ m#/build/#">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </If>
+</IfModule>

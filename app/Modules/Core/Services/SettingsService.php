@@ -16,6 +16,11 @@ class SettingsService
 {
     private const CACHE_KEY = 'settings.all.%s';
 
+    /** Settings read during this request, per scope: a page asks for dozens of values but should load them once. @var array<string, array<string, mixed>> */
+    private array $loaded = [];
+
+    private bool $tableKnown = false;
+
     public function get(string $key, mixed $default = null, ?int $restaurantId = null): mixed
     {
         $all = $this->all($restaurantId);
@@ -46,7 +51,9 @@ class SettingsService
             return [];
         }
 
-        return Cache::remember(sprintf(self::CACHE_KEY, $restaurantId ?? 'platform'), 3600, function () use ($restaurantId) {
+        $scope = (string) ($restaurantId ?? 'platform');
+
+        return $this->loaded[$scope] ??= Cache::remember(sprintf(self::CACHE_KEY, $scope), 3600, function () use ($restaurantId) {
             return Setting::query()
                 ->where('restaurant_id', $restaurantId)
                 ->get()
@@ -61,8 +68,12 @@ class SettingsService
     {
         $installed = config('installer.force_installed') || is_file((string) config('installer.lock_file'));
 
+        if ($this->tableKnown) {
+            return true;
+        }
+
         try {
-            return Schema::hasTable('settings');
+            return $this->tableKnown = Schema::hasTable('settings');
         } catch (QueryException $e) {
             if ($installed) {
                 throw $e;
@@ -74,6 +85,7 @@ class SettingsService
 
     public function flush(?int $restaurantId = null): void
     {
+        unset($this->loaded[(string) ($restaurantId ?? 'platform')]);
         Cache::forget(sprintf(self::CACHE_KEY, $restaurantId ?? 'platform'));
     }
 }

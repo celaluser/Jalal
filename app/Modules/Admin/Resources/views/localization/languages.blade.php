@@ -7,7 +7,7 @@
                 <tr>
                     <form method="POST" action="{{ route('admin.languages.update', $l) }}" id="lang-{{ $l->id }}">@csrf @method('PUT')</form>
                     <td class="font-mono font-semibold">{{ $l->code }}@if ($l->is_default) <x-ui.badge tone="success" class="ms-2">{{ __('admin.localization.default') }}</x-ui.badge>@endif</td>
-                    <td><div class="flex gap-2"><input form="lang-{{ $l->id }}" name="name" value="{{ $l->name }}" class="field !py-1.5" aria-label="{{ __('admin.localization.name') }}"><input form="lang-{{ $l->id }}" name="native_name" value="{{ $l->native_name }}" class="field !py-1.5" aria-label="{{ __('admin.localization.native') }}"></div></td>
+                    <td><div class="flex gap-2"><input form="lang-{{ $l->id }}" name="name" value="{{ $l->name }}" class="field min-w-[7rem] !py-1.5" aria-label="{{ __('admin.localization.name') }}"><input form="lang-{{ $l->id }}" name="native_name" value="{{ $l->native_name }}" class="field min-w-[7rem] !py-1.5" aria-label="{{ __('admin.localization.native') }}"></div></td>
                     <td><input form="lang-{{ $l->id }}" type="checkbox" name="is_rtl" value="1" @checked($l->is_rtl) class="size-4 accent-[var(--color-accent-600)]" aria-label="{{ __('admin.localization.rtl') }}"></td>
                     <td><input form="lang-{{ $l->id }}" type="checkbox" name="is_active" value="1" @checked($l->is_active) @disabled($l->is_default) class="size-4 accent-[var(--color-accent-600)]" aria-label="{{ __('admin.active') }}"></td>
                     <td class="whitespace-nowrap text-end">

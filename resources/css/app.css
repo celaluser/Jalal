@@ -130,6 +130,8 @@
     :where(.menu-add) { min-width: 2.75rem; min-height: 2.75rem; }
     :where(.menu-hero a, .menu-chip) { min-height: 2.5rem; display: inline-flex; align-items: center; }
     :where(footer a) { display: inline-block; padding-block: 0.5rem; }
+    /* Stand-alone text links grow their tap area without moving the text around them. */
+    :where(.link) { display: inline-block; padding-block: 0.5rem; margin-block: -0.5rem; }
   }
     html { color-scheme: light; }
     html.dark { color-scheme: dark; }
@@ -198,7 +200,7 @@
 
     /* Data tables ------------------------------------------------------ */
     .table { @apply w-full text-sm; }
-    .table thead th { @apply whitespace-nowrap border-b border-line bg-surface-2/60 px-4 py-2.5 text-start text-xs font-semibold uppercase tracking-wide text-muted; }
+    .table thead th { @apply relative whitespace-nowrap border-b border-line bg-surface-2/60 px-4 py-2.5 text-start text-xs font-semibold uppercase tracking-wide text-muted; }
     .table tbody td { @apply border-b border-line px-4 py-3 align-middle; }
     .table tbody tr:last-child td { @apply border-b-0; }
     .table tbody tr { @apply transition-colors hover:bg-surface-2/50; }

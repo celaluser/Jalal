@@ -7,7 +7,7 @@
 <x-layouts.base :title="$title" :tablet="$tablet">
     <div class="flex min-h-screen" x-data="{ open: false }" x-on:keydown.escape.window="open = false">
         {{-- Sidebar: ink in both themes, saffron marks where you are --}}
-        <aside id="sidebar" class="fixed inset-y-0 start-0 z-40 flex w-64 -translate-x-full flex-col bg-ink-950 text-ink-200 transition-transform duration-200 ease-out rtl:translate-x-full {{ $tablet ? '' : 'lg:static lg:translate-x-0 lg:rtl:translate-x-0' }}"
+        <aside id="sidebar" class="fixed inset-y-0 start-0 z-[60] flex w-64 -translate-x-full flex-col bg-ink-950 text-ink-200 transition-transform duration-200 ease-out rtl:translate-x-full {{ $tablet ? '' : 'lg:static lg:translate-x-0 lg:rtl:translate-x-0' }}"
                :class="open && '!translate-x-0'" aria-label="{{ __('ui.menu') }}">
             <div class="flex h-16 shrink-0 items-center justify-between px-5">
                 <a href="{{ route($home) }}" class="flex items-center gap-2.5">
@@ -76,7 +76,7 @@
             </nav>
             <div class="shrink-0 border-t border-white/10 p-4 text-xs text-ink-400">v{{ config('version.current') }}</div>
         </aside>
-        <div x-show="open" x-cloak x-transition.opacity class="fixed inset-0 z-30 bg-ink-950/60 backdrop-blur-sm {{ $tablet ? '' : 'lg:hidden' }}" x-on:click="open = false"></div>
+        <div x-show="open" x-cloak x-transition.opacity class="fixed inset-0 z-[55] bg-ink-950/60 backdrop-blur-sm {{ $tablet ? '' : 'lg:hidden' }}" x-on:click="open = false"></div>
 
         <div class="flex min-w-0 flex-1 flex-col">
             <header class="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-line bg-surface/85 px-3 backdrop-blur sm:gap-3 sm:px-6">

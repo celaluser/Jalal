@@ -22,3 +22,35 @@ it('translates every panel text into :locale with the same placeholders', functi
         }
     }
 })->with(['tr', 'az', 'ru', 'ar']);
+
+/** A screen must never show a raw key such as "admin.actions": every literal key used in the code exists in English. */
+it('has an English text for every translation key the code uses', function () {
+    $keys = [];
+    foreach (glob(base_path('lang/en/*.php')) as $path) {
+        foreach (Arr::dot(require $path) as $key => $text) {
+            $keys[basename($path, '.php').'.'.$key] = true;
+        }
+    }
+
+    $missing = [];
+    $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(app_path()));
+
+    foreach ($files as $file) {
+        if (! str_ends_with((string) $file, '.php')) {
+            continue;
+        }
+
+        preg_match_all("/(?<![A-Za-z_>])(?:__|trans|trans_choice)\(\s*'([a-z_]+(?:\.[A-Za-z0-9_\-]+)+)'/", (string) file_get_contents((string) $file), $m);
+
+        foreach ($m[1] as $key) {
+            // A key ending in "_" or "." is a prefix completed at run time (for example 'orders.status_'.$status).
+            if (str_ends_with($key, '_') || isset($keys[$key]) || array_filter(array_keys($keys), fn ($k) => str_starts_with($k, $key.'.'))) {
+                continue;
+            }
+
+            $missing[$key] = true;
+        }
+    }
+
+    expect(array_keys($missing))->toBe([]);
+});
