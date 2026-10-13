@@ -59,4 +59,5 @@ return [
     'trial_days' => 'Бесплатный пробный период :days дн., оплата сейчас не нужна',
     'no_card' => 'Бесплатно, оплата не требуется',
     'pay_after_verify' => 'Оплата после подтверждения электронной почты',
+    'recaptcha_notice' => 'Защищено reCAPTCHA. Применяются <a href="https://policies.google.com/privacy" class="underline" target="_blank" rel="noopener">Политика конфиденциальности</a> и <a href="https://policies.google.com/terms" class="underline" target="_blank" rel="noopener">Условия использования</a> Google.',
 ];

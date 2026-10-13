@@ -57,4 +57,5 @@ return [
     'trial_days' => ':days-day free trial, no payment now',
     'no_card' => 'Free, no payment needed',
     'pay_after_verify' => 'Payment after you confirm your e-mail',
+    'recaptcha_notice' => 'Protected by reCAPTCHA. The Google <a href="https://policies.google.com/privacy" class="underline" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://policies.google.com/terms" class="underline" target="_blank" rel="noopener">Terms of Service</a> apply.',
 ];

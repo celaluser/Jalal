@@ -154,6 +154,13 @@
     }
 
     [x-cloak] { display: none !important; }
+    /* Sections that the page is already sure to show keep their space while Alpine starts, so nothing below them jumps (layout shift).
+       Once Alpine has started, x-show decides as usual. */
+    .reserve[x-cloak] { display: block !important; visibility: hidden; min-height: var(--reserve-h, 0); }
+    .reserve-requests { --reserve-h: 2.6rem; }
+    .reserve-banners { --reserve-h: 12.75rem; }
+    .reserve-featured { --reserve-h: 16.8rem; }
+    @media (min-width: 640px) { .reserve-featured { --reserve-h: 17.75rem; } .reserve-banners { --reserve-h: 13.5rem; } }
 
     /* Respect the OS setting: motion is decoration here, never the only carrier of meaning. */
     @media (prefers-reduced-motion: reduce) {

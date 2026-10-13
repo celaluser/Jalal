@@ -4,14 +4,14 @@
 @if ($user->restaurant_id)
     @push('head')<link rel="manifest" href="{{ route('staff.manifest') }}"><meta name="theme-color" content="{{ $user->restaurant?->brandColor() }}">@endpush
 @endif
-<x-layouts.base :title="$title" :tablet="$tablet">
+<x-layouts.base :title="$title" :tablet="$tablet" :noindex="true">
     <div class="flex min-h-screen" x-data="{ open: false }" x-on:keydown.escape.window="open = false">
         {{-- Sidebar: ink in both themes, saffron marks where you are --}}
         <aside id="sidebar" class="fixed inset-y-0 start-0 z-[60] flex w-64 -translate-x-full flex-col bg-ink-950 text-ink-200 transition-transform duration-200 ease-out rtl:translate-x-full {{ $tablet ? '' : 'lg:static lg:translate-x-0 lg:rtl:translate-x-0' }}"
                :class="open && '!translate-x-0'" aria-label="{{ __('ui.menu') }}">
             <div class="flex h-16 shrink-0 items-center justify-between px-5">
                 <a href="{{ route($home) }}" class="flex items-center gap-2.5">
-                    <x-ui.qr-mark size="8" />
+                    <x-brand-mark size="8" dark />
                     <span class="leading-tight">
                         <span class="display block text-[15px] font-semibold text-white">{{ config('app.name') }}</span>
                         <span class="block text-[11px] font-medium uppercase tracking-[0.14em] text-ink-400">{{ $section }}</span>

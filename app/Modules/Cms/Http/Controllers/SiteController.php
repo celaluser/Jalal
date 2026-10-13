@@ -55,6 +55,25 @@ class SiteController extends Controller
         return view('cms::site.page', ['page' => $this->findBySlug(Page::published(), $slug)]);
     }
 
+    /** robots.txt: the admin can close the site to search engines and add lines of their own. A restaurant's own domain points at its own sitemap. */
+    public function robots(Request $request, SettingsService $settings, TenantResolver $tenants): Response
+    {
+        $sitemap = 'Sitemap: '.url('/sitemap.xml');
+
+        if ($tenants->fromHost($request)) {
+            $body = "User-agent: *\nDisallow: /t/\n{$sitemap}\n";
+        } elseif ($settings->get('seo.indexing', '1') !== '1') {
+            $body = "User-agent: *\nDisallow: /\n";
+        } else {
+            // Staff and sign-in screens have nothing for a search engine to list.
+            $private = ['admin', 'dashboard', 'orders', 'menu', 'tables', 'reports', 'customers', 'team', 'billing', 'settings', 'integrations', 'channels', 'inventory', 'delivery', 'courier', 'store', 'support', 'login', 'register', 'forgot-password', 'reset-password', 'install', 'api', 'hub', 'cron'];
+            $extra = trim((string) $settings->get('seo.robots_extra', ''));
+            $body = "User-agent: *\n".collect($private)->map(fn ($p) => "Disallow: /{$p}")->implode("\n")."\n".($extra !== '' ? $extra."\n" : '')."\n{$sitemap}\n";
+        }
+
+        return response($body, 200, ['Content-Type' => 'text/plain; charset=UTF-8', 'Cache-Control' => 'public, max-age=3600']);
+    }
+
     public function sitemap(Request $request, TenantResolver $tenants): Response
     {
         // A restaurant's own domain has its own sitemap.

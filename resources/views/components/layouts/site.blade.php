@@ -1,4 +1,4 @@
-@props(['title' => null, 'description' => null])
+@props(['title' => null, 'description' => null, 'image' => null, 'ogType' => 'website'])
 @php
     use App\Modules\Cms\Models\Page;
 
@@ -16,12 +16,21 @@
         route('blog.index') => __('site.nav.blog'),
     ];
 @endphp
-<x-layouts.base :title="$title" :description="$description">
+<x-layouts.base :title="$title" :description="$description" :image="$image" :og-type="$ogType">
+    @push('head')
+        <script type="application/ld+json">{!! json_encode([
+            '@context' => 'https://schema.org',
+            '@graph' => array_values(array_filter([
+                ['@type' => 'Organization', '@id' => url('/').'#organization', 'name' => config('app.name'), 'url' => url('/'), 'logo' => \App\Modules\Core\Support\Brand::logo() ?: null],
+                ['@type' => 'WebSite', '@id' => url('/').'#website', 'name' => config('app.name'), 'url' => url('/'), 'inLanguage' => app()->getLocale(), 'publisher' => ['@id' => url('/').'#organization']],
+            ], fn ($node) => true)),
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) !!}</script>
+    @endpush
     <div class="flex min-h-screen flex-col">
         <header class="sticky top-0 z-40 border-b border-line/70 bg-surface/80 backdrop-blur-xl" x-data="{ open: false }" x-on:keydown.escape.window="open = false">
             <div class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
                 <a href="{{ route('home') }}" class="flex items-center gap-2.5">
-                    @if ($logo)<img src="{{ $logo }}" alt="" class="h-8 w-auto">@else<x-ui.qr-mark size="8" />@endif
+                    <x-brand-mark size="8" />
                     <span class="display text-lg font-semibold">{{ config('app.name') }}</span>
                 </a>
                 <nav class="hidden items-center gap-1 text-sm font-medium lg:flex" aria-label="{{ __('site.nav.label') }}">
@@ -56,7 +65,7 @@
             <x-ui.qr-pattern class="pointer-events-none absolute -bottom-32 -end-16 size-[26rem] text-white/[0.04]" :cells="29" :seed="21" />
             <div class="relative mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
                 <div>
-                    <a href="{{ route('home') }}" class="flex items-center gap-2.5"><x-ui.qr-mark size="9" /><span class="display text-lg font-semibold text-white">{{ config('app.name') }}</span></a>
+                    <a href="{{ route('home') }}" class="flex items-center gap-2.5"><x-brand-mark size="9" dark /><span class="display text-lg font-semibold text-white">{{ config('app.name') }}</span></a>
                     <p class="mt-4 max-w-xs text-sm text-ink-400">{{ __('site.footer.tagline') }}</p>
                 </div>
                 <nav aria-label="{{ __('site.footer.product') }}"><p class="eyebrow !text-ink-400">{{ __('site.footer.product') }}</p>

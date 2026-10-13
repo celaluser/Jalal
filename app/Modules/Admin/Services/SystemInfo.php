@@ -81,6 +81,9 @@ class SystemInfo
         $checks[] = ['label' => 'HTTPS (APP_URL starts with https)', 'ok' => str_starts_with((string) config('app.url'), 'https://')];
         $checks[] = ['label' => 'Update signing key set (UPDATER_PUBLIC_KEY)', 'ok' => (bool) config('updater.public_key') && ! config('updater.allow_unsigned')];
         $checks[] = ['label' => 'Real queue (not "sync")', 'ok' => config('queue.default') !== 'sync'];
+        // Speed: these three make every page noticeably quicker. "Optimize" on this page builds the caches.
+        $checks[] = ['label' => 'PHP OPcache on (ask the host)', 'ok' => function_exists('opcache_get_status') && (bool) ini_get('opcache.enable')];
+        $checks[] = ['label' => 'Config and routes cached (Optimize button below)', 'ok' => app()->configurationIsCached() && app()->routesAreCached()];
         $checks[] = ['label' => 'Demo mode off', 'ok' => ! config('demo.enabled')];
 
         return $checks;

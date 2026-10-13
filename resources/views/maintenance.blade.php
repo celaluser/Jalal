@@ -1,4 +1,4 @@
-<x-layouts.base :title="__('maintenance.title')">
+<x-layouts.base :title="__('maintenance.title')" :noindex="true">
     <div class="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 text-center">
         <x-ui.qr-pattern class="pointer-events-none absolute inset-0 m-auto size-[44rem] max-w-none text-ink-900/[0.04] dark:text-white/[0.04]" :cells="29" :seed="17" />
         <div class="relative">

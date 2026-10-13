@@ -59,4 +59,5 @@ return [
     'trial_days' => 'تجربة مجانية لمدة :days يوماً، بلا دفع الآن',
     'no_card' => 'مجاني، لا حاجة للدفع',
     'pay_after_verify' => 'الدفع بعد تأكيد بريدك الإلكتروني',
+    'recaptcha_notice' => 'محمي بواسطة reCAPTCHA. تنطبق <a href="https://policies.google.com/privacy" class="underline" target="_blank" rel="noopener">سياسة الخصوصية</a> و<a href="https://policies.google.com/terms" class="underline" target="_blank" rel="noopener">شروط الخدمة</a> من Google.',
 ];

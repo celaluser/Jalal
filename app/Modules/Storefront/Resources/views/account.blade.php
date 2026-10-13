@@ -6,6 +6,7 @@
     <meta name="robots" content="noindex">
     <title>{{ __('customer.account_title') }} · {{ $restaurant->name }}</title>
     <style>{!! $themeCss !!}</style>
+    <x-font-preload />
     @vite(['resources/css/app.css'])
 </head>
 <body class="menu-page min-h-screen p-5">

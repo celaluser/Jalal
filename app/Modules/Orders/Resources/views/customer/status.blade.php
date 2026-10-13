@@ -13,6 +13,7 @@
     <meta name="theme-color" content="{{ $restaurant->brandColor() }}">
     <title>{{ __('orders.track_title', ['number' => $order->label()]) }} · {{ $restaurant->name }}</title>
     <style>{!! $themeCss !!}</style>
+    <x-font-preload />
     @vite(['resources/css/app.css', 'resources/js/alpine.js', 'resources/js/map.js'])
     <script>
         document.addEventListener('alpine:init', () => {

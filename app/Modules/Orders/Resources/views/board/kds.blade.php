@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="robots" content="noindex">
     <title>{{ __('orders.kds_title') }}</title>
+    <x-font-preload />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-ink-950 text-ink-50 antialiased" x-data="kdsBoard(@js($config))" x-on:keydown.escape.window="">

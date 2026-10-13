@@ -1,5 +1,6 @@
 @php($ga = platform_setting('seo.google_analytics_id'))
-@if (platform_setting('security.cookie_banner', '1') === '1' || $ga)
+@php($gtm = platform_setting('seo.google_tag_manager_id'))
+@if (platform_setting('security.cookie_banner', '1') === '1' || $ga || $gtm)
     <div x-data="{ show: false, choice: null,
             init() { try { this.choice = localStorage.getItem('cookie-consent'); } catch (e) {} this.show = this.choice === null; this.load(); },
             set(v) { this.choice = v; this.show = false; try { localStorage.setItem('cookie-consent', v); } catch (e) {} this.load(); },
@@ -9,6 +10,12 @@
                 window.__gaLoaded = true;
                 const s = document.createElement('script'); s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id={{ $ga }}'; document.head.appendChild(s);
                 window.dataLayer = window.dataLayer || []; window.gtag = function () { dataLayer.push(arguments); }; gtag('js', new Date()); gtag('config', '{{ $ga }}', { anonymize_ip: true });
+                @endif
+                @if ($gtm)
+                if (this.choice !== 'accepted' || window.__gtmLoaded) return;
+                window.__gtmLoaded = true;
+                window.dataLayer = window.dataLayer || []; window.dataLayer.push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+                const t = document.createElement('script'); t.async = true; t.src = 'https://www.googletagmanager.com/gtm.js?id={{ $gtm }}'; document.head.appendChild(t);
                 @endif
             } }"
          x-show="show" x-cloak role="dialog" aria-label="{{ __('cookie.title') }}"

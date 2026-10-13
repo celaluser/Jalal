@@ -7,7 +7,13 @@
     $dark = $theme === 'midnight';
     $mutedCls = $dark ? 'text-ink-300' : 'text-muted';
 @endphp
-<x-layouts.site :title="$seoTitle" :description="$c['hero']['subtitle']">
+<x-layouts.site :title="null" :description="platform_setting('seo.meta_description') ?: $c['hero']['subtitle']">
+    @push('head')
+        <script type="application/ld+json">{!! json_encode(['@context' => 'https://schema.org', '@type' => 'SoftwareApplication', 'name' => config('app.name'), 'applicationCategory' => 'BusinessApplication', 'operatingSystem' => 'Web',
+            'description' => $c['hero']['subtitle'],
+            'offers' => $plans->map(fn ($p) => ['@type' => 'Offer', 'name' => $p->name, 'price' => (string) ($p->isFree() ? 0 : $p->price), 'priceCurrency' => $p->currency_code ?: 'USD'])->values()->all(),
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) !!}</script>
+    @endpush
     {{-- Hero --------------------------------------------------------------- --}}
     <section @class(['relative overflow-hidden', 'bg-ink-950 text-white' => $dark]) data-landing-theme="{{ $theme }}">
         <div class="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(60%_60%_at_70%_0%,color-mix(in_oklab,var(--color-brand-400)_28%,transparent),transparent)]"></div>

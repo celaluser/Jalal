@@ -35,9 +35,15 @@ class VerifyRecaptcha
 
         if ($token !== '' && $secret !== '') {
             try {
-                $passed = Http::asForm()->timeout(8)->post('https://www.google.com/recaptcha/api/siteverify', [
+                $result = Http::asForm()->timeout(8)->post('https://www.google.com/recaptcha/api/siteverify', [
                     'secret' => $secret, 'response' => $token, 'remoteip' => $request->ip(),
-                ])->json('success') === true;
+                ])->json();
+                $passed = ($result['success'] ?? false) === true;
+
+                // Version 3 has no checkbox: Google returns a score from 0 (bot) to 1 (human) and the admin sets the line.
+                if ($passed && $this->settings->get('security.recaptcha_version') === 'v3') {
+                    $passed = (float) ($result['score'] ?? 0) >= (float) ($this->settings->get('security.recaptcha_min_score') ?: 0.5);
+                }
             } catch (Throwable) {
                 $passed = false;
             }

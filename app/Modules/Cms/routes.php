@@ -11,4 +11,5 @@ Route::middleware(['web', SetLocale::class])->group(function () {
     Route::get('/p/{slug}', [SiteController::class, 'page'])->where('slug', '[a-z0-9]+(?:-[a-z0-9]+)*')->name('pages.show');
 });
 
+Route::get('/robots.txt', [SiteController::class, 'robots'])->middleware('web')->name('robots');
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap'])->middleware('web')->name('sitemap');

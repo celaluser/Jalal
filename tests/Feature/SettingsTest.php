@@ -45,7 +45,7 @@ function formFor(string $section, array $overrides = []): array
 describe('settings screens', function () {
     it('renders every section from the schema', function (string $section) {
         $this->actingAs($this->admin)->get("/admin/settings/{$section}")->assertOk()->assertSee(__(SettingsSchema::section($section)['title']));
-    })->with(['general', 'seo', 'security', 'auth', 'mail', 'domains', 'ai', 'realtime', 'storage']);
+    })->with(['general', 'seo', 'google', 'security', 'auth', 'mail', 'domains', 'ai', 'realtime', 'storage']);
 
     it('404s unknown sections', function () {
         $this->actingAs($this->admin)->get('/admin/settings/nope')->assertNotFound();
@@ -66,8 +66,8 @@ describe('settings screens', function () {
         $this->put('/admin/settings/general', formFor('general', ['default_language' => 'xx']))->assertSessionHasErrors('default_language');
         $this->put('/admin/settings/general', formFor('general', ['default_currency' => 'ZZZ']))->assertSessionHasErrors('default_currency');
         $this->put('/admin/settings/general', formFor('general', ['site_name' => '']))->assertSessionHasErrors('site_name');
-        $this->put('/admin/settings/seo', ['ga_id' => 'not-an-id'])->assertSessionHasErrors('ga_id');
-        $this->put('/admin/settings/seo', ['ga_id' => 'G-ABC123XYZ'])->assertSessionHasNoErrors();
+        $this->put('/admin/settings/google', ['ga_id' => 'not-an-id'])->assertSessionHasErrors('ga_id');
+        $this->put('/admin/settings/google', ['ga_id' => 'G-ABC123XYZ'])->assertSessionHasNoErrors();
         $this->put('/admin/settings/mail', ['port' => '99999'])->assertSessionHasErrors('port');
         $this->put('/admin/settings/domains', ['base_domain' => 'not a domain'])->assertSessionHasErrors('base_domain');
         $this->put('/admin/settings/realtime', ['driver' => 'carrier-pigeon'])->assertSessionHasErrors('driver');
@@ -395,5 +395,5 @@ describe('transactional e-mails', function () {
 });
 
 it('has a settings screen for every schema section (guards the list used by the dataset above)', function () {
-    expect(array_keys(SettingsSchema::sections()))->toEqual(['general', 'seo', 'security', 'auth', 'mail', 'domains', 'ai', 'realtime', 'storage']);
+    expect(array_keys(SettingsSchema::sections()))->toEqual(['general', 'seo', 'google', 'security', 'auth', 'mail', 'domains', 'ai', 'realtime', 'storage']);
 });

@@ -84,6 +84,7 @@
         try { if (localStorage.getItem('qrm.consent.{{ $restaurant->id }}') === '1') { window.qrmLoadPixels(); } } catch (e) {}
         </script>
     @endif
+    <x-font-preload />
     @vite(['resources/css/app.css', 'resources/js/storefront.js'])
 </head>
 <body class="menu-page min-h-screen pb-28 {{ $kiosk ? 'kiosk select-none' : '' }}" x-data="storefront(@js($config))" x-on:keydown.escape.window="closeAll()">
@@ -200,7 +201,7 @@
     </div>
 
     {{-- At the table: ask for service and see the shared bill --}}
-    <section class="mx-auto mt-4 max-w-3xl px-4" x-show="ord.requestUrl" x-cloak aria-label="{{ __('orders.requests') }}">
+    <section @class(['mx-auto mt-4 max-w-3xl px-4', 'reserve reserve-requests' => ! empty($ordering['requestUrl'])]) x-show="ord.requestUrl" x-cloak aria-label="{{ __('orders.requests') }}">
         <div class="menu-scroll flex gap-2 overflow-x-auto pb-1">
             <button type="button" class="menu-chip !px-3.5 !py-1.5 !text-sm !font-semibold" x-on:click="askService('waiter')">🙋 {{ __('orders.call_waiter') }}</button>
             <button type="button" class="menu-chip !px-3.5 !py-1.5 !text-sm !font-semibold" x-on:click="askService('bill')">🧾 {{ __('orders.ask_bill') }}</button>
@@ -230,7 +231,7 @@
     @foreach ($happy as $h)
         <p class="menu-card menu-accent-text mx-auto mt-4 max-w-3xl px-4 py-3 text-center text-sm font-semibold" role="status">{{ __('customer.happy_hour', ['name' => $h['name'], 'percent' => $h['percent'], 'until' => $h['until']]) }}</p>
     @endforeach
-    <section class="mx-auto mt-5 max-w-3xl" x-show="banners.length && !hasFilters" x-cloak aria-label="{{ __('marketing.banners_title') }}">
+    <section @class(['mx-auto mt-5 max-w-3xl', 'reserve reserve-banners' => ! empty($banners)]) x-show="banners.length && !hasFilters" x-cloak aria-label="{{ __('marketing.banners_title') }}">
         <div class="menu-scroll menu-snap flex gap-3 overflow-x-auto px-4 pb-1">
             <template x-for="b in banners" :key="b.id">
                 <component :is="'div'">
@@ -248,12 +249,12 @@
     </section>
 
     {{-- Most loved --}}
-    <section class="mx-auto mt-6 max-w-3xl" x-show="featured.length > 0 && !hasFilters" x-cloak aria-label="{{ __('customer.most_loved') }}">
+    <section @class(['mx-auto mt-6 max-w-3xl', 'reserve reserve-featured' => collect($tree)->flatMap(fn ($c) => $c['products'] ?? [])->contains(fn ($p) => ($p['featured'] ?? false) && ($p['available'] ?? false))]) x-show="featured.length > 0 && !hasFilters" x-cloak aria-label="{{ __('customer.most_loved') }}">
         <h2 class="display mb-3 flex items-center gap-2 px-4 text-xl font-bold"><x-ui.icon name="sparkles" size="5" class="menu-accent-text" />{{ __('customer.most_loved') }}</h2>
         <div class="menu-scroll menu-snap flex gap-3 overflow-x-auto px-4 pb-2">
-            <template x-for="p in featured" :key="'f' + p.id">
+            <template x-for="(p, fi) in featured" :key="'f' + p.id">
                 <article class="menu-card relative w-44 shrink-0 overflow-hidden sm:w-52">
-                    <button type="button" class="menu-img block aspect-[4/3] w-full overflow-hidden" x-on:click="open(p)" tabindex="-1" aria-hidden="true"><img :src="pic(p)" alt="" loading="lazy" class="size-full object-cover"></button>
+                    <button type="button" class="menu-img block aspect-[4/3] w-full overflow-hidden" x-on:click="open(p)" tabindex="-1" aria-hidden="true"><img :src="pic(p)" alt="" :loading="fi < 3 ? 'eager' : 'lazy'" :fetchpriority="fi === 0 ? 'high' : 'auto'" decoding="async" class="size-full object-cover"></button>
                     <div class="p-3">
                         <button type="button" class="block w-full truncate text-start font-semibold" x-on:click="open(p)" x-text="p.name"></button>
                         <p class="mt-1 flex items-center justify-between"><span class="tnum font-bold" x-text="priceText(p)"></span>
@@ -275,7 +276,7 @@
 
     {{-- Category tabs --}}
     @if ($tree)
-        <nav class="menu-page menu-line sticky top-0 z-20 mt-3 border-b" aria-label="{{ __('menu.categories') }}">
+        <nav class="menu-page menu-line sticky top-0 z-20 mt-3 min-h-[3.3rem] border-b" aria-label="{{ __('menu.categories') }}">
             <div class="menu-scroll mx-auto flex max-w-3xl gap-2 overflow-x-auto px-4 py-2.5" x-show="visible.length > 0">
                 <template x-for="c in visible" :key="c.id">
                     <button type="button" class="menu-chip" x-bind:data-tab="c.id" :aria-current="active === c.id" x-on:click="goTo(c.id)"><span x-show="c.icon" x-text="c.icon + ' '"></span><span x-text="c.name"></span></button>

@@ -57,3 +57,10 @@ Payments use the gateways you set up for subscriptions, with the same tax settin
 
 ## Simple menu and setup checklist
 The admin menu shows the essentials (restaurants, plans, subscriptions, payments, settings, system status). Tap **Show all features** for everything else. The dashboard lists five setup steps (name and logo, a plan, a payment gateway, e-mail, the scheduler) and hides the list when all are done.
+
+## Brand, SEO and Google (Settings)
+- **Settings > General:** site name, tagline (shown with the name in the page title), logo, logo for dark backgrounds (optional; without it the normal logo is shown on a white tile), favicon and the share image (1200x630, used by Facebook, WhatsApp, X and LinkedIn previews). The logo appears in the site header and footer, sign-in screens, the panel menus and e-mails.
+- **Settings > SEO:** default title and description, a switch to let search engines list the site (turn it off while building: robots.txt closes the site and every page says noindex), X/Twitter handle and extra robots.txt lines. `/robots.txt` and `/sitemap.xml` are generated for you; sign-in, panel and installer pages are never indexed.
+- **Settings > Google:** Google Analytics (G-...) or Google Tag Manager (GTM-...), not both; Google Search Console, Bing, Yandex and Meta verification (paste the code or the whole meta tag); extra head code for other tools. Tracking starts only after a visitor accepts cookies. After saving, verify the site in Search Console and submit `https://your-site/sitemap.xml`.
+- **Settings > Security:** reCAPTCHA v2 (checkbox) or v3 (invisible, you choose the lowest accepted score) or Cloudflare Turnstile; content security policy (try Report only first).
+- **Speed:** System status lists whether PHP OPcache and the config/route cache are on; the Optimize button builds the caches. The package compresses text and caches versioned files for a year (Apache). Pages carry structured data (organization, website, software offers, blog articles) and canonical, language and share tags.

@@ -94,9 +94,9 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
         Route::put('settings/billing', [BillingSettingsController::class, 'update'])->name('settings.billing.update');
 
         Route::get('settings/{section}', [SettingsController::class, 'edit'])->name('settings.section')
-            ->where('section', 'general|seo|security|auth|mail|domains|ai|realtime|storage');
+            ->where('section', 'general|seo|google|security|auth|mail|domains|ai|realtime|storage');
         Route::put('settings/{section}', [SettingsController::class, 'update'])->name('settings.section.update')
-            ->where('section', 'general|seo|security|auth|mail|domains|ai|realtime|storage');
+            ->where('section', 'general|seo|google|security|auth|mail|domains|ai|realtime|storage');
         Route::post('settings/ai/test', [SettingsController::class, 'testAi'])->middleware('throttle:5,1')->name('settings.ai.test');
         Route::post('settings/mail/test', [SettingsController::class, 'testMail'])->middleware('throttle:5,1')->name('settings.mail.test');
 

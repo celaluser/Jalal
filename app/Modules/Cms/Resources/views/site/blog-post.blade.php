@@ -1,4 +1,9 @@
-<x-layouts.site :title="$post->title" :description="$post->meta_description ?: $post->excerpt">
+<x-layouts.site :title="$post->title" :description="$post->meta_description ?: $post->excerpt" :image="$post->cover_url" og-type="article">
+    @push('head')
+        <script type="application/ld+json">{!! json_encode(['@context' => 'https://schema.org', '@type' => 'Article', 'headline' => $post->title, 'datePublished' => ($post->published_at ?? $post->created_at)->toIso8601String(), 'dateModified' => $post->updated_at->toIso8601String(),
+            'image' => $post->cover_url ?: null, 'inLanguage' => $post->locale, 'publisher' => ['@type' => 'Organization', 'name' => config('app.name')],
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) !!}</script>
+    @endpush
     <article class="mx-auto max-w-3xl px-4 py-14 sm:px-6 sm:py-20">
         <a href="{{ route('blog.index') }}" class="inline-flex items-center gap-1 text-sm text-muted hover:text-fg"><x-ui.icon name="chevron-right" size="4" class="rotate-180 rtl:rotate-0" />{{ __('site.nav.blog') }}</a>
         <h1 class="display mt-4 text-4xl font-semibold leading-[1.1] sm:text-5xl">{{ $post->title }}</h1>

@@ -58,6 +58,13 @@ class SettingsController extends Controller
     {
         $schema = SettingsSchema::section($section) ?? abort(404);
 
+        // A whole verification tag pasted from Search Console, Bing or Meta is fine: only its code is kept.
+        foreach ($request->all() as $key => $value) {
+            if (str_ends_with((string) $key, '_verification') && is_string($value) && preg_match('/content\s*=\s*["\']([^"\']+)["\']/i', $value, $m)) {
+                $request->merge([$key => $m[1]]);
+            }
+        }
+
         $rules = [];
 
         foreach ($schema['fields'] as $field) {

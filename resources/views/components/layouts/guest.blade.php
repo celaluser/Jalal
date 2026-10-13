@@ -1,12 +1,12 @@
 @props(['title' => null, 'heading' => null, 'subheading' => null, 'wide' => false])
-<x-layouts.base :title="$title">
+<x-layouts.base :title="$title" :noindex="true">
     <div class="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
         {{-- Brand panel: the QR texture is the one expressive element, everything else stays quiet --}}
         <aside class="relative hidden overflow-hidden bg-ink-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
             <x-ui.qr-pattern class="pointer-events-none absolute -bottom-24 -end-24 size-[34rem] text-white/[0.055]" :cells="29" :seed="5" />
             <div class="pointer-events-none absolute -start-32 -top-32 size-96 rounded-full bg-brand-500/20 blur-3xl"></div>
             <a href="{{ route('home') }}" class="relative flex items-center gap-3">
-                <x-ui.qr-mark size="10" />
+                <x-brand-mark size="10" dark />
                 <span class="display text-xl font-semibold">{{ config('app.name') }}</span>
             </a>
             <div class="relative max-w-md">
@@ -24,7 +24,7 @@
         <div class="flex flex-col px-5 py-8 sm:px-10">
             <header class="flex flex-wrap items-center justify-between gap-3">
                 <a href="{{ route('home') }}" class="flex items-center gap-2.5 lg:invisible">
-                    <x-ui.qr-mark size="8" /><span class="display font-semibold">{{ config('app.name') }}</span>
+                    <x-brand-mark size="8" /><span class="display font-semibold">{{ config('app.name') }}</span>
                 </a>
                 <div class="flex items-center gap-2"><x-ui.language-switcher /><x-ui.theme-toggle /></div>
             </header>

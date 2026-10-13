@@ -6,6 +6,7 @@
     <meta name="robots" content="noindex">
     <title>{{ $restaurant->name }} · {{ __('branches.choose_title') }}</title>
     <style>{!! $themeCss !!}</style>
+    <x-font-preload />
     @vite(['resources/css/app.css'])
 </head>
 <body class="menu-page min-h-screen p-6">

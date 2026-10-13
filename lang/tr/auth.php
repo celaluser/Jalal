@@ -59,4 +59,5 @@ return [
     'trial_days' => ':days gün ücretsiz deneme, şimdi ödeme yok',
     'no_card' => 'Ücretsiz, ödeme gerekmez',
     'pay_after_verify' => 'E-postanızı doğruladıktan sonra ödeme',
+    'recaptcha_notice' => 'reCAPTCHA ile korunmaktadır. Google <a href="https://policies.google.com/privacy" class="underline" target="_blank" rel="noopener">Gizlilik Politikası</a> ve <a href="https://policies.google.com/terms" class="underline" target="_blank" rel="noopener">Hizmet Şartları</a> geçerlidir.',
 ];

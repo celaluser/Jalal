@@ -4,12 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ isset($title) ? $title.' · ' : '' }}{{ config('app.name') }}</title>
-    @php($metaDescription = $description ?? platform_setting('seo.meta_description'))
+    @php
+        $brandName = \App\Modules\Core\Support\Brand::name();
+        $pageTitle = isset($title) && $title !== '' ? $title.' · '.$brandName : (platform_setting('seo.meta_title') ?: trim($brandName.(\App\Modules\Core\Support\Brand::tagline() ? ' — '.\App\Modules\Core\Support\Brand::tagline() : '')));
+        $metaDescription = ($description ?? null) ?: (platform_setting('seo.meta_description') ?: (\App\Modules\Core\Support\Brand::tagline() ?: $brandName));
+    @endphp
+    <title>{{ $pageTitle }}</title>
     @if ($metaDescription)<meta name="description" content="{{ $metaDescription }}">@endif
-    <meta property="og:title" content="{{ isset($title) ? $title.' · ' : '' }}{{ config('app.name') }}">
-    @if ($metaDescription)<meta property="og:description" content="{{ $metaDescription }}">@endif
-    @if ($favicon = platform_setting('general.favicon'))<link rel="icon" href="{{ $favicon }}">@endif
+    <x-seo-head :title="$pageTitle" :description="$metaDescription" :noindex="$noindex ?? false" :image="$image ?? null" :type="$ogType ?? 'website'" />
     {{-- Apply the saved theme before first paint to avoid a flash. --}}
     <script>
         try {
@@ -20,6 +22,7 @@
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     @endif
+    <x-font-preload />
     <x-brand-style />
     @stack('head')
     @if ($customCss = platform_setting('general.custom_css'))<style>{!! str_ireplace('</style', '', $customCss) !!}</style>@endif

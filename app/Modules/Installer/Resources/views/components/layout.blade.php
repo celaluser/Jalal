@@ -1,6 +1,6 @@
 @props(['step'])
 @php($steps = ['requirements', 'license', 'database', 'admin', 'finish'])
-<x-layouts.base :title="__('installer.title')">
+<x-layouts.base :title="__('installer.title')" :noindex="true">
     <div class="relative min-h-screen overflow-hidden px-4 py-10 sm:py-16">
         <x-ui.qr-pattern class="pointer-events-none absolute -end-20 -top-20 size-[30rem] text-ink-900/[0.045] dark:text-white/[0.04]" :cells="29" :seed="13" />
         <div class="relative mx-auto max-w-2xl">

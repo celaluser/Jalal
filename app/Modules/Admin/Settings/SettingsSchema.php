@@ -24,8 +24,11 @@ final class SettingsSchema
                 'description' => 'admin.settings.general.description',
                 'fields' => [
                     ['name' => 'site_name', 'key' => 'site.name', 'type' => 'text', 'label' => 'admin.settings.general.site_name', 'default' => config('app.name'), 'rules' => ['required', 'string', 'max:100']],
+                    ['name' => 'tagline', 'key' => 'site.tagline', 'type' => 'text', 'label' => 'admin.settings.general.tagline', 'rules' => ['nullable', 'string', 'max:90']],
                     ['name' => 'logo', 'key' => 'general.logo', 'type' => 'image', 'label' => 'admin.settings.general.logo'],
+                    ['name' => 'logo_dark', 'key' => 'general.logo_dark', 'type' => 'image', 'label' => 'admin.settings.general.logo_dark'],
                     ['name' => 'favicon', 'key' => 'general.favicon', 'type' => 'image', 'label' => 'admin.settings.general.favicon'],
+                    ['name' => 'og_image', 'key' => 'general.og_image', 'type' => 'image', 'label' => 'admin.settings.general.og_image'],
                     ['name' => 'brand_color', 'key' => 'general.brand_color', 'type' => 'color', 'label' => 'admin.settings.general.brand_color', 'help' => 'admin.settings.general.brand_color_help', 'default' => '#ffb020', 'rules' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/']],
                     ['name' => 'accent_color', 'key' => 'general.accent_color', 'type' => 'color', 'label' => 'admin.settings.general.accent_color', 'help' => 'admin.settings.general.accent_color_help', 'default' => '#1c8e73', 'rules' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/']],
                     ['name' => 'default_language', 'key' => 'general.default_language', 'type' => 'select', 'label' => 'admin.settings.general.default_language', 'default' => config('app.default_locale'), 'options' => 'languages', 'rules' => ['required', 'string', 'max:12']],
@@ -41,16 +44,34 @@ final class SettingsSchema
             ],
             'seo' => [
                 'title' => 'admin.settings.seo.title',
+                'description' => 'admin.settings.seo.description',
                 'fields' => [
                     ['name' => 'meta_title', 'key' => 'seo.meta_title', 'type' => 'text', 'label' => 'admin.settings.seo.meta_title', 'rules' => ['nullable', 'string', 'max:70']],
                     ['name' => 'meta_description', 'key' => 'seo.meta_description', 'type' => 'textarea', 'label' => 'admin.settings.seo.meta_description', 'rules' => ['nullable', 'string', 'max:300']],
+                    ['name' => 'indexing', 'key' => 'seo.indexing', 'type' => 'toggle', 'label' => 'admin.settings.seo.indexing', 'help' => 'admin.settings.seo.indexing_help', 'default' => '1'],
+                    ['name' => 'twitter_handle', 'key' => 'seo.twitter_handle', 'type' => 'text', 'label' => 'admin.settings.seo.twitter_handle', 'rules' => ['nullable', 'regex:/^@?[A-Za-z0-9_]{1,15}$/']],
+                    ['name' => 'robots_extra', 'key' => 'seo.robots_extra', 'type' => 'textarea', 'label' => 'admin.settings.seo.robots_extra', 'help' => 'admin.settings.seo.robots_extra_help', 'rules' => ['nullable', 'string', 'max:1000']],
+                ],
+            ],
+            'google' => [
+                'title' => 'admin.settings.google.title',
+                'description' => 'admin.settings.google.description',
+                'fields' => [
                     ['name' => 'ga_id', 'key' => 'seo.google_analytics_id', 'type' => 'text', 'label' => 'admin.settings.seo.ga_id', 'help' => 'admin.settings.seo.ga_help', 'rules' => ['nullable', 'regex:/^(G|UA|GT)-[A-Za-z0-9-]{4,20}$/']],
+                    ['name' => 'gtm_id', 'key' => 'seo.google_tag_manager_id', 'type' => 'text', 'label' => 'admin.settings.google.gtm_id', 'help' => 'admin.settings.google.gtm_help', 'rules' => ['nullable', 'regex:/^GTM-[A-Z0-9]{4,12}$/']],
+                    ['name' => 'google_site_verification', 'key' => 'seo.google_site_verification', 'type' => 'text', 'label' => 'admin.settings.google.search_console', 'help' => 'admin.settings.google.verification_help', 'rules' => ['nullable', 'regex:/^[A-Za-z0-9_-]{10,100}$/']],
+                    ['name' => 'bing_verification', 'key' => 'seo.bing_verification', 'type' => 'text', 'label' => 'admin.settings.google.bing', 'rules' => ['nullable', 'regex:/^[A-Za-z0-9_-]{10,100}$/']],
+                    ['name' => 'yandex_verification', 'key' => 'seo.yandex_verification', 'type' => 'text', 'label' => 'admin.settings.google.yandex', 'rules' => ['nullable', 'regex:/^[A-Za-z0-9_-]{10,100}$/']],
+                    ['name' => 'facebook_domain_verification', 'key' => 'seo.facebook_domain_verification', 'type' => 'text', 'label' => 'admin.settings.google.facebook', 'rules' => ['nullable', 'regex:/^[A-Za-z0-9_-]{10,100}$/']],
+                    ['name' => 'head_code', 'key' => 'seo.head_code', 'type' => 'textarea', 'label' => 'admin.settings.google.head_code', 'help' => 'admin.settings.google.head_code_help', 'rules' => ['nullable', 'string', 'max:5000']],
                 ],
             ],
             'security' => [
                 'title' => 'admin.settings.security.title',
                 'fields' => [
                     ['name' => 'recaptcha_enabled', 'key' => 'security.recaptcha_enabled', 'type' => 'toggle', 'label' => 'admin.settings.security.recaptcha_enabled', 'help' => 'admin.settings.security.recaptcha_help'],
+                    ['name' => 'recaptcha_version', 'key' => 'security.recaptcha_version', 'type' => 'select', 'label' => 'admin.settings.security.recaptcha_version', 'default' => 'v2', 'options' => ['v2' => __('admin.settings.security.recaptcha_v2'), 'v3' => __('admin.settings.security.recaptcha_v3')], 'rules' => ['nullable', 'in:v2,v3']],
+                    ['name' => 'recaptcha_min_score', 'key' => 'security.recaptcha_min_score', 'type' => 'text', 'label' => 'admin.settings.security.recaptcha_min_score', 'default' => '0.5', 'rules' => ['nullable', 'numeric', 'between:0.1,0.9']],
                     ['name' => 'recaptcha_site_key', 'key' => 'security.recaptcha_site_key', 'type' => 'text', 'label' => 'admin.settings.security.recaptcha_site_key', 'rules' => ['nullable', 'string', 'max:200']],
                     ['name' => 'recaptcha_secret', 'key' => 'security.recaptcha_secret', 'type' => 'secret', 'label' => 'admin.settings.security.recaptcha_secret', 'rules' => ['nullable', 'string', 'max:200']],
                     ['name' => 'turnstile_enabled', 'key' => 'security.turnstile_enabled', 'type' => 'toggle', 'label' => 'admin.settings.security.turnstile_enabled', 'help' => 'admin.settings.security.turnstile_help'],
