@@ -1,6 +1,5 @@
+import './alpine.js';
 import Sortable from 'sortablejs';
-
-// Alpine.js ships with Livewire 3 (@livewireScripts); do not bundle a second copy.
 
 const applyTheme = (mode) => {
     const dark = mode === 'dark' || (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);

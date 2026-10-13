@@ -17,7 +17,6 @@
         "laravel/socialite": "*",
         "laravel/tinker": "^2.10",
         "league/flysystem-aws-s3-v3": "*",
-        "livewire/livewire": "^3.6",
         "minishlink/web-push": "^11.0",
         "pragmarx/google2fa": "*",
         "smalot/pdfparser": "^2.12",

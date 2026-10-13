@@ -10,6 +10,32 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 
+// A site updated by uploading files keeps the leftovers of the older version: the package list and the compiled page templates can
+// name a package this version no longer ships (a fatal "class not found" on every page). They are rebuilt automatically as soon as
+// the vendor folder is newer than they are.
+if (is_file($installed = __DIR__.'/../vendor/composer/installed.json')) {
+    $stamp = (string) filemtime($installed);
+
+    foreach (['packages', 'services'] as $cache) {
+        $file = __DIR__.'/cache/'.$cache.'.php';
+
+        if (is_file($file) && filemtime($file) < (int) $stamp) {
+            @unlink($file);
+        }
+    }
+
+    $views = __DIR__.'/../storage/framework/views';
+    $marker = $views.'/.vendor-stamp';
+
+    if (is_dir($views) && @file_get_contents($marker) !== $stamp) {
+        foreach (glob($views.'/*.php') ?: [] as $compiled) {
+            @unlink($compiled);
+        }
+
+        @file_put_contents($marker, $stamp);
+    }
+}
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',

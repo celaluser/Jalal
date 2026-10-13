@@ -1,3 +1,4 @@
+import './alpine.js';
 // Customer menu: browsing, filtering, product options and the cart.
 // Prices shown here are for convenience only; the server re-prices the cart (see CartPricing),
 // and the order flow never trusts a price sent by the browser.

@@ -21,7 +21,6 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     @endif
     <x-brand-style />
-    @livewireStyles
     @stack('head')
     @if ($customCss = platform_setting('general.custom_css'))<style>{!! str_ireplace('</style', '', $customCss) !!}</style>@endif
 </head>
@@ -49,7 +48,6 @@
         </script>
     @endif
     <x-cookie-banner />
-    @livewireScripts
     @stack('scripts')
     @if ($customJs = platform_setting('general.custom_js'))<script>{!! str_ireplace('</script', '<\/script', $customJs) !!}</script>@endif
 </body>

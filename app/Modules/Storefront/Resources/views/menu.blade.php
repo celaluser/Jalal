@@ -85,7 +85,6 @@
         </script>
     @endif
     @vite(['resources/css/app.css', 'resources/js/storefront.js'])
-    @livewireStyles
 </head>
 <body class="menu-page min-h-screen pb-28 {{ $kiosk ? 'kiosk select-none' : '' }}" x-data="storefront(@js($config))" x-on:keydown.escape.window="closeAll()">
     @include('storefront::partials.theme-effects', ['part' => 'body'])
@@ -754,7 +753,6 @@
         </div>
     </div>
 
-    @livewireScripts
     @if ($pixels && ! $kiosk)
         <div x-data="{ show: false }" x-init="try { show = navigator.doNotTrack !== '1' && localStorage.getItem('qrm.consent.{{ $restaurant->id }}') === null } catch (e) {}" x-show="show" x-cloak role="dialog" aria-label="{{ __('customer.consent_title') }}"
              class="menu-card fixed inset-x-3 bottom-3 z-50 mx-auto max-w-md p-4 shadow-xl">

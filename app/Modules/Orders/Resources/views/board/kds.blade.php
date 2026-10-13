@@ -7,7 +7,6 @@
     <meta name="robots" content="noindex">
     <title>{{ __('orders.kds_title') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @livewireStyles
 </head>
 <body class="min-h-screen bg-ink-950 text-ink-50 antialiased" x-data="kdsBoard(@js($config))" x-on:keydown.escape.window="">
     <header class="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
@@ -115,6 +114,5 @@
             }));
         });
     </script>
-    @livewireScripts
 </body>
 </html>

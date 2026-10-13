@@ -13,7 +13,7 @@
     <meta name="theme-color" content="{{ $restaurant->brandColor() }}">
     <title>{{ __('orders.track_title', ['number' => $order->label()]) }} · {{ $restaurant->name }}</title>
     <style>{!! $themeCss !!}</style>
-    @vite(['resources/css/app.css', 'resources/js/map.js'])
+    @vite(['resources/css/app.css', 'resources/js/alpine.js', 'resources/js/map.js'])
     <script>
         document.addEventListener('alpine:init', () => {
             Alpine.data('orderStatus', (cfg) => ({
@@ -77,7 +77,6 @@
             }));
         });
     </script>
-    @livewireStyles
 </head>
 <body class="menu-page min-h-screen pb-10" x-data="orderStatus(@js(['state' => $state, 'statusUrl' => $statusUrl, 'cancelUrl' => $cancelUrl, 'csrf' => csrf_token(), 't' => $t, 'pushUrl' => $pushUrl, 'workerUrl' => $workerUrl, 'payUrl' => $payUrl, 'payResult' => $payResult, 'autoPay' => $autoPay, 'locale' => $locale_tag]))">
     <header class="menu-hero">
@@ -238,6 +237,5 @@
         <a href="{{ $reorderUrl }}" class="menu-btn menu-btn-quiet w-full !py-3.5" x-show="!s.open" x-cloak>{{ __('orders.order_again') }}</a>
         <a href="{{ $menuUrl }}" class="menu-btn w-full !py-3.5">{{ __('orders.order_more') }}</a>
     </main>
-    @livewireScripts
 </body>
 </html>
