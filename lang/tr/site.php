@@ -1,0 +1,78 @@
+<?php
+
+return [
+    'nav' => [
+        'label' => 'Ana gezinme',
+        'footer' => 'Yasal',
+        'features' => 'Özellikler',
+        'pricing' => 'Fiyatlandırma',
+        'faq' => 'SSS',
+        'blog' => 'Blog',
+        'start' => 'Başlayın',
+    ],
+    'hero' => [
+        'eyebrow' => 'Masadan sipariş özellikli QR menüler',
+        'no_card' => 'Kredi kartı gerekmez',
+        'cancel' => 'İstediğiniz zaman iptal edin',
+        'setup' => 'Dakikalar içinde hazır',
+    ],
+    'mock' => [
+        'table' => 'Masa 7',
+        'restaurant' => 'Bella Italia',
+        'cat1' => 'Pizza',
+        'cat2' => 'Makarna',
+        'cat3' => 'İçecekler',
+        'd1' => 'Margherita',
+        'd2' => 'Bahçe salatası',
+        'd3' => 'Acılı arrabbiata',
+        'view_order' => 'Siparişi gör · 2 ürün',
+        'new_order' => 'Yeni sipariş',
+        'new_order_sub' => 'Masa 7 · şimdi',
+        'scan' => 'Sipariş için tarayın',
+    ],
+    'strip' => [
+        'title' => 'Şunlar için hazırlandı',
+        'restaurants' => 'Restoranlar',
+        'cafes' => 'Kafeler',
+        'bars' => 'Barlar',
+        'hotels' => 'Oteller',
+        'trucks' => 'Yemek kamyonları',
+    ],
+    'features' => [
+        'title' => 'Servis alanınızın ihtiyacı olan her şey',
+    ],
+    'how' => [
+        'eyebrow' => 'Nasıl çalışır',
+        'title' => 'Kağıt menüden canlı siparişlere üç adımda',
+        'menu_title' => 'Menünüzü oluşturun',
+        'menu_text' => 'Yemekleri elle ekleyin veya yapay zekanın kağıt menünüzün fotoğrafını okumasına izin verin.',
+        'print_title' => 'QR kodlarınızı yazdırın',
+        'print_text' => 'Her masa için renklerinizde, yazdırmaya hazır kartları indirin.',
+        'orders_title' => 'Siparişleri alın',
+        'orders_text' => 'Misafirler telefonlarından sipariş verir, mutfak fişleri anında görür.',
+    ],
+    'cta' => [
+        'title' => 'Her masaya daha iyi bir menü verin',
+        'text' => 'Ücretsiz denemenize bugün başlayın. İlk QR kodunuz birkaç dakika sürer.',
+    ],
+    'footer' => [
+        'tagline' => 'Her ölçekteki restoran için QR menüler, masadan sipariş ve mutfak ekranı.',
+        'product' => 'Ürün',
+        'resources' => 'Kaynaklar',
+        'legal' => 'Yasal',
+    ],
+    'pricing' => [
+        'popular' => 'En popüler',
+        'free' => 'Ücretsiz',
+        'one_time' => 'tek seferlik',
+        'trial' => ':days gün ücretsiz deneme',
+        'unlimited' => 'Sınırsız',
+        'start_trial' => 'Ücretsiz denemeyi başlat',
+        'choose' => 'Plan seç',
+    ],
+    'blog' => [
+        'empty' => 'Henüz makale yok.',
+        'title' => 'Blogdan son yazılar',
+        'read' => 'Makaleyi oku',
+    ],
+];

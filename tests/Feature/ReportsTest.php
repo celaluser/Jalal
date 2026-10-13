@@ -179,3 +179,11 @@ it('is closed to waiters and guests, and each restaurant sees only its own numbe
     auth()->logout();
     $this->get(route('reports.index'))->assertRedirect(route('login'));
 });
+
+it('shows live numbers, a checklist and the latest orders on the restaurant dashboard', function () {
+    [$r, $user, $d] = rpShop();
+    rpOrder($r, $d, now(), 2);
+
+    $this->actingAs($user)->get(route('dashboard'))->assertOk()
+        ->assertSee(__('tenancy.orders_today'))->assertSee(__('tenancy.setup_title'))->assertSee(__('tenancy.recent_orders'))->assertSee('$20.00');
+});

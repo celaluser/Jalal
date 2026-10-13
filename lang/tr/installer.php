@@ -39,4 +39,6 @@ return [
     'finished' => 'Kurulum tamamlandı',
     'finished_help' => 'Platformunuz hazır. Az önce oluşturduğunuz yönetici hesabıyla giriş yapın. Güvenlik için kurulum sihirbazı artık devre dışı.',
     'go_to_login' => 'Girişe git',
+    'cron_title' => 'Son bir şey: arka plan işleri',
+    'cron_help' => 'E-postaların, hatırlatmaların ve yenilemelerin çalışması için bu adresi barındırmanızın cron\'undan (veya ücretsiz bir cron hizmetinden) dakikada bir çağırın. Terminal gerekmez. Bunu daha sonra Yönetim → Sistem durumu altında tekrar bulabilirsiniz.',
 ];

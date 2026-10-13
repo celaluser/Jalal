@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'title' => 'Eklentiler',
+    'sub' => 'İmzalı paketler olarak sunulan ek özellikler. Uygulamaya tam erişimle çalışırlar, bu yüzden yalnızca güvendiğiniz kaynaklardan eklenti yükleyin.',
+    'install' => 'Eklenti yükle',
+    'install_help' => 'Aldığınız .zip dosyasını yükleyin. Önce imza ve tüm dosyalar kontrol edilir. Yeni eklentiler kapalı başlar.',
+    'trust_warning' => 'Bir eklenti veritabanınız dahil her şeyi okuyup değiştirebilir. Önce yedek alın.',
+    'install_button' => 'Kontrol et ve yükle',
+    'installed_title' => 'Yüklü eklentiler',
+    'installed' => ':name yüklendi. Kullanmaya başlamak için açın.',
+    'updated' => 'Eklenti güncellendi.',
+    'removed' => 'Eklenti kaldırıldı. Verileri veritabanında kalır.',
+    'on' => 'Açık',
+    'off' => 'Kapalı',
+    'turn_on' => 'Aç',
+    'turn_off' => 'Kapat',
+    'remove_confirm' => 'Bu eklenti kaldırılsın mı? Dosyaları silinir; veritabanı tabloları kalır.',
+    'empty' => 'Yüklü eklenti yok',
+    'empty_text' => 'Satın aldığınız veya geliştirdiğiniz eklentiler burada görünür.',
+    'not_an_addon' => 'Bu paket bir eklenti değil (her dosya addons/<name>/ içinde olmalıdır).',
+    'invalid_manifest' => 'Eklenti açıklaması (addon.json) eksik veya geçersiz.',
+    'needs_core' => ':version veya daha yeni bir uygulama sürümü gerekir.',
+    'provider_missing' => 'Eklenti kodu yüklenemedi.',
+    'not_found' => 'Eklenti bulunamadı.',
+];
