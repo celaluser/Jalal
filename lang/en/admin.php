@@ -238,6 +238,13 @@ return [
             'ga_id' => 'Google Analytics measurement ID', 'ga_help' => 'Looks like G-XXXXXXXXXX. Only loaded after the visitor accepts cookies.',
         ],
         'security' => [
+            'csp' => 'Content security policy',
+            'csp_help' => 'Limits where scripts, frames and forms may come from. Try "Report only" first and watch the browser console on your pages; switch to "Enforce" when nothing legitimate is reported.',
+            'csp_off' => 'Off',
+            'csp_report' => 'Report only (test first)',
+            'csp_enforce' => 'Enforce',
+            'csp_hosts' => 'Allowed extra hosts',
+            'csp_hosts_help' => 'Hosts your pages may load scripts from or talk to, besides the built-in ones (Google Analytics, Facebook pixel, Cloudflare Turnstile, reCAPTCHA). One per line, for example js.intercomcdn.com.',
             'title' => 'Security & privacy', 'recaptcha_enabled' => 'Protect login and registration with reCAPTCHA',
             'recaptcha_help' => 'Uses Google reCAPTCHA v2 (checkbox). If Google cannot be reached the forms are refused.',
             'turnstile_enabled' => 'Protect forms with Cloudflare Turnstile', 'turnstile_help' => 'A friendlier alternative to reCAPTCHA. If both are on, Turnstile is used.', 'turnstile_site_key' => 'Turnstile site key', 'turnstile_secret' => 'Turnstile secret key',

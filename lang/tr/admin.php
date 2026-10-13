@@ -304,6 +304,13 @@ return [
             'ga_help' => 'G-XXXXXXXXXX biçimindedir. Yalnızca ziyaretçi çerezleri kabul ettikten sonra yüklenir.',
         ],
         'security' => [
+            'csp' => 'İçerik güvenlik politikası',
+            'csp_help' => 'Betiklerin, çerçevelerin ve formların nereden gelebileceğini sınırlar. Önce "Yalnızca raporla" deneyin ve sayfalarınızda tarayıcı konsoluna bakın; meşru hiçbir şey raporlanmayınca "Uygula"ya geçin.',
+            'csp_off' => 'Kapalı',
+            'csp_report' => 'Yalnızca raporla (önce deneyin)',
+            'csp_enforce' => 'Uygula',
+            'csp_hosts' => 'İzin verilen ek sunucular',
+            'csp_hosts_help' => 'Sayfalarınızın yerleşik olanlara (Google Analytics, Facebook pikseli, Cloudflare Turnstile, reCAPTCHA) ek olarak betik yükleyebileceği veya bağlanabileceği sunucular. Her satıra bir tane, örneğin js.intercomcdn.com.',
             'title' => 'Güvenlik ve gizlilik',
             'recaptcha_enabled' => 'Girişi ve kaydı reCAPTCHA ile koru',
             'recaptcha_help' => 'Google reCAPTCHA v2 (onay kutusu) kullanır. Google\'a ulaşılamazsa formlar reddedilir.',

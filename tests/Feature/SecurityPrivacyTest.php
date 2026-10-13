@@ -5,6 +5,7 @@ use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Services\SubscriptionService;
 use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Models\Language;
+use App\Modules\Core\Services\SettingsService;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Marketing\Models\Customer;
 use App\Modules\Marketing\Models\Review;
@@ -128,4 +129,21 @@ describe('data retention', function () {
         expect($r->fresh()->marketing_settings['retention_months'])->toBe(24);
         $this->actingAs($owner)->put(route('marketing.settings.update'), $base + ['retention_months' => 999])->assertSessionHasErrors('retention_months');
     });
+});
+
+it('sets a content security policy only when the admin switches it on, and only accepts clean extra hosts', function () {
+    $settings = app(SettingsService::class);
+
+    $off = $this->get('/login');
+    expect($off->headers->has('Content-Security-Policy-Report-Only'))->toBeFalse();
+
+    $settings->set('security.csp', 'report');
+    $settings->set('security.csp_hosts', "js.intercomcdn.com\nhttps://widget.example.com\nx.test; script-src *\nbad host");
+    $policy = $this->get('/login')->headers->get('Content-Security-Policy-Report-Only');
+    expect($policy)->toContain("default-src 'self'")->toContain("object-src 'none'")->toContain('https://js.intercomcdn.com')->toContain('https://widget.example.com')
+        ->not->toContain('script-src *')->not->toContain('bad host')->not->toContain('https://script-src')->not->toContain('x.test;');
+
+    $settings->set('security.csp', 'enforce');
+    $res = $this->get('/login');
+    expect($res->headers->all('content-security-policy'))->toContain($policy)->and($res->headers->has('Content-Security-Policy-Report-Only'))->toBeFalse();
 });

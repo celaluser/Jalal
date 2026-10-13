@@ -304,6 +304,13 @@ return [
             'ga_help' => 'G-XXXXXXXXXX kimi görünür. Yalnız ziyarətçi kukiləri qəbul etdikdən sonra yüklənir.',
         ],
         'security' => [
+            'csp' => 'Məzmun təhlükəsizlik siyasəti',
+            'csp_help' => 'Skriptlərin, çərçivələrin və formaların haradan gələ biləcəyini məhdudlaşdırır. Əvvəlcə "Yalnız hesabat" sınayın və səhifələrinizdə brauzer konsoluna baxın; qanuni heç nə hesabat verilməyəndə "Tətbiq et"ə keçin.',
+            'csp_off' => 'Söndürülüb',
+            'csp_report' => 'Yalnız hesabat (əvvəlcə sınayın)',
+            'csp_enforce' => 'Tətbiq et',
+            'csp_hosts' => 'İcazə verilən əlavə serverlər',
+            'csp_hosts_help' => 'Səhifələrinizin quraşdırılmışlara (Google Analytics, Facebook pikseli, Cloudflare Turnstile, reCAPTCHA) əlavə olaraq skript yükləyə və ya qoşula biləcəyi serverlər. Hər sətirdə bir dənə, məsələn js.intercomcdn.com.',
             'title' => 'Təhlükəsizlik və məxfilik',
             'recaptcha_enabled' => 'Giriş və qeydiyyatı reCAPTCHA ilə qoru',
             'recaptcha_help' => 'Google reCAPTCHA v2 (xana) istifadə edir. Google ilə əlaqə qurulmasa formalar rədd edilir.',
