@@ -96,6 +96,7 @@ class SettingsController extends Controller
         }
 
         Cache::forget('languages.active');
+        Cache::forget('languages.names');
         $this->runtime->apply();
 
         return back()->with('status', __('admin.saved'));

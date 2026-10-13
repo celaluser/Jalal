@@ -33,8 +33,24 @@ class SetLocale
         app()->setLocale($locale);
         view()->share('dir', ($active[$locale] ?? false) ? 'rtl' : 'ltr');
         view()->share('activeLanguages', $active);
+        view()->share('languageNames', $this->languageNames($codes));
 
         return $next($request);
+    }
+
+    /**
+     * Native names for the language switcher (hover text and screen readers).
+     *
+     * @param  list<string>  $codes
+     * @return array<string, string>
+     */
+    private function languageNames(array $codes): array
+    {
+        try {
+            return Cache::remember('languages.names', 3600, fn () => Language::active()->get()->mapWithKeys(fn ($l) => [$l->code => $l->native_name ?: $l->name])->all());
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     /**

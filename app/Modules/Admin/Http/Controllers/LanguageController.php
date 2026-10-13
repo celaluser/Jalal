@@ -25,6 +25,7 @@ class LanguageController extends Controller
         ]);
         Language::create(['code' => $data['code'], 'name' => $data['name'], 'native_name' => $data['native_name'] ?? $data['name'], 'is_rtl' => $request->boolean('is_rtl'), 'is_active' => true, 'sort' => (int) Language::max('sort') + 1]);
         Cache::forget('languages.active');
+        Cache::forget('languages.names');
 
         return back()->with('status', __('admin.localization.language_added'));
     }
@@ -36,6 +37,7 @@ class LanguageController extends Controller
         // The default language can never be switched off: the site would have nothing to show.
         $language->update(['name' => $data['name'], 'native_name' => $data['native_name'] ?? $data['name'], 'is_rtl' => $request->boolean('is_rtl'), 'is_active' => $language->is_default ? true : $request->boolean('is_active')]);
         Cache::forget('languages.active');
+        Cache::forget('languages.names');
 
         return back()->with('status', __('admin.saved'));
     }
@@ -45,6 +47,7 @@ class LanguageController extends Controller
         Language::query()->update(['is_default' => false]);
         $language->update(['is_default' => true, 'is_active' => true]);
         Cache::forget('languages.active');
+        Cache::forget('languages.names');
 
         return back()->with('status', __('admin.saved'));
     }
