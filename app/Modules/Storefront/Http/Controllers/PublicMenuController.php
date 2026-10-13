@@ -26,6 +26,7 @@ use App\Modules\Orders\Services\OrderSettings;
 use App\Modules\Orders\Services\OrderTotals;
 use App\Modules\Orders\Services\PushNotifier;
 use App\Modules\Orders\Services\WaitEstimate;
+use App\Modules\Orders\Support\Geo;
 use App\Modules\Orders\Support\OrderType;
 use App\Modules\Reservations\Services\ReservationSettings;
 use App\Modules\Storefront\Services\CartPricing;
@@ -165,7 +166,7 @@ class PublicMenuController extends Controller
         $data = $request->validate([
             'lines' => ['required', 'array', 'max:'.CartPricing::MAX_LINES], 'type' => ['nullable', 'in:'.implode(',', OrderType::ALL)],
             'promo_code' => ['nullable', 'string', 'max:40'], 'customer_email' => ['nullable', 'string', 'max:190'], 'customer_phone' => ['nullable', 'string', 'max:40'],
-            'delivery_zone' => ['nullable', 'integer'],
+            'delivery_zone' => ['nullable', 'integer'], 'delivery_lat' => ['nullable', 'numeric', 'between:-90,90'], 'delivery_lng' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
         app()->setLocale($this->locales->resolve($request, $restaurant));
 
@@ -188,7 +189,13 @@ class PublicMenuController extends Controller
 
             // A delivery zone changes the fee; until the guest picks one, the fee shows as zero.
             $zones = app(DeliveryZones::class);
-            $zone = $data['type'] === OrderType::DELIVERY && ! empty($data['delivery_zone']) ? DeliveryZone::where('is_active', true)->find($data['delivery_zone']) : null;
+            $zone = null;
+
+            if ($data['type'] === OrderType::DELIVERY) {
+                $zone = Geo::validPoint($data['delivery_lat'] ?? null, $data['delivery_lng'] ?? null) ? $zones->forPoint((float) $data['delivery_lat'], (float) $data['delivery_lng']) : null;
+                $zone ??= ! empty($data['delivery_zone']) ? DeliveryZone::where('is_active', true)->find($data['delivery_zone']) : null;
+            }
+
             $settings = $zones->apply(app(OrderSettings::class)->for($restaurant), $zone);
             $quote['delivery_min'] = $data['type'] === OrderType::DELIVERY ? (int) round((float) $settings['delivery_min'] * 100) : 0;
             $sums = app(OrderTotals::class)->compute($quote['subtotal_cents'], $data['type'], $settings, $discount, (int) collect($quote['lines'])->sum('qty'));
@@ -196,6 +203,19 @@ class PublicMenuController extends Controller
         }
 
         return response()->json($quote);
+    }
+
+    /** "Which delivery area am I in?" for the guest's position. Nothing is stored; the answer is only the area's name and prices. */
+    public function zoneAt(Request $request): JsonResponse
+    {
+        $restaurant = $this->tenant->get();
+        $data = $request->validate(['lat' => ['required', 'numeric', 'between:-90,90'], 'lng' => ['required', 'numeric', 'between:-180,180']]);
+        app()->setLocale($this->locales->resolve($request, $restaurant));
+        $zone = app(DeliveryZones::class)->forPoint((float) $data['lat'], (float) $data['lng']);
+
+        return response()->json($zone
+            ? ['found' => true, 'id' => $zone->id, 'name' => $zone->name]
+            : ['found' => false, 'message' => __('orders.error_outside_area')])->header('Cache-Control', 'no-store');
     }
 
     /** Happy-hour rules running now, for the banner on the menu (prices in the cart already include them). @return list<array{name: string, percent: int}> */
@@ -238,6 +258,7 @@ class PublicMenuController extends Controller
             'orderUrl' => rtrim($request->getPathInfo(), '/').'/order',
             'wait' => app(WaitEstimate::class)->for($restaurant)['minutes'],
             'maxItems' => (int) $s['max_items'],
+            'areas' => app(DeliveryZones::class)->hasAreas(),
             'zones' => app(DeliveryZones::class)->active()->map(fn ($z) => ['id' => $z->id, 'name' => $z->name, 'fee' => $restaurant->money((float) $z->fee), 'min' => (float) $z->min_order > 0 ? $restaurant->money((float) $z->min_order) : null, 'eta' => $z->eta_minutes])->all(),
             'schedule' => $s['schedule_orders'] ? ['lead' => (int) $s['schedule_lead'], 'days' => (int) $s['schedule_days'], 'tz' => $restaurant->timezone ?: 'UTC'] : null,
             // Ways a guest can ask to be told when the order is ready. SMS/WhatsApp only if a provider is set up.

@@ -17,6 +17,7 @@ use App\Modules\Orders\Events\OrderStatusChanged;
 use App\Modules\Orders\Exceptions\OrderException;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Models\OrderEvent;
+use App\Modules\Orders\Support\Geo;
 use App\Modules\Orders\Support\OrderStatus;
 use App\Modules\Orders\Support\OrderType;
 use App\Modules\Storefront\Services\CartPricing;
@@ -124,7 +125,7 @@ class OrderService
         }
 
         // With delivery zones, the zone sets the fee and the minimum order.
-        $zone = $type === OrderType::DELIVERY ? app(DeliveryZones::class)->resolve($data['delivery_zone'] ?? null) : null;
+        $zone = $type === OrderType::DELIVERY ? app(DeliveryZones::class)->resolve($data['delivery_zone'] ?? null, $data['delivery_lat'] ?? null, $data['delivery_lng'] ?? null) : null;
         $settings = app(DeliveryZones::class)->apply($settings, $zone);
         $quote = $this->pricing->quote($restaurant, $data['lines'] ?? [], $type, $branch?->id);
 
@@ -159,7 +160,9 @@ class OrderService
             'note' => $this->clean($data['note'] ?? null, 300), 'locale' => $data['locale'] ?? app()->getLocale(),
             'payment_method' => $method, 'currency_code' => $restaurant->currency_code,
             'marketing_opt_in' => $email !== null && ! empty($data['marketing_opt_in']), 'promo_code' => $promo?->code,
-            'delivery_zone' => $zone?->name, 'vehicle' => $vehicle, 'room' => $room, 'scheduled_for' => $scheduledFor, 'tab_id' => $tab?->tab_id ?? $tab?->id,
+            'delivery_zone' => $zone?->name,
+            'delivery_lat' => $type === OrderType::DELIVERY && Geo::validPoint($data['delivery_lat'] ?? null, $data['delivery_lng'] ?? null) ? round((float) $data['delivery_lat'], 7) : null,
+            'delivery_lng' => $type === OrderType::DELIVERY && Geo::validPoint($data['delivery_lat'] ?? null, $data['delivery_lng'] ?? null) ? round((float) $data['delivery_lng'], 7) : null, 'vehicle' => $vehicle, 'room' => $room, 'scheduled_for' => $scheduledFor, 'tab_id' => $tab?->tab_id ?? $tab?->id,
             'notify_channel' => $this->notifyChannel($settings, $data['notify'] ?? null, $phone),
             'prep_minutes' => $scheduledFor ? (int) $settings['prep_minutes'] : app(WaitEstimate::class)->for($restaurant)['minutes'],
         ], $by, $promo);

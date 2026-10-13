@@ -449,3 +449,91 @@ it('lets staff install the staff screens like an app', function () {
     auth()->logout();
     $this->get(route('staff.manifest'))->assertRedirect(route('login'));
 });
+
+// ---- delivery areas on the map and live courier tracking -------------------------------------------
+
+function opsMapZones(Restaurant $r, $owner): array
+{
+    test()->actingAs($owner)->post(route('delivery.zones.store'), ['name' => 'Centre', 'fee' => '2', 'min_order' => '0'])->assertRedirect();
+    test()->actingAs($owner)->post(route('delivery.zones.store'), ['name' => 'Outer', 'fee' => '9', 'min_order' => '0'])->assertRedirect();
+    [$centre, $outer] = app(TenantContext::class)->runAs($r, fn () => DeliveryZone::orderBy('id')->get()->all());
+    test()->actingAs($owner)->put(route('delivery.zones.area', $centre->id), ['polygon' => json_encode([[40.99, 28.99], [40.99, 29.01], [41.01, 29.01], [41.01, 28.99]])])->assertRedirect();
+    test()->actingAs($owner)->put(route('delivery.zones.area', $outer->id), ['polygon' => json_encode([[40.9, 28.9], [40.9, 29.1], [41.1, 29.1], [41.1, 28.9]])])->assertRedirect();
+
+    return [$centre, $outer];
+}
+
+it('saves a drawn delivery area and rejects a broken one', function () {
+    [$r, $owner] = opsShop(['delivery' => true]);
+    [$centre] = opsMapZones($r, $owner);
+
+    expect(app(TenantContext::class)->runAs($r, fn () => DeliveryZone::find($centre->id)->polygon))->toHaveCount(4);
+    $this->actingAs($owner)->put(route('delivery.zones.area', $centre->id), ['polygon' => '[[1,2],[3,4]]'])->assertSessionHasErrors('polygon');
+    $this->actingAs($owner)->put(route('delivery.zones.area', $centre->id), ['polygon' => '[[95,2],[3,4],[5,6]]'])->assertSessionHasErrors('polygon');
+    $this->actingAs($owner)->put(route('delivery.zones.area', $centre->id), ['clear' => 1])->assertRedirect();
+    expect(app(TenantContext::class)->runAs($r, fn () => DeliveryZone::find($centre->id)->polygon))->toBeNull();
+    $this->actingAs($owner)->put(route('delivery.location'), ['lat' => 41.0, 'lng' => 29.0])->assertRedirect();
+    expect((float) $r->fresh()->lat)->toBe(41.0);
+    $this->actingAs(opsUser($r, Permissions::WAITER))->put(route('delivery.zones.area', $centre->id), ['clear' => 1])->assertForbidden();
+    $this->actingAs($owner)->get(route('delivery.zones'))->assertOk()->assertSee(__('orders.map_title'));
+});
+
+it('finds the delivery area from the guest position and charges its fee', function () {
+    [$r, $owner, $d] = opsShop(['delivery' => true]);
+    [$centre, $outer] = opsMapZones($r, $owner);
+
+    $this->postJson('/r/'.$r->slug.'/delivery/zone', ['lat' => 41.0, 'lng' => 29.0])->assertOk()->assertJson(['found' => true, 'name' => 'Centre']);
+    $this->postJson('/r/'.$r->slug.'/delivery/zone', ['lat' => 48.0, 'lng' => 2.0])->assertOk()->assertJson(['found' => false]);
+    $this->postJson('/r/'.$r->slug.'/delivery/zone', ['lat' => 'x', 'lng' => 2.0])->assertStatus(422);
+
+    // The position decides, even when the guest names the dearer zone.
+    $order = opsOrder($r, $d, ['type' => 'delivery', 'delivery_address' => '1 Long Street', 'delivery_zone' => $outer->id, 'delivery_lat' => 41.0, 'delivery_lng' => 29.0]);
+    expect($order->delivery_zone)->toBe('Centre')->and($order->delivery_cents)->toBe(200)->and((float) opsFresh($r, $order)->delivery_lat)->toBe(41.0);
+
+    $q = $this->postJson('/r/'.$r->slug.'/cart/quote', ['lines' => [['product_id' => $d['pizza']->id, 'qty' => 1]], 'type' => 'delivery', 'delivery_lat' => 41.0, 'delivery_lng' => 29.0])->assertOk();
+    expect($q->json('totals.raw.delivery'))->toBe(200);
+
+    try {
+        opsOrder($r, $d, ['type' => 'delivery', 'delivery_address' => '1 Long Street', 'delivery_lat' => 48.0, 'delivery_lng' => 2.0]);
+        throw new RuntimeException('should be outside');
+    } catch (OrderException $e) {
+        expect($e->reason)->toBe('outside_area');
+    }
+
+    $html = $this->get('/r/'.$r->slug)->assertOk()->getContent();
+    expect($html)->toContain(__('orders.use_location'));
+});
+
+it('shows the courier on the guest map while the delivery is on its way and forgets the position afterwards', function () {
+    [$r, $owner, $d] = opsShop(['delivery' => true]);
+    $courier = opsUser($r, Permissions::DELIVERY);
+    $order = opsOrder($r, $d, ['type' => 'delivery', 'delivery_address' => '1 Long Street', 'delivery_lat' => 41.0, 'delivery_lng' => 29.0]);
+    $r->forceFill(['lat' => 41.02, 'lng' => 29.02])->save();
+    foreach (['accepted', 'preparing', 'ready'] as $to) {
+        $this->actingAs($owner)->postJson(route('orders.status', $order->id), ['status' => $to])->assertOk();
+    }
+    $this->actingAs($owner)->post(route('orders.courier', $order->id), ['courier_id' => $courier->id]);
+    $url = '/r/'.$r->slug.'/order/'.$order->token.'/status';
+
+    // Not dispatched yet: no map, and the courier cannot report a position.
+    expect($this->getJson($url)->json('map'))->toBeNull();
+    $this->actingAs($courier)->postJson(route('courier.ping', $order->id), ['lat' => 41.005, 'lng' => 29.005])->assertOk()->assertJson(['stored' => false]);
+
+    $this->actingAs($courier)->post(route('courier.leave', $order->id));
+    $this->actingAs(opsUser($r, Permissions::DELIVERY))->postJson(route('courier.ping', $order->id), ['lat' => 1, 'lng' => 1])->assertNotFound(); // someone else's order
+    $this->actingAs($courier)->postJson(route('courier.ping', $order->id), ['lat' => 41.005, 'lng' => 29.005])->assertOk()->assertJson(['stored' => true]);
+
+    $map = $this->getJson($url)->json('map');
+    expect($map['courier'])->toEqual(['lat' => 41.005, 'lng' => 29.005])->and($map['destination'])->toEqual(['lat' => 41.0, 'lng' => 29.0])->and($map['restaurant']['lat'])->toBe(41.02);
+    expect(json_encode($this->getJson($url)->json()))->not->toContain('1 Long Street');
+
+    // An old report is not shown as if it were live.
+    opsSet($r, $order, ['courier_at' => now()->subMinutes(30)]);
+    expect($this->getJson($url)->json('map.courier'))->toBeNull();
+
+    $this->actingAs($courier)->postJson(route('courier.ping', $order->id), ['lat' => 41.006, 'lng' => 29.006]);
+    $this->actingAs($courier)->post(route('courier.delivered', $order->id), ['collected' => 'cash']);
+    $o = opsFresh($r, $order);
+    expect($o->courier_lat)->toBeNull()->and($o->courier_at)->toBeNull()->and($this->getJson($url)->json('map'))->toBeNull();
+    $this->actingAs($courier)->get(route('courier.index'))->assertOk();
+});

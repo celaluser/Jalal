@@ -7,6 +7,7 @@
         'tree' => $tree,
         'currency' => $currency,
         'quoteUrl' => $base.'/cart/quote',
+        'zoneUrl' => $base.'/delivery/zone',
         'csrf' => csrf_token(),
         'ordering' => $ordering,
         'scroll' => $settings['scroll'],
@@ -26,8 +27,8 @@
         'nutrient' => collect(['protein', 'carbs', 'fat', 'fiber', 'sugar', 'sodium'])->mapWithKeys(fn ($n) => [$n => __('menu.nutrient_'.$n)])->all(),
         'allergen' => collect($allergens)->mapWithKeys(fn ($a) => [$a => __('menu.allergen.'.$a)])->all(),
         't' => collect(['sold_out', 'unavailable', 'not_for_type', 'stock_limit', 'variant_required', 'combo_required', 'option_required', 'option_unavailable', 'invalid_option', 'too_many_options', 'quantity'])->mapWithKeys(fn ($k) => [$k => __('customer.error_'.$k)])->all()
-            + collect(['table_required', 'name_required', 'phone_required', 'address_required', 'email_invalid', 'vehicle_required', 'room_required', 'zone_required', 'too_many_items', 'schedule_invalid'])->mapWithKeys(fn ($k) => [$k => __('orders.error_'.$k)])->all()
-            + ['reorder_done' => __('orders.reorder_unavailable'), 'from_price' => __('customer.from_price'), 'too_many' => __('customer.too_many'), 'generic_error' => __('customer.generic_error')],
+            + collect(['table_required', 'name_required', 'phone_required', 'address_required', 'email_invalid', 'vehicle_required', 'room_required', 'zone_required', 'outside_area', 'too_many_items', 'schedule_invalid'])->mapWithKeys(fn ($k) => [$k => __('orders.error_'.$k)])->all()
+            + ['location_failed' => __('orders.location_failed'), 'location_in' => __('orders.location_in', ['zone' => ':zone']), 'reorder_done' => __('orders.reorder_unavailable'), 'from_price' => __('customer.from_price'), 'too_many' => __('customer.too_many'), 'generic_error' => __('customer.generic_error')],
     ];
     $ogImage = $logo;
 @endphp
@@ -664,6 +665,13 @@
                             <template x-for="z in ord.zones" :key="z.id"><option :value="z.id" x-text="z.name + ' · ' + z.fee + (z.min ? ' · ' + @js(__('orders.zone_min')) + ' ' + z.min : '')"></option></template>
                         </select>
                         <p class="mt-1 text-sm text-red-600" x-show="errors.zone" x-text="errors.zone" role="alert"></p>
+                    </div>
+                    <div x-show="form.type === 'delivery' && ord.areas" x-cloak>
+                        <button type="button" class="menu-card inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold" x-on:click="locate()" :disabled="locating">
+                            <span aria-hidden="true">📍</span><span x-text="locating ? @js(__('orders.locating')) : @js(__('orders.use_location'))"></span>
+                        </button>
+                        <p class="menu-muted mt-1 text-xs" x-show="!here.msg">{{ __('orders.location_help') }}</p>
+                        <p class="mt-1 text-sm" :class="here.ok ? 'text-emerald-700' : 'text-red-600'" x-show="here.msg" x-text="here.msg" role="status"></p>
                     </div>
                     <div x-show="form.type === 'curbside'" x-cloak>
                         <label class="mb-1 block text-sm font-semibold" for="co-vehicle">{{ __('orders.vehicle_label') }}</label>

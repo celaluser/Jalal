@@ -9,8 +9,10 @@ use App\Modules\Orders\Models\DeliveryZone;
 use App\Modules\Orders\Models\Order;
 use App\Modules\Orders\Services\OrderService;
 use App\Modules\Orders\Services\PaymentLedger;
+use App\Modules\Orders\Support\Geo;
 use App\Modules\Orders\Support\OrderStatus;
 use App\Modules\Orders\Support\OrderType;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -47,6 +49,35 @@ class DeliveryController extends Controller
         $zone->delete();
 
         return back()->with('status', __('orders.zone_deleted'));
+    }
+
+    /** Saves (or clears) the area drawn on the map for one zone. */
+    public function updateArea(Request $request, DeliveryZone $zone): RedirectResponse
+    {
+        if ($request->boolean('clear')) {
+            $zone->update(['polygon' => null]);
+
+            return back()->with('status', __('orders.map_saved'));
+        }
+
+        $polygon = Geo::cleanPolygon($request->input('polygon'));
+
+        if ($polygon === null) {
+            return back()->withErrors(['polygon' => __('orders.map_invalid')]);
+        }
+
+        $zone->update(['polygon' => $polygon]);
+
+        return back()->with('status', __('orders.map_saved'));
+    }
+
+    /** Where the restaurant is: the map starts here and the guest's tracking map shows it. */
+    public function updateLocation(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['lat' => ['required', 'numeric', 'between:-90,90'], 'lng' => ['required', 'numeric', 'between:-180,180']]);
+        $request->user()->restaurant->forceFill(['lat' => round((float) $data['lat'], 7), 'lng' => round((float) $data['lng'], 7)])->save();
+
+        return back()->with('status', __('orders.map_location_saved'));
     }
 
     /** @return array<string, mixed> */
@@ -119,6 +150,21 @@ class DeliveryController extends Controller
         return back();
     }
 
+    /** The courier's phone reports where it is while a delivery is on its way. Only the last position is kept. */
+    public function ping(Request $request, Order $order): JsonResponse
+    {
+        $order = $this->mineOrFail($request, $order);
+        $data = $request->validate(['lat' => ['required', 'numeric', 'between:-90,90'], 'lng' => ['required', 'numeric', 'between:-180,180']]);
+
+        if (! $order->isOpen() || $order->dispatched_at === null || ! Geo::validPoint($data['lat'], $data['lng'])) {
+            return response()->json(['stored' => false]);
+        }
+
+        $order->forceFill(['courier_lat' => round((float) $data['lat'], 7), 'courier_lng' => round((float) $data['lng'], 7), 'courier_at' => now()])->saveQuietly();
+
+        return response()->json(['stored' => true]);
+    }
+
     /** Handed over. A courier who collects the money records it here (cash or card), so the order closes paid. */
     public function delivered(Request $request, Order $order): RedirectResponse
     {
@@ -134,6 +180,9 @@ class DeliveryController extends Controller
         } catch (OrderException $e) {
             return back()->withErrors(['order' => __('orders.error_'.$e->reason)]);
         }
+
+        // The position is only for the guest who is waiting; it is not kept after the hand-over.
+        $order->forceFill(['courier_lat' => null, 'courier_lng' => null, 'courier_at' => null])->saveQuietly();
 
         return back()->with('status', __('orders.delivered_done'));
     }

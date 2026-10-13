@@ -44,4 +44,34 @@
             @endforelse
         </section>
     </div>
+
+    {{-- While a delivery is on its way, the phone reports its position so the guest can follow on the map. Nothing is sent unless the courier turns it on. --}}
+    @php($onTheWay = $mine->filter(fn ($o) => $o->dispatched_at)->pluck('id')->values())
+    @if ($onTheWay->isNotEmpty())
+        <div class="mt-6 max-w-2xl" x-data="courierShare(@js(['orders' => $onTheWay, 'url' => url('courier'), 'csrf' => csrf_token(), 'on' => __('orders.courier_sharing'), 'off' => __('orders.courier_share'), 'failed' => __('orders.location_failed')]))">
+            <button type="button" class="btn btn-secondary btn-sm" x-on:click="toggle()"><span aria-hidden="true">📍</span> <span x-text="active ? cfg.on : cfg.off"></span></button>
+            <p class="mt-1 text-xs text-muted">{{ __('orders.courier_share_help') }}</p>
+            <p class="mt-1 text-sm text-red-600" x-show="error" x-text="error" role="alert"></p>
+        </div>
+        <script>
+            document.addEventListener('alpine:init', () => {
+                Alpine.data('courierShare', (cfg) => ({
+                    cfg, active: false, error: '', watch: null, last: 0,
+                    toggle() { this.active ? this.stop() : this.start(); },
+                    start() {
+                        if (!navigator.geolocation) { this.error = cfg.failed; return; }
+                        this.error = '';
+                        this.watch = navigator.geolocation.watchPosition((p) => this.send(p), () => { this.error = cfg.failed; this.stop(); }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 });
+                        this.active = true;
+                    },
+                    stop() { if (this.watch !== null) { navigator.geolocation.clearWatch(this.watch); } this.watch = null; this.active = false; },
+                    send(p) {
+                        if (Date.now() - this.last < 15000) { return; }
+                        this.last = Date.now();
+                        cfg.orders.forEach((id) => fetch(cfg.url + '/' + id + '/ping', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf }, body: JSON.stringify({ lat: p.coords.latitude, lng: p.coords.longitude }) }).catch(() => {}));
+                    },
+                }));
+            });
+        </script>
+    @endif
 </x-layouts.app>

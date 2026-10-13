@@ -51,6 +51,8 @@ class CustomerOrderController extends Controller
             'promo_code' => ['nullable', 'string', 'max:40'],
             'delivery_address' => ['nullable', 'string', 'max:255'],
             'delivery_zone' => ['nullable', 'integer'],
+            'delivery_lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'delivery_lng' => ['nullable', 'numeric', 'between:-180,180'],
             'vehicle' => ['nullable', 'string', 'max:80'],
             'room' => ['nullable', 'string', 'max:30'],
             'scheduled_for' => ['nullable', 'date'],
@@ -100,6 +102,7 @@ class CustomerOrderController extends Controller
             'dir' => $this->locales->isRtl(app()->getLocale()) ? 'rtl' : 'ltr',
             'locale' => app()->getLocale(),
             'state' => $this->state($order),
+            'mapConfig' => ['tile' => config('maps.tile_url'), 'attribution' => config('maps.attribution'), 'maxZoom' => config('maps.max_zoom'), 'labels' => ['restaurant' => __('orders.map_restaurant'), 'destination' => __('orders.map_you'), 'courier' => __('orders.map_courier')]],
             'statusUrl' => $this->statusUrl($request, $order).'/status',
             'cancelUrl' => $this->statusUrl($request, $order).'/cancel',
             'canCancel' => $this->canCancel($order),
@@ -148,7 +151,7 @@ class CustomerOrderController extends Controller
             'paid' => $order->isPaid(), 'can_cancel' => $this->canCancel($order),
             'pay' => $this->payState($order), 'paid_cents' => $order->paid_cents, 'tip' => $order->tip_cents > 0 ? $order->restaurant->money($order->tip_cents / 100) : null,
             'dispatched' => $order->dispatched_at !== null, 'scheduled' => $order->scheduled_for ? $order->scheduled_for->setTimezone($order->restaurant->timezone ?: 'UTC')->isoFormat('ddd, LT') : null,
-            'vehicle' => $order->vehicle, 'room' => $order->room,
+            'vehicle' => $order->vehicle, 'room' => $order->room, 'map' => $this->mapState($order),
             'packaging' => $order->packaging_cents > 0 ? $order->restaurant->money($order->packaging_cents / 100) : null,
             // Offer browser notifications while the order is open and the guest did not choose a channel yet.
             'push_key' => $order->isOpen() && $order->notify_channel !== 'push' && ($this->settings->for($order->restaurant)['notify_push'] ?? false) ? app(PushNotifier::class)->publicKey() : null,
@@ -156,6 +159,31 @@ class CustomerOrderController extends Controller
             'total' => $order->restaurant->money($order->total_cents / 100),
             'discount' => $order->discount_cents ? ['code' => $order->promo_code, 'amount' => $order->restaurant->money($order->discount_cents / 100)] : null,
         ] + $this->afterMeal($order);
+    }
+
+    /**
+     * Positions for the tracking map: only for delivery orders that are on their way, and the courier only while the last
+     * report is fresh. The guest's own address text is never sent, only the point they shared.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function mapState(Order $order): ?array
+    {
+        if ($order->type !== OrderType::DELIVERY || ! $order->isOpen() || $order->dispatched_at === null) {
+            return null;
+        }
+
+        $restaurant = $order->restaurant;
+        $fresh = $order->courier_at && $order->courier_at->gt(now()->subSeconds((int) config('maps.courier_fresh_seconds')));
+        $point = fn ($lat, $lng) => $lat !== null && $lng !== null ? ['lat' => (float) $lat, 'lng' => (float) $lng] : null;
+        $courier = $fresh ? $point($order->courier_lat, $order->courier_lng) : null;
+        $destination = $point($order->delivery_lat, $order->delivery_lng);
+
+        if ($courier === null && $destination === null) {
+            return null;
+        }
+
+        return ['courier' => $courier, 'destination' => $destination, 'restaurant' => $point($restaurant->lat, $restaurant->lng)];
     }
 
     /** What the "pay now" box needs: what is owed, the gateways to pay with, and the tab if the table has one. Null when nothing can be paid online. @return array<string, mixed>|null */

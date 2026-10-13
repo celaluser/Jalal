@@ -39,8 +39,20 @@
     "file": "assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2",
     "src": "node_modules/@fontsource-variable/inter/files/inter-vietnamese-wght-normal.woff2"
   },
+  "node_modules/leaflet/dist/images/layers-2x.png": {
+    "file": "assets/layers-2x-Bpkbi35X.png",
+    "src": "node_modules/leaflet/dist/images/layers-2x.png"
+  },
+  "node_modules/leaflet/dist/images/layers.png": {
+    "file": "assets/layers-BWBAp2CZ.png",
+    "src": "node_modules/leaflet/dist/images/layers.png"
+  },
+  "node_modules/leaflet/dist/images/marker-icon.png": {
+    "file": "assets/marker-icon-hN30_KVU.png",
+    "src": "node_modules/leaflet/dist/images/marker-icon.png"
+  },
   "resources/css/app.css": {
-    "file": "assets/app-ZY6o6HwO.css",
+    "file": "assets/app-BWGbk9tp.css",
     "name": "app",
     "names": [
       "app.css"
@@ -66,6 +78,20 @@
     "src": "resources/js/app.js",
     "isEntry": true
   },
+  "resources/js/map.js": {
+    "file": "assets/map-VbpofaG9.js",
+    "name": "map",
+    "src": "resources/js/map.js",
+    "isEntry": true,
+    "css": [
+      "assets/map-1DTFk8zz.css"
+    ],
+    "assets": [
+      "assets/layers-BWBAp2CZ.png",
+      "assets/layers-2x-Bpkbi35X.png",
+      "assets/marker-icon-hN30_KVU.png"
+    ]
+  },
   "resources/js/orders.js": {
     "file": "assets/orders-GDGlo3zE.js",
     "name": "orders",
@@ -73,7 +99,7 @@
     "isEntry": true
   },
   "resources/js/storefront.js": {
-    "file": "assets/storefront-CpQBQoqe.js",
+    "file": "assets/storefront-Gke1LwnP.js",
     "name": "storefront",
     "src": "resources/js/storefront.js",
     "isEntry": true

@@ -54,3 +54,10 @@ Open **Inventory & recipes** in the menu group. Add ingredients (unit, stock, wa
 
 ## Store
 **Settings, Store** lists themes and premium features. Free ones show "Free" or "Included in your plan". Items for sale show the price and whether it is a one-time purchase or a rental. Open an item to read the details, try it free (when offered), pick a payment method and pay. Rentals can be extended from the same page before they end. In **Appearance**, themes you do not own show "Unlock". Only the account owner can buy.
+
+## Delivery areas and courier tracking
+Open **Delivery areas**. Create a zone (name, fee, minimum order), then choose it in the map box, click the map to place corners and drag a corner to adjust it. **Save area** stores it. Use **Use my current position** and **Save as restaurant location** so the map opens on your restaurant.
+
+- A guest who taps **Use my location** at checkout gets the fee of the area they are in. If they are outside every drawn area they are told you do not deliver there. A zone without a drawn area stays a plain list choice.
+- Couriers open **My deliveries** and tap **Share my location with the guest** when they leave. The guest's order page then shows the courier, the destination and your restaurant on a map. Sharing stops being shown after five minutes without an update and is erased when the order is marked delivered.
+- Map pictures come from OpenStreetMap; the visitor's browser contacts that service, so mention it in your privacy policy. Set `MAPS_TILE_URL` in `.env` to use another tile provider.

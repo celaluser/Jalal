@@ -25,8 +25,10 @@ document.addEventListener('alpine:init', () => {
         toast: '',
         bumped: false,
         stage: 'cart',
-        form: { type: '', name: '', phone: '', email: '', promo: '', marketing: false, address: '', note: '', table_id: '', payment: '', vehicle: '', room: '', zone: '', later: false, when: '', notify: '' },
+        form: { type: '', name: '', phone: '', email: '', promo: '', marketing: false, address: '', note: '', table_id: '', payment: '', vehicle: '', room: '', zone: '', lat: null, lng: null, later: false, when: '', notify: '' },
         errors: {},
+        locating: false,
+        here: { ok: false, msg: '' },
         formError: '',
         submitting: false,
         key: '',
@@ -68,7 +70,7 @@ document.addEventListener('alpine:init', () => {
             this.prune();
             this.$watch('cart', () => { this.save(); this.requote(); });
             this.$watch('form.type', () => { this.errors = {}; this.requote(0); });
-            this.$watch('form.zone', () => this.requote(0));
+            this.$watch('form.zone', () => { if (this.here.pickedZone !== this.form.zone) { this.form.lat = null; this.form.lng = null; this.here = { ok: false, msg: '' }; } this.requote(0); });
             this.$watch('cartOpen', (v) => { if (!v) { this.stage = 'cart'; } });
             this.resetForm();
             this.$watch('sheet', (v) => this.lock(v !== null || this.cartOpen));
@@ -382,6 +384,25 @@ document.addEventListener('alpine:init', () => {
             const ids = new Set(this.tree.flatMap((c) => c.products.map((p) => p.id)));
             this.cart = this.cart.filter((l) => ids.has(l.product_id));
         },
+        // "Use my location": the browser asks first; the position goes to the server only to find the delivery area and to place the order.
+        locate() {
+            if (!navigator.geolocation) { this.here = { ok: false, msg: cfg.t.location_failed }; return; }
+            this.locating = true;
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                try {
+                    const lat = Math.round(pos.coords.latitude * 1e6) / 1e6;
+                    const lng = Math.round(pos.coords.longitude * 1e6) / 1e6;
+                    const res = await fetch(cfg.zoneUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': cfg.csrf }, body: JSON.stringify({ lat, lng }) });
+                    const out = await res.json();
+                    if (out.found) {
+                        this.form.zone = String(out.id); this.form.lat = lat; this.form.lng = lng;
+                        this.here = { ok: true, msg: cfg.t.location_in.replace(':zone', out.name), pickedZone: String(out.id) };
+                    } else { this.form.lat = null; this.form.lng = null; this.here = { ok: false, msg: out.message || cfg.t.outside_area }; }
+                } catch (e) { this.here = { ok: false, msg: cfg.t.location_failed }; }
+                this.locating = false;
+            }, () => { this.locating = false; this.here = { ok: false, msg: cfg.t.location_failed }; }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+        },
+
         requote(delay = 300) {
             clearTimeout(this.timer);
             if (!this.cart.length) { this.quoted = null; this.totals = null; return; }
@@ -397,6 +418,7 @@ document.addEventListener('alpine:init', () => {
                             promo_code: this.stage === 'checkout' && this.form.promo ? this.form.promo : undefined,
                             customer_email: this.form.email || undefined, customer_phone: this.form.phone || undefined,
                             delivery_zone: this.stage === 'checkout' && this.form.type === 'delivery' && this.form.zone ? this.form.zone : undefined,
+                            delivery_lat: this.stage === 'checkout' && this.form.type === 'delivery' && this.form.lat ? this.form.lat : undefined, delivery_lng: this.stage === 'checkout' && this.form.type === 'delivery' && this.form.lng ? this.form.lng : undefined,
                         }),
                     });
                     if (!res.ok) { throw new Error(String(res.status)); }
@@ -454,7 +476,7 @@ document.addEventListener('alpine:init', () => {
             if (this.needsContact && !/^[0-9+()\-\s.]{6,40}$/.test(f.phone.trim())) { e.phone = cfg.t.phone_required; }
             if (f.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { e.email = cfg.t.email_invalid; }
             if (f.type === 'delivery' && f.address.trim().length < 5) { e.address = cfg.t.address_required; }
-            if (f.type === 'delivery' && this.ord.zones.length && !f.zone) { e.zone = cfg.t.zone_required; }
+            if (f.type === 'delivery' && this.ord.zones.length && !f.zone && !(f.lat && f.lng)) { e.zone = cfg.t.zone_required; }
             if (f.type === 'curbside' && !f.vehicle.trim()) { e.vehicle = cfg.t.vehicle_required; }
             if (f.type === 'room_service' && !f.room.trim()) { e.room = cfg.t.room_required; }
             if (this.ord.schedule && f.later && (!f.when || f.when < this.whenMin || f.when > this.whenMax)) { e.when = cfg.t.schedule_invalid; }
@@ -474,7 +496,7 @@ document.addEventListener('alpine:init', () => {
                     body: JSON.stringify({
                         type: f.type, table_id: f.type === 'dine_in' ? (this.ord.table?.id || f.table_id || null) : null,
                         customer_name: f.name, customer_phone: f.phone, customer_email: f.email, marketing_opt_in: !!f.email.trim() && f.marketing, promo_code: f.promo || null, delivery_address: f.type === 'delivery' ? f.address : null,
-                        delivery_zone: f.type === 'delivery' && f.zone ? f.zone : null, vehicle: f.type === 'curbside' ? f.vehicle : null, room: f.type === 'room_service' ? f.room : null,
+                        delivery_zone: f.type === 'delivery' && f.zone ? f.zone : null, delivery_lat: f.type === 'delivery' ? f.lat : null, delivery_lng: f.type === 'delivery' ? f.lng : null, vehicle: f.type === 'curbside' ? f.vehicle : null, room: f.type === 'room_service' ? f.room : null,
                         scheduled_for: this.ord.schedule && f.later && f.when ? new Date(f.when).toISOString() : null, notify: f.notify || null,
                         note: f.note, payment_method: f.payment, idempotency_key: this.key, kiosk: cfg.kiosk ? 1 : undefined,
                         lines: this.cart.map((l) => ({ product_id: l.product_id, variant_id: l.variant_id || null, combo: l.combo || undefined, options: l.options, qty: l.qty, note: l.note })),

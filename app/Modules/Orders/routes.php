@@ -87,12 +87,15 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])-
         Route::get('zones', [DeliveryController::class, 'zones'])->name('zones');
         Route::post('zones', [DeliveryController::class, 'storeZone'])->name('zones.store');
         Route::put('zones/{zone}', [DeliveryController::class, 'updateZone'])->whereNumber('zone')->name('zones.update');
+        Route::put('zones/{zone}/area', [DeliveryController::class, 'updateArea'])->whereNumber('zone')->name('zones.area');
+        Route::put('location', [DeliveryController::class, 'updateLocation'])->name('location');
         Route::delete('zones/{zone}', [DeliveryController::class, 'destroyZone'])->whereNumber('zone')->name('zones.destroy');
     });
     Route::post('orders/{order}/courier', [DeliveryController::class, 'assign'])->whereNumber('order')->name('orders.courier');
     Route::middleware('permission:delivery.view')->prefix('courier')->name('courier.')->group(function () {
         Route::get('/', [DeliveryController::class, 'mine'])->name('index');
         Route::post('{order}/claim', [DeliveryController::class, 'claim'])->whereNumber('order')->name('claim');
+        Route::post('{order}/ping', [DeliveryController::class, 'ping'])->whereNumber('order')->middleware('throttle:120,1')->name('ping');
         Route::post('{order}/leave', [DeliveryController::class, 'leave'])->whereNumber('order')->name('leave');
         Route::post('{order}/delivered', [DeliveryController::class, 'delivered'])->whereNumber('order')->name('delivered');
     });

@@ -269,3 +269,7 @@
 .menu-img img { transition: transform .5s ease; }
 .menu-card:hover .menu-img img { transform: scale(1.04); }
 .menu-divide > * + * { border-top: 1px solid var(--menu-line); }
+
+/* Map pins (Leaflet divIcon): an emoji on a round white badge. */
+.qrm-pin span { display: grid; place-items: center; width: 30px; height: 30px; font-size: 17px; line-height: 1; background: #fff; border-radius: 9999px; box-shadow: 0 1px 6px rgb(0 0 0 / .35); }
+.leaflet-container { isolation: isolate; z-index: 0; font-family: inherit; }

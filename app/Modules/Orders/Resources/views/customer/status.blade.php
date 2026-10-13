@@ -13,7 +13,7 @@
     <meta name="theme-color" content="{{ $restaurant->brandColor() }}">
     <title>{{ __('orders.track_title', ['number' => $order->label()]) }} · {{ $restaurant->name }}</title>
     <style>{!! $themeCss !!}</style>
-    @vite(['resources/css/app.css'])
+    @vite(['resources/css/app.css', 'resources/js/map.js'])
     <script>
         document.addEventListener('alpine:init', () => {
             Alpine.data('orderStatus', (cfg) => ({
@@ -90,6 +90,15 @@
     </header>
 
     <main class="mx-auto -mt-10 max-w-xl space-y-4 px-4">
+        {{-- Live map while the order is on its way: the courier moves as new positions arrive --}}
+        <section class="menu-card overflow-hidden p-0" x-show="s.map" x-cloak
+                 x-data="{ tm: null, key: '' }"
+                 x-effect="if (s.map && window.qrmMaps) { $nextTick(() => { if (!tm) { tm = window.qrmMaps.trackMap($refs.map, Object.assign({}, s.map, @js($mapConfig))); tm.invalidate(); } else { tm.update(s.map); } }); }">
+            <div class="flex items-center gap-2 px-5 py-3 text-sm font-semibold"><span aria-hidden="true">🛵</span><span x-text="s.map && s.map.courier ? @js(__('orders.track_courier_live')) : @js(__('orders.track_courier_wait'))"></span></div>
+            <div x-ref="map" class="h-64 w-full" role="img" aria-label="{{ __('orders.track_map_label') }}"></div>
+            <p class="menu-muted px-5 py-2 text-xs">{{ __('orders.track_map_privacy') }}</p>
+        </section>
+
         {{-- Progress --}}
         <section class="menu-card p-5" aria-live="polite">
             <p class="display text-xl font-bold" x-text="message"></p>

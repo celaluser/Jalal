@@ -14,6 +14,6 @@ class DeliveryZone extends Model
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean', 'fee' => 'decimal:2', 'min_order' => 'decimal:2'];
+        return ['is_active' => 'boolean', 'fee' => 'decimal:2', 'min_order' => 'decimal:2', 'polygon' => 'array'];
     }
 }

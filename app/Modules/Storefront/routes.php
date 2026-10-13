@@ -37,12 +37,14 @@ Route::middleware(['web', SetLocale::class, ResolveTenant::class])
         Route::get('sitemap.xml', [SiteController::class, 'sitemap'])->name('sitemap');
         Route::get('t/{token}', [PublicMenuController::class, 'table'])->where('token', '[a-z0-9]{6,32}')->name('table');
         Route::post('cart/quote', [PublicMenuController::class, 'quote'])->middleware('throttle:60,1')->name('quote');
+        Route::post('delivery/zone', [PublicMenuController::class, 'zoneAt'])->middleware('throttle:30,1')->name('zone');
         $pwa();
     });
 
 Route::middleware(['web', SetLocale::class, ResolveTenant::class])->name('storefront.host.')->group(function () use ($pwa) {
     Route::get('t/{token}', [PublicMenuController::class, 'table'])->where('token', '[a-z0-9]{6,32}')->name('table');
     Route::post('cart/quote', [PublicMenuController::class, 'quote'])->middleware('throttle:60,1')->name('quote');
+    Route::post('delivery/zone', [PublicMenuController::class, 'zoneAt'])->middleware('throttle:30,1')->name('zone');
     $pwa();
 });
 
