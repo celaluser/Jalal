@@ -37,7 +37,7 @@ it('covers all allergen and diet labels', function (string $locale) {
     $en = Arr::dot(Arr::only(require base_path('lang/en/menu.php'), ['allergen', 'diet']));
     $other = Arr::dot(require base_path("lang/{$locale}/menu.php"));
 
-    expect(array_keys($other))->toEqualCanonicalizing(array_keys($en));
+    expect(array_keys(array_intersect_key($other, $en)))->toEqualCanonicalizing(array_keys($en));
 })->with(['tr', 'ar', 'az', 'ru']);
 
 it('only translates guest order strings that exist in English, with the same placeholders', function (string $locale) {

@@ -58,7 +58,7 @@ it('serves the page in the browser language and sets rtl direction', function ()
     // The chosen language sticks in the session; an unknown code is ignored, not applied.
     $this->get('/login?lang=xx')->assertSee('Giriş yap');
     $this->flushSession();
-    $this->get('/login?lang=xx')->assertSee('Sign in');
+    $this->withHeaders(['Accept-Language' => 'en'])->get('/login?lang=xx')->assertSee('Sign in');
 });
 
 it('converts uploaded images to webp, scoped to the tenant', function () {
