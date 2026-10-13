@@ -218,3 +218,21 @@ it('wipes what it created and writes no configuration when installation fails mi
         DB::purge('installer_target');
     }
 });
+
+it('opens the installer even when the configured sqlite file does not exist', function () {
+    // A separate connection, so the in-memory test database used by other tests is left alone.
+    $default = config('database.default');
+    config([
+        'database.connections.missing' => ['driver' => 'sqlite', 'database' => sys_get_temp_dir().'/missing-'.uniqid().'/database.sqlite', 'prefix' => '', 'foreign_key_constraints' => true],
+        'database.default' => 'missing',
+        'installer.force_installed' => false,
+        'installer.lock_file' => sys_get_temp_dir().'/no-lock-'.uniqid(),
+    ]);
+
+    try {
+        $this->get('/install')->assertOk();
+        $this->get('/')->assertRedirect(route('install.welcome'));
+    } finally {
+        config(['database.default' => $default]);
+    }
+});

@@ -3,6 +3,7 @@
 namespace App\Modules\Core\Services;
 
 use App\Modules\Core\Models\Setting;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Schema;
@@ -39,7 +40,9 @@ class SettingsService
      */
     public function all(?int $restaurantId = null): array
     {
-        if (! Schema::hasTable('settings')) {
+        // Before installation there may be no database at all (a missing sqlite file, wrong credentials),
+        // and the installer pages must still open. A real database error after installation is not hidden.
+        if (! $this->databaseReady()) {
             return [];
         }
 
@@ -52,6 +55,21 @@ class SettingsService
                 ])
                 ->all();
         });
+    }
+
+    private function databaseReady(): bool
+    {
+        $installed = config('installer.force_installed') || is_file((string) config('installer.lock_file'));
+
+        try {
+            return Schema::hasTable('settings');
+        } catch (QueryException $e) {
+            if ($installed) {
+                throw $e;
+            }
+
+            return false;
+        }
     }
 
     public function flush(?int $restaurantId = null): void
