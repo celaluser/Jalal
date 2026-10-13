@@ -2,6 +2,7 @@
 
 return [
     'nav' => [
+        'channels' => 'Каналы заказов',
         'group_main' => 'Обзор',
         'group_help' => 'Помощь',
         'dashboard' => 'Панель',

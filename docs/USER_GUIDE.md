@@ -64,3 +64,6 @@ Open **Delivery areas**. Create a zone (name, fee, minimum order), then choose i
 
 ## Simple menu
 The left menu shows only what most restaurants use every day. Tap **Show all features** at the bottom of the menu for the rest (marketing tools, branches, inventory, integrations and more); your choice is remembered in this browser. The search box above the menu finds every page, also the hidden ones.
+
+## Order channels (delivery platforms, Zapier, Make)
+Open **Order channels** (Show all features, if it is not in your menu), create a channel and copy its secret address; it is shown only once (you can make a new one any time, the old one stops working). Give the address to the platform's integration, to Zapier or Make, or to your own bridge. Each order posted to it becomes a normal order on the kitchen board, marked with the channel's name. Prices always come from your menu; dishes are found by product id or by name; sending the same `external_id` twice never makes two orders; `"paid": true` records the order as already paid online. A platform-specific connector (Yemeksepeti, Getir and so on) is an add-on that registers a `ChannelAdapter`; see `app/Modules/Hub/Support/ChannelAdapter.php`.

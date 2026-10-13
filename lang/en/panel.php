@@ -2,6 +2,7 @@
 
 return [
     'nav' => [
+        'channels' => 'Order channels',
         'group_main' => 'Overview',
         'group_help' => 'Help',
         'dashboard' => 'Dashboard',

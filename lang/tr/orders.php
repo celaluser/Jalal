@@ -475,4 +475,5 @@ return [
     'courier_share' => 'Konumumu misafirle paylaş',
     'courier_sharing' => 'Konum paylaşılıyor (durdurmak için dokunun)',
     'courier_share_help' => 'Açıkken telefonunuz yoldaki teslimatlar için konumunu birkaç saniyede bir gönderir. Misafir, sipariş teslim edilene kadar bunu haritada görür.',
+    'source_hub' => 'Sipariş kanalı',
 ];

@@ -61,7 +61,7 @@ class OrderService
         $type = (string) ($data['type'] ?? '');
         // Staff keying in an order at the counter or table are not held to the rules made for guests
         // (online ordering paused, name/phone required, payment methods offered online).
-        $staff = $source === 'staff';
+        $staff = in_array($source, ['staff', 'hub'], true); // an order from another platform was already accepted there
 
         if (! $staff && ! $this->settings->accepting($restaurant)) {
             throw new OrderException('closed');
@@ -293,7 +293,7 @@ class OrderService
     private function store(Restaurant $restaurant, array $settings, array $quote, array $sums, array $attributes, ?User $by, ?PromoCode $promo = null): Order
     {
         // An order a staff member typed in is already confirmed by that person.
-        $auto = (bool) $settings['auto_accept'] || ($attributes['source'] ?? '') === 'staff';
+        $auto = (bool) $settings['auto_accept'] || in_array($attributes['source'] ?? '', ['staff', 'hub'], true);
 
         // Two orders arriving in the same instant can pick the same number; the unique index catches it and we try the next.
         for ($attempt = 0; $attempt < 5; $attempt++) {

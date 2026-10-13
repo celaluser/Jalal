@@ -193,4 +193,5 @@ return [
     'courier_share' => 'Share my location with the guest',
     'courier_sharing' => 'Sharing location (tap to stop)',
     'courier_share_help' => 'While on, your phone sends its position every few seconds for deliveries that are on their way. The guest sees it on a map until the order is delivered.',
+    'source_hub' => 'Order channel',
 ];

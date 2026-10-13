@@ -2,6 +2,7 @@
 
 return [
     'nav' => [
+        'channels' => 'قنوات الطلبات',
         'group_main' => 'نظرة عامة',
         'group_help' => 'المساعدة',
         'dashboard' => 'لوحة التحكم',

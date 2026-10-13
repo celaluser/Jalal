@@ -125,7 +125,7 @@
                     @if ($order->customer_phone)<div class="flex justify-between gap-3"><dt class="text-muted">{{ __('orders.phone') }}</dt><dd class="font-medium" dir="ltr"><a class="link" href="tel:{{ $order->customer_phone }}">{{ $order->customer_phone }}</a></dd></div>@endif
                     @if ($order->delivery_address)<div><dt class="text-muted">{{ __('orders.address') }}</dt><dd class="mt-0.5 font-medium">{{ $order->delivery_address }}</dd></div>@endif
                     @if ($order->note)<div><dt class="text-muted">{{ __('orders.note') }}</dt><dd class="mt-0.5 font-medium">{{ $order->note }}</dd></div>@endif
-                    <div class="flex justify-between gap-3"><dt class="text-muted">{{ __('orders.source_'.$order->source) }}</dt><dd class="tnum text-muted">{{ $order->created_at->toDayDateTimeString() }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-muted">{{ __('orders.source_'.$order->source) }}@if ($order->channel_id && $order->channel) · {{ $order->channel->name }}@endif</dt><dd class="tnum text-muted">{{ $order->created_at->toDayDateTimeString() }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-muted">{{ $order->isPaid() ? __('orders.paid') : __('orders.unpaid') }}</dt><dd class="font-medium">{{ $order->payment_method ? __('orders.pay_'.$order->payment_method) : '' }}</dd></div>
                 </dl>
             </x-ui.card>

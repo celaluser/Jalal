@@ -475,4 +475,5 @@ return [
     'courier_share' => 'Məkanımı qonaqla paylaş',
     'courier_sharing' => 'Məkan paylaşılır (dayandırmaq üçün toxunun)',
     'courier_share_help' => 'Aktiv olanda telefonunuz yoldakı çatdırılmalar üçün mövqeyini bir neçə saniyədən bir göndərir. Qonaq sifariş çatdırılana qədər bunu xəritədə görür.',
+    'source_hub' => 'Sifariş kanalı',
 ];

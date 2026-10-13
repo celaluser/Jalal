@@ -2,6 +2,7 @@
 
 return [
     'nav' => [
+        'channels' => 'Sifariş kanalları',
         'group_main' => 'İcmal',
         'group_help' => 'Kömək',
         'dashboard' => 'İdarə paneli',
