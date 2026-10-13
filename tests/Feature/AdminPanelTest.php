@@ -375,3 +375,14 @@ it('groups the admin menu into collapsible sections that keep every link', funct
 
     expect($html)->toContain(route('admin.languages.index'))->toContain(route('admin.settings.payments'))->toContain('aria-expanded');
 });
+
+it('keeps the menu simple: essentials first, everything else behind "show all features"', function () {
+    $items = collect(AdminNav::groups())->flatten(1);
+
+    expect($items->firstWhere('route', 'admin.restaurants.index')['advanced'])->toBeFalse()
+        ->and($items->firstWhere('route', 'admin.system.backups')['advanced'])->toBeTrue()
+        ->and($items->where('advanced', false)->count())->toBeLessThan($items->count() / 2);
+
+    $this->actingAs($this->admin)->get(route('admin.dashboard'))->assertOk()
+        ->assertSee(__('ui.nav_less'))->assertSee(__('admin.dashboard.setup_title'));
+});

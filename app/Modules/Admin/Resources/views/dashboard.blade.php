@@ -10,6 +10,22 @@
         <x-ui.alert type="warning">{{ __('admin.dashboard.demo_notice') }} <a class="font-medium underline" href="{{ route('admin.settings.section', 'general') }}">{{ __('admin.dashboard.demo_turn_off') }}</a></x-ui.alert>
     @endif
 
+    @if (collect($steps)->contains(fn ($st) => ! $st['done']))
+        <x-ui.card :title="__('admin.dashboard.setup_title')">
+            <p class="-mt-1 mb-4 text-sm text-muted">{{ __('admin.dashboard.setup_text', ['done' => collect($steps)->where('done', true)->count(), 'total' => count($steps)]) }}</p>
+            <ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                @foreach ($steps as $step)
+                    <li><a href="{{ $step['route'] }}" class="flex items-center gap-3 rounded-xl border border-line p-3 transition hover:border-line-strong hover:bg-surface-2/60">
+                        <span @class(['grid size-7 shrink-0 place-items-center rounded-full', 'bg-accent-100 text-accent-800 dark:bg-accent-900/40 dark:text-accent-200' => $step['done'], 'border border-line-strong text-muted' => ! $step['done']])>
+                            @if ($step['done'])<x-ui.icon name="check" size="4" />@else<span class="text-xs font-semibold">{{ $loop->iteration }}</span>@endif
+                        </span>
+                        <span class="min-w-0"><span @class(['block text-sm font-medium', 'line-through opacity-60' => $step['done']])>{{ __('admin.dashboard.step_'.$step['key']) }}</span><span class="block truncate text-xs text-muted">{{ __('admin.dashboard.step_'.$step['key'].'_text') }}</span></span>
+                    </a></li>
+                @endforeach
+            </ul>
+        </x-ui.card>
+    @endif
+
     <div class="grid gap-4 lg:grid-cols-12">
         <x-ui.stat hero :label="__('admin.dashboard.mrr')" :value="number_format($totals['mrr'], 2).' '.$currency" :hint="__('admin.dashboard.mrr_hint')" class="lg:col-span-4" />
         <div class="grid grid-cols-2 gap-4 lg:col-span-8">

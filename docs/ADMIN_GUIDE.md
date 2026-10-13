@@ -54,3 +54,6 @@ Payments use the gateways you set up for subscriptions, with the same tax settin
 **Billing, Store sales** shows what restaurants own, store revenue per currency, and lets you give an item to a restaurant (for some months or for good) or take it back.
 
 **Store coupons and bundles.** Under Billing, Coupons choose "Valid for": plans, store items or both, and optionally limit a coupon to chosen store items. Under Store catalog, "New bundle" sells several themes and features together for one price; restaurants see how much they save and every item inside unlocks for the same time. A reminder e-mail goes out a week before a rented item ends (change the text under E-mail templates).
+
+## Simple menu and setup checklist
+The admin menu shows the essentials (restaurants, plans, subscriptions, payments, settings, system status). Tap **Show all features** for everything else. The dashboard lists five setup steps (name and logo, a plan, a payment gateway, e-mail, the scheduler) and hides the list when all are done.

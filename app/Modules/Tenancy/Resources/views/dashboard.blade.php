@@ -2,6 +2,18 @@
     <x-ui.page-header :title="__('ui.welcome', ['name' => strtok($user->name, ' ')])" :description="$restaurant ? __('tenancy.dashboard_sub', ['restaurant' => $restaurant->name]) : null" />
 
     @if ($restaurant)
+        {{-- The four things most people open the panel for --}}
+        <nav class="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="{{ __('tenancy.quick_actions') }}">
+            @foreach ([['orders.pos.index', 'plus', 'new_order', 'orders.create'], ['orders.board', 'bell', 'orders', 'orders.view'], ['menu.index', 'store', 'menu', 'menu.manage'], ['tables.index', 'qr', 'tables', 'tables.view']] as [$route, $icon, $label, $can])
+                @can($can)
+                    <a href="{{ route($route) }}" class="card group flex items-center gap-3 p-4 transition hover:border-line-strong hover:shadow-pop">
+                        <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-100 text-brand-800 dark:bg-brand-900/40 dark:text-brand-200"><x-ui.icon :name="$icon" size="5" /></span>
+                        <span class="text-sm font-semibold">{{ __('panel.nav.'.$label) }}</span>
+                    </a>
+                @endcan
+            @endforeach
+        </nav>
+
         <div class="grid items-start gap-5 lg:grid-cols-3">
             <div class="space-y-5 lg:col-span-2">
                 {{-- Public menu address: the thing a restaurant shares first --}}

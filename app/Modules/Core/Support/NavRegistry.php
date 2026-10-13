@@ -16,6 +16,14 @@ abstract class NavRegistry
     protected static array $groups = [];
 
     /**
+     * Routes shown in the simple menu. Every other entry is "more": hidden until the user asks for all features
+     * (or searches), except the page they are on. Keeps a long list of features from overwhelming a new user.
+     *
+     * @var list<string>
+     */
+    protected static array $essential = [];
+
+    /**
      * @param  array<string, string>  $params  route parameters when the target needs them
      * @param  string|null  $active  route pattern(s) marking the entry as current; separate several with |
      * @param  string|null  $can  permission required to see the entry
@@ -32,7 +40,10 @@ abstract class NavRegistry
     public static function groups(): array
     {
         // Sections nobody has added to (yet) are not shown, nor are entries whose condition is false right now.
-        return array_filter(array_map(fn (array $items) => array_values(array_filter($items, fn (array $i) => ($i['when'] ?? null) === null || ($i['when'])())), static::$groups));
+        return array_filter(array_map(fn (array $items) => array_values(array_map(
+            fn (array $i) => $i + ['advanced' => ! in_array($i['route'], static::$essential, true)],
+            array_filter($items, fn (array $i) => ($i['when'] ?? null) === null || ($i['when'])())
+        )), static::$groups));
     }
 
     public static function flush(): void

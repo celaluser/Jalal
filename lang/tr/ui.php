@@ -14,4 +14,6 @@ return [
     'logout' => 'Çıkış yap',
     'dashboard' => 'Panel',
     'welcome' => 'Hoş geldiniz, :name',
+    'nav_more' => 'Tüm özellikleri göster (:count daha)',
+    'nav_less' => 'Yalnızca temel menü',
 ];

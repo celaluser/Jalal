@@ -13,4 +13,6 @@ return [
     'logout' => 'Çıxış',
     'dashboard' => 'İdarə paneli',
     'welcome' => 'Xoş gəldiniz, :name',
+    'nav_more' => 'Bütün funksiyaları göstər (daha :count)',
+    'nav_less' => 'Yalnız əsas menyu',
 ];

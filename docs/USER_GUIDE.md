@@ -61,3 +61,6 @@ Open **Delivery areas**. Create a zone (name, fee, minimum order), then choose i
 - A guest who taps **Use my location** at checkout gets the fee of the area they are in. If they are outside every drawn area they are told you do not deliver there. A zone without a drawn area stays a plain list choice.
 - Couriers open **My deliveries** and tap **Share my location with the guest** when they leave. The guest's order page then shows the courier, the destination and your restaurant on a map. Sharing stops being shown after five minutes without an update and is erased when the order is marked delivered.
 - Map pictures come from OpenStreetMap; the visitor's browser contacts that service, so mention it in your privacy policy. Set `MAPS_TILE_URL` in `.env` to use another tile provider.
+
+## Simple menu
+The left menu shows only what most restaurants use every day. Tap **Show all features** at the bottom of the menu for the rest (marketing tools, branches, inventory, integrations and more); your choice is remembered in this browser. The search box above the menu finds every page, also the hidden ones.

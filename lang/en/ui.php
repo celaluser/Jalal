@@ -13,4 +13,5 @@ return [
     'logout' => 'Sign out',
     'dashboard' => 'Dashboard',
     'welcome' => 'Welcome, :name',
+    'nav_more' => 'Show all features (:count more)', 'nav_less' => 'Show essentials only',
 ];

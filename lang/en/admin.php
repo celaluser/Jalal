@@ -61,6 +61,12 @@ return [
     'empty' => 'Nothing here yet.',
     'chart' => ['table_view' => 'View as table'],
     'dashboard' => [
+        'setup_title' => 'Get your platform ready', 'setup_text' => ':done of :total steps done.',
+        'step_brand' => 'Name and logo', 'step_brand_text' => 'Your site name, logo and colours.',
+        'step_plans' => 'Create a plan', 'step_plans_text' => 'What restaurants can buy.',
+        'step_payments' => 'Connect a payment gateway', 'step_payments_text' => 'So restaurants can pay you.',
+        'step_mail' => 'Set up e-mail', 'step_mail_text' => 'Receipts, invitations and resets need it.',
+        'step_cron' => 'Turn on the scheduler', 'step_cron_text' => 'One cron job keeps renewals and reminders running.',
         'demo_notice' => 'Sample statistics are shown, not real data.', 'demo_turn_off' => 'Turn off in Settings',
         'welcome' => 'Welcome back, :name',
         'subtitle' => 'Here is how the platform is doing.',

@@ -15,4 +15,5 @@ return [
     'step_qr' => 'Print the QR codes and take a first order', 'step_qr_text' => 'Put them on the tables and try an order yourself.',
     'orders_today' => 'Orders today', 'revenue_today' => 'Revenue today', 'open_orders' => 'Open orders', 'average_order' => 'Average order', 'last_7_days' => 'Last 7 days',
     'vs_yesterday' => ':change vs yesterday', 'revenue_7d' => 'Revenue, last 7 days (:currency)', 'recent_orders' => 'Latest orders',
+    'quick_actions' => 'Quick actions',
 ];

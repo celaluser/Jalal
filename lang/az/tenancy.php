@@ -33,4 +33,5 @@ return [
     'vs_yesterday' => 'dünənə nisbətən :change',
     'revenue_7d' => 'Gəlir, son 7 gün (:currency)',
     'recent_orders' => 'Son sifarişlər',
+    'quick_actions' => 'Sürətli əməliyyatlar',
 ];

@@ -21,8 +21,9 @@
             </div>
             @php($total = collect($groups)->flatten(1)->count())
             <nav class="flex min-h-0 flex-1 flex-col text-sm" aria-label="{{ __('ui.menu') }}"
-                 x-data="{ q: '', closed: (() => { try { return JSON.parse(localStorage.getItem('nav.closed.{{ $home }}') || '[]') } catch (e) { return [] } })(),
+                 x-data="{ q: '', all: (() => { try { return localStorage.getItem('nav.all.{{ $home }}') === '1' } catch (e) { return false } })(), closed: (() => { try { return JSON.parse(localStorage.getItem('nav.closed.{{ $home }}') || '[]') } catch (e) { return [] } })(),
                            toggle(g) { this.closed = this.closed.includes(g) ? this.closed.filter(x => x !== g) : [...this.closed, g]; try { localStorage.setItem('nav.closed.{{ $home }}', JSON.stringify(this.closed)) } catch (e) {} },
+                           flip() { this.all = ! this.all; try { localStorage.setItem('nav.all.{{ $home }}', this.all ? '1' : '0') } catch (e) {} },
                            shown(g, force) { return this.q !== '' || force || ! this.closed.includes(g) },
                            match(label) { return this.q === '' || label.toLowerCase().includes(this.q.toLowerCase()) } }">
                 @if ($total > 8)
@@ -39,7 +40,8 @@
                     @php($visible = collect($items)->filter(fn ($i) => \Illuminate\Support\Facades\Route::has($i['route']) && (! $i['can'] || $user?->can($i['can']))))
                     @if ($visible->isNotEmpty())
                         @php($hasActive = $visible->contains(fn ($i) => request()->routeIs(...explode('|', $i['active']))))
-                        <div x-show="q === '' || {{ Js::from($visible->map(fn ($i) => mb_strtolower(__($i['label'])))->values()) }}.some(l => l.includes(q.toLowerCase()))">
+                        @php($hasEssential = $visible->contains(fn ($i) => ! $i['advanced']) || $hasActive)
+                        <div x-show="q === '' ? ({{ $hasEssential ? 'true' : 'false' }} || all) : {{ Js::from($visible->map(fn ($i) => mb_strtolower(__($i['label'])))->values()) }}.some(l => l.includes(q.toLowerCase()))">
                             <button type="button" class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-400 transition hover:bg-white/5 hover:text-ink-200"
                                     x-on:click="toggle('{{ $group }}')" :aria-expanded="shown('{{ $group }}', {{ $hasActive ? 'true' : 'false' }})">
                                 <span>{{ __($section === __('admin.panel') ? 'admin.nav.group_'.$group : 'panel.nav.group_'.$group) }}</span>
@@ -48,7 +50,7 @@
                             <ul class="mt-0.5 space-y-0.5" x-show="shown('{{ $group }}', {{ $hasActive ? 'true' : 'false' }})">
                                 @foreach ($visible as $item)
                                     @php($active = request()->routeIs(...explode('|', $item['active'])))
-                                    <li x-show="match({{ Js::from(mb_strtolower(__($item['label']))) }})">
+                                    <li x-show="q !== '' ? match({{ Js::from(mb_strtolower(__($item['label']))) }}) : ({{ ($item['advanced'] && ! $active) ? 'all' : 'true' }})">
                                         <a href="{{ route($item['route'], $item['params']) }}" @if ($active) aria-current="page" @endif
                                            @class(['group relative flex items-center gap-3 rounded-lg px-3 py-2 font-medium transition', 'bg-white/10 text-white' => $active, 'text-ink-300 hover:bg-white/5 hover:text-white' => ! $active])>
                                             @if ($active)<span class="absolute inset-y-1.5 start-0 w-[3px] rounded-full bg-brand-500"></span>@endif
@@ -62,6 +64,15 @@
                     @endif
                 @endforeach
                 </div>
+                @php($moreCount = collect($groups)->flatten(1)->filter(fn ($i) => $i['advanced'] && \Illuminate\Support\Facades\Route::has($i['route']) && (! $i['can'] || $user?->can($i['can'])))->count())
+                @if ($moreCount > 0)
+                    <div class="shrink-0 border-t border-white/10 p-3">
+                        <button type="button" class="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-start text-[13px] font-medium text-ink-300 transition hover:bg-white/5 hover:text-white" x-on:click="flip()" :aria-pressed="all">
+                            <span x-text="all ? @js(__('ui.nav_less')) : @js(__('ui.nav_more', ['count' => $moreCount]))"></span>
+                            <x-ui.icon name="chevron-down" size="4" class="transition" x-bind:class="all ? 'rotate-180' : ''" />
+                        </button>
+                    </div>
+                @endif
             </nav>
             <div class="shrink-0 border-t border-white/10 p-4 text-xs text-ink-400">v{{ config('version.current') }}</div>
         </aside>
