@@ -98,7 +98,7 @@ describe('landing page', function () {
     });
 
     it('resolves content with the service the same way', function () {
-        expect(app(LandingContent::class)->for('ar')['hero']['title'])->toBe('Your menu, one scan away');
+        expect(app(LandingContent::class)->for('ar')['hero']['title'])->toBe('قائمتك على بعد مسحة واحدة');
     });
 });
 

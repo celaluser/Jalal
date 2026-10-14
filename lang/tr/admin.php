@@ -455,6 +455,10 @@ return [
         'test_failed' => 'Test e-postası gönderilemedi (şablon kapalı olabilir veya SMTP başarısız oldu).',
     ],
     'cms' => [
+        'starter' => 'Başlangıç yasal sayfalarını ekle',
+        'starter_hint' => 'Düzenlemeniz için taslak Gizlilik Politikası, Kullanım Şartları, Çerez Politikası ve İade Politikası sayfaları ekler. Hukuki tavsiye değildir ve siz yayınlayana kadar yayında olmaz.',
+        'starter_done' => '{1} :count taslak sayfa eklendi. Okuyun, eksikleri doldurun ve yayınlayın.|[2,*] :count taslak sayfa eklendi. Okuyun, eksikleri doldurun ve yayınlayın.',
+        'starter_none' => 'Başlangıç sayfaları zaten var.',
         'pages_description' => 'Şartlar ve gizlilik gibi statik sayfalar. Alt bilgi için işaretlenen sayfalar her herkese açık sayfada bağlantı olarak yer alır.',
         'pages_empty' => 'Henüz sayfa yok',
         'pages_empty_text' => 'Gizlilik politikanızı ve hizmet şartlarınızı ekleyin.',

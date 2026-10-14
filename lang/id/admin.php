@@ -324,6 +324,10 @@ return [
         'reset' => 'Atur ulang ke teks bawaan', 'reset_done' => 'Diatur ulang ke teks bawaan.', 'test_failed' => 'Email uji tidak terkirim (templat mungkin dimatikan, atau SMTP gagal).',
     ],
     'cms' => [
+        'starter' => 'Tambahkan halaman hukum contoh',
+        'starter_hint' => 'Menambahkan draf Kebijakan Privasi, Ketentuan Layanan, Kebijakan Cookie, dan Kebijakan Pengembalian Dana untuk Anda edit. Ini bukan nasihat hukum dan tetap tidak dipublikasikan sampai Anda mempublikasikannya.',
+        'starter_done' => '{1} :count halaman draf ditambahkan. Baca, lengkapi yang kurang, lalu publikasikan.|[2,*] :count halaman draf ditambahkan. Baca, lengkapi yang kurang, lalu publikasikan.',
+        'starter_none' => 'Halaman contoh sudah ada.',
         'pages_description' => 'Halaman statis seperti ketentuan dan privasi. Halaman yang ditandai untuk footer ditautkan di setiap halaman publik.',
         'pages_empty' => 'Belum ada halaman', 'pages_empty_text' => 'Tambahkan kebijakan privasi dan ketentuan layanan Anda.',
         'blog_description' => 'Artikel untuk blog publik Anda. Jadwalkan tulisan dengan memilih tanggal mendatang.',

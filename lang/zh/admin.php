@@ -324,6 +324,10 @@ return [
         'reset' => '恢复默认文本', 'reset_done' => '已恢复为默认文本。', 'test_failed' => '测试邮件未发送（模板可能已关闭，或 SMTP 失败）。',
     ],
     'cms' => [
+        'starter' => '添加法律页面模板',
+        'starter_hint' => '添加隐私政策、服务条款、Cookie 政策和退款政策的草稿页面供您编辑。它们不构成法律意见，在您发布之前不会公开。',
+        'starter_done' => '{1} 已添加 :count 个草稿页面。请阅读、补全并发布。|[2,*] 已添加 :count 个草稿页面。请阅读、补全并发布。',
+        'starter_none' => '模板页面已存在。',
         'pages_description' => '条款、隐私等静态页面。标记为页脚的页面会在每个公开页面中链接。',
         'pages_empty' => '暂无页面', 'pages_empty_text' => '添加您的隐私政策和服务条款。',
         'blog_description' => '公开博客的文章。选择未来日期即可定时发布。',

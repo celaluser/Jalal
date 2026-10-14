@@ -324,6 +324,10 @@ return [
         'reset' => 'Ripristina il testo predefinito', 'reset_done' => 'Ripristinato il testo predefinito.', 'test_failed' => 'L\'email di prova non è stata inviata (il modello potrebbe essere disattivato oppure SMTP non funziona).',
     ],
     'cms' => [
+        'starter' => 'Aggiungi pagine legali di esempio',
+        'starter_hint' => 'Aggiunge bozze di Informativa sulla privacy, Termini di servizio, Cookie Policy e Politica di rimborso da modificare. Non sono consulenza legale e restano non pubblicate finché non le pubblichi.',
+        'starter_done' => '{1} :count pagina in bozza aggiunta. Leggila, completa ciò che manca e pubblicala.|[2,*] :count pagine in bozza aggiunte. Leggile, completa ciò che manca e pubblicale.',
+        'starter_none' => 'Le pagine di esempio esistono già.',
         'pages_description' => 'Pagine statiche come termini e privacy. Le pagine segnate per il piè di pagina sono collegate in ogni pagina pubblica.',
         'pages_empty' => 'Ancora nessuna pagina', 'pages_empty_text' => 'Aggiungi la tua informativa sulla privacy e i termini di servizio.',
         'blog_description' => 'Articoli per il tuo blog pubblico. Programma i post scegliendo una data futura.',

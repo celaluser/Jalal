@@ -324,6 +324,10 @@ return [
         'reset' => 'Restablecer el texto predeterminado', 'reset_done' => 'Restablecido al texto predeterminado.', 'test_failed' => 'No se envió el correo de prueba (la plantilla puede estar desactivada o SMTP falló).',
     ],
     'cms' => [
+        'starter' => 'Añadir páginas legales de ejemplo',
+        'starter_hint' => 'Añade borradores de Política de privacidad, Términos del servicio, Política de cookies y Política de reembolsos para que los edites. No son asesoría legal y no se publican hasta que tú los publiques.',
+        'starter_done' => '{1} Se añadió :count página en borrador. Léela, completa lo que falte y publícala.|[2,*] Se añadieron :count páginas en borrador. Léelas, completa lo que falte y publícalas.',
+        'starter_none' => 'Las páginas de ejemplo ya existen.',
         'pages_description' => 'Páginas estáticas como los términos y la privacidad. Las páginas marcadas para el pie de página se enlazan en todas las páginas públicas.',
         'pages_empty' => 'Aún no hay páginas', 'pages_empty_text' => 'Añade tu política de privacidad y tus términos del servicio.',
         'blog_description' => 'Artículos para tu blog público. Programa publicaciones eligiendo una fecha futura.',

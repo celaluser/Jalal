@@ -21,7 +21,7 @@ it('translates every panel text into :locale with the same placeholders', functi
             expect(array_values(array_unique($b[0])))->toEqualCanonicalizing(array_values(array_unique($a[0])), "placeholders differ in {$locale}/{$file} {$key}");
         }
     }
-})->with(['tr', 'az', 'ru', 'ar']);
+})->with(['tr', 'az', 'ru', 'ar', 'es', 'pt', 'fr', 'de', 'it', 'hi', 'id', 'zh']);
 
 /** A screen must never show a raw key such as "admin.actions": every literal key used in the code exists in English. */
 it('has an English text for every translation key the code uses', function () {

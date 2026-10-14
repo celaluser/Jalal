@@ -455,6 +455,10 @@ return [
         'test_failed' => 'Sınaq e-poçtu göndərilmədi (şablon söndürülmüş ola bilər, ya da SMTP uğursuz oldu).',
     ],
     'cms' => [
+        'starter' => 'Başlanğıc hüquqi səhifələri əlavə et',
+        'starter_hint' => 'Redaktə etməyiniz üçün layihə Məxfilik Siyasəti, İstifadə Şərtləri, Çerez Siyasəti və Qaytarma Siyasəti səhifələri əlavə edir. Hüquqi məsləhət deyil və siz dərc edənə qədər dərc olunmur.',
+        'starter_done' => '{1} :count layihə səhifə əlavə olundu. Oxuyun, boşluqları doldurun və dərc edin.|[2,*] :count layihə səhifə əlavə olundu. Oxuyun, boşluqları doldurun və dərc edin.',
+        'starter_none' => 'Başlanğıc səhifələr artıq var.',
         'pages_description' => 'Şərtlər və məxfilik kimi statik səhifələr. Altbilgi üçün qeyd olunan səhifələrə hər ictimai səhifədə link verilir.',
         'pages_empty' => 'Hələ səhifə yoxdur',
         'pages_empty_text' => 'Məxfilik siyasətinizi və xidmət şərtlərinizi əlavə edin.',

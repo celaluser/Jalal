@@ -324,6 +324,10 @@ return [
         'reset' => 'Auf Standardtext zurücksetzen', 'reset_done' => 'Auf den Standardtext zurückgesetzt.', 'test_failed' => 'Die Test-E-Mail wurde nicht gesendet (die Vorlage ist möglicherweise ausgeschaltet, oder SMTP ist fehlgeschlagen).',
     ],
     'cms' => [
+        'starter' => 'Rechtliche Mustervorlagen hinzufügen',
+        'starter_hint' => 'Fügt Entwürfe für Datenschutzerklärung, Nutzungsbedingungen, Cookie-Richtlinie und Erstattungsrichtlinie zum Bearbeiten hinzu. Sie sind keine Rechtsberatung und bleiben unveröffentlicht, bis Sie sie veröffentlichen.',
+        'starter_done' => '{1} :count Entwurfsseite hinzugefügt. Lesen Sie sie, ergänzen Sie Fehlendes und veröffentlichen Sie sie.|[2,*] :count Entwurfsseiten hinzugefügt. Lesen Sie sie, ergänzen Sie Fehlendes und veröffentlichen Sie sie.',
+        'starter_none' => 'Die Mustervorlagen sind bereits vorhanden.',
         'pages_description' => 'Statische Seiten wie Nutzungsbedingungen und Datenschutz. Für die Fußzeile markierte Seiten werden auf jeder öffentlichen Seite verlinkt.',
         'pages_empty' => 'Noch keine Seiten', 'pages_empty_text' => 'Fügen Sie Ihre Datenschutzerklärung und Nutzungsbedingungen hinzu.',
         'blog_description' => 'Artikel für Ihren öffentlichen Blog. Planen Sie Beiträge, indem Sie ein zukünftiges Datum wählen.',

@@ -324,6 +324,10 @@ return [
         'reset' => 'Reset to default text', 'reset_done' => 'Reset to the default text.', 'test_failed' => 'The test e-mail was not sent (the template may be switched off, or SMTP failed).',
     ],
     'cms' => [
+        'starter' => 'Add starter legal pages',
+        'starter_hint' => 'Adds draft Privacy Policy, Terms of Service, Cookie Policy and Refund Policy pages to edit. They are not legal advice and stay unpublished until you publish them.',
+        'starter_done' => '{1} :count draft page added. Read it, fill in the gaps and publish it.|[2,*] :count draft pages added. Read them, fill in the gaps and publish them.',
+        'starter_none' => 'The starter pages already exist.',
         'pages_description' => 'Static pages such as terms and privacy. Pages marked for the footer are linked on every public page.',
         'pages_empty' => 'No pages yet', 'pages_empty_text' => 'Add your privacy policy and terms of service.',
         'blog_description' => 'Articles for your public blog. Schedule posts by choosing a future date.',

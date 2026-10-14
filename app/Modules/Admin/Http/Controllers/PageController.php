@@ -24,7 +24,7 @@ class PageController extends Controller
     {
         $created = $templates->install('en', (string) config('app.name'), (string) $settings->get('general.support_email', ''), url('/'));
 
-        return back()->with('status', $created > 0 ? __('admin.cms.starter_done', ['count' => $created]) : __('admin.cms.starter_none'));
+        return back()->with('status', $created > 0 ? trans_choice('admin.cms.starter_done', $created, ['count' => $created]) : __('admin.cms.starter_none'));
     }
 
     public function create(): View

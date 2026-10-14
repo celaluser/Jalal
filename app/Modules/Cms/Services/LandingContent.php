@@ -12,30 +12,29 @@ use App\Modules\Cms\Models\LandingPage;
 class LandingContent
 {
     /**
+     * The built-in text in the given language (see the landing_defaults keys in each language site.php); missing languages show English.
+     *
      * @return array<string, mixed>
      */
-    public function defaults(): array
+    public function defaults(?string $locale = null): array
     {
+        $t = fn (string $key) => __('site.landing_defaults.'.$key, [], $locale ?? app()->getLocale());
+
         return [
-            'hero' => [
-                'title' => 'Your menu, one scan away',
-                'subtitle' => 'Create a beautiful QR menu, take orders from every table and grow your restaurant — in minutes, without an app.',
-                'cta_label' => 'Start free trial',
-                'secondary_label' => 'See pricing',
-            ],
+            'hero' => ['title' => $t('hero_title'), 'subtitle' => $t('hero_subtitle'), 'cta_label' => $t('hero_cta'), 'secondary_label' => $t('hero_secondary')],
             'features' => [
-                ['title' => 'QR menus that update instantly', 'text' => 'Change prices and dishes once; every table sees it immediately.'],
-                ['title' => 'Orders from the table', 'text' => 'Guests order and pay from their phone, the kitchen gets tickets in real time.'],
-                ['title' => 'Multi-language & multi-currency', 'text' => 'Serve tourists in their own language, with right-to-left support.'],
-                ['title' => 'AI menu import', 'text' => 'Photograph your paper menu and let AI build the digital one.'],
+                ['title' => $t('feature_1_title'), 'text' => $t('feature_1_text')],
+                ['title' => $t('feature_2_title'), 'text' => $t('feature_2_text')],
+                ['title' => $t('feature_3_title'), 'text' => $t('feature_3_text')],
+                ['title' => $t('feature_4_title'), 'text' => $t('feature_4_text')],
             ],
-            'pricing' => ['title' => 'Simple, honest pricing', 'subtitle' => 'Start with a free trial. Upgrade when you grow.'],
+            'pricing' => ['title' => $t('pricing_title'), 'subtitle' => $t('pricing_subtitle')],
             'faq' => [
-                ['question' => 'Do my guests need to install an app?', 'answer' => 'No. They scan the QR code and the menu opens in their browser.'],
-                ['question' => 'Can I cancel at any time?', 'answer' => 'Yes. Your plan stays active until the end of the period you paid for.'],
+                ['question' => $t('faq_1_q'), 'answer' => $t('faq_1_a')],
+                ['question' => $t('faq_2_q'), 'answer' => $t('faq_2_a')],
             ],
             'testimonials' => [],
-            'contact' => ['title' => 'Questions? Talk to us', 'text' => 'We usually reply within one business day.', 'email' => '', 'phone' => '', 'address' => ''],
+            'contact' => ['title' => $t('contact_title'), 'text' => $t('contact_text'), 'email' => '', 'phone' => '', 'address' => ''],
         ];
     }
 
@@ -46,7 +45,7 @@ class LandingContent
     {
         $default = config('app.default_locale');
         $rows = LandingPage::whereIn('locale', array_unique([$locale, $default]))->get()->keyBy('locale');
-        $content = $this->defaults();
+        $content = $this->defaults($locale);
 
         foreach (array_unique([$default, $locale]) as $source) { // later sources win, section by section
             foreach ($rows[$source]->content ?? [] as $section => $value) {
@@ -66,6 +65,6 @@ class LandingContent
      */
     public function editable(string $locale): array
     {
-        return array_merge($this->defaults(), LandingPage::where('locale', $locale)->first()?->content ?? []);
+        return array_merge($this->defaults($locale), LandingPage::where('locale', $locale)->first()?->content ?? []);
     }
 }

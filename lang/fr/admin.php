@@ -324,6 +324,10 @@ return [
         'reset' => 'Rétablir le texte par défaut', 'reset_done' => 'Texte par défaut rétabli.', 'test_failed' => 'L\'e-mail de test n\'a pas été envoyé (le modèle est peut-être désactivé, ou le SMTP a échoué).',
     ],
     'cms' => [
+        'starter' => 'Ajouter des pages juridiques types',
+        'starter_hint' => 'Ajoute des brouillons de Politique de confidentialité, Conditions d\'utilisation, Politique relative aux cookies et Politique de remboursement à modifier. Ce ne sont pas des conseils juridiques et elles restent non publiées jusqu\'à ce que vous les publiiez.',
+        'starter_done' => '{1} :count page brouillon ajoutée. Relisez-la, complétez-la et publiez-la.|[2,*] :count pages brouillon ajoutées. Relisez-les, complétez-les et publiez-les.',
+        'starter_none' => 'Les pages types existent déjà.',
         'pages_description' => 'Pages statiques comme les conditions d\'utilisation et la confidentialité. Les pages marquées pour le pied de page sont liées sur chaque page publique.',
         'pages_empty' => 'Aucune page pour le moment', 'pages_empty_text' => 'Ajoutez votre politique de confidentialité et vos conditions d\'utilisation.',
         'blog_description' => 'Articles de votre blog public. Programmez des publications en choisissant une date future.',

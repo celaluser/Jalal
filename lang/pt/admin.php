@@ -324,6 +324,10 @@ return [
         'reset' => 'Restaurar o texto padrão', 'reset_done' => 'Restaurado o texto padrão.', 'test_failed' => 'O e-mail de teste não foi enviado (o modelo pode estar desativado ou o SMTP falhou).',
     ],
     'cms' => [
+        'starter' => 'Adicionar páginas legais de exemplo',
+        'starter_hint' => 'Adiciona rascunhos de Política de privacidade, Termos de serviço, Política de cookies e Política de reembolso para você editar. Não são aconselhamento jurídico e ficam sem publicar até você publicá-los.',
+        'starter_done' => '{1} :count página de rascunho adicionada. Leia, preencha o que faltar e publique.|[2,*] :count páginas de rascunho adicionadas. Leia, preencha o que faltar e publique.',
+        'starter_none' => 'As páginas de exemplo já existem.',
         'pages_description' => 'Páginas estáticas como termos e privacidade. As páginas marcadas para o rodapé têm link em todas as páginas públicas.',
         'pages_empty' => 'Nenhuma página ainda', 'pages_empty_text' => 'Adicione sua política de privacidade e seus termos de serviço.',
         'blog_description' => 'Artigos do seu blog público. Agende publicações escolhendo uma data futura.',

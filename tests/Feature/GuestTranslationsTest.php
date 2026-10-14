@@ -31,14 +31,14 @@ it('translates every customer string into Turkish and Arabic with the same place
         preg_match_all('/:[a-z_]+/', $tr[$key], $b);
         expect(array_values(array_unique($b[0])))->toEqualCanonicalizing(array_values(array_unique($a[0])), "placeholders differ in {$locale} customer.{$key}");
     }
-})->with(['tr', 'ar', 'az', 'ru']);
+})->with(['tr', 'ar', 'az', 'ru', 'es', 'pt', 'fr', 'de', 'it', 'hi', 'id', 'zh']);
 
 it('covers all allergen and diet labels', function (string $locale) {
     $en = Arr::dot(Arr::only(require base_path('lang/en/menu.php'), ['allergen', 'diet']));
     $other = Arr::dot(require base_path("lang/{$locale}/menu.php"));
 
     expect(array_keys(array_intersect_key($other, $en)))->toEqualCanonicalizing(array_keys($en));
-})->with(['tr', 'ar', 'az', 'ru']);
+})->with(['tr', 'ar', 'az', 'ru', 'es', 'pt', 'fr', 'de', 'it', 'hi', 'id', 'zh']);
 
 it('only translates guest order strings that exist in English, with the same placeholders', function (string $locale) {
     $en = Arr::dot(require base_path('lang/en/orders.php'));
@@ -53,7 +53,7 @@ it('only translates guest order strings that exist in English, with the same pla
     foreach (['type_dine_in', 'checkout', 'place', 'step_ready', 'error_closed', 'email_label'] as $key) {
         expect($other)->toHaveKey($key);
     }
-})->with(['tr', 'ar', 'az', 'ru']);
+})->with(['tr', 'ar', 'az', 'ru', 'es', 'pt', 'fr', 'de', 'it', 'hi', 'id', 'zh']);
 
 it('shows the public menu in the guest’s language', function () {
     $r = Restaurant::create(['name' => 'Lokanta', 'slug' => 'lok'.uniqid(), 'locale' => 'en', 'menu_locales' => ['en', 'tr', 'ar', 'az', 'ru'], 'currency_code' => 'USD', 'onboarded_at' => now()]);
@@ -81,4 +81,4 @@ it('translates the guest-facing marketing strings with matching placeholders', f
         expect(array_values(array_unique($b[0])))->toEqualCanonicalizing(array_values(array_unique($a[0])), "placeholders differ in {$locale} marketing.{$key}");
     }
     expect($other)->toHaveKeys(['opt_in', 'promo_field', 'rate_title', 'unsub_button', 'reward_earned']);
-})->with(['tr', 'ar', 'az', 'ru']);
+})->with(['tr', 'ar', 'az', 'ru', 'es', 'pt', 'fr', 'de', 'it', 'hi', 'id', 'zh']);

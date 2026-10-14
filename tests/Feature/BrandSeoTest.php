@@ -3,9 +3,12 @@
 use App\Models\User;
 use App\Modules\Auth\Support\Permissions;
 use App\Modules\Cms\Models\BlogPost;
+use App\Modules\Cms\Models\Page;
+use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Models\Language;
 use App\Modules\Core\Services\RuntimeSettings;
 use App\Modules\Core\Services\SettingsService;
+use Database\Seeders\LanguagesAndCurrenciesSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Http;
@@ -119,4 +122,35 @@ it('describes a blog post to search engines as an article', function () {
     BlogPost::create(['title' => 'Hello', 'slug' => 'hello', 'locale' => 'en', 'body' => 'Body', 'excerpt' => 'Short', 'is_published' => true, 'published_at' => now()]);
     $html = $this->get('/blog/hello')->assertOk()->getContent();
     expect($html)->toContain('property="og:type" content="article"')->toContain('"@type":"Article"')->toContain('<title>Hello · ');
+});
+
+it('adds unpublished starter legal pages once', function () {
+    $admin = brandAdmin();
+    $this->actingAs($admin)->post(route('admin.pages.starter'))->assertRedirect()->assertSessionHas('status');
+
+    $pages = Page::pluck('is_published', 'slug')->all();
+    expect(array_keys($pages))->toEqualCanonicalizing(['privacy-policy', 'terms-of-service', 'cookie-policy', 'refund-policy'])->and(array_filter($pages))->toBe([]);
+    expect(Page::where('slug', 'privacy-policy')->value('body'))->toContain(config('app.name'));
+
+    $this->actingAs($admin)->post(route('admin.pages.starter'))->assertSessionHas('status', __('admin.cms.starter_none'));
+    expect(Page::count())->toBe(4);
+    $this->get('/p/privacy-policy')->assertNotFound(); // a draft is not on the site
+});
+
+it('ships every language it offers and shows a dropdown when there are many', function () {
+    $this->seed(LanguagesAndCurrenciesSeeder::class);
+    Cache::flush();
+
+    $codes = Language::where('is_active', true)->pluck('code')->all();
+    expect(count($codes))->toBeGreaterThanOrEqual(13);
+    foreach ($codes as $code) {
+        expect(is_dir(base_path("lang/{$code}")))->toBeTrue("lang/{$code} is missing");
+    }
+    expect(Currency::count())->toBeGreaterThan(40);
+
+    $html = $this->get('/login')->assertOk()->getContent();
+    expect($html)->toContain('aria-haspopup="true"')->toContain('Español')->toContain('हिन्दी')->toContain('简体中文')->toContain('العربية');
+
+    $this->get('/login?lang=de')->assertOk()->assertSee('Anmelden');
+    $this->get('/login?lang=zh')->assertOk()->assertSee('登录');
 });
