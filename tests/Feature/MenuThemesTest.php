@@ -133,3 +133,24 @@ it('draws the decoration, gradient buttons and card hover of a theme, and lets a
 
     $this->actingAs($owner)->put(route('appearance.update'), ['theme' => 'neon', 'font' => 'sans', 'layout' => 'cards', 'radius' => 'soft', 'decor' => 'fireworks'])->assertSessionHasErrors('decor');
 });
+
+it('ships readable built-in themes (WCAG AA text contrast)', function () {
+    $lum = function (string $hex): float {
+        $c = array_map(fn ($x) => ($v = hexdec($x) / 255) <= 0.03928 ? $v / 12.92 : (($v + 0.055) / 1.055) ** 2.4, str_split(ltrim($hex, '#'), 2));
+
+        return 0.2126 * $c[0] + 0.7152 * $c[1] + 0.0722 * $c[2];
+    };
+    $ratio = function (string $a, string $b) use ($lum): float {
+        [$x, $y] = [$lum($a), $lum($b)];
+
+        return (max($x, $y) + 0.05) / (min($x, $y) + 0.05);
+    };
+
+    expect(count(config('themes.themes')))->toBeGreaterThanOrEqual(20);
+
+    foreach (config('themes.themes') as $key => $t) {
+        expect($ratio($t['fg'], $t['bg']))->toBeGreaterThanOrEqual(4.5, $key)
+            ->and($ratio($t['muted'], $t['bg']))->toBeGreaterThanOrEqual(4.5, $key)
+            ->and($ratio($t['muted'], $t['surface']))->toBeGreaterThanOrEqual(4.5, $key);
+    }
+});

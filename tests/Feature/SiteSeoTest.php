@@ -37,7 +37,7 @@ function seoUser(Restaurant $r, string $role): User
 it('puts canonical, language alternates and restaurant structured data on the menu', function () {
     $r = seoShop(['seo_title' => ['en' => 'Best pizza in Istanbul'], 'seo_description' => ['en' => 'Wood-fired pizza.'], 'cuisine' => 'Italian', 'price_range' => '$$', 'hours' => [0 => '11:00-23:00', 1 => 'Closed']]);
     $html = $this->get("/r/{$r->slug}")->assertOk()->assertSee('<title>Best pizza in Istanbul</title>', false)->assertSee('name="description" content="Wood-fired pizza."', false)
-        ->assertSee('rel="canonical"', false)->assertSee('hreflang="tr"', false)->assertDontSee('name="robots"', false)->getContent();
+        ->assertSee('rel="canonical"', false)->assertSee('hreflang="tr"', false)->assertSee('hreflang="x-default"', false)->assertSee('property="og:url"', false)->assertSee('name="twitter:card"', false)->assertDontSee('name="robots"', false)->getContent();
 
     preg_match('#<script type="application/ld\+json">(.*?)</script>#s', $html, $m);
     $ld = json_decode($m[1], true);

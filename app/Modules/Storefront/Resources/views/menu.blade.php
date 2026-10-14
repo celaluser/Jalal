@@ -43,6 +43,9 @@
     <meta property="og:title" content="{{ $title }}">
     <meta property="og:description" content="{{ $description }}">
     @if ($ogImage)<meta property="og:image" content="{{ $ogImage }}">@endif
+    <meta property="og:site_name" content="{{ $restaurant->name }}">
+    <meta property="og:locale" content="{{ str_replace('-', '_', $locale) }}">
+    <meta name="twitter:card" content="{{ $ogImage ? 'summary_large_image' : 'summary' }}">
     <meta name="theme-color" content="{{ $restaurant->brandColor() }}">
     @unless ($kiosk)
         <link rel="manifest" href="{{ $base }}/manifest.webmanifest">
@@ -52,7 +55,9 @@
     @if ($noindex || ! $indexable)<meta name="robots" content="noindex">@else
         {{-- Search engines: one canonical address, the other languages, and structured restaurant data. --}}
         <link rel="canonical" href="{{ $restaurant->publicUrl() }}">
+        <meta property="og:url" content="{{ $restaurant->publicUrl() }}">
         @foreach ($restaurant->menuLocales() as $code)<link rel="alternate" hreflang="{{ $code }}" href="{{ $restaurant->publicUrl() }}?lang={{ $code }}">@endforeach
+        <link rel="alternate" hreflang="x-default" href="{{ $restaurant->publicUrl() }}">
         <meta property="og:type" content="restaurant.restaurant">
         <script type="application/ld+json">{!! json_encode($jsonLd, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) !!}</script>
     @endif
