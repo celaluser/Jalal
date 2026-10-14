@@ -200,4 +200,13 @@ return [
     'view_message' => 'Message du menu en consultation seule',
     'view_only_title' => 'Prêt à commander ?',
     'view_only_text' => 'Choisissez vos plats et dites-les au serveur. Les prix sont indiqués pour votre confort.',
+    'sound_tone' => 'Son d\'alerte',
+    'tone_chime' => 'Carillon',
+    'tone_bell' => 'Cloche',
+    'tone_siren' => 'Sirène (fort)',
+    'sound_volume' => 'Volume (1-10)',
+    'late_alarm' => 'Alarme pour les commandes en retard',
+    'late_alarm_hint' => 'Une alarme urgente se répète chaque minute quand une commande dépasse son temps de préparation + 10 minutes. L\'équipe peut la reporter de 5 minutes.',
+    'late_alert' => ':n commande(s) en retard',
+    'snooze' => 'Couper 5 min',
 ];

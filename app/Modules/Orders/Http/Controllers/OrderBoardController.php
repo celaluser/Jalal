@@ -45,6 +45,7 @@ class OrderBoardController extends Controller
                 'canCancel' => $request->user()->can('orders.manage'),
                 'interval' => 4000,
                 'alertAfter' => (int) $this->settings->for($restaurant)['alert_unaccepted'],
+                'sound' => $this->settings->sound($restaurant),
             ],
         ]);
     }
@@ -238,7 +239,7 @@ class OrderBoardController extends Controller
 
         return view('orders::board.kds', ['config' => $this->feed($request->user())->getData(true) + [
             'feedUrl' => route('orders.feed'), 'statusUrl' => url('/orders'), 'csrf' => csrf_token(), 'stations' => $this->settings->stations($restaurant),
-            'interval' => 3000, 'alertAfter' => (int) $this->settings->for($restaurant)['alert_unaccepted'], 'canAccept' => $request->user()->can('orders.manage'),
+            'sound' => $this->settings->sound($restaurant), 'interval' => 3000, 'alertAfter' => (int) $this->settings->for($restaurant)['alert_unaccepted'], 'canAccept' => $request->user()->can('orders.manage'),
         ]]);
     }
 

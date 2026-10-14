@@ -608,9 +608,9 @@ describe('ordering settings', function () {
         [$r] = odShop();
         $this->actingAs(odUser($r, Permissions::OWNER));
 
-        $this->put(route('orders.settings.update'), ['pay_cash' => 1])->assertSessionHasErrors('dine_in');
-        $this->put(route('orders.settings.update'), ['dine_in' => 1])->assertSessionHasErrors('pay_cash');
-        $this->put(route('orders.settings.update'), ['dine_in' => 1, 'pay_cash' => 1, 'tax_rate' => '150', 'prep_minutes' => 0])->assertSessionHasErrors(['tax_rate', 'prep_minutes']);
+        $this->put(route('orders.settings.update'), ['online_ordering' => 1, 'pay_cash' => 1])->assertSessionHasErrors('dine_in');
+        $this->put(route('orders.settings.update'), ['online_ordering' => 1, 'dine_in' => 1])->assertSessionHasErrors('pay_cash');
+        $this->put(route('orders.settings.update'), ['online_ordering' => 1, 'dine_in' => 1, 'pay_cash' => 1, 'tax_rate' => '150', 'prep_minutes' => 0])->assertSessionHasErrors(['tax_rate', 'prep_minutes']);
     });
 
     it('is for people who manage settings', function () {

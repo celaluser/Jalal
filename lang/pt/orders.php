@@ -200,4 +200,13 @@ return [
     'view_message' => 'Mensagem no cardápio de consulta',
     'view_only_title' => 'Pronto para pedir?',
     'view_only_text' => 'Escolha o que gostar e diga ao garçom. Os preços são exibidos para sua conveniência.',
+    'sound_tone' => 'Som de alerta',
+    'tone_chime' => 'Sino suave',
+    'tone_bell' => 'Sino',
+    'tone_siren' => 'Sirene (alto)',
+    'sound_volume' => 'Volume (1-10)',
+    'late_alarm' => 'Alarme para pedidos atrasados',
+    'late_alarm_hint' => 'Um alarme urgente se repete a cada minuto quando um pedido passa do tempo de preparo mais 10 minutos. A equipe pode adiar por 5 minutos.',
+    'late_alert' => ':n pedido(s) atrasado(s)',
+    'snooze' => 'Silenciar 5 min',
 ];

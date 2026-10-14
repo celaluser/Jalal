@@ -42,6 +42,9 @@ class OrderSettings
         'notify_whatsapp' => false,
         'notify_push' => false,
         'alert_unaccepted' => 3,
+        'sound_tone' => 'chime',
+        'sound_volume' => 6,
+        'late_alarm' => true,
         'escalate_minutes' => 0,
         'print_auto_kitchen' => false,
         'print_auto_receipt' => false,
@@ -96,6 +99,14 @@ class OrderSettings
         return (int) round((float) ($this->for($restaurant)[$key] ?? 0) * 100);
     }
 
+    /** @return array{tone: string, volume: int, lateAlarm: bool} how the order board rings */
+    public function sound(Restaurant $restaurant): array
+    {
+        $s = $this->for($restaurant);
+
+        return ['tone' => in_array($s['sound_tone'], ['chime', 'bell', 'siren'], true) ? $s['sound_tone'] : 'chime', 'volume' => max(1, min(10, (int) $s['sound_volume'])), 'lateAlarm' => (bool) $s['late_alarm']];
+    }
+
     /** Menu-only mode: guests browse and tell the waiter, there is no cart or checkout. */
     public function viewOnly(Restaurant $restaurant): bool
     {
@@ -143,7 +154,7 @@ class OrderSettings
             'max_items' => ['nullable', 'integer', 'min:0', 'max:500'], 'wait_per_order' => ['nullable', 'integer', 'min:0', 'max:30'],
             'stations' => ['nullable', 'string', 'max:200', 'regex:/^[\pL\pN ,&\-]*$/u'],
             'notify_sms' => ['nullable', 'boolean'], 'notify_whatsapp' => ['nullable', 'boolean'], 'notify_push' => ['nullable', 'boolean'],
-            'alert_unaccepted' => ['nullable', 'integer', 'min:1', 'max:60'], 'escalate_minutes' => ['nullable', 'integer', 'min:0', 'max:120'],
+            'alert_unaccepted' => ['nullable', 'integer', 'min:1', 'max:60'], 'sound_tone' => ['nullable', 'in:chime,bell,siren'], 'sound_volume' => ['nullable', 'integer', 'min:1', 'max:10'], 'late_alarm' => ['nullable', 'boolean'], 'escalate_minutes' => ['nullable', 'integer', 'min:0', 'max:120'],
             'print_auto_kitchen' => ['nullable', 'boolean'], 'print_auto_receipt' => ['nullable', 'boolean'], 'print_width' => ['nullable', 'in:32,42,48'], 'print_codepage' => ['nullable', 'in:cp437,cp850,cp857,cp1252,ascii'],
             'pay_cash' => ['nullable', 'boolean'], 'pay_card' => ['nullable', 'boolean'],
             'auto_accept' => ['nullable', 'boolean'], 'prep_minutes' => ['nullable', 'integer', 'min:1', 'max:240'],

@@ -7,6 +7,8 @@ document.addEventListener('alpine:init', () => {
         requests: cfg.requests || [],
         t: cfg.t,
         cfg: { alertAfter: cfg.alertAfter || 3 },
+        tone: cfg.sound || { tone: 'chime', volume: 6, lateAlarm: true },
+        snoozedUntil: 0,
         accepting: cfg.accepting,
         offline: false,
         sound: (() => { try { return localStorage.getItem('orders.sound') !== 'off'; } catch (e) { return true; } })(),
@@ -25,11 +27,15 @@ document.addEventListener('alpine:init', () => {
             document.addEventListener('visibilitychange', () => { if (!document.hidden) { this.refresh(); } });
             this.title();
             // A new order nobody has picked up: ring again every 20 seconds until someone does.
-            setInterval(() => { if (this.stale.length && !document.hidden) { this.beep(); } }, 20000);
+            setInterval(() => { if (this.stale.length && !document.hidden) { this.beep('stale'); } }, 20000);
+            // Orders past their preparation time: a more urgent alarm every minute until the kitchen catches up.
+            setInterval(() => { if (this.tone.lateAlarm && this.lateOrders.length) { this.beep('late'); } }, 60000);
         },
 
         // ---- columns ---------------------------------------------------------------------
         get stale() { return this.orders.filter((o) => o.status === 'new' && !o.scheduled && this.age(o) >= this.cfg.alertAfter); },
+        get lateOrders() { return this.orders.filter((o) => this.late(o)); },
+        get snoozed() { return this.snoozedUntil > this.tick; },
         get newOrders() { return this.orders.filter((o) => o.status === 'new'); },
         get kitchen() { return this.orders.filter((o) => ['accepted', 'preparing'].includes(o.status)); },
         get ready() { return this.orders.filter((o) => o.status === 'ready'); },
@@ -85,19 +91,28 @@ document.addEventListener('alpine:init', () => {
             try { localStorage.setItem('orders.sound', this.sound ? 'on' : 'off'); } catch (e) { /* ignore */ }
             if (this.sound) { this.beep(); if (window.Notification && Notification.permission === 'default') { Notification.requestPermission(); } }
         },
-        beep() {
-            if (!this.sound) { return; }
+        // Silence the repeating alarms for five minutes (a new order still rings).
+        snooze() { this.snoozedUntil = Date.now() + 300000; this.tick = Date.now(); setTimeout(() => { this.tick = Date.now(); }, 300100); },
+        // level: new (pleasant), stale (nobody accepted yet), late (past prep time). The louder the level, the sooner it is noticed.
+        beep(level = 'new') {
+            if (!this.sound || (level !== 'new' && this.snoozed)) { return; }
             try {
                 this.ctx ??= new (window.AudioContext || window.webkitAudioContext)();
-                [0, 0.22, 0.44].forEach((delay, i) => {
+                const t = this.tone.tone; const vol = Math.max(0.05, Math.min(1, (this.tone.volume || 6) / 10)) * (level === 'late' ? 0.55 : level === 'stale' ? 0.4 : 0.3);
+                const notes = level === 'late' ? [880, 660, 880, 660, 880, 660] : (t === 'siren' ? [700, 900, 700, 900] : (t === 'bell' ? [1318, 1568, 1318] : (level === 'stale' ? [784, 988, 784, 988] : [784, 988, 784])));
+                const wave = level === 'late' || t === 'siren' ? 'square' : (t === 'bell' ? 'triangle' : 'sine');
+                const step = level === 'late' ? 0.16 : 0.22;
+                notes.forEach((freq, i) => {
+                    const at = this.ctx.currentTime + i * step;
                     const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
-                    osc.type = 'sine'; osc.frequency.value = i === 1 ? 988 : 784;
-                    gain.gain.setValueAtTime(0.0001, this.ctx.currentTime + delay);
-                    gain.gain.exponentialRampToValueAtTime(0.25, this.ctx.currentTime + delay + 0.02);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + delay + 0.2);
+                    osc.type = wave; osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.0001, at);
+                    gain.gain.exponentialRampToValueAtTime(vol, at + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, at + step - 0.02);
                     osc.connect(gain).connect(this.ctx.destination);
-                    osc.start(this.ctx.currentTime + delay); osc.stop(this.ctx.currentTime + delay + 0.22);
+                    osc.start(at); osc.stop(at + step);
                 });
+                if (level === 'late' && navigator.vibrate) { navigator.vibrate([200, 100, 200]); }
             } catch (e) { /* audio blocked until the first tap */ }
         },
 

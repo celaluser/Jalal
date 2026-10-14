@@ -200,4 +200,13 @@ return [
     'view_message' => 'Messaggio nel menu solo consultazione',
     'view_only_title' => 'Pronto a ordinare?',
     'view_only_text' => 'Scegli ciò che ti piace e dillo al cameriere. I prezzi sono indicati per comodità.',
+    'sound_tone' => 'Suono di avviso',
+    'tone_chime' => 'Scampanio',
+    'tone_bell' => 'Campana',
+    'tone_siren' => 'Sirena (forte)',
+    'sound_volume' => 'Volume (1-10)',
+    'late_alarm' => 'Allarme per ordini in ritardo',
+    'late_alarm_hint' => 'Un allarme urgente si ripete ogni minuto quando un ordine supera il tempo di preparazione + 10 minuti. Lo staff può posticiparlo di 5 minuti.',
+    'late_alert' => ':n ordine/i in ritardo',
+    'snooze' => 'Silenzia 5 min',
 ];

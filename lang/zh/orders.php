@@ -200,4 +200,13 @@ return [
     'view_message' => '仅浏览菜单上显示的提示',
     'view_only_title' => '准备点餐了吗？',
     'view_only_text' => '选好想吃的，告诉服务员即可。价格仅供参考。',
+    'sound_tone' => '提示音',
+    'tone_chime' => '风铃',
+    'tone_bell' => '铃声',
+    'tone_siren' => '警报（响亮）',
+    'sound_volume' => '音量（1-10）',
+    'late_alarm' => '订单超时时响起警报',
+    'late_alarm_hint' => '订单超过备餐时间 + 10 分钟后，每分钟重复一次紧急警报。员工可暂停 5 分钟。',
+    'late_alert' => ':n 个订单已超时',
+    'snooze' => '静音5分钟',
 ];

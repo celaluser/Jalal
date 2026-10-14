@@ -200,4 +200,13 @@ return [
     'view_message' => 'Message shown on a view-only menu',
     'view_only_title' => 'Ready to order?',
     'view_only_text' => 'Pick what you like, then tell your waiter. Prices are shown for your convenience.',
+    'sound_tone' => 'Alert sound',
+    'tone_chime' => 'Chime',
+    'tone_bell' => 'Bell',
+    'tone_siren' => 'Siren (loud)',
+    'sound_volume' => 'Volume (1-10)',
+    'late_alarm' => 'Sound an alarm for late orders',
+    'late_alarm_hint' => 'An urgent alarm repeats every minute while an order is past its preparation time plus 10 minutes. Staff can snooze it for 5 minutes.',
+    'late_alert' => ':n order(s) are running late',
+    'snooze' => 'Silence for 5 min',
 ];

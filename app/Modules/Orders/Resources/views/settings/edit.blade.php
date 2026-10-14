@@ -87,6 +87,9 @@
             <div class="grid gap-4 sm:grid-cols-2">
                 <x-ui.input name="alert_unaccepted" type="number" min="1" max="60" :label="__('orders.alert_unaccepted')" :value="$s['alert_unaccepted']" />
                 <x-ui.input name="escalate_minutes" type="number" min="0" max="120" :label="__('orders.escalate_minutes')" :value="$s['escalate_minutes']" :hint="__('orders.escalate_hint')" />
+                <x-ui.select name="sound_tone" :label="__('orders.sound_tone')" :value="$s['sound_tone']" :options="['chime' => __('orders.tone_chime'), 'bell' => __('orders.tone_bell'), 'siren' => __('orders.tone_siren')]" />
+                <x-ui.input name="sound_volume" type="number" min="1" max="10" :label="__('orders.sound_volume')" :value="$s['sound_volume']" />
+                <div class="sm:col-span-2"><x-ui.checkbox name="late_alarm" :label="__('orders.late_alarm')" :checked="$s['late_alarm']" /><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ __('orders.late_alarm_hint') }}</p></div>
             </div>
         </x-ui.card>
 

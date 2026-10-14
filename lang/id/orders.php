@@ -200,4 +200,13 @@ return [
     'view_message' => 'Pesan di menu hanya-lihat',
     'view_only_title' => 'Siap memesan?',
     'view_only_text' => 'Pilih yang Anda suka, lalu sebutkan ke pelayan. Harga ditampilkan untuk kenyamanan Anda.',
+    'sound_tone' => 'Suara peringatan',
+    'tone_chime' => 'Lonceng',
+    'tone_bell' => 'Bel',
+    'tone_siren' => 'Sirene (keras)',
+    'sound_volume' => 'Volume (1-10)',
+    'late_alarm' => 'Bunyikan alarm untuk pesanan terlambat',
+    'late_alarm_hint' => 'Alarm mendesak berulang tiap menit saat pesanan melewati waktu persiapan + 10 menit. Staf bisa menundanya 5 menit.',
+    'late_alert' => ':n pesanan terlambat',
+    'snooze' => 'Bisukan 5 mnt',
 ];

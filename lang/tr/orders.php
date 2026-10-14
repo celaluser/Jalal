@@ -482,4 +482,13 @@ return [
     'view_message' => 'Sadece görüntüleme menüsünde gösterilen mesaj',
     'view_only_title' => 'Sipariş vermeye hazır mısınız?',
     'view_only_text' => 'Beğendiğinizi seçin, sonra garsonunuza söyleyin. Fiyatlar bilginiz için gösterilir.',
+    'sound_tone' => 'Uyarı sesi',
+    'tone_chime' => 'Zil',
+    'tone_bell' => 'Çan',
+    'tone_siren' => 'Siren (yüksek)',
+    'sound_volume' => 'Ses seviyesi (1-10)',
+    'late_alarm' => 'Geciken siparişler için alarm çal',
+    'late_alarm_hint' => 'Bir sipariş hazırlık süresi + 10 dakikayı aştığında her dakika acil bir alarm çalar. Personel 5 dakika erteleyebilir.',
+    'late_alert' => ':n sipariş gecikti',
+    'snooze' => '5 dk sustur',
 ];

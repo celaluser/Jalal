@@ -200,4 +200,13 @@ return [
     'view_message' => 'Hinweis auf der Nur-Ansicht-Karte',
     'view_only_title' => 'Bereit zu bestellen?',
     'view_only_text' => 'Wählen Sie aus und sagen Sie es Ihrem Kellner. Preise stehen zur Orientierung dabei.',
+    'sound_tone' => 'Signalton',
+    'tone_chime' => 'Glockenspiel',
+    'tone_bell' => 'Glocke',
+    'tone_siren' => 'Sirene (laut)',
+    'sound_volume' => 'Lautstärke (1-10)',
+    'late_alarm' => 'Alarm bei verspäteten Bestellungen',
+    'late_alarm_hint' => 'Ein dringender Alarm wiederholt sich jede Minute, solange eine Bestellung die Zubereitungszeit plus 10 Minuten überschreitet. Das Team kann ihn 5 Minuten stummschalten.',
+    'late_alert' => ':n Bestellung(en) verspätet',
+    'snooze' => '5 Min. stumm',
 ];

@@ -21,6 +21,7 @@
         </x-ui.page-header>
 
         <p x-show="offline" x-cloak class="mb-3 rounded-xl bg-red-50 px-4 py-2 text-sm font-medium text-red-800 dark:bg-red-950/60 dark:text-red-200" role="alert">{{ __('orders.offline') }}</p>
+        <p x-show="tone.lateAlarm && lateOrders.length" x-cloak class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white" role="alert"><span x-text="@js(__('orders.late_alert', ['count' => ':n'])).replace(':n', lateOrders.length)"></span><button type="button" class="rounded-lg bg-white/20 px-3 py-1 text-xs font-semibold" x-on:click="snooze()" x-show="!snoozed">{{ __('orders.snooze') }}</button></p>
         <p x-show="stale.length" x-cloak class="mb-3 rounded-xl bg-red-100 px-4 py-2 text-sm font-semibold text-red-900 dark:bg-red-950/60 dark:text-red-200" role="alert" x-text="@js(__('orders.unaccepted_alert', ['count' => ':n', 'minutes' => ':m'])).replace(':n', stale.length).replace(':m', cfg.alertAfter)"></p>
         <p x-show="!accepting" x-cloak class="mb-3 rounded-xl bg-brand-100 px-4 py-2 text-sm font-medium text-brand-900 dark:bg-brand-900/40 dark:text-brand-100" role="status">{{ __('orders.paused_banner') }}</p>
 

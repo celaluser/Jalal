@@ -482,4 +482,13 @@ return [
     'view_message' => 'Yalnız baxış menyusunda göstərilən mesaj',
     'view_only_title' => 'Sifariş verməyə hazırsınız?',
     'view_only_text' => 'Bəyəndiyinizi seçin, sonra ofisiantınıza deyin. Qiymətlər məlumat üçün göstərilir.',
+    'sound_tone' => 'Xəbərdarlıq səsi',
+    'tone_chime' => 'Zəng',
+    'tone_bell' => 'Zəng',
+    'tone_siren' => 'Siren (yüksək)',
+    'sound_volume' => 'Səs səviyyəsi (1-10)',
+    'late_alarm' => 'Gecikən sifarişlər üçün siqnal çal',
+    'late_alarm_hint' => 'Sifariş hazırlıq müddəti + 10 dəqiqəni keçəndə hər dəqiqə təcili siqnal çalır. İşçi 5 dəqiqə təxirə sala bilər.',
+    'late_alert' => ':n sifariş gecikir',
+    'snooze' => '5 dəq sustur',
 ];

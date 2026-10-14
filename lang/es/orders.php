@@ -200,4 +200,13 @@ return [
     'view_message' => 'Mensaje en la carta de solo consulta',
     'view_only_title' => '¿Listo para pedir?',
     'view_only_text' => 'Elija lo que le guste y dígaselo al camarero. Los precios se muestran para su comodidad.',
+    'sound_tone' => 'Sonido de aviso',
+    'tone_chime' => 'Campanilla',
+    'tone_bell' => 'Campana',
+    'tone_siren' => 'Sirena (fuerte)',
+    'sound_volume' => 'Volumen (1-10)',
+    'late_alarm' => 'Alarma para pedidos retrasados',
+    'late_alarm_hint' => 'Una alarma urgente se repite cada minuto cuando un pedido supera su tiempo de preparación más 10 minutos. El personal puede posponerla 5 minutos.',
+    'late_alert' => ':n pedido(s) con retraso',
+    'snooze' => 'Silenciar 5 min',
 ];
