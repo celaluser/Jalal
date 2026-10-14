@@ -325,8 +325,8 @@ it('saves the new ordering settings and keeps bad station names out', function (
 
     $this->actingAs($owner)->put(route('orders.settings.update'), $base + ['stations' => '<script>x</script>'])->assertSessionHasErrors('stations');
     // Only curbside on is a valid way to take orders.
-    $this->actingAs($owner)->put(route('orders.settings.update'), ['curbside' => 1, 'pay_cash' => 1])->assertSessionHasNoErrors();
-    $this->actingAs($owner)->put(route('orders.settings.update'), ['pay_cash' => 1])->assertSessionHasErrors('dine_in');
+    $this->actingAs($owner)->put(route('orders.settings.update'), ['online_ordering' => 1, 'curbside' => 1, 'pay_cash' => 1])->assertSessionHasNoErrors();
+    $this->actingAs($owner)->put(route('orders.settings.update'), ['online_ordering' => 1, 'pay_cash' => 1])->assertSessionHasErrors('dine_in');
 });
 
 it('shows the new types at the till and on the board', function () {
