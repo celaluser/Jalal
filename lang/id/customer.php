@@ -47,7 +47,6 @@ return [
     'main_menu' => 'Menu utama',
     'nutrition' => 'Nutrisi',
     'watch_video' => 'Tonton video',
-    'cta_title' => 'Lapar?',
     'cta_text' => 'Ketuk + pada hidangan dan pesan langsung dari ponsel.',
     'cta_table' => 'Ketuk + pada hidangan: langsung ke dapur, tanpa menunggu pelayan.',
 ];

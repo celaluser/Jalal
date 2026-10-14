@@ -40,3 +40,18 @@ it('does not serve panel pages or accept panel actions from a guest', function (
 
     expect($checked)->toBeGreaterThan(150)->and($exposed)->toBe([]);
 });
+
+it('keeps the storage folder closed but lets public uploads through when the whole package sits in public_html', function () {
+    $htaccess = file_get_contents(base_path('storage/.htaccess'));
+
+    // Closed by default, with the real private folders named so no rule can ever open them.
+    expect($htaccess)->toContain('Require all denied')->toContain('(app|framework|logs|private)')
+        // The address /storage/... of the public disk is the only thing let through (Apache checks this file before the root rewrite).
+        ->toContain('Require all granted')->toContain('#/storage/#i');
+});
+
+it('does not ship uploaded or test files in the release package', function () {
+    $script = file_get_contents(base_path('docs/tools/build-release.sh'));
+
+    expect($script)->toContain("--exclude='./storage/app/public/*'")->toContain("--exclude='./storage/framework/testing'")->toContain('test_files');
+});

@@ -47,7 +47,6 @@ return [
     'main_menu' => 'Menu principal',
     'nutrition' => 'Valeurs nutritionnelles',
     'watch_video' => 'Regarder la vidéo',
-    'cta_title' => 'Un petit creux ?',
     'cta_text' => 'Touchez + sur un plat et commandez depuis votre téléphone.',
     'cta_table' => 'Touchez + sur un plat : direct en cuisine, sans attendre le serveur.',
 ];

@@ -145,9 +145,9 @@
     </header>
     {{-- Guest guidance: view-only menus say how to order; ordering menus invite the guest to start --}}
     @if (! empty($ordering['viewOnly']))
-        <aside class="mx-auto mt-4 max-w-3xl px-4" role="note"><div class="menu-card flex items-start gap-3 p-4"><x-ui.icon name="bell" size="6" class="menu-accent-text mt-0.5 shrink-0" /><div><p class="font-semibold">{{ __('orders.view_only_title') }}</p><p class="menu-muted mt-0.5 text-sm">{{ $ordering['message'] }}</p></div></div></aside>
+        <aside class="mx-auto mt-4 mb-9 max-w-3xl px-4" role="note"><div class="menu-card flex items-start gap-3 p-4"><x-ui.icon name="bell" size="6" class="menu-accent-text mt-0.5 shrink-0" /><div><p class="font-semibold">{{ __('orders.view_only_title') }}</p><p class="menu-muted mt-0.5 text-sm">{{ $ordering['message'] }}</p></div></div></aside>
     @elseif (! empty($ordering['accepting']))
-        <aside class="mx-auto mt-4 max-w-3xl px-4" role="note" x-show="count === 0" x-cloak><div class="menu-card flex items-center gap-3 p-3"><span class="menu-add !size-9 shrink-0" aria-hidden="true"><x-ui.icon name="plus" size="5" /></span><p class="text-sm"><span class="font-semibold">{{ __('customer.cta_title') }}</span> <span class="menu-muted">{{ ! empty($ordering['table']) ? __('customer.cta_table') : __('customer.cta_text') }}@if (! empty($ordering['wait'])) · {{ __('orders.wait_now', ['minutes' => $ordering['wait']]) }}@endif</span></p></div></aside>
+        <aside class="mx-auto mt-4 mb-9 max-w-3xl px-4" role="note" x-show="count === 0" x-cloak><div class="menu-card flex items-center gap-3 p-3"><span class="menu-add !size-9 shrink-0" aria-hidden="true"><x-ui.icon name="plus" size="5" /></span><p class="text-sm"><span class="menu-muted">{{ ! empty($ordering['table']) ? __('customer.cta_table') : __('customer.cta_text') }}@if (! empty($ordering['wait'])) · {{ __('orders.wait_now', ['minutes' => $ordering['wait']]) }}@endif</span></p></div></aside>
     @endif
 
 

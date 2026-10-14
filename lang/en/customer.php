@@ -47,7 +47,6 @@ return [
     'main_menu' => 'Main menu',
     'nutrition' => 'Nutrition',
     'watch_video' => 'Watch video',
-    'cta_title' => 'Hungry?',
     'cta_text' => 'Tap + on a dish and order right from your phone.',
     'cta_table' => 'Tap + on a dish — it goes straight to the kitchen, no waiting for the waiter.',
 ];

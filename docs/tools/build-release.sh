@@ -42,7 +42,7 @@ rm -rf "$STAGE" && mkdir -p "$SRC"
 tar -c \
   --exclude=./.git --exclude=./.github --exclude=./.claude --exclude=./.env --exclude='./.env.*' --exclude=./node_modules --exclude=./tests --exclude=./dist --exclude=./vendor \
   --exclude=./phpunit.xml --exclude=./AGENTS.md --exclude=./CLAUDE.md --exclude=./package-lock.json --exclude=./LICENSE.txt --exclude=./marketplace \
-  --exclude='./storage/logs/*' --exclude='./storage/framework/cache/*' --exclude='./storage/framework/sessions/*' --exclude='./storage/framework/views/*' \
+  --exclude='./storage/logs/*' --exclude='./storage/app/public/*' --exclude='./storage/framework/testing' --exclude='./storage/framework/cache/*' --exclude='./storage/framework/sessions/*' --exclude='./storage/framework/views/*' \
   --exclude=./storage/app/installed --exclude=./storage/app/addons.json --exclude=./storage/app/updates --exclude=./storage/app/addon-uploads --exclude=./storage/app/backups \
   --exclude='./database/*.sqlite' --exclude='./bootstrap/cache/*.php' --exclude=./public/storage --exclude=./public/hot . | tar -x -C "$SRC"
 cp .env.example "$SRC/.env.example"
@@ -52,7 +52,7 @@ echo "== Production dependencies (inside the staging folder)"
 
 echo "== Slimming vendor (git folders, tests, unused AWS services)"
 find "$SRC/vendor" -maxdepth 3 -name .git -type d -prune -exec rm -rf {} +
-for d in "$SRC"/vendor/*/*/; do for x in tests Tests test samples doc docs .github examples .changes build; do rm -rf "$d$x"; done; done
+for d in "$SRC"/vendor/*/*/; do for x in tests Tests test test_files samples doc docs .github examples .changes build; do rm -rf "$d$x"; done; done
 php -r '
 $src = $argv[1]."/vendor/aws/aws-sdk-php/src"; if (!is_dir($src)) exit;
 $keep = ["S3","Sts","Sso","SsoOidc","Ses","SesV2"]; $keepData = ["s3","sts","sso","sso-oidc","ses","sesv2"];
@@ -62,6 +62,7 @@ foreach (scandir($src) as $f) if ($f[0] !== "." && is_dir("$src/$f") && !in_arra
 ' "$SRC"
 (cd "$SRC" && composer dump-autoload --no-dev --optimize --no-scripts --quiet)
 mkdir -p "$SRC/storage/logs" "$SRC/storage/framework/"{cache,sessions,views} "$SRC/bootstrap/cache"
+mkdir -p "$SRC/storage/app/public"; cp storage/app/public/.gitignore "$SRC/storage/app/public/.gitignore"
 touch "$SRC/storage/logs/.gitignore" "$SRC/bootstrap/cache/.gitignore"
 
 echo "== Documentation and licence files"

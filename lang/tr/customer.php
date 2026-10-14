@@ -76,7 +76,6 @@ return [
     'main_menu' => 'Ana menü',
     'nutrition' => 'Besin değerleri',
     'watch_video' => 'Videoyu izle',
-    'cta_title' => 'Acıktınız mı?',
     'cta_text' => 'Bir yemekte + düğmesine dokunun, siparişi telefonunuzdan verin.',
     'cta_table' => 'Bir yemekte + düğmesine dokunun, sipariş doğrudan mutfağa gider, garson beklemezsiniz.',
 ];

@@ -47,7 +47,6 @@ return [
     'main_menu' => 'Menú principal',
     'nutrition' => 'Nutrición',
     'watch_video' => 'Ver video',
-    'cta_title' => '¿Hambre?',
     'cta_text' => 'Toque + en un plato y pida desde su móvil.',
     'cta_table' => 'Toque + en un plato: va directo a cocina, sin esperar al camarero.',
 ];

@@ -136,7 +136,6 @@ return [
     'main_menu' => 'Əsas menyu',
     'nutrition' => 'Qida dəyəri',
     'watch_video' => 'Videoya bax',
-    'cta_title' => 'Acsınız?',
     'cta_text' => 'Yeməkdə + düyməsinə toxunun, sifarişi telefondan verin.',
     'cta_table' => 'Yeməkdə + düyməsinə toxunun, sifariş birbaşa mətbəxə gedir, ofisiantı gözləmirsiniz.',
 ];
