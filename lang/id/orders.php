@@ -18,6 +18,7 @@ return [
     'error_busy' => 'Kami sedang sangat sibuk. Silakan coba lagi sebentar lagi.',
     'error_invalid_transition' => 'Pesanan ini tidak dapat berpindah ke langkah itu.',
     'error_cannot_pay' => 'Pesanan ini tidak dapat ditandai sebagai dibayar.',
+    'error_payment_pending' => 'Pembayaran untuk tagihan ini sedang berlangsung. Selesaikan atau coba lagi dalam beberapa menit.',
     'error_cannot_cancel' => 'Pesanan ini tidak dapat dibatalkan lagi.',
     'cancelled_by_guest' => 'Dibatalkan oleh tamu',
     'updated' => 'Pesanan diperbarui.',

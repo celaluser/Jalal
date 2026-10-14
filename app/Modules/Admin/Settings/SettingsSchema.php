@@ -79,6 +79,7 @@ final class SettingsSchema
                     ['name' => 'turnstile_secret', 'key' => 'security.turnstile_secret', 'type' => 'secret', 'label' => 'admin.settings.security.turnstile_secret', 'rules' => ['nullable', 'string', 'max:200']],
                     ['name' => 'csp', 'key' => 'security.csp', 'type' => 'select', 'label' => 'admin.settings.security.csp', 'help' => 'admin.settings.security.csp_help', 'default' => 'off', 'options' => ['off' => __('admin.settings.security.csp_off'), 'report' => __('admin.settings.security.csp_report'), 'enforce' => __('admin.settings.security.csp_enforce')], 'rules' => ['nullable', 'in:off,report,enforce']],
                     ['name' => 'csp_hosts', 'key' => 'security.csp_hosts', 'type' => 'textarea', 'label' => 'admin.settings.security.csp_hosts', 'help' => 'admin.settings.security.csp_hosts_help', 'rules' => ['nullable', 'string', 'max:1000']],
+                    ['name' => 'impersonation_consent', 'key' => 'security.impersonation_consent', 'type' => 'toggle', 'label' => 'support_access.consent_setting', 'help' => 'support_access.consent_help'],
                     ['name' => 'cookie_banner', 'key' => 'security.cookie_banner', 'type' => 'toggle', 'label' => 'admin.settings.security.cookie_banner', 'default' => '1'],
                     ['name' => 'cookie_text', 'key' => 'security.cookie_text', 'type' => 'textarea', 'label' => 'admin.settings.security.cookie_text', 'rules' => ['nullable', 'string', 'max:500']],
                 ],

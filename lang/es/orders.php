@@ -18,6 +18,7 @@ return [
     'error_busy' => 'Tenemos mucha demanda ahora mismo. Por favor, inténtalo de nuevo en un momento.',
     'error_invalid_transition' => 'Este pedido no puede pasar a ese paso.',
     'error_cannot_pay' => 'Este pedido no se puede marcar como pagado.',
+    'error_payment_pending' => 'Ya hay un pago en curso para esta cuenta. Termínalo o inténtalo de nuevo en unos minutos.',
     'error_cannot_cancel' => 'Este pedido ya no se puede cancelar.',
     'cancelled_by_guest' => 'Cancelado por el cliente',
     'updated' => 'Pedido actualizado.',

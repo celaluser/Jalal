@@ -21,6 +21,7 @@ return [
     'error_busy' => 'Şu anda çok yoğunuz. Lütfen biraz sonra tekrar deneyin.',
     'error_invalid_transition' => 'Bu sipariş o adıma geçemez.',
     'error_cannot_pay' => 'Bu sipariş ödendi olarak işaretlenemez.',
+    'error_payment_pending' => 'Bu hesap için zaten bir ödeme sürüyor. Onu tamamlayın veya birkaç dakika sonra tekrar deneyin.',
     'error_cannot_cancel' => 'Bu sipariş artık iptal edilemez.',
     'cancelled_by_guest' => 'Misafir tarafından iptal edildi',
     'updated' => 'Sipariş güncellendi.',

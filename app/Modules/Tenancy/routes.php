@@ -4,6 +4,7 @@ use App\Modules\Core\Http\Middleware\SetLocale;
 use App\Modules\Tenancy\Http\Controllers\DomainController;
 use App\Modules\Tenancy\Http\Controllers\OnboardingController;
 use App\Modules\Tenancy\Http\Controllers\RestaurantSettingsController;
+use App\Modules\Tenancy\Http\Controllers\SupportAccessController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', 'permission:settings.manage'])->group(function () {
@@ -15,6 +16,9 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
     Route::get('/settings/restaurant', [RestaurantSettingsController::class, 'edit'])->name('restaurant.settings');
     Route::put('/settings/restaurant/profile', [RestaurantSettingsController::class, 'updateProfile'])->name('restaurant.settings.profile');
     Route::post('/settings/restaurant/branding', [RestaurantSettingsController::class, 'updateBranding'])->middleware('throttle:20,1')->name('restaurant.settings.branding');
+
+    Route::post('/settings/support-access', [SupportAccessController::class, 'grant'])->middleware('throttle:10,1')->name('support-access.grant');
+    Route::delete('/settings/support-access', [SupportAccessController::class, 'withdraw'])->name('support-access.withdraw');
 
     Route::get('/settings/domains', [DomainController::class, 'index'])->name('domains.index');
     Route::put('/settings/domains/subdomain', [DomainController::class, 'subdomain'])->middleware('throttle:20,1')->name('domains.subdomain');

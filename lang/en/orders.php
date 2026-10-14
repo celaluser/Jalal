@@ -18,6 +18,7 @@ return [
     'error_busy' => 'We are very busy right now. Please try again in a moment.',
     'error_invalid_transition' => 'This order cannot move to that step.',
     'error_cannot_pay' => 'This order cannot be marked as paid.',
+    'error_payment_pending' => 'A payment for this bill is already in progress. Finish it, or try again in a few minutes.',
     'error_cannot_cancel' => 'This order can no longer be cancelled.',
     'cancelled_by_guest' => 'Cancelled by the guest',
     'updated' => 'Order updated.',

@@ -186,8 +186,12 @@ it('splits the bill equally, takes any amount, and validates the input', functio
     opStripe($r);
     $order = opOrder($r, $d, [], 3); // $60.00
     $url = '/r/'.$r->slug.'/order/'.$order->token.'/pay';
+    // Earlier checkouts that were never finished stop counting after a while (here: pretend an hour passed between the taps).
+    $stale = fn () => app(TenantContext::class)->runAs($r, fn () => OrderPayment::query()->update(['created_at' => now()->subHour()]));
     $this->postJson($url, ['gateway' => 'stripe', 'mode' => 'split', 'people' => 4, 'tip_percent' => 0])->assertOk();
+    $stale();
     $this->postJson($url, ['gateway' => 'stripe', 'mode' => 'custom', 'amount' => '12.34', 'tip' => '1.5'])->assertOk();
+    $stale();
     $this->postJson($url, ['gateway' => 'stripe', 'mode' => 'custom', 'amount' => '9999'])->assertOk(); // capped at what is owed
     $rows = app(TenantContext::class)->runAs($r, fn () => OrderPayment::orderBy('id')->get());
     expect($rows->pluck('amount_cents')->all())->toBe([1500, 1234, 6000])->and($rows[1]->tip_cents)->toBe(150);
@@ -363,4 +367,20 @@ it('renders the pay box on the status page', function () {
     $order = opOrder($r, $d);
     $this->get('/r/'.$r->slug.'/order/'.$order->token.'?pay=1')->assertOk()->assertSee(__('orders.pay_now'))->assertSee(__('orders.pay_split'))->assertSee(__('orders.tip'));
     $this->get('/r/'.$r->slug)->assertOk()->assertSee(__('orders.pay_online'));
+});
+
+it('does not let two open checkouts add up to more than the bill, but lets guests pay their shares together', function () {
+    Http::fake(['api.stripe.com/v1/checkout/sessions' => Http::response(['id' => 'cs_1', 'url' => 'https://checkout.stripe.test/c'])]);
+    [$r, , $d] = opShop();
+    opStripe($r);
+    $order = opOrder($r, $d, [], 3); // $60.00
+    $url = '/r/'.$r->slug.'/order/'.$order->token.'/pay';
+
+    // Four guests each pay a quarter at the same moment: fine.
+    foreach (range(1, 4) as $i) {
+        $this->postJson($url, ['gateway' => 'stripe', 'mode' => 'split', 'people' => 4])->assertOk();
+    }
+
+    // The whole bill is already spoken for by open checkouts: a fifth (or a double tap on "pay all") is refused.
+    $this->postJson($url, ['gateway' => 'stripe', 'mode' => 'full'])->assertStatus(422)->assertJsonPath('error', 'payment_pending');
 });

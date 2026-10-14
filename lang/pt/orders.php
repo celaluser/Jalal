@@ -18,6 +18,7 @@ return [
     'error_busy' => 'Estamos com muito movimento agora. Tente novamente em instantes.',
     'error_invalid_transition' => 'Este pedido não pode passar para essa etapa.',
     'error_cannot_pay' => 'Este pedido não pode ser marcado como pago.',
+    'error_payment_pending' => 'Já há um pagamento em andamento para esta conta. Conclua-o ou tente novamente em alguns minutos.',
     'error_cannot_cancel' => 'Este pedido não pode mais ser cancelado.',
     'cancelled_by_guest' => 'Cancelado pelo cliente',
     'updated' => 'Pedido atualizado.',

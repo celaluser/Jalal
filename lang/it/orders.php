@@ -18,6 +18,7 @@ return [
     'error_busy' => 'Siamo molto impegnati al momento. Riprova tra un attimo.',
     'error_invalid_transition' => 'Questo ordine non può passare a quel passaggio.',
     'error_cannot_pay' => 'Questo ordine non può essere segnato come pagato.',
+    'error_payment_pending' => 'Per questo conto c\'è già un pagamento in corso. Completalo o riprova tra qualche minuto.',
     'error_cannot_cancel' => 'Questo ordine non può più essere annullato.',
     'cancelled_by_guest' => 'Annullato dall\'ospite',
     'updated' => 'Ordine aggiornato.',

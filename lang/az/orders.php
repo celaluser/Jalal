@@ -21,6 +21,7 @@ return [
     'error_busy' => 'Hazırda çox məşğuluq. Bir azdan yenidən cəhd edin.',
     'error_invalid_transition' => 'Bu sifariş həmin addıma keçə bilməz.',
     'error_cannot_pay' => 'Bu sifariş ödənilmiş kimi qeyd edilə bilməz.',
+    'error_payment_pending' => 'Bu hesab üçün artıq ödəniş davam edir. Onu tamamlayın və ya bir neçə dəqiqə sonra yenidən cəhd edin.',
     'error_cannot_cancel' => 'Bu sifariş artıq ləğv edilə bilməz.',
     'cancelled_by_guest' => 'Qonaq tərəfindən ləğv edildi',
     'updated' => 'Sifariş yeniləndi.',

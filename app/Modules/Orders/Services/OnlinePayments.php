@@ -48,6 +48,18 @@ class OnlinePayments
         $rows = DB::transaction(function () use ($allocations, $tipCents, $code) {
             $rows = [];
 
+            // Two checkouts open at once must not add up to more than the bill (two tabs, a double tap): what other
+            // checkouts of the last 15 minutes already hold counts against what is still owed. Several guests may still
+            // each pay their own share at the same time.
+            foreach ($allocations as $orderId => $cents) {
+                $order = Order::whereKey($orderId)->lockForUpdate()->first();
+                $held = (int) OrderPayment::where('order_id', $orderId)->where('status', OrderPayment::PENDING)->whereNotNull('gateway')->where('created_at', '>=', now()->subMinutes(15))->sum('amount_cents');
+
+                if (! $order || $held + $cents > $this->ledger->remaining($order)) {
+                    throw new OrderException('payment_pending');
+                }
+            }
+
             foreach ($allocations as $orderId => $cents) {
                 $rows[] = OrderPayment::create([
                     'order_id' => $orderId, 'method' => 'online', 'gateway' => $code, 'amount_cents' => $cents,

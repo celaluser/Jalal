@@ -18,6 +18,7 @@ return [
     'error_busy' => 'Gerade ist sehr viel los. Bitte versuchen Sie es gleich noch einmal.',
     'error_invalid_transition' => 'Diese Bestellung kann nicht in diesen Schritt wechseln.',
     'error_cannot_pay' => 'Diese Bestellung kann nicht als bezahlt markiert werden.',
+    'error_payment_pending' => 'Für diese Rechnung läuft bereits eine Zahlung. Schließen Sie sie ab oder versuchen Sie es in ein paar Minuten erneut.',
     'error_cannot_cancel' => 'Diese Bestellung kann nicht mehr storniert werden.',
     'cancelled_by_guest' => 'Vom Gast storniert',
     'updated' => 'Bestellung aktualisiert.',

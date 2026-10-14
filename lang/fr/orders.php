@@ -18,6 +18,7 @@ return [
     'error_busy' => 'Nous sommes très sollicités en ce moment. Veuillez réessayer dans un instant.',
     'error_invalid_transition' => 'Cette commande ne peut pas passer à cette étape.',
     'error_cannot_pay' => 'Cette commande ne peut pas être marquée comme payée.',
+    'error_payment_pending' => 'Un paiement est déjà en cours pour cette addition. Terminez-le ou réessayez dans quelques minutes.',
     'error_cannot_cancel' => 'Cette commande ne peut plus être annulée.',
     'cancelled_by_guest' => 'Annulée par le client',
     'updated' => 'Commande mise à jour.',

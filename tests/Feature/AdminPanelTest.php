@@ -168,6 +168,29 @@ describe('impersonation', function () {
         $this->get('/dashboard')->assertDontSee(__('admin.impersonate.stop'));
     });
 
+    it('needs the owner to allow support access when the platform asks for consent', function () {
+        app(SettingsService::class)->set('security.impersonation_consent', '1');
+        $r = Restaurant::create(['name' => 'Target', 'slug' => 'target']);
+        $owner = owner($r);
+
+        $this->actingAs($this->admin)->post("/admin/restaurants/{$r->id}/impersonate")->assertForbidden();
+        $this->assertAuthenticatedAs($this->admin);
+
+        // The owner opens the door for a day...
+        $this->actingAs($owner)->get(route('restaurant.settings'))->assertOk()->assertSee(__('support_access.card_title'))->assertSee(__('support_access.allow'));
+        $this->actingAs($owner)->post(route('support-access.grant'))->assertRedirect();
+        $this->actingAs($this->admin)->post("/admin/restaurants/{$r->id}/impersonate")->assertRedirect(route('dashboard'));
+        $this->post('/impersonation/stop')->assertRedirect(route('admin.dashboard'));
+
+        // ...and can close it again.
+        $this->actingAs($owner)->delete(route('support-access.withdraw'))->assertRedirect();
+        $this->actingAs($this->admin)->post("/admin/restaurants/{$r->id}/impersonate")->assertForbidden();
+
+        // The grant also lapses on its own.
+        app(SettingsService::class)->set('support.access_until', (string) now()->subMinute()->getTimestamp(), $r->id);
+        $this->actingAs($this->admin)->post("/admin/restaurants/{$r->id}/impersonate")->assertForbidden();
+    });
+
     it('refuses suspended restaurants and ownerless ones, and cannot be nested', function () {
         $suspended = Restaurant::create(['name' => 'S', 'slug' => 's', 'status' => 'suspended']);
         owner($suspended);

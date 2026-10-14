@@ -18,6 +18,7 @@ return [
     'error_busy' => '我们现在非常繁忙，请稍后再试。',
     'error_invalid_transition' => '此订单无法进入该步骤。',
     'error_cannot_pay' => '此订单无法标记为已付。',
+    'error_payment_pending' => '此账单已有一笔付款正在进行。请先完成，或几分钟后再试。',
     'error_cannot_cancel' => '此订单已无法取消。',
     'cancelled_by_guest' => '顾客已取消',
     'updated' => '订单已更新。',

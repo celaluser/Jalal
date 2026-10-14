@@ -5,6 +5,7 @@ namespace App\Modules\Admin\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Tenancy\Models\Restaurant;
+use App\Modules\Tenancy\Services\SupportAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,6 +23,7 @@ class ImpersonationController extends Controller
 
         abort_if($owner === null || ! $owner->restaurant_id || $restaurant->isSuspended(), 422, __('admin.impersonate.unavailable'));
         abort_if($request->session()->has('impersonator_id'), 422, __('admin.impersonate.already'));
+        abort_unless(app(SupportAccess::class)->allowed($restaurant), 403, __('support_access.blocked'));
 
         $admin = $request->user();
 
