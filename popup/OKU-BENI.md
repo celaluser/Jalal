@@ -104,3 +104,18 @@ okunmasını engeller — kurulu olduklarından emin ol.
 - PHP 8.x öneririm — 7.4 güvenlik yaması almıyor.
 
 Panelin nasıl kullanılacağı ve tüm özellikler için: **KURULUM.md**
+
+---
+
+## Kendi popup tasarımını yapmak
+
+Panel → **Şablonlar** → bir yerleşim ya da renk şablonu seç → **Kullan**.
+Açılan formda:
+
+- **İçerik** sekmesi: başlık, açıklama, buton, kupon, geri sayım, ikon, liste.
+- **Stil** sekmesi: yerleşim (alt panel, yan panel, şerit, çark, kazıma kartı…), renk şablonu ve
+  **Özel tasarım** anahtarı. Anahtarı açınca renkler, ölçüler, kenarlık, gölge, hizalama, karartma,
+  animasyon ve istersen kendi CSS'ini yazabilirsin. Üstteki **canlı önizleme** kaydetmeden gösterir.
+- Özel tasarım **kapalıysa** seçili şablonun hazır ayarları kullanılır.
+
+Güncelleme sonrası panelde **"Şimdi güncelle"** butonuna bas.

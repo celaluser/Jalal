@@ -457,6 +457,24 @@
         css += c + ".igfp-frame{max-width:400px}";
         break;
     }
+    /* ---- kullanicinin ozel tasarim ayarlari (panel > Stil) ---- */
+    var u = p.style || {}, fixed = (l === "topbar" || l === "stickybar" || l === "full");
+    if (u.w && !fixed) css += c + ".igfp-frame{max-width:" + u.w + "px}";
+    if (u.pad != null) css += (l === "split" ? c + ".igfp-in" : c + ".igfp-box") + "{padding:" + u.pad + "px}";
+    if (u.tsz) css += c + ".igfp-h{font-size:" + u.tsz + "px}";
+    if (u.ssz) css += c + ".igfp-sub{font-size:" + u.ssz + "px}";
+    if (u.bsz) css += c + ".igfp-btn{font-size:" + u.bsz + "px}";
+    if (u.br != null) css += c + ".igfp-btn{border-radius:" + u.br + "px}";
+    if (u.bw != null) css += c + ".igfp-box{border:" + u.bw + "px solid " + (u.bc || "rgba(128,128,128,.4)") + "}";
+    else if (u.bc) css += c + ".igfp-box{border-color:" + u.bc + "}";
+    if (u.sh) css += c + ".igfp-box{box-shadow:" + (u.sh === "none" ? "none" : u.sh === "soft" ? "0 10px 30px rgba(0,0,0,.25)" : "0 30px 80px rgba(0,0,0,.65)") + "}";
+    if (u.al) css += c + ".igfp-box,"+ c + ".igfp-in{text-align:" + u.al + "}" + (u.al === "left" ? c + ".igfp-sub{margin-left:0}" : u.al === "right" ? c + ".igfp-sub{margin-left:auto;margin-right:0}" : "");
+    if (u.ov != null && !NONMODAL[l]) css += ".igfp-ov." + pk(p) + "{background:rgba(8,6,16," + (u.ov / 100) + ")}";
+    if (u.anim && { "": 1, split: 1, wheel: 1, scratch: 1, steps: 1 }[l]) {
+      var from = u.anim === "fade" ? "none" : u.anim === "slide" ? "translateY(50px)" : u.anim === "zoom" ? "scale(.8)" : "scale(.6)";
+      css += c + ".igfp-frame{transform:" + from + ";opacity:0;transition:transform .45s " + (u.anim === "bounce" ? "cubic-bezier(.34,1.56,.64,1)" : "cubic-bezier(.2,.9,.3,1)") + ",opacity .35s ease}" + on + ".igfp-frame{transform:none;opacity:1}";
+    }
+    if (u.css) css += u.css;
     return css;
   }
   var skinDone = {};

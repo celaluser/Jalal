@@ -955,7 +955,13 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
           <div class="row"><div class="lbl">Kupon etiketi</div><input type="text" name="coupon_label" placeholder="Bu kodu kullan:"></div>
         </div></div>
 
-        <div data-sec="stil" hidden><div class="rows">
+        <div data-sec="stil" hidden>
+          <div class="livepv">
+            <div class="livepv-bar"><b>Canlı önizleme</b><span class="hint" style="margin:0">Kaydetmeden, yaptığın her değişikliği gösterir</span>
+              <span class="livepv-sw"><button type="button" class="btn sec sm on" data-pvw="100%">Masaüstü</button><button type="button" class="btn sec sm" data-pvw="375px">Telefon</button></span></div>
+            <div class="livepv-box"><iframe id="livepv" title="Canlı önizleme" sandbox="allow-scripts"></iframe></div>
+          </div>
+          <div class="rows">
           <div class="row"><div class="lbl">Yerleşim<small>Popup'ın ekrandaki biçimi</small></div>
             <select name="layout" data-lay-sel><option value="">Klasik pencere (ortada)</option>
               <?php foreach (popup_layouts() as $lk => $ln): ?><option value="<?= h($lk) ?>"><?= h($ln) ?></option><?php endforeach; ?></select></div>
@@ -966,7 +972,7 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
             <textarea name="prizes" placeholder="5% | CARX5&#10;10% | CARX10&#10;Heç nə |"></textarea></div>
           <div class="row" data-lay="steps"><div class="lbl">Adımlar<small>Her satıra: <code>Soru :: Seçenek1, Seçenek2</code> (en çok 4 adım). Son ekranda İçerik sekmesindeki metin ve buton gelir.</small></div>
             <textarea name="steps" placeholder="Hansı platforma lazımdır? :: Instagram, TikTok, YouTube"></textarea></div>
-          <div class="row"><div class="lbl">Renkleri özelleştir<small>Kapalıysa seçili şablonun renkleri kullanılır</small></div>
+          <div class="row"><div class="lbl">Özel tasarım<small>Kapalıysa seçili şablonun hazır ayarları kullanılır. Açınca aşağıdakilerin hepsini istediğin gibi değiştirebilirsin.</small></div>
             <label class="sw"><input type="checkbox" name="st_on" data-toggle="stil"><i></i></label></div>
           <div data-box="stil" hidden>
           <div class="row"><div class="lbl">Arka plan<small>Renk ya da gradyan</small></div>
@@ -982,6 +988,24 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
           <div class="row"><div class="lbl">Rozet yazısı</div>
             <div class="colr"><input type="color" data-cp aria-label="Rozet yazısı"><input type="text" name="st_bf" placeholder="Şablon rengi"></div></div>
             <div class="row"><div class="lbl">Köşe yuvarlaklığı<small>px · 0–60</small></div><input type="number" name="st_r" min="0" max="60" placeholder="20"></div>
+            <div class="grp">Ölçüler</div>
+            <div class="row"><div class="lbl">Genişlik<small>px · 200–1000</small></div><input type="number" name="st_w" min="200" max="1000" placeholder="380"></div>
+            <div class="row"><div class="lbl">İç boşluk<small>px · 0–80</small></div><input type="number" name="st_pad" min="0" max="80" placeholder="28"></div>
+            <div class="row"><div class="lbl">Başlık boyutu<small>px</small></div><input type="number" name="st_tsz" min="10" max="64" placeholder="23"></div>
+            <div class="row"><div class="lbl">Açıklama boyutu<small>px</small></div><input type="number" name="st_ssz" min="9" max="32" placeholder="14"></div>
+            <div class="row"><div class="lbl">Buton yazı boyutu<small>px</small></div><input type="number" name="st_bsz" min="10" max="28" placeholder="14"></div>
+            <div class="row"><div class="lbl">Buton köşesi<small>px · 0–60</small></div><input type="number" name="st_br" min="0" max="60" placeholder="12"></div>
+            <div class="grp">Kenarlık, gölge, hizalama</div>
+            <div class="row"><div class="lbl">Kenarlık kalınlığı<small>px · 0–12</small></div><input type="number" name="st_bw" min="0" max="12" placeholder="0"></div>
+            <div class="row"><div class="lbl">Kenarlık rengi</div><div class="colr"><input type="color" data-cp aria-label="Kenarlık rengi"><input type="text" name="st_bc" placeholder="Şablon rengi"></div></div>
+            <div class="row"><div class="lbl">Gölge</div><select name="st_sh"><option value="">Şablondaki</option><option value="none">Yok</option><option value="soft">Hafif</option><option value="strong">Güçlü</option></select></div>
+            <div class="row"><div class="lbl">Yazı hizası</div><select name="st_al"><option value="">Şablondaki</option><option value="left">Sol</option><option value="center">Orta</option><option value="right">Sağ</option></select></div>
+            <div class="grp">Efekt</div>
+            <div class="row"><div class="lbl">Arka plan karartma<small>% · 0–95 (şerit ve yüzen düğmede yok)</small></div><input type="number" name="st_ov" min="0" max="95" placeholder="62"></div>
+            <div class="row"><div class="lbl">Açılış animasyonu</div><select name="st_anim"><option value="">Varsayılan</option><option value="fade">Solarak</option><option value="slide">Aşağıdan kayarak</option><option value="zoom">Büyüyerek</option><option value="bounce">Zıplayarak</option></select></div>
+            <div class="grp">Gelişmiş</div>
+            <div class="row"><div class="lbl">Özel CSS<small>İstersen kendi kodun. Sınıflar: <code>.igfp-box</code> <code>.igfp-h</code> <code>.igfp-sub</code> <code>.igfp-btn</code> <code>.igfp-badge</code> <code>.igfp-x</code></small></div>
+              <textarea name="st_css" spellcheck="false" placeholder=".igfp-h{text-shadow:0 2px 8px #0008}"></textarea></div>
           </div>
         </div></div>
 
@@ -1129,6 +1153,32 @@ var PDATA = {
     if (t.matches('[data-cp]')) t.parentNode.querySelector('input[type=text]').value = t.value;
     else syncCp(t.parentNode.querySelector('[data-cp]'));
   });
+
+  /* ---------- canlı önizleme (Stil sekmesi) ---------- */
+  var pvT = null, pvFrame = document.getElementById('livepv');
+  function livePreview() {
+    var mdl = document.getElementById('m-manual');
+    if (!pvFrame || !mdl || mdl.hidden) return;
+    var sec = mdl.querySelector('[data-sec="stil"]'); if (!sec || sec.hidden) return;
+    var fd = new FormData(mdl.querySelector('form'));
+    fetch('preview-live.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (r) { return r.text(); })
+      .then(function (h) { pvFrame.srcdoc = h; })
+      .catch(function () {});
+  }
+  function livePreviewSoon() { clearTimeout(pvT); pvT = setTimeout(livePreview, 350); }
+  var mm = document.getElementById('m-manual');
+  if (mm) {
+    mm.addEventListener('input', livePreviewSoon);
+    mm.addEventListener('change', livePreviewSoon);
+    mm.querySelectorAll('.mdl-tabs button').forEach(function (b) { b.addEventListener('click', function () { if (b.dataset.s === 'stil') livePreviewSoon(); }); });
+    mm.querySelectorAll('[data-pvw]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        mm.querySelectorAll('[data-pvw]').forEach(function (x) { x.classList.toggle('on', x === b); });
+        pvFrame.style.width = b.dataset.pvw; pvFrame.style.margin = '0 auto';
+      });
+    });
+  }
   document.querySelectorAll('[data-lay-use]').forEach(function (b) {
     b.addEventListener('click', function () {
       var k = b.dataset.layUse, t = PDATA.laytpls[k]; if (!t) return;

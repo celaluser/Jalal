@@ -308,6 +308,12 @@ body.mdl-open{overflow:hidden}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
 .grid2 > .card{margin-bottom:0}
 [hidden]{display:none!important}
+.livepv{position:sticky;top:0;z-index:5;background:var(--surface,#13131c);box-shadow:0 -24px 0 var(--surface,#13131c);padding:0 0 12px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+.livepv-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;font-size:13px}.livepv-sw{margin-left:auto;display:flex;gap:6px}
+.livepv-sw .btn.on{background:var(--line2);color:var(--tx)}
+.livepv-box{border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:#0a0a11}
+#livepv{display:block;width:100%;height:300px;border:0;transition:width .2s}
+.grp{margin:16px 0 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
 .colr{display:flex;gap:8px;align-items:center}.colr input[type=color]{width:42px;height:36px;padding:2px;border-radius:8px;flex:none;cursor:pointer}.colr input[type=text]{flex:1;min-width:0}
 </style>
 

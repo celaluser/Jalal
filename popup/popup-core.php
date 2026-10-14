@@ -136,6 +136,34 @@ function popup_layout_tpls(): array {
     ];
 }
 
+/** Panel formundan (POST) manuel popup içerik + görünüm alanlarını topla */
+function popup_manual_fields_from(array $in): array {
+    $g = function ($k) use ($in) { return trim((string) ($in[$k] ?? '')); };
+    $stOn = isset($in['st_on']) && $in['st_on'] !== '0';
+    $st = [];
+    foreach (['bg', 'fg', 'btn', 'btnf', 'bb', 'bf', 'bc', 'r', 'w', 'pad', 'tsz', 'ssz', 'bsz', 'br', 'bw', 'ov', 'sh', 'al', 'anim', 'css'] as $k) {
+        $st[$k] = (string) ($in['st_' . $k] ?? '');
+    }
+    return [
+        'badge'        => $g('badge'),
+        'skin'         => popup_skin_valid($g('skin')),
+        'layout'       => popup_layout_valid($g('layout')),
+        'prizes'       => $g('prizes'),
+        'steps'        => $g('steps'),
+        'style'        => $stOn ? popup_norm_style($st) : null,
+        'icon'         => $g('icon'),
+        'items'        => $g('items'),
+        'title'        => $g('title'),
+        'subtitle'     => $g('subtitle'),
+        'image'        => $g('image'),
+        'btn_text'     => $g('btn_text'),
+        'btn_url'      => $g('btn_url'),
+        'countdown'    => $g('countdown'),
+        'coupon'       => $g('coupon'),
+        'coupon_label' => $g('coupon_label'),
+    ];
+}
+
 /** Güvenli CSS değeri (renk / gradyan). Geçersizse ''. */
 function popup_css_val($v): string {
     $v = trim((string) $v);
@@ -148,10 +176,26 @@ function popup_css_val($v): string {
 function popup_norm_style($v): ?array {
     if (!is_array($v)) return null;
     $o = [];
-    foreach (['bg', 'fg', 'btn', 'btnf', 'bb', 'bf'] as $k) {
+    foreach (['bg', 'fg', 'btn', 'btnf', 'bb', 'bf', 'bc'] as $k) {
         $c = popup_css_val($v[$k] ?? ''); if ($c !== '') $o[$k] = $c;
     }
     if (isset($v['r']) && $v['r'] !== '' && is_numeric($v['r'])) $o['r'] = max(0, min(60, (int) $v['r'])) . 'px';
+    // sayısal ölçüler: anahtar => [min, max]
+    foreach (['w' => [200, 1000], 'pad' => [0, 80], 'tsz' => [10, 64], 'ssz' => [9, 32], 'bsz' => [10, 28],
+              'br' => [0, 60], 'bw' => [0, 12], 'ov' => [0, 95]] as $k => $mm) {
+        if (isset($v[$k]) && $v[$k] !== '' && is_numeric($v[$k])) $o[$k] = max($mm[0], min($mm[1], (int) $v[$k]));
+    }
+    foreach (['sh' => ['none', 'soft', 'strong'], 'al' => ['left', 'center', 'right'], 'anim' => ['fade', 'slide', 'zoom', 'bounce']] as $k => $ok) {
+        if (isset($v[$k]) && in_array($v[$k], $ok, true)) $o[$k] = $v[$k];
+    }
+    $css = trim((string) ($v['css'] ?? ''));
+    if ($css !== '') {   // sadece panel sahibi yazar; yine de HTML/içe aktarma kapalı
+        $css = str_replace(['</', '<!--', '-->'], '', $css);
+        $css = preg_replace('/@import[^;]*;?/i', '', $css);
+        $css = preg_replace('/expression\s*\(|javascript:/i', '', $css);
+        $css = trim(mb_substr($css, 0, 3000));
+        if ($css !== '') $o['css'] = $css;
+    }
     return $o ?: null;
 }
 /** Çark/kazıma: "Etiket | KOD" satırları */
@@ -950,6 +994,24 @@ function popup_version_record(string $vid, array $p): void {
     popup_write_atomic($f, json_encode($all, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 }
 
+/** Şablon JS'ine popup/ayar/renk-şablonu verisini gömer (embed.js ve canlı önizleme ortak kullanır) */
+function popup_embed_js(string $tpl, array $popups, array $client): string {
+    $enc = function ($v) {
+        $s = json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return str_replace(['</', '<!--'], ['<\\/', '<\\u0021--'], $s);
+    };
+    $js = str_replace('var POPUPS = null;',   'var POPUPS = '   . $enc(array_values($popups)) . ';', $tpl);
+    $js = str_replace('var SETTINGS = null;', 'var SETTINGS = ' . $enc($client) . ';', $js);
+    $skinCss = [];
+    $need = [];   // embed.js'i hafif tut: sadece kullanilan sablonlar gomulur
+    foreach ($popups as $pp) {
+        if (!empty($pp['skin'])) $need[$pp['skin']] = 1;
+        elseif (!empty($pp['layout']) || !empty($pp['style'])) $need['sk01'] = 1;
+    }
+    foreach (popup_skins() as $k => $v) { if (!isset($need[$k])) continue; unset($v['t'], $v['n']); $skinCss[$k] = $v; }
+    return str_replace('var SKINS = null;', 'var SKINS = ' . $enc($skinCss) . ';', $js);
+}
+
 /* ---------------- YAYINLA ---------------- */
 function popup_publish(array $c, array $popups, array $autos): array {
     $p = popup_paths();
@@ -972,24 +1034,9 @@ function popup_publish(array $c, array $popups, array $autos): array {
         return ['ok' => false, 'msg' => 'popup-template.js eski surum (POPUPS/SETTINGS satiri yok)'];
     }
 
-    $enc = function ($v) {
-        $s = json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        return str_replace(['</', '<!--'], ['<\\/', '<\\u0021--'], $s);
-    };
-
     $client = $c['client'];
     $client['enabled'] = !empty($c['enabled']);
-
-    $js = str_replace('var POPUPS = null;',   'var POPUPS = '   . $enc(array_values($popups)) . ';', $tpl);
-    $js = str_replace('var SETTINGS = null;', 'var SETTINGS = ' . $enc($client) . ';', $js);
-    $skinCss = [];
-    $need = [];   // embed.js'i hafif tut: sadece kullanilan sablonlar gomulur
-    foreach ($popups as $pp) {
-        if (!empty($pp['skin'])) $need[$pp['skin']] = 1;
-        elseif (!empty($pp['layout']) || !empty($pp['style'])) $need['sk01'] = 1;
-    }
-    foreach (popup_skins() as $k => $v) { if (!isset($need[$k])) continue; unset($v['t'], $v['n']); $skinCss[$k] = $v; }
-    $js = str_replace('var SKINS = null;', 'var SKINS = ' . $enc($skinCss) . ';', $js);
+    $js = popup_embed_js($tpl, $popups, $client);
     $js = "/* Otomatik uretildi: " . date('Y-m-d H:i:s') . " — elle duzenlemeyin. */\n" . $js;
 
     if (!popup_write_atomic($p['embed'], $js)) return ['ok' => false, 'msg' => 'embed.js yazilamadi'];

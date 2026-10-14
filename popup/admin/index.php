@@ -245,6 +245,19 @@ function form_data(array $p, bool $isAuto): array {
             'st_bb'        => (string) ($p['style']['bb'] ?? ''),
             'st_bf'        => (string) ($p['style']['bf'] ?? ''),
             'st_r'         => (string) ((int) ($p['style']['r'] ?? 0) ?: ''),
+            'st_bc'        => (string) ($p['style']['bc'] ?? ''),
+            'st_w'         => (string) ($p['style']['w'] ?? ''),
+            'st_pad'       => (string) ($p['style']['pad'] ?? ''),
+            'st_tsz'       => (string) ($p['style']['tsz'] ?? ''),
+            'st_ssz'       => (string) ($p['style']['ssz'] ?? ''),
+            'st_bsz'       => (string) ($p['style']['bsz'] ?? ''),
+            'st_br'        => (string) ($p['style']['br'] ?? ''),
+            'st_bw'        => (string) ($p['style']['bw'] ?? ''),
+            'st_ov'        => (string) ($p['style']['ov'] ?? ''),
+            'st_sh'        => (string) ($p['style']['sh'] ?? ''),
+            'st_al'        => (string) ($p['style']['al'] ?? ''),
+            'st_anim'      => (string) ($p['style']['anim'] ?? ''),
+            'st_css'       => (string) ($p['style']['css'] ?? ''),
             'icon'         => (string) ($p['icon'] ?? ''),
             'items'        => (string) ($p['items'] ?? ''),
             'title'        => (string) ($p['title'] ?? ''),
@@ -440,28 +453,7 @@ if ($action === 'popup_save') {
     $pid = preg_replace('/[^0-9A-Za-z_-]/', '', (string) pv('pid'));
     if ($pid === '') $pid = 'p' . substr(md5(uniqid('', true)), 0, 7);
 
-    $entry = array_merge(popup_manual_default(), pcommon(20), [
-        'id'           => $pid,
-        'badge'        => trim((string) pv('badge')),
-        'skin'         => popup_skin_valid((string) pv('skin')),
-        'layout'       => popup_layout_valid((string) pv('layout')),
-        'prizes'       => trim((string) pv('prizes')),
-        'steps'        => trim((string) pv('steps')),
-        'style'        => pbool('st_on') ? popup_norm_style([
-            'bg' => pv('st_bg'), 'fg' => pv('st_fg'), 'btn' => pv('st_btn'), 'btnf' => pv('st_btnf'),
-            'bb' => pv('st_bb'), 'bf' => pv('st_bf'), 'r' => pv('st_r'),
-        ]) : null,
-        'icon'         => trim((string) pv('icon')),
-        'items'        => trim((string) pv('items')),
-        'title'        => trim((string) pv('title')),
-        'subtitle'     => trim((string) pv('subtitle')),
-        'image'        => trim((string) pv('image')),
-        'btn_text'     => trim((string) pv('btn_text')),
-        'btn_url'      => trim((string) pv('btn_url')),
-        'countdown'    => trim((string) pv('countdown')),
-        'coupon'       => trim((string) pv('coupon')),
-        'coupon_label' => trim((string) pv('coupon_label')),
-    ]);
+    $entry = array_merge(popup_manual_default(), pcommon(20), ['id' => $pid], popup_manual_fields_from($_POST));
     if ($entry['theme'] === '') $entry['theme'] = 'telegram';
     if ($entry['name'] === '') $entry['name'] = 'Popup ' . $pid;
 
