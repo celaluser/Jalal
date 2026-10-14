@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('phone', 40)->nullable();
             $table->string('email', 190)->nullable();
             $table->unsignedSmallInteger('party_size');
-            $table->timestamp('starts_at')->index();         // UTC
+            $table->dateTime('starts_at')->index();         // UTC
             $table->unsignedSmallInteger('duration_minutes');
             $table->string('status', 10)->default('pending'); // pending | confirmed | seated | completed | cancelled | no_show
             $table->string('source', 6)->default('web');      // web | staff

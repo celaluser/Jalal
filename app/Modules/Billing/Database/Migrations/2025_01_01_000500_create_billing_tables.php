@@ -79,7 +79,7 @@ return new class extends Migration
             $table->json('billing')->nullable(); // seller + buyer snapshot printed on the PDF
             $table->string('gateway', 40)->nullable();
             $table->string('gateway_ref')->nullable();
-            $table->timestamp('issued_at');
+            $table->dateTime('issued_at'); // DATETIME, not TIMESTAMP: old MySQL and MariaDB make the first NOT NULL TIMESTAMP rewrite itself on every update
             $table->timestamp('due_at')->nullable();
             $table->timestamp('paid_at')->nullable();
             $table->timestamps();

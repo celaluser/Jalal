@@ -36,7 +36,7 @@ return new class extends Migration
             $table->unsignedBigInteger('restaurant_id')->index();
             $table->unsignedBigInteger('user_id')->index();
             $table->unsignedBigInteger('branch_id')->nullable();
-            $table->timestamp('opened_at');
+            $table->dateTime('opened_at');
             $table->integer('opening_cents')->default(0);                  // cash in the drawer at the start
             $table->timestamp('closed_at')->nullable()->index();
             $table->integer('closing_cents')->nullable();                  // cash counted at the end

@@ -158,6 +158,20 @@ it('creates a backup that restores into a fresh database with the same rows', fu
     @unlink($target);
 })->skip(fn () => DB::getDriverName() !== 'sqlite', 'The restore check loads the dump into SQLite, so it only makes sense on a SQLite run.');
 
+it('backs up only its own database, not the other databases of the same MySQL account', function () {
+    DB::statement('CREATE DATABASE IF NOT EXISTS qrm_backup_other');
+    DB::statement('CREATE TABLE IF NOT EXISTS qrm_backup_other.stray_site_table (id INT)');
+
+    try {
+        $name = app(DatabaseBackup::class)->create();
+        $dump = file_get_contents(app(DatabaseBackup::class)->path($name));
+
+        expect($dump)->toContain('settings')->not->toContain('stray_site_table');
+    } finally {
+        DB::statement('DROP DATABASE IF EXISTS qrm_backup_other');
+    }
+})->skip(fn () => ! in_array(DB::getDriverName(), ['mysql', 'mariadb'], true), 'Several databases per account only exist on MySQL and MariaDB.');
+
 it('creates, downloads and deletes backups from the panel', function () {
     $this->actingAs($this->admin)->post(route('admin.system.backups.store'))->assertRedirect()->assertSessionHas('status');
 
@@ -195,3 +209,11 @@ it('prunes old backups and keeps the newest', function () {
 
     expect(app(DatabaseBackup::class)->all())->toHaveCount(2);
 });
+
+it('keeps date columns as plain DATETIME so old MySQL and MariaDB never rewrite them on update', function () {
+    foreach ([['invoices', 'issued_at'], ['shifts', 'opened_at'], ['reservations', 'starts_at'], ['store_entitlements', 'starts_at']] as [$table, $column]) {
+        $type = DB::selectOne('select data_type as t, column_default as d, extra as e from information_schema.columns where table_schema = database() and table_name = ? and column_name = ?', [$table, $column]);
+
+        expect(strtolower($type->t))->toBe('datetime', "{$table}.{$column}")->and(strtolower((string) $type->e))->not->toContain('on update');
+    }
+})->skip(fn () => ! in_array(DB::getDriverName(), ['mysql', 'mariadb'], true), 'Only MySQL and MariaDB have TIMESTAMP columns that rewrite themselves.');

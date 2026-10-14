@@ -90,7 +90,12 @@ class DatabaseBackup
      */
     private function tables(string $driver): array
     {
-        return collect(DB::connection()->getSchemaBuilder()->getTables())
+        // MySQL and MariaDB: only this site's database. Asked without a name, the list covers every database the account can see,
+        // which on shared hosting means other sites' tables would end up in (or break) the backup.
+        $connection = DB::connection();
+        $schema = $driver === 'mysql' ? $connection->getDatabaseName() : null;
+
+        return collect($connection->getSchemaBuilder()->getTables($schema))
             ->pluck('name')
             ->reject(fn ($name) => str_starts_with($name, 'sqlite_'))
             ->values()->all();

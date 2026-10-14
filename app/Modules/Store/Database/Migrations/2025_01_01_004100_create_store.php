@@ -32,7 +32,7 @@ return new class extends Migration
             $table->string('item_slug', 80);
             $table->string('status', 10)->default('active'); // active | expired | revoked
             $table->string('source', 10)->default('purchase'); // purchase | trial | admin
-            $table->timestamp('starts_at');
+            $table->dateTime('starts_at');
             $table->timestamp('ends_at')->nullable(); // null = for good
             $table->unsignedBigInteger('invoice_id')->nullable()->index();
             $table->timestamps();
