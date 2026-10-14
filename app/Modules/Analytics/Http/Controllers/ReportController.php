@@ -3,6 +3,7 @@
 namespace App\Modules\Analytics\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Analytics\Services\AccountingExport;
 use App\Modules\Analytics\Services\MenuEngineering;
 use App\Modules\Analytics\Services\MenuVisits;
 use App\Modules\Analytics\Services\OperationsReport;
@@ -111,5 +112,38 @@ class ReportController extends Controller
 
             fclose($out);
         }, 'orders-'.$period['from']->toDateString().'_'.$period['to']->toDateString().'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    /** Sales as an accounting import file: choose the package, the period and per order or per day. */
+    public function accounting(Request $request): View
+    {
+        $restaurant = $request->user()->restaurant;
+        abort_unless($this->limits->hasFeature($restaurant, 'analytics'), 403);
+
+        return view('analytics::accounting', ['restaurant' => $restaurant, 'period' => $this->reports->period($restaurant, $request->query('range', '30'), $request->query('from'), $request->query('to'))]);
+    }
+
+    public function accountingDownload(Request $request, AccountingExport $export): StreamedResponse
+    {
+        $restaurant = $request->user()->restaurant;
+        abort_unless($this->limits->hasFeature($restaurant, 'analytics'), 403);
+        $data = $request->validate([
+            'format' => ['required', 'in:'.implode(',', AccountingExport::FORMATS)], 'mode' => ['required', 'in:'.implode(',', AccountingExport::MODES)],
+            'account' => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9 .\-\/]+$/'], 'tax_label' => ['nullable', 'string', 'max:40', 'regex:/^[\pL\pN .%\-\/(),&]+$/u'],
+        ]);
+        $period = $this->reports->period($restaurant, $request->input('range', 'custom'), $request->input('from'), $request->input('to'));
+        [$header, $rows] = $export->build($restaurant, $period['from'], $period['to'], $data['format'], $data['mode'], $data['account'] ?? '200', $data['tax_label'] ?? 'Tax on Sales');
+
+        return response()->streamDownload(function () use ($header, $rows) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, $header);
+
+            foreach ($rows as $row) {
+                fputcsv($out, array_map(fn ($v) => is_string($v) && $v !== '' && in_array($v[0], ['=', '+', '-', '@'], true) ? "'".$v : $v, $row));
+            }
+
+            fclose($out);
+        }, $data['format'].'-sales-'.$period['from']->toDateString().'_'.$period['to']->toDateString().'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 }

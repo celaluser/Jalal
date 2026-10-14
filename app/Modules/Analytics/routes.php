@@ -10,5 +10,7 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
     Route::get('visits', [ReportController::class, 'visits'])->name('visits');
     Route::get('operations', [ReportController::class, 'operations'])->name('operations');
     Route::get('menu/export', [ReportController::class, 'menuExport'])->middleware('throttle:10,1')->name('menu.export');
+    Route::get('accounting', [ReportController::class, 'accounting'])->name('accounting');
+    Route::post('accounting', [ReportController::class, 'accountingDownload'])->middleware('throttle:10,1')->name('accounting.download');
     Route::get('export', [ReportController::class, 'export'])->middleware('throttle:10,1')->name('export');
 });

@@ -14,6 +14,7 @@
             @if ($full)<a href="{{ route('reports.visits') }}" class="btn btn-secondary"><x-ui.icon name="qr" size="4" />{{ __('analytics.visits_title') }}</a>@endif
             @if ($full)<a href="{{ route('reports.operations') }}" class="btn btn-secondary"><x-ui.icon name="users" size="4" />{{ __('analytics.ops_title') }}</a>@endif
             @if ($full)<a href="{{ route('reports.menu') }}" class="btn btn-secondary"><x-ui.icon name="activity" size="4" />{{ __('analytics.eng_title') }}</a>@endif
+            @if ($full)<a href="{{ route('reports.accounting', request()->only(['range', 'from', 'to'])) }}" class="btn btn-secondary"><x-ui.icon name="clipboard" size="4" />{{ __('analytics.acc_title') }}</a>@endif
             @if ($full)<a href="{{ route('reports.export', request()->only(['range', 'from', 'to'])) }}" class="btn btn-secondary"><x-ui.icon name="download" size="4" />{{ __('analytics.export') }}</a>@endif
         </x-slot:actions>
     </x-ui.page-header>
