@@ -195,4 +195,9 @@ return [
     'courier_sharing' => 'Standort wird geteilt (zum Beenden tippen)',
     'courier_share_help' => 'Solange aktiv, sendet Ihr Smartphone bei Lieferungen, die unterwegs sind, alle paar Sekunden Ihre Position. Der Gast sieht sie auf einer Karte, bis die Bestellung geliefert ist.',
     'source_hub' => 'Bestellkanal',
+    'online_ordering' => 'Online-Bestellungen von Gästen annehmen',
+    'online_ordering_hint' => 'Ausgeschaltet ist die Karte nur zum Ansehen: Gäste sehen Gerichte und Preise und sagen die Bestellung dem Kellner. Kein Warenkorb, keine Kasse.',
+    'view_message' => 'Hinweis auf der Nur-Ansicht-Karte',
+    'view_only_title' => 'Bereit zu bestellen?',
+    'view_only_text' => 'Wählen Sie aus und sagen Sie es Ihrem Kellner. Preise stehen zur Orientierung dabei.',
 ];

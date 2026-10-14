@@ -47,4 +47,7 @@ return [
     'main_menu' => '主菜单',
     'nutrition' => '营养',
     'watch_video' => '观看视频',
+    'cta_title' => '饿了吗？',
+    'cta_text' => '点击菜品上的 +，直接用手机下单。',
+    'cta_table' => '点击菜品上的 +：直接送到厨房，无需等待服务员。',
 ];

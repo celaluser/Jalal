@@ -5,6 +5,9 @@
 
         <x-ui.card :title="__('orders.sec_open')">
             <div class="space-y-4">
+                <x-ui.checkbox name="online_ordering" :label="__('orders.online_ordering')" :checked="$s['online_ordering']" />
+                <p class="-mt-2 text-xs text-slate-500 dark:text-slate-400">{{ __('orders.online_ordering_hint') }}</p>
+                <x-ui.input name="view_message" :label="__('orders.view_message')" :value="$s['view_message']" maxlength="200" :placeholder="__('orders.view_only_text')" />
                 <x-ui.checkbox name="enabled" :label="__('orders.enabled')" :checked="$s['enabled']" />
                 <x-ui.input name="paused_message" :label="__('orders.paused_message')" :value="$s['paused_message']" maxlength="200" />
             </div>

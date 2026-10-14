@@ -195,4 +195,9 @@ return [
     'courier_sharing' => 'Condivisione della posizione (tocca per interrompere)',
     'courier_share_help' => 'Quando è attiva, il tuo telefono invia la posizione ogni pochi secondi per le consegne in corso. L\'ospite la vede su una mappa fino alla consegna dell\'ordine.',
     'source_hub' => 'Canale d\'ordine',
+    'online_ordering' => 'Accetta ordini online dagli ospiti',
+    'online_ordering_hint' => 'Se disattivato, il menu è solo da consultare: l\'ospite vede piatti e prezzi e dice l\'ordine al cameriere. Nessun carrello né pagamento.',
+    'view_message' => 'Messaggio nel menu solo consultazione',
+    'view_only_title' => 'Pronto a ordinare?',
+    'view_only_text' => 'Scegli ciò che ti piace e dillo al cameriere. I prezzi sono indicati per comodità.',
 ];

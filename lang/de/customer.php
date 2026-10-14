@@ -47,4 +47,7 @@ return [
     'main_menu' => 'Hauptkarte',
     'nutrition' => 'Nährwerte',
     'watch_video' => 'Video ansehen',
+    'cta_title' => 'Hunger?',
+    'cta_text' => 'Tippen Sie auf + und bestellen Sie direkt per Handy.',
+    'cta_table' => 'Tippen Sie auf +: direkt in die Küche, ohne auf den Kellner zu warten.',
 ];

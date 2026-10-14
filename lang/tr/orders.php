@@ -477,4 +477,9 @@ return [
     'courier_sharing' => 'Konum paylaşılıyor (durdurmak için dokunun)',
     'courier_share_help' => 'Açıkken telefonunuz yoldaki teslimatlar için konumunu birkaç saniyede bir gönderir. Misafir, sipariş teslim edilene kadar bunu haritada görür.',
     'source_hub' => 'Sipariş kanalı',
+    'online_ordering' => 'Misafirlerden online sipariş al',
+    'online_ordering_hint' => 'Kapatırsanız menü sadece görüntüleme olur: misafir yemekleri ve fiyatları inceler, siparişi garsona söyler. Sepet ve ödeme gösterilmez.',
+    'view_message' => 'Sadece görüntüleme menüsünde gösterilen mesaj',
+    'view_only_title' => 'Sipariş vermeye hazır mısınız?',
+    'view_only_text' => 'Beğendiğinizi seçin, sonra garsonunuza söyleyin. Fiyatlar bilginiz için gösterilir.',
 ];

@@ -14,6 +14,8 @@ class OrderSettings
 {
     /** @var array<string, mixed> */
     public const DEFAULTS = [
+        'online_ordering' => true,
+        'view_message' => '',
         'enabled' => true,
         'paused_message' => '',
         'dine_in' => true,
@@ -94,10 +96,16 @@ class OrderSettings
         return (int) round((float) ($this->for($restaurant)[$key] ?? 0) * 100);
     }
 
+    /** Menu-only mode: guests browse and tell the waiter, there is no cart or checkout. */
+    public function viewOnly(Restaurant $restaurant): bool
+    {
+        return ! (bool) $this->for($restaurant)['online_ordering'];
+    }
+
     /** Whether guests can place orders right now. */
     public function accepting(Restaurant $restaurant): bool
     {
-        return (bool) $this->for($restaurant)['enabled'] && $this->types($restaurant) !== [] && $this->paymentMethods($restaurant) !== [];
+        return ! $this->viewOnly($restaurant) && (bool) $this->for($restaurant)['enabled'] && $this->types($restaurant) !== [] && $this->paymentMethods($restaurant) !== [];
     }
 
     /** @param array<string, mixed> $input validated by rules() */
@@ -124,6 +132,7 @@ class OrderSettings
         $money = ['nullable', 'numeric', 'min:0', 'max:99999'];
 
         return [
+            'online_ordering' => ['nullable', 'boolean'], 'view_message' => ['nullable', 'string', 'max:200'],
             'enabled' => ['nullable', 'boolean'], 'paused_message' => ['nullable', 'string', 'max:200'],
             'dine_in' => ['nullable', 'boolean'], 'takeaway' => ['nullable', 'boolean'], 'delivery' => ['nullable', 'boolean'], 'curbside' => ['nullable', 'boolean'], 'room_service' => ['nullable', 'boolean'],
             'dine_in_pick_table' => ['nullable', 'boolean'], 'require_name' => ['nullable', 'boolean'],

@@ -25,12 +25,14 @@ class OrderSettingsController extends Controller
     {
         $data = $request->validate($this->settings->rules());
 
-        // Guests must be able to order somehow: at least one order type and one way to pay.
-        if (! collect(OrderType::ALL)->contains(fn ($t) => ! empty($data[$t]))) {
+        // Guests must be able to order somehow: at least one order type and one way to pay (unless the menu is view-only).
+        $viewOnly = empty($data['online_ordering']);
+
+        if (! $viewOnly && (! collect(OrderType::ALL)->contains(fn ($t) => ! empty($data[$t])))) {
             return back()->withInput()->withErrors(['dine_in' => __('orders.need_type')]);
         }
 
-        if (empty($data['pay_cash']) && empty($data['pay_card'])) {
+        if (! $viewOnly && empty($data['pay_cash']) && empty($data['pay_card'])) {
             return back()->withInput()->withErrors(['pay_cash' => __('orders.need_payment')]);
         }
 

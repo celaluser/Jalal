@@ -195,4 +195,9 @@ return [
     'courier_sharing' => 'Partage de la position en cours (touchez pour arrêter)',
     'courier_share_help' => 'Lorsque cette option est activée, votre téléphone envoie sa position toutes les quelques secondes pour les livraisons en cours. Le client la voit sur une carte jusqu\'à la livraison de la commande.',
     'source_hub' => 'Canal de commande',
+    'online_ordering' => 'Accepter les commandes en ligne des clients',
+    'online_ordering_hint' => 'Désactivé, le menu est en consultation seule : le client voit plats et prix puis dit sa commande au serveur. Ni panier ni paiement.',
+    'view_message' => 'Message du menu en consultation seule',
+    'view_only_title' => 'Prêt à commander ?',
+    'view_only_text' => 'Choisissez vos plats et dites-les au serveur. Les prix sont indiqués pour votre confort.',
 ];

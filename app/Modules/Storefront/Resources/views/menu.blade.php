@@ -69,6 +69,7 @@
         html[data-menu-calm] *,html[data-menu-calm] *::before,html[data-menu-calm] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
     </style>
     @include('storefront::partials.theme-effects', ['part' => 'style'])
+    <style>.view-only .menu-add,.view-only [data-cart-bar]{display:none!important}</style>
     @if ($kiosk)<style>html{font-size:118%}.kiosk .menu-add{width:3.25rem;height:3.25rem}.kiosk .menu-chip{padding:.6rem 1.1rem}</style>@endif
     @if ($pixels)
         {{-- Ad tracking loads only after the guest says yes (remembered on this device), and never when the browser sends Do Not Track. --}}
@@ -92,7 +93,7 @@
     <x-font-preload />
     @vite(['resources/css/app.css', 'resources/js/storefront.js'])
 </head>
-<body class="menu-page min-h-screen pb-28 {{ $kiosk ? 'kiosk select-none' : '' }}" x-data="storefront(@js($config))" x-on:keydown.escape.window="closeAll()">
+<body class="menu-page min-h-screen pb-28 {{ ! empty($ordering['viewOnly']) ? 'view-only ' : '' }}{{ $kiosk ? 'kiosk select-none' : '' }}" x-data="storefront(@js($config))" x-on:keydown.escape.window="closeAll()">
     @include('storefront::partials.theme-effects', ['part' => 'body'])
     {{-- Hero: brand colour, restaurant, table and language --}}
     <header class="menu-hero relative overflow-hidden">
@@ -142,6 +143,13 @@
             </div>
         </div>
     </header>
+    {{-- Guest guidance: view-only menus say how to order; ordering menus invite the guest to start --}}
+    @if (! empty($ordering['viewOnly']))
+        <aside class="mx-auto mt-4 max-w-3xl px-4" role="note"><div class="menu-card flex items-start gap-3 p-4"><x-ui.icon name="bell" size="6" class="menu-accent-text mt-0.5 shrink-0" /><div><p class="font-semibold">{{ __('orders.view_only_title') }}</p><p class="menu-muted mt-0.5 text-sm">{{ $ordering['message'] }}</p></div></div></aside>
+    @elseif (! empty($ordering['accepting']))
+        <aside class="mx-auto mt-4 max-w-3xl px-4" role="note" x-show="count === 0" x-cloak><div class="menu-card flex items-center gap-3 p-3"><span class="menu-add !size-9 shrink-0" aria-hidden="true"><x-ui.icon name="plus" size="5" /></span><p class="text-sm"><span class="font-semibold">{{ __('customer.cta_title') }}</span> <span class="menu-muted">{{ ! empty($ordering['table']) ? __('customer.cta_table') : __('customer.cta_text') }}@if (! empty($ordering['wait'])) · {{ __('orders.wait_now', ['minutes' => $ordering['wait']]) }}@endif</span></p></div></aside>
+    @endif
+
 
     <div class="mx-auto -mt-7 max-w-3xl px-4">
         @if ($branch)
@@ -543,7 +551,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="menu-surface menu-line flex items-center gap-3 border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <div class="menu-surface menu-line flex items-center gap-3 border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))]" x-show="!ord.viewOnly">
                     <div class="menu-card flex items-center" role="group" aria-label="{{ __('customer.quantity') }}">
                         <button type="button" class="grid size-10 place-items-center text-xl" x-on:click="step(-1)" aria-label="{{ __('customer.decrease') }}" :disabled="sheet.qty <= 1">−</button>
                         <span class="tnum min-w-7 text-center font-semibold" x-text="sheet.qty" aria-live="polite"></span>

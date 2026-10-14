@@ -195,4 +195,9 @@ return [
     'courier_sharing' => 'Compartiendo ubicación (toca para detener)',
     'courier_share_help' => 'Mientras esté activado, tu teléfono envía su posición cada pocos segundos en las entregas que van en camino. El cliente la ve en un mapa hasta que se entrega el pedido.',
     'source_hub' => 'Canal de pedidos',
+    'online_ordering' => 'Aceptar pedidos online de los clientes',
+    'online_ordering_hint' => 'Si lo desactiva, la carta es solo de consulta: el cliente ve platos y precios y dice su pedido al camarero. No hay carrito ni pago.',
+    'view_message' => 'Mensaje en la carta de solo consulta',
+    'view_only_title' => '¿Listo para pedir?',
+    'view_only_text' => 'Elija lo que le guste y dígaselo al camarero. Los precios se muestran para su comodidad.',
 ];

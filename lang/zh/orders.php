@@ -195,4 +195,9 @@ return [
     'courier_sharing' => '正在共享位置（点击停止）',
     'courier_share_help' => '开启后，您的手机会每隔几秒发送一次位置，用于配送中的订单。顾客可在地图上看到，直到订单送达。',
     'source_hub' => '订单渠道',
+    'online_ordering' => '接受顾客在线下单',
+    'online_ordering_hint' => '关闭后菜单仅供浏览：顾客查看菜品和价格，再告诉服务员点什么。不显示购物车和结账。',
+    'view_message' => '仅浏览菜单上显示的提示',
+    'view_only_title' => '准备点餐了吗？',
+    'view_only_text' => '选好想吃的，告诉服务员即可。价格仅供参考。',
 ];

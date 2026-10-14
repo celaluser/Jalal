@@ -245,8 +245,9 @@ class PublicMenuController extends Controller
         $pick = ! $table && $s['dine_in_pick_table'];
 
         return [
+            'viewOnly' => $settings->viewOnly($restaurant),
             'accepting' => $settings->accepting($restaurant),
-            'message' => $s['paused_message'] ?: __('orders.error_closed'),
+            'message' => $settings->viewOnly($restaurant) ? ($s['view_message'] ?: __('orders.view_only_text')) : ($s['paused_message'] ?: __('orders.error_closed')),
             'types' => $settings->types($restaurant),
             'table' => $table ? ['id' => $table->id, 'name' => $table->name, 'label' => table_label($table->name)] : null,
             'tables' => $pick ? DiningTable::where('is_active', true)->orderBy('sort')->orderBy('id')->get(['id', 'name'])->map(fn ($t) => ['id' => $t->id, 'name' => table_label($t->name)])->all() : [],

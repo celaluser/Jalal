@@ -195,4 +195,9 @@ return [
     'courier_sharing' => 'Compartilhando localização (toque para parar)',
     'courier_share_help' => 'Enquanto estiver ativado, seu celular envia a posição a cada poucos segundos nas entregas que estão a caminho. O cliente a vê em um mapa até o pedido ser entregue.',
     'source_hub' => 'Canal de pedidos',
+    'online_ordering' => 'Aceitar pedidos online dos clientes',
+    'online_ordering_hint' => 'Se desligar, o cardápio é só de consulta: o cliente vê pratos e preços e diz o pedido ao garçom. Sem carrinho nem pagamento.',
+    'view_message' => 'Mensagem no cardápio de consulta',
+    'view_only_title' => 'Pronto para pedir?',
+    'view_only_text' => 'Escolha o que gostar e diga ao garçom. Os preços são exibidos para sua conveniência.',
 ];

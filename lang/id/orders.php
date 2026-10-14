@@ -195,4 +195,9 @@ return [
     'courier_sharing' => 'Membagikan lokasi (ketuk untuk berhenti)',
     'courier_share_help' => 'Saat aktif, ponsel Anda mengirim posisinya setiap beberapa detik untuk pengiriman yang sedang berjalan. Tamu melihatnya di peta hingga pesanan diantar.',
     'source_hub' => 'Kanal pesanan',
+    'online_ordering' => 'Terima pesanan online dari tamu',
+    'online_ordering_hint' => 'Jika dimatikan, menu hanya untuk dilihat: tamu melihat hidangan dan harga lalu menyebutkan pesanan ke pelayan. Tanpa keranjang atau pembayaran.',
+    'view_message' => 'Pesan di menu hanya-lihat',
+    'view_only_title' => 'Siap memesan?',
+    'view_only_text' => 'Pilih yang Anda suka, lalu sebutkan ke pelayan. Harga ditampilkan untuk kenyamanan Anda.',
 ];

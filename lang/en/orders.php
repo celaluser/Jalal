@@ -195,4 +195,9 @@ return [
     'courier_sharing' => 'Sharing location (tap to stop)',
     'courier_share_help' => 'While on, your phone sends its position every few seconds for deliveries that are on their way. The guest sees it on a map until the order is delivered.',
     'source_hub' => 'Order channel',
+    'online_ordering' => 'Accept online orders from guests',
+    'online_ordering_hint' => 'Turn off to make the menu view-only: guests browse dishes and prices, then tell the waiter what they want. No cart or checkout is shown.',
+    'view_message' => 'Message shown on a view-only menu',
+    'view_only_title' => 'Ready to order?',
+    'view_only_text' => 'Pick what you like, then tell your waiter. Prices are shown for your convenience.',
 ];

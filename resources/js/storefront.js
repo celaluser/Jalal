@@ -266,7 +266,7 @@ document.addEventListener('alpine:init', () => {
             this.$nextTick(() => this.$refs.sheetClose?.focus());
         },
         quickAdd(product, event = null) {
-            if (!product.available) { return; }
+            if (!product.available || this.ord.viewOnly) { return; }
             if (product.option_groups.length || (product.variants || []).length || (product.combo || []).length) { this.open(product); return; }
             this.push({ product_id: product.id, variant_id: null, combo: null, options: [], qty: 1, note: '', name: product.name, labels: [], unit_cents: this.cents(product.price) });
             this.flash(product.name);

@@ -47,4 +47,7 @@ return [
     'main_menu' => 'Menu principale',
     'nutrition' => 'Valori nutrizionali',
     'watch_video' => 'Guarda il video',
+    'cta_title' => 'Hai fame?',
+    'cta_text' => 'Tocca + su un piatto e ordina dal telefono.',
+    'cta_table' => 'Tocca + su un piatto: va dritto in cucina, senza attendere il cameriere.',
 ];

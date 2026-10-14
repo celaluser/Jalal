@@ -47,4 +47,7 @@ return [
     'main_menu' => 'Cardápio principal',
     'nutrition' => 'Informação nutricional',
     'watch_video' => 'Assistir ao vídeo',
+    'cta_title' => 'Com fome?',
+    'cta_text' => 'Toque em + num prato e peça pelo celular.',
+    'cta_table' => 'Toque em + num prato: vai direto para a cozinha, sem esperar o garçom.',
 ];
