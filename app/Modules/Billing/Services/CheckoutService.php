@@ -2,6 +2,7 @@
 
 namespace App\Modules\Billing\Services;
 
+use App\Modules\Billing\Contracts\SavesCards;
 use App\Modules\Billing\Exceptions\BillingException;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Models\Payment;
@@ -30,12 +31,12 @@ class CheckoutService
      *
      * @throws BillingException
      */
-    public function start(Restaurant $restaurant, Plan $plan, string $gatewayCode, ?string $couponCode = null): array
+    public function start(Restaurant $restaurant, Plan $plan, string $gatewayCode, ?string $couponCode = null, bool $saveCard = false): array
     {
         $coupon = $couponCode ? $this->coupons->validate($couponCode, $plan) : null;
         $invoice = $this->invoices->create($restaurant, $plan, null, $coupon, $this->proration->credit($restaurant, $plan));
 
-        return $this->payInvoice($restaurant, $invoice, $gatewayCode);
+        return $this->payInvoice($restaurant, $invoice, $gatewayCode, $saveCard);
     }
 
     /**
@@ -45,7 +46,7 @@ class CheckoutService
      *
      * @throws BillingException
      */
-    public function payInvoice(Restaurant $restaurant, Invoice $invoice, string $gatewayCode): array
+    public function payInvoice(Restaurant $restaurant, Invoice $invoice, string $gatewayCode, bool $saveCard = false): array
     {
         // Free plan or a coupon covering everything: no gateway involved.
         if ($invoice->status === 'paid') {
@@ -61,6 +62,9 @@ class CheckoutService
 
             throw new BillingException(__('billing.gateway_unavailable'));
         }
+
+        // Only a gateway that can charge a kept card later gets asked to keep it, and only for a plan (not a store item).
+        $invoice->saveCard = $saveCard && $gateway instanceof SavesCards && $invoice->store_slug === null;
 
         try {
             $result = $gateway->checkout(

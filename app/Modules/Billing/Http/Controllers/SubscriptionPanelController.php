@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Billing\Exceptions\BillingException;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Models\Plan;
+use App\Modules\Billing\Models\SavedCard;
 use App\Modules\Billing\Payments\GatewayManager;
 use App\Modules\Billing\Services\CheckoutService;
 use App\Modules\Billing\Services\CouponService;
@@ -36,6 +37,7 @@ class SubscriptionPanelController extends Controller
             'subscription' => $subscription,
             'plan' => $subscription?->plan,
             'usage' => $usage->for($restaurant),
+            'card' => SavedCard::first(),
             'plans' => Plan::active()->get(),
             'invoices' => Invoice::latest('id')->limit(24)->get(),
             'triedTrial' => $this->subscriptions->history($restaurant)->whereNotNull('trial_ends_at')->pluck('plan_id')->all(),
@@ -79,10 +81,11 @@ class SubscriptionPanelController extends Controller
         $data = $request->validate([
             'gateway' => ['required', 'string', Rule::in(array_keys($this->gateways->availableFor($model->currency_code)))],
             'coupon' => ['nullable', 'string', 'max:60'],
+            'save_card' => ['nullable', 'boolean'],
         ]);
 
         try {
-            $outcome = $checkout->start($request->user()->restaurant, $model, $data['gateway'], $data['coupon'] ?: null);
+            $outcome = $checkout->start($request->user()->restaurant, $model, $data['gateway'], $data['coupon'] ?: null, $request->boolean('save_card'));
         } catch (BillingException $e) {
             return back()->withInput()->withErrors(['checkout' => $e->getMessage()]);
         }
@@ -149,5 +152,23 @@ class SubscriptionPanelController extends Controller
             'inclusive' => $calc['inclusive'] ? '1' : '',
             'total' => $fmt($calc['total']),
         ]];
+    }
+
+    /** Turns automatic renewal with the kept card on or off. Switching it on again also clears earlier failures. */
+    public function toggleAutoRenew(Request $request): RedirectResponse
+    {
+        $card = SavedCard::firstOrFail();
+        $on = ! $card->auto_renew;
+        $card->forceFill(['auto_renew' => $on, 'failed_attempts' => $on ? 0 : $card->failed_attempts])->save();
+
+        return back()->with('status', $on ? __('cards.turned_on') : __('cards.turned_off'));
+    }
+
+    /** Forgets the kept card (here; the gateway keeps its customer record, which holds no card number we can read). */
+    public function removeCard(Request $request): RedirectResponse
+    {
+        SavedCard::query()->delete();
+
+        return back()->with('status', __('cards.removed'));
     }
 }

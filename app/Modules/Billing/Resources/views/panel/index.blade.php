@@ -7,6 +7,24 @@
         </x-ui.alert>
     @endif
 
+
+    @if ($card)
+        <x-ui.card :title="__('cards.title')" class="mb-5">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <p class="font-semibold"><bdi>{{ ucfirst((string) $card->brand) }} •••• {{ $card->last4 }}</bdi> @if ($card->exp_month && $card->exp_year)<span class="text-sm font-normal text-muted"><bdi>{{ sprintf('%02d/%d', $card->exp_month, $card->exp_year) }}</bdi></span>@endif</p>
+                    <p class="mt-1 text-sm {{ $card->auto_renew ? 'text-accent-700 dark:text-accent-300' : 'text-muted' }}">{{ $card->auto_renew ? __('cards.on_text') : __('cards.off_text') }}</p>
+                    @if ($card->failed_attempts > 0)<p class="mt-1 text-sm text-red-600">{{ trans_choice('cards.failed_text', $card->failed_attempts, ['count' => $card->failed_attempts]) }}</p>@endif
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <form method="POST" action="{{ route('billing.card.auto-renew') }}">@csrf<x-ui.button variant="secondary" size="sm" :block="false">{{ $card->auto_renew ? __('cards.turn_off') : __('cards.turn_on') }}</x-ui.button></form>
+                    <form method="POST" action="{{ route('billing.card.remove') }}" onsubmit="return confirm('{{ __('cards.remove_confirm') }}')">@csrf @method('DELETE')<x-ui.button variant="ghost" size="sm" :block="false" class="text-red-600">{{ __('cards.remove') }}</x-ui.button></form>
+                </div>
+            </div>
+            <p class="mt-3 text-xs text-muted">{{ __('cards.note') }}</p>
+        </x-ui.card>
+    @endif
+
     <div class="grid gap-5 lg:grid-cols-3">
         {{-- Current plan --}}
         <x-ui.card class="lg:col-span-1">

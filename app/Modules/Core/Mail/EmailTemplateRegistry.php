@@ -73,6 +73,14 @@ final class EmailTemplateRegistry
                 'subject' => 'Payment received: invoice {{invoice_number}}',
                 'body' => "Hi {{name}},\n\nThank you! We received your payment of **{{total}}** for **{{plan}}** ({{restaurant}}).\n\nYour invoice {{invoice_number}} is attached as a PDF.",
             ],
+            'card_failed' => [
+                'label' => 'Automatic renewal failed',
+                'required' => false,
+                'variables' => ['name', 'restaurant', 'card', 'reason', 'attempts_left', 'billing_url', 'app_name'],
+                'sample' => ['name' => 'Ada', 'restaurant' => 'Bella Italia', 'card' => 'Visa •••• 4242', 'reason' => 'card_declined', 'attempts_left' => '2', 'billing_url' => 'https://example.com/subscription', 'app_name' => 'QR Menu'],
+                'subject' => 'We could not renew your {{app_name}} plan',
+                'body' => "Hi {{name}},\n\nWe tried to renew the plan for **{{restaurant}}** with your saved card **{{card}}**, but the payment was refused ({{reason}}).\n\nWe will try again tomorrow ({{attempts_left}} tries left). To avoid an interruption, pay with another card or update it here:\n\n[Manage your plan]({{billing_url}})",
+            ],
             'ticket_new' => [
                 'label' => 'New support ticket (to support team)',
                 'required' => false,

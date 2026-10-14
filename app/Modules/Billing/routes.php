@@ -22,5 +22,7 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
         Route::get('checkout/{plan}/preview', [SubscriptionPanelController::class, 'preview'])->middleware('throttle:30,1')->name('preview');
         Route::post('checkout/{plan}', [SubscriptionPanelController::class, 'start'])->middleware('throttle:10,1')->name('start');
         Route::post('cancel', [SubscriptionPanelController::class, 'cancel'])->name('cancel');
+        Route::post('card/auto-renew', [SubscriptionPanelController::class, 'toggleAutoRenew'])->middleware('throttle:20,1')->name('card.auto-renew');
+        Route::delete('card', [SubscriptionPanelController::class, 'removeCard'])->middleware('throttle:20,1')->name('card.remove');
         Route::get('invoices/{invoice}/pdf', [SubscriptionPanelController::class, 'pdf'])->whereNumber('invoice')->name('invoice.pdf');
     });

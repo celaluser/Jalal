@@ -10,6 +10,9 @@ class Invoice extends Model
 {
     use BelongsToRestaurant;
 
+    /** Not stored: set while taking the invoice to a gateway that can keep the card for automatic renewal. */
+    public bool $saveCard = false;
+
     protected $guarded = [];
 
     protected function casts(): array

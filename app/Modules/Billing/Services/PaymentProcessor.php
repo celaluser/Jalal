@@ -29,6 +29,22 @@ class PaymentProcessor
 
     public function handle(PaymentNotification $notification): ?Payment
     {
+        $payment = $this->book($notification);
+
+        // The restaurant ticked "renew automatically": keep the card, after the money is booked. A failure here never undoes the payment.
+        if ($payment?->status === 'succeeded' && ! empty($notification->payload['save_card'])) {
+            try {
+                app(SavedCards::class)->capture($notification);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        return $payment;
+    }
+
+    private function book(PaymentNotification $notification): ?Payment
+    {
         return DB::transaction(function () use ($notification) {
             $invoice = Invoice::allTenants()->where('number', $notification->invoiceNumber)->lockForUpdate()->first();
 

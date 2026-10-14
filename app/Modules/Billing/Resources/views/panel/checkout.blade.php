@@ -15,6 +15,11 @@
                             </label>
                         @endforeach
                     </div>
+                    @if (collect($gateways)->contains(fn ($g) => $g instanceof \App\Modules\Billing\Contracts\SavesCards) && ! $plan->isFree() && in_array($plan->interval, ['monthly', 'yearly'], true))
+                        <div class="mt-4 rounded-xl bg-surface-2 p-3.5" x-data="{ code: '{{ old('gateway', array_key_first($gateways)) }}' }" x-init="$el.closest('form').addEventListener('change', (e) => { if (e.target.name === 'gateway') code = e.target.value })" x-show="@js(collect($gateways)->filter(fn ($g) => $g instanceof \App\Modules\Billing\Contracts\SavesCards)->keys()->all()).includes(code)" x-cloak>
+                            <label class="flex cursor-pointer items-start gap-2.5 text-sm"><input type="checkbox" name="save_card" value="1" class="check mt-0.5" @checked(old('save_card'))><span><span class="font-medium">{{ __('cards.checkbox') }}</span><span class="mt-0.5 block text-xs text-muted">{{ __('cards.checkbox_help') }}</span></span></label>
+                        </div>
+                    @endif
                     @error('gateway')<p class="mt-1.5 text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
                     <p class="mt-4 flex items-start gap-2 text-xs text-muted"><x-ui.icon name="shield" size="4" class="mt-0.5 shrink-0" />{{ __('billing.secure_note') }}</p>
                 @else
