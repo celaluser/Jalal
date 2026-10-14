@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'enable' => 'Testar dois assuntos (teste A/B)',
+    'help' => 'Um grupo pequeno recebe o assunto A ou B. Passado o tempo de espera, o assunto com mais aberturas é enviado ao resto. São precisas pelo menos :min pessoas.',
+    'subject_b' => 'Assunto B',
+    'test_percent' => 'Parte do público no teste (%)',
+    'winner_hours' => 'Espera antes de escolher o vencedor (horas)',
+    'track_opens' => 'Contar aberturas (uma imagem minúscula e invisível no e-mail)',
+    'track_help' => 'As aberturas são uma estimativa: algumas aplicações de e-mail carregam a imagem sozinhas, por isso as reais podem ser menos.',
+    'status_testing' => 'Em teste',
+    'results_title' => 'Resultados',
+    'variant' => 'Assunto',
+    'stat_sent' => 'Enviados',
+    'stat_opens' => 'Abertos',
+    'stat_rate' => 'Taxa de abertura',
+    'winner' => 'Vencedor',
+    'open_note' => 'As aberturas são só uma referência: algumas aplicações de e-mail (por exemplo a proteção de privacidade do Apple Mail) carregam as imagens automaticamente e aumentam os números.',
+    'testing_title' => 'Teste de assunto em curso',
+    'testing_note' => 'O melhor assunto é enviado ao resto :time. Ou escolha já:',
+    'pick' => 'Enviar :variant ao resto',
+    'pick_confirm' => 'Enviar o assunto :variant a todos os que ainda não receberam a campanha?',
+    'winner_sent' => 'O assunto :variant foi enviado ao resto do público.',
+    'not_testing' => 'Esta campanha não está à espera de um vencedor.',
+    'error_small' => 'Um teste de assunto precisa de pelo menos :min pessoas no público.',
+];

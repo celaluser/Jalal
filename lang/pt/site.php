@@ -1,0 +1,48 @@
+<?php
+
+return [
+    'nav' => ['label' => 'Navegação principal', 'footer' => 'Legal', 'features' => 'Recursos', 'pricing' => 'Preços', 'faq' => 'Perguntas frequentes', 'blog' => 'Blog', 'start' => 'Começar'],
+    'hero' => ['eyebrow' => 'Cardápios com QR code e pedidos na mesa', 'no_card' => 'Sem necessidade de cartão de crédito', 'cancel' => 'Cancele quando quiser', 'setup' => 'Pronto em minutos'],
+    'mock' => [
+        'table' => 'Mesa 7', 'restaurant' => 'Bella Italia', 'cat1' => 'Pizza', 'cat2' => 'Massas', 'cat3' => 'Bebidas',
+        'd1' => 'Margherita', 'd2' => 'Salada da horta', 'd3' => 'Arrabbiata picante', 'view_order' => 'Ver pedido · 2 itens',
+        'new_order' => 'Novo pedido', 'new_order_sub' => 'Mesa 7 · agora mesmo', 'scan' => 'Escaneie para pedir',
+    ],
+    'strip' => ['title' => 'Feito para', 'restaurants' => 'Restaurantes', 'cafes' => 'Cafeterias', 'bars' => 'Bares', 'hotels' => 'Hotéis', 'trucks' => 'Food trucks'],
+    'features' => ['title' => 'Tudo o que o seu salão precisa'],
+    'how' => [
+        'eyebrow' => 'Como funciona', 'title' => 'Do cardápio de papel aos pedidos ao vivo em três passos',
+        'menu_title' => 'Monte seu cardápio', 'menu_text' => 'Adicione os pratos manualmente ou deixe a IA ler uma foto do seu cardápio de papel.',
+        'print_title' => 'Imprima seus QR codes', 'print_text' => 'Baixe cartões prontos para imprimir para cada mesa, nas suas cores.',
+        'orders_title' => 'Receba pedidos', 'orders_text' => 'Os clientes pedem pelo celular e a cozinha vê as comandas na hora.',
+    ],
+    'cta' => ['title' => 'Dê a cada mesa um cardápio melhor', 'text' => 'Comece seu teste grátis hoje. Seu primeiro QR code leva poucos minutos.'],
+    'footer' => ['tagline' => 'Cardápios com QR code, pedidos na mesa e tela de cozinha para restaurantes de todos os tamanhos.', 'product' => 'Produto', 'resources' => 'Recursos', 'legal' => 'Legal'],
+    'pricing' => [
+        'popular' => 'Mais popular', 'free' => 'Grátis', 'one_time' => 'pagamento único', 'trial' => 'Teste grátis de :days dias',
+        'unlimited' => 'Ilimitado', 'start_trial' => 'Começar teste grátis', 'choose' => 'Escolher plano',
+    ],
+    'blog' => ['empty' => 'Nenhum artigo ainda.', 'title' => 'Últimas do blog', 'read' => 'Ler artigo'],
+    'landing_defaults' => [
+        'hero_title' => 'Seu cardápio, a um escaneamento de distância',
+        'hero_subtitle' => 'Crie um lindo cardápio QR, receba pedidos de cada mesa e faça seu restaurante crescer — em minutos e sem app.',
+        'hero_cta' => 'Começar teste grátis',
+        'hero_secondary' => 'Ver preços',
+        'feature_1_title' => 'Cardápios QR que atualizam na hora',
+        'feature_1_text' => 'Altere preços e pratos uma vez e todas as mesas veem na hora.',
+        'feature_2_title' => 'Pedidos direto da mesa',
+        'feature_2_text' => 'Os clientes pedem e pagam pelo celular e a cozinha recebe os pedidos em tempo real.',
+        'feature_3_title' => 'Vários idiomas e moedas',
+        'feature_3_text' => 'Atenda turistas no idioma deles, com suporte à escrita da direita para a esquerda.',
+        'feature_4_title' => 'Importação de cardápio com IA',
+        'feature_4_text' => 'Fotografe seu cardápio de papel e deixe a IA montar o digital.',
+        'pricing_title' => 'Preços simples e honestos',
+        'pricing_subtitle' => 'Comece com um teste grátis. Faça upgrade quando crescer.',
+        'faq_1_q' => 'Meus clientes precisam instalar um app?',
+        'faq_1_a' => 'Não. Eles escaneiam o QR code e o cardápio abre no navegador.',
+        'faq_2_q' => 'Posso cancelar a qualquer momento?',
+        'faq_2_a' => 'Sim. Seu plano continua ativo até o fim do período pago.',
+        'contact_title' => 'Dúvidas? Fale com a gente',
+        'contact_text' => 'Normalmente respondemos em até um dia útil.',
+    ],
+];

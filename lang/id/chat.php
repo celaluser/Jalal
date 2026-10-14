@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'nav' => 'Obrolan tamu',
+    'title' => 'Obrolan tamu',
+    'sub' => 'Pesan dari tamu tentang pesanannya. Balas di sini; tamu melihat balasan di halaman pesanannya.',
+    'empty' => 'Belum ada percakapan',
+    'empty_text' => 'Saat tamu menulis dari halaman pesanannya, muncul di sini.',
+    'guest' => 'Tamu',
+    'you' => 'Anda',
+    'order_chat' => 'Obrolan · pesanan #:number',
+    'view_order' => 'Lihat pesanan',
+    'reply_placeholder' => 'Tulis balasan…',
+    'send' => 'Kirim',
+    'send_failed' => 'Gagal mengirim. Coba lagi.',
+    'closed_staff' => 'Pesanan selesai sehingga tamu tidak bisa menulis lagi, tetapi Anda masih bisa membalas.',
+    'turn_off' => 'Matikan obrolan',
+    'turn_on' => 'Nyalakan obrolan',
+    'is_off' => 'Obrolan tamu mati: tamu tidak melihat kotak obrolan.',
+    'guest_title' => 'Kirim pesan ke restoran',
+    'guest_hint' => 'Tanyakan tentang pesanan, alergi, atau lainnya. Kami membalas di sini.',
+    'placeholder' => 'Ketik pesan…',
+    'closed' => 'Obrolan ini ditutup karena pesanan sudah selesai.',
+    'staff' => 'Restoran',
+    'chat_button' => 'Obrol dengan tamu',
+];

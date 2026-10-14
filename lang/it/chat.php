@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'nav' => 'Chat ospiti',
+    'title' => 'Chat ospiti',
+    'sub' => 'Messaggi degli ospiti sul loro ordine. Rispondi qui; l\'ospite vede la risposta nella pagina dell\'ordine.',
+    'empty' => 'Nessuna conversazione per ora',
+    'empty_text' => 'Quando un ospite scrive dalla pagina dell\'ordine, compare qui.',
+    'guest' => 'Ospite',
+    'you' => 'Tu',
+    'order_chat' => 'Chat · ordine n. :number',
+    'view_order' => 'Vedi ordine',
+    'reply_placeholder' => 'Scrivi una risposta…',
+    'send' => 'Invia',
+    'send_failed' => 'Invio non riuscito. Riprova.',
+    'closed_staff' => 'L\'ordine è concluso, l\'ospite non può più scrivere, ma tu puoi rispondere.',
+    'turn_off' => 'Disattiva la chat',
+    'turn_on' => 'Attiva la chat',
+    'is_off' => 'La chat ospiti è disattivata: gli ospiti non vedono la casella di chat.',
+    'guest_title' => 'Scrivi al ristorante',
+    'guest_hint' => 'Chiedi dell\'ordine, di allergie o altro. Rispondiamo qui.',
+    'placeholder' => 'Scrivi un messaggio…',
+    'closed' => 'Questa chat è chiusa perché l\'ordine è concluso.',
+    'staff' => 'Ristorante',
+    'chat_button' => 'Chatta con l\'ospite',
+];

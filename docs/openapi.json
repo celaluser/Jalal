@@ -1,0 +1,624 @@
+{
+ "openapi": "3.0.3",
+ "info": {
+  "title": "QR Menu REST API",
+  "version": "1.0.0",
+  "description": "Authenticate with `Authorization: Bearer qrm_...`. Money is in minor units (cents). Webhooks are described in docs/API.md."
+ },
+ "servers": [
+  {
+   "url": "/api/v1"
+  }
+ ],
+ "components": {
+  "securitySchemes": {
+   "bearer": {
+    "type": "http",
+    "scheme": "bearer"
+   }
+  }
+ },
+ "paths": {
+  "/me": {
+   "get": {
+    "summary": "The restaurant and abilities behind the token",
+    "tags": [
+     "General"
+    ],
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "401": {
+      "description": "Missing, wrong or expired token"
+     },
+     "403": {
+      "description": "Token lacks the ability or the plan has no API"
+     }
+    }
+   }
+  },
+  "/menu": {
+   "get": {
+    "summary": "Categories and products",
+    "tags": [
+     "Menu"
+    ],
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "401": {
+      "description": "Missing, wrong or expired token"
+     },
+     "403": {
+      "description": "Token lacks the ability `menu:read` or the plan has no API"
+     }
+    },
+    "description": "Needs ability `menu:read`."
+   }
+  },
+  "/products/{id}": {
+   "patch": {
+    "summary": "Change price, availability or stock",
+    "tags": [
+     "Menu"
+    ],
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "401": {
+      "description": "Missing, wrong or expired token"
+     },
+     "403": {
+      "description": "Token lacks the ability `menu:write` or the plan has no API"
+     },
+     "422": {
+      "description": "Validation or business rule error (see `code`)"
+     }
+    },
+    "description": "Needs ability `menu:write`.",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "price": {
+          "type": "number"
+         },
+         "is_available": {
+          "type": "boolean"
+         },
+         "is_active": {
+          "type": "boolean"
+         },
+         "stock_qty": {
+          "type": [
+           "integer",
+           "null"
+          ]
+         }
+        },
+        "required": []
+       }
+      }
+     }
+    }
+   }
+  },
+  "/orders": {
+   "get": {
+    "summary": "List orders",
+    "tags": [
+     "Orders"
+    ],
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "401": {
+      "description": "Missing, wrong or expired token"
+     },
+     "403": {
+      "description": "Token lacks the ability `orders:read` or the plan has no API"
+     }
+    },
+    "description": "Needs ability `orders:read`.",
+    "parameters": [
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "new|accepted|preparing|ready|completed|cancelled"
+     },
+     {
+      "name": "since",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "ISO date"
+     },
+     {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      },
+      "description": "1-100"
+     }
+    ]
+   },
+   "post": {
+    "summary": "Place an order (same rules as the guest menu; send an Idempotency-Key header to make retries safe)",
+    "tags": [
+     "Orders"
+    ],
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "401": {
+      "description": "Missing, wrong or expired token"
+     },
+     "403": {
+      "description": "Token lacks the ability `orders:write` or the plan has no API"
+     },
+     "422": {
+      "description": "Validation or business rule error (see `code`)"
+     }
+    },
+    "description": "Needs ability `orders:write`.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "type": {
+          "type": "string",
+          "enum": [
+           "dine_in",
+           "takeaway",
+           "delivery",
+           "curbside",
+           "room_service"
+          ]
+         },
+         "lines": {
+          "type": "array",
+          "items": {
+           "type": "object",
+           "properties": {
+            "product_id": {
+             "type": "integer"
+            },
+            "qty": {
+             "type": "integer"
+            },
+            "options": {
+             "type": "array",
+             "items": {
+              "type": "integer"
+             }
+            },
+            "variant_id": {
+             "type": "integer"
+            },
+            "note": {
+             "type": "string"
+            }
+           }
+          }
+         },
+         "table_id": {
+          "type": "integer"
+         },
+         "customer_name": {
+          "type": "string"
+         },
+         "customer_phone": {
+          "type": "string"
+         },
+         "customer_email": {
+          "type": "string"
+         },
+         "delivery_address": {
+          "type": "string"
+         },
+         "note": {
+          "type": "string"
+         },
+         "promo_code": {
+          "type": "string"
+         },
+         "payment_method": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "type",
+         "lines"
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  "/orders/{id}": {
+   "get": {
+    "summary": "One order with items",
+    "tags": [
+     "Orders"
+    ],
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "401": {
+      "description": "Missing, wrong or expired token"
+     },
+     "403": {
+      "description": "Token lacks the ability `orders:read` or the plan has no API"
+     }
+    },
+    "description": "Needs ability `orders:read`.",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ]
+   }
+  },
+  "/orders/{id}/status": {
+   "post": {
+    "summary": "Move an order to another status",
+    "tags": [
+     "Orders"
+    ],
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "401": {
+      "description": "Missing, wrong or expired token"
+     },
+     "403": {
+      "description": "Token lacks the ability `orders:write` or the plan has no API"
+     },
+     "422": {
+      "description": "Validation or business rule error (see `code`)"
+     }
+    },
+    "description": "Needs ability `orders:write`.",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "status": {
+          "type": "string",
+          "enum": [
+           "accepted",
+           "preparing",
+           "ready",
+           "completed",
+           "cancelled"
+          ]
+         },
+         "reason": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "status"
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  "/reservations": {
+   "get": {
+    "summary": "List reservations",
+    "tags": [
+     "Reservations"
+    ],
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "401": {
+      "description": "Missing, wrong or expired token"
+     },
+     "403": {
+      "description": "Token lacks the ability `reservations:read` or the plan has no API"
+     }
+    },
+    "description": "Needs ability `reservations:read`.",
+    "parameters": [
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": ""
+     },
+     {
+      "name": "from",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "date"
+     },
+     {
+      "name": "to",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "date"
+     }
+    ]
+   },
+   "post": {
+    "summary": "Book a table (must fit a free slot)",
+    "tags": [
+     "Reservations"
+    ],
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "401": {
+      "description": "Missing, wrong or expired token"
+     },
+     "403": {
+      "description": "Token lacks the ability `reservations:write` or the plan has no API"
+     },
+     "422": {
+      "description": "Validation or business rule error (see `code`)"
+     }
+    },
+    "description": "Needs ability `reservations:write`.",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "phone": {
+          "type": "string"
+         },
+         "email": {
+          "type": "string"
+         },
+         "party_size": {
+          "type": "integer"
+         },
+         "date": {
+          "type": "string",
+          "format": "date"
+         },
+         "time": {
+          "type": "string",
+          "example": "19:30"
+         },
+         "note": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "name",
+         "party_size",
+         "date",
+         "time"
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  "/reservations/{id}/status": {
+   "post": {
+    "summary": "Confirm, seat, complete, cancel or mark no-show",
+    "tags": [
+     "Reservations"
+    ],
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "401": {
+      "description": "Missing, wrong or expired token"
+     },
+     "403": {
+      "description": "Token lacks the ability `reservations:write` or the plan has no API"
+     },
+     "422": {
+      "description": "Validation or business rule error (see `code`)"
+     }
+    },
+    "description": "Needs ability `reservations:write`.",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "status": {
+          "type": "string",
+          "enum": [
+           "confirmed",
+           "seated",
+           "completed",
+           "cancelled",
+           "no_show"
+          ]
+         }
+        },
+        "required": [
+         "status"
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  "/customers": {
+   "get": {
+    "summary": "List customers",
+    "tags": [
+     "Customers"
+    ],
+    "security": [
+     {
+      "bearer": []
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Success"
+     },
+     "401": {
+      "description": "Missing, wrong or expired token"
+     },
+     "403": {
+      "description": "Token lacks the ability `customers:read` or the plan has no API"
+     }
+    },
+    "description": "Needs ability `customers:read`.",
+    "parameters": [
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      },
+      "description": "search name or e-mail"
+     },
+     {
+      "name": "per_page",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer"
+      },
+      "description": ""
+     }
+    ]
+   }
+  }
+ }
+}

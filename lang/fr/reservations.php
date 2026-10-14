@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => 'Réservations', 'subtitle' => 'Les réservations du jour. Confirmez-les, attribuez-leur une table et installez les clients.', 'settings' => 'Paramètres de réservation', 'settings_sub' => 'Quand les clients peuvent réserver et combien de temps ils restent.',
+    'off_note' => 'La réservation en ligne est désactivée ou absente de votre offre. Vous pouvez toujours ajouter des réservations à la main.', 'locked' => 'Votre offre n\'inclut pas les réservations.',
+    'date' => 'Date', 'time' => 'Heure', 'party' => 'Convives', 'note' => 'Note (allergies, anniversaire...)', 'table' => 'Table', 'no_table' => 'Pas encore de table',
+    'add' => 'Ajouter une réservation', 'created' => 'Réservation ajoutée.', 'force' => 'Réserver même si le créneau est complet', 'empty' => 'Aucune réservation ce jour-là', 'empty_text' => 'Les réservations faites en ligne apparaissent ici.',
+    'prev_day' => 'Jour précédent', 'next_day' => 'Jour suivant', 'pending_count' => '{1} 1 réservation à confirmer|[2,*] :count réservations à confirmer', 'people' => '{1} 1 convive|[2,*] :count convives',
+    'status_pending' => 'En attente', 'status_confirmed' => 'Confirmée', 'status_seated' => 'Installée', 'status_completed' => 'Terminée', 'status_cancelled' => 'Annulée', 'status_no_show' => 'Absent',
+    'action_confirmed' => 'Confirmer', 'action_seated' => 'Installer', 'action_completed' => 'Terminer', 'action_cancelled' => 'Annuler', 'action_no_show' => 'Absent',
+    'book_title' => 'Réserver une table', 'book' => 'Réserver ce créneau', 'no_slots' => 'Aucun créneau libre pour ce jour et ce nombre de convives. Essayez un autre jour.', 'contact_help' => 'Laissez un numéro de téléphone ou un e-mail pour que nous puissions vous joindre.',
+    'your_booking' => 'Votre réservation', 'pending_text' => 'Nous confirmerons votre réservation sous peu.', 'cancel' => 'Annuler la réservation', 'cancel_confirm' => 'Annuler cette réservation ?',
+    'error_not_available' => 'Ce créneau n\'est plus libre. Veuillez en choisir un autre.', 'error_contact_required' => 'Veuillez laisser un numéro de téléphone ou un e-mail.', 'error_invalid_transition' => 'Ce changement n\'est pas possible.', 'error_cannot_cancel' => 'Cette réservation ne peut plus être annulée.',
+    'enabled' => 'Autoriser la réservation en ligne', 'auto_confirm' => 'Confirmer automatiquement les réservations', 'page_link' => 'Page de réservation', 'hours' => 'Horaires de réservation', 'open_from' => 'Première réservation', 'open_to' => 'Fin du dernier service', 'days_help' => 'Aucun jour coché signifie tous les jours.',
+    'rules' => 'Règles', 'slot_minutes' => 'Intervalle entre les créneaux (minutes)', 'duration' => 'Durée de blocage d\'une table (minutes)', 'max_party' => 'Plus grand groupe', 'lead' => 'Délai minimum (minutes)', 'days_ahead' => 'Combien de jours à l\'avance',
+    'max_covers' => 'Places simultanées', 'max_covers_hint' => 'Utilisé uniquement si vous n\'avez pas configuré de tables.', 'remind' => 'E-mail de rappel (heures avant)', 'remind_hint' => '0 désactive les rappels.',
+    'reserve_link' => 'Réserver une table',
+    'sms_reminder' => 'Rappel de :restaurant : votre table pour :party est prévue le :when. Modifier ou annuler : :url',
+    'status_awaiting' => 'En attente d\'acompte', 'action_awaiting' => 'En attente d\'acompte',
+    'deposit_title' => 'Acompte : :amount par convive', 'deposit_terms' => 'Vous le payez maintenant pour garder la table (elle est conservée :minutes minutes). Si vous annulez au moins :hours heures à l\'avance, il vous est remboursé ; plus tard, ou si vous ne venez pas, le restaurant le conserve. Il est déduit de votre addition lors de votre visite.',
+    'deposit_pay_with' => 'Payer avec', 'book_and_pay' => 'Réserver et payer l\'acompte', 'pay_deposit' => 'Payer l\'acompte', 'awaiting_text' => 'Votre table est conservée pendant que vous réglez l\'acompte de :amount.',
+    'deposit_line' => 'Acompte :amount : :state', 'deposit_badge' => 'Acompte :amount · :state',
+    'deposit_none' => 'aucun', 'deposit_pending' => 'en attente de paiement', 'deposit_paid' => 'payé', 'deposit_applied' => 'déduit de l\'addition', 'deposit_refunded' => 'remboursé', 'deposit_refund_due' => 'à rembourser', 'deposit_forfeited' => 'conservé par le restaurant', 'deposit_failed' => 'non payé',
+    'deposit_mark_refunded' => 'Marquer comme remboursé', 'error_payment_unavailable' => 'Le paiement en ligne n\'est pas disponible pour le moment. Veuillez réessayer plus tard.', 'error_payment_failed' => 'La page de paiement n\'a pas pu s\'ouvrir. Veuillez réessayer.',
+    'deposit_for' => 'Acompte de table pour :party',
+    'deposit_setting' => 'Acompte par convive', 'deposit_setting_hint' => '0 = pas d\'acompte. Nécessite les paiements en ligne (votre offre et une passerelle configurée dans Paiements en ligne). Non demandé pour les réservations saisies par le personnel.', 'deposit_hold' => 'Conserver une réservation non payée pendant (minutes)',
+    'deposit_refund' => 'Rembourser en cas d\'annulation au moins (heures avant)', 'deposit_refund_hint' => 'Les annulations plus tardives et les absences conservent l\'acompte. Les remboursements Stripe sont automatiques ; les autres passerelles affichent « à rembourser » pour que vous remboursiez à la main.',
+];

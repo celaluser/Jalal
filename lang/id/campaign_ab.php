@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'enable' => 'Uji dua baris subjek (uji A/B)',
+    'help' => 'Kelompok kecil menerima subjek A atau B. Setelah waktu tunggu, subjek dengan lebih banyak dibuka dikirim ke semua yang lain. Perlu minimal :min orang.',
+    'subject_b' => 'Subjek B',
+    'test_percent' => 'Porsi audiens dalam uji (%)',
+    'winner_hours' => 'Tunggu sebelum memilih pemenang (jam)',
+    'track_opens' => 'Hitung pembukaan (gambar kecil tak terlihat di e-mail)',
+    'track_help' => 'Pembukaan hanyalah perkiraan: beberapa aplikasi e-mail memuat gambar sendiri, pembukaan sebenarnya bisa lebih rendah.',
+    'status_testing' => 'Sedang diuji',
+    'results_title' => 'Hasil',
+    'variant' => 'Subjek',
+    'stat_sent' => 'Terkirim',
+    'stat_opens' => 'Dibuka',
+    'stat_rate' => 'Rasio buka',
+    'winner' => 'Pemenang',
+    'open_note' => 'Pembukaan hanya petunjuk: beberapa aplikasi e-mail (misalnya perlindungan privasi Apple Mail) memuat gambar otomatis sehingga angka naik.',
+    'testing_title' => 'Uji subjek berjalan',
+    'testing_note' => 'Subjek terbaik dikirim ke semua yang lain :time. Atau pilih sekarang:',
+    'pick' => 'Kirim :variant ke sisanya',
+    'pick_confirm' => 'Kirim subjek :variant ke semua yang belum menerima kampanye?',
+    'winner_sent' => 'Subjek :variant dikirim ke sisa audiens.',
+    'not_testing' => 'Kampanye ini tidak menunggu pemenang.',
+    'error_small' => 'Uji subjek butuh minimal :min orang dalam audiens.',
+];

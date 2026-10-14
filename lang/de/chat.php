@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'nav' => 'Gast-Chat',
+    'title' => 'Gast-Chat',
+    'sub' => 'Nachrichten von Gästen zu ihrer Bestellung. Antworten Sie hier; der Gast sieht die Antwort auf seiner Bestellseite.',
+    'empty' => 'Noch keine Unterhaltungen',
+    'empty_text' => 'Sobald ein Gast von seiner Bestellseite schreibt, erscheint es hier.',
+    'guest' => 'Gast',
+    'you' => 'Sie',
+    'order_chat' => 'Chat · Bestellung Nr. :number',
+    'view_order' => 'Bestellung ansehen',
+    'reply_placeholder' => 'Antwort schreiben…',
+    'send' => 'Senden',
+    'send_failed' => 'Senden nicht möglich. Bitte erneut versuchen.',
+    'closed_staff' => 'Die Bestellung ist abgeschlossen, der Gast kann nicht mehr schreiben, Sie können aber antworten.',
+    'turn_off' => 'Chat ausschalten',
+    'turn_on' => 'Chat einschalten',
+    'is_off' => 'Der Gast-Chat ist aus: Gäste sehen das Chatfeld nicht.',
+    'guest_title' => 'Dem Restaurant schreiben',
+    'guest_hint' => 'Fragen zur Bestellung, zu Allergien oder anderes. Wir antworten hier.',
+    'placeholder' => 'Nachricht eingeben…',
+    'closed' => 'Dieser Chat ist geschlossen, weil die Bestellung abgeschlossen ist.',
+    'staff' => 'Restaurant',
+    'chat_button' => 'Mit Gast chatten',
+];

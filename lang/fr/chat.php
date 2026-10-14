@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'nav' => 'Chat clients',
+    'title' => 'Chat clients',
+    'sub' => 'Messages des clients à propos de leur commande. Répondez ici ; le client voit votre réponse sur la page de sa commande.',
+    'empty' => 'Aucune conversation pour l\'instant',
+    'empty_text' => 'Quand un client écrit depuis la page de sa commande, la conversation apparaît ici.',
+    'guest' => 'Client',
+    'you' => 'Vous',
+    'order_chat' => 'Chat · commande n° :number',
+    'view_order' => 'Voir la commande',
+    'reply_placeholder' => 'Écrivez une réponse…',
+    'send' => 'Envoyer',
+    'send_failed' => 'Envoi impossible. Réessayez.',
+    'closed_staff' => 'La commande est terminée, le client ne peut plus écrire, mais vous pouvez répondre.',
+    'turn_off' => 'Désactiver le chat',
+    'turn_on' => 'Activer le chat',
+    'is_off' => 'Le chat clients est désactivé : les clients ne voient pas la zone de chat.',
+    'guest_title' => 'Écrire au restaurant',
+    'guest_hint' => 'Posez une question sur votre commande, les allergies ou autre. Nous répondons ici.',
+    'placeholder' => 'Écrivez un message…',
+    'closed' => 'Ce chat est fermé car la commande est terminée.',
+    'staff' => 'Restaurant',
+    'chat_button' => 'Discuter avec le client',
+];

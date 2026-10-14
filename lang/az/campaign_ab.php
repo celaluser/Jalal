@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'enable' => 'İki mövzu sətrini test et (A/B test)',
+    'help' => 'Kiçik qrupa A və ya B mövzusu gedir. Gözləmə müddətindən sonra daha çox açılan mövzu qalan hər kəsə göndərilir. Ən azı :min nəfər lazımdır.',
+    'subject_b' => 'Mövzu B',
+    'test_percent' => 'Testdə auditoriya payı (%)',
+    'winner_hours' => 'Qalibi seçməzdən əvvəl gözləmə (saat)',
+    'track_opens' => 'Açılmaları say (e-poçtda kiçik görünməz şəkil)',
+    'track_help' => 'Açılmalar təxminidir: bəzi poçt tətbiqləri şəkli özü yükləyir, real açılma daha aşağı ola bilər.',
+    'status_testing' => 'Test edilir',
+    'results_title' => 'Nəticələr',
+    'variant' => 'Mövzu',
+    'stat_sent' => 'Göndərilən',
+    'stat_opens' => 'Açılan',
+    'stat_rate' => 'Açılma faizi',
+    'winner' => 'Qalib',
+    'open_note' => 'Açılmalar yalnız göstəricidir: bəzi poçt tətbiqləri (məsələn Apple Mail məxfilik qoruması) şəkilləri avtomatik yükləyir və rəqəmləri artırır.',
+    'testing_title' => 'Mövzu testi gedir',
+    'testing_note' => 'Daha yaxşı mövzu :time qalan hər kəsə gedir. Və ya indi seçin:',
+    'pick' => 'Qalanlara :variant göndər',
+    'pick_confirm' => 'Kampaniyanı hələ almayan hər kəsə :variant mövzusu göndərilsin?',
+    'winner_sent' => ':variant mövzusu auditoriyanın qalanına göndərildi.',
+    'not_testing' => 'Bu kampaniya qalib gözləmir.',
+    'error_small' => 'Mövzu testi üçün auditoriyada ən azı :min nəfər olmalıdır.',
+];

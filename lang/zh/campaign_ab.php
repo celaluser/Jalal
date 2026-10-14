@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'enable' => '测试两个标题（A/B 测试）',
+    'help' => '一小部分人收到标题 A 或 B。等待时间过后，打开更多的标题会发给其他所有人。至少需要 :min 人。',
+    'subject_b' => '标题 B',
+    'test_percent' => '参与测试的受众比例（%）',
+    'winner_hours' => '选出胜者前的等待时间（小时）',
+    'track_opens' => '统计打开次数（邮件中一张看不见的小图）',
+    'track_help' => '打开次数只是估算：部分邮件应用会自动加载图片，实际打开可能更少。',
+    'status_testing' => '测试中',
+    'results_title' => '结果',
+    'variant' => '标题',
+    'stat_sent' => '已发送',
+    'stat_opens' => '已打开',
+    'stat_rate' => '打开率',
+    'winner' => '胜者',
+    'open_note' => '打开次数仅供参考：部分邮件应用（例如 Apple Mail 隐私保护）会自动加载图片，从而抬高数字。',
+    'testing_title' => '标题测试进行中',
+    'testing_note' => '更好的标题将在 :time 发给其余所有人。或现在选择：',
+    'pick' => '把 :variant 发给其余人',
+    'pick_confirm' => '要把标题 :variant 发给还没收到活动的所有人吗？',
+    'winner_sent' => '标题 :variant 已发给其余受众。',
+    'not_testing' => '此活动没有在等待胜者。',
+    'error_small' => '标题测试需要受众至少 :min 人。',
+];

@@ -1,0 +1,18 @@
+QR Menu & Online Ordering SaaS
+Copyright (c) the item's author. All rights reserved.
+
+This item is sold through Envato Market (CodeCanyon). Your right to use it is governed by the
+Envato Market licence you bought with it (Regular or Extended), as published at
+https://codecanyon.net/licenses/standard . In short: one licence covers one end product;
+you may not resell, redistribute or share the source code as a stand-alone item.
+The text on that page, not this file, is the licence.
+
+Third-party software
+--------------------
+The item bundles open-source packages under their own licences (MIT, BSD, Apache-2.0 and similar),
+which allow use inside a commercial product. Their notices stay with their authors.
+The full list with versions is in documentation/third-party-licenses.html
+(generated from composer.lock and package-lock.json by `php artisan docs:licenses`).
+
+Fonts: Inter and Bricolage Grotesque (SIL Open Font Licence 1.1), self-hosted, no calls to font servers.
+Demo dish pictures are illustrations drawn for this item.

@@ -1,0 +1,48 @@
+<?php
+
+return [
+    'nav' => ['label' => 'Navegación principal', 'footer' => 'Legal', 'features' => 'Funciones', 'pricing' => 'Precios', 'faq' => 'Preguntas frecuentes', 'blog' => 'Blog', 'start' => 'Empezar'],
+    'hero' => ['eyebrow' => 'Menús QR con pedidos desde la mesa', 'no_card' => 'No se necesita tarjeta de crédito', 'cancel' => 'Cancela cuando quieras', 'setup' => 'Listo en minutos'],
+    'mock' => [
+        'table' => 'Mesa 7', 'restaurant' => 'Bella Italia', 'cat1' => 'Pizza', 'cat2' => 'Pasta', 'cat3' => 'Bebidas',
+        'd1' => 'Margherita', 'd2' => 'Ensalada de la huerta', 'd3' => 'Arrabbiata picante', 'view_order' => 'Ver pedido · 2 artículos',
+        'new_order' => 'Nuevo pedido', 'new_order_sub' => 'Mesa 7 · ahora mismo', 'scan' => 'Escanea para pedir',
+    ],
+    'strip' => ['title' => 'Hecho para', 'restaurants' => 'Restaurantes', 'cafes' => 'Cafeterías', 'bars' => 'Bares', 'hotels' => 'Hoteles', 'trucks' => 'Food trucks'],
+    'features' => ['title' => 'Todo lo que necesita tu salón'],
+    'how' => [
+        'eyebrow' => 'Cómo funciona', 'title' => 'Del menú en papel a pedidos en vivo en tres pasos',
+        'menu_title' => 'Crea tu menú', 'menu_text' => 'Añade los platos a mano o deja que la IA lea una foto de tu menú en papel.',
+        'print_title' => 'Imprime tus códigos QR', 'print_text' => 'Descarga tarjetas listas para imprimir para cada mesa, con tus colores.',
+        'orders_title' => 'Recibe pedidos', 'orders_text' => 'Los clientes piden desde su teléfono y la cocina ve las comandas al instante.',
+    ],
+    'cta' => ['title' => 'Dale a cada mesa un mejor menú', 'text' => 'Empieza hoy tu prueba gratuita. Tu primer código QR tarda unos minutos.'],
+    'footer' => ['tagline' => 'Menús QR, pedidos desde la mesa y pantalla de cocina para restaurantes de todos los tamaños.', 'product' => 'Producto', 'resources' => 'Recursos', 'legal' => 'Legal'],
+    'pricing' => [
+        'popular' => 'Más popular', 'free' => 'Gratis', 'one_time' => 'pago único', 'trial' => 'Prueba gratuita de :days días',
+        'unlimited' => 'Ilimitado', 'start_trial' => 'Empezar prueba gratuita', 'choose' => 'Elegir plan',
+    ],
+    'blog' => ['empty' => 'Aún no hay artículos.', 'title' => 'Lo último del blog', 'read' => 'Leer artículo'],
+    'landing_defaults' => [
+        'hero_title' => 'Tu menú, a un escaneo de distancia',
+        'hero_subtitle' => 'Crea un menú QR precioso, recibe pedidos de cada mesa y haz crecer tu restaurante: en minutos y sin app.',
+        'hero_cta' => 'Empieza la prueba gratis',
+        'hero_secondary' => 'Ver precios',
+        'feature_1_title' => 'Menús QR que se actualizan al instante',
+        'feature_1_text' => 'Cambia precios y platos una vez y todas las mesas lo ven de inmediato.',
+        'feature_2_title' => 'Pedidos desde la mesa',
+        'feature_2_text' => 'Los clientes piden y pagan desde su móvil y la cocina recibe las comandas en tiempo real.',
+        'feature_3_title' => 'Varios idiomas y monedas',
+        'feature_3_text' => 'Atiende a los turistas en su idioma, con soporte de escritura de derecha a izquierda.',
+        'feature_4_title' => 'Importación de menú con IA',
+        'feature_4_text' => 'Fotografía tu menú en papel y deja que la IA cree el digital.',
+        'pricing_title' => 'Precios simples y honestos',
+        'pricing_subtitle' => 'Empieza con una prueba gratis. Mejora el plan cuando crezcas.',
+        'faq_1_q' => '¿Mis clientes tienen que instalar una app?',
+        'faq_1_a' => 'No. Escanean el código QR y el menú se abre en su navegador.',
+        'faq_2_q' => '¿Puedo cancelar cuando quiera?',
+        'faq_2_a' => 'Sí. Tu plan sigue activo hasta el final del periodo pagado.',
+        'contact_title' => '¿Preguntas? Hablemos',
+        'contact_text' => 'Normalmente respondemos en un día laborable.',
+    ],
+];

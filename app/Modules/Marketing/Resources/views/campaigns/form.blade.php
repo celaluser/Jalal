@@ -1,0 +1,47 @@
+@php($editing = $campaign !== null)
+<x-layouts.app :title="$editing ? __('marketing.edit_campaign') : __('marketing.new_campaign')">
+    <x-ui.page-header :title="$editing ? __('marketing.edit_campaign') : __('marketing.new_campaign')" :back="['url' => route('campaigns.index'), 'label' => __('marketing.campaigns_title')]" />
+
+    <form method="POST" action="{{ $editing ? route('campaigns.update', $campaign->id) : route('campaigns.store') }}" class="card card-pad max-w-2xl space-y-5">
+        @csrf @if ($editing) @method('PUT') @endif
+        <x-ui.input name="name" :label="__('marketing.campaign_name')" :value="$campaign?->name" :hint="__('marketing.campaign_name_help')" required maxlength="120" />
+        <div class="grid gap-4 sm:grid-cols-2" x-data="{ channel: @js(old('channel', $campaign?->channel ?? 'email')) }">
+            <div>
+                <label for="channel" class="mb-1.5 block text-sm font-medium">{{ __('marketing.campaign_channel') }}</label>
+                <select id="channel" name="channel" x-model="channel" class="field">@foreach (['email', 'sms', 'whatsapp', 'push'] as $c)<option value="{{ $c }}">{{ __('marketing.channel_'.$c) }}</option>@endforeach</select>
+                <p class="mt-1.5 text-xs text-muted" x-show="channel === 'sms' || channel === 'whatsapp'" x-cloak>{{ __('marketing.channel_help') }}</p>
+                <p class="mt-1.5 text-xs text-muted" x-show="channel === 'push'" x-cloak>{{ __('marketing.channel_push_help') }}</p>
+            </div>
+            <div>
+                <label for="segment" class="mb-1.5 block text-sm font-medium">{{ __('marketing.campaign_segment') }}</label>
+                <select id="segment" name="segment" class="field">@foreach (\App\Modules\Marketing\Services\Segments::ALL as $seg)<option value="{{ $seg }}" @selected(old('segment', $campaign?->segment ?? 'all') === $seg)>{{ __('marketing.segment_'.$seg) }}</option>@endforeach
+                    @foreach ($customSegments as $cs)<option value="custom:{{ $cs->id }}" @selected(old('segment', $campaign?->segment) === 'custom:'.$cs->id)>{{ $cs->name }}</option>@endforeach</select>
+            </div>
+            <div class="sm:col-span-2" x-show="channel === 'email'"><x-ui.input name="subject" :label="__('marketing.campaign_subject')" :value="$campaign?->subject" maxlength="160" /></div>
+            <div class="sm:col-span-2 space-y-3 rounded-xl border border-line p-4" x-show="channel === 'email'" x-data="{ ab: {{ old('ab_test', $campaign?->ab_test) ? 'true' : 'false' }} }">
+                <label class="flex cursor-pointer items-center gap-2.5 text-sm font-medium"><input type="checkbox" name="ab_test" value="1" class="check" x-model="ab" @checked(old('ab_test', $campaign?->ab_test))> {{ __('campaign_ab.enable') }}</label>
+                <p class="text-xs text-muted">{{ __('campaign_ab.help', ['min' => \App\Modules\Marketing\Services\CampaignService::MIN_TEST_AUDIENCE]) }}</p>
+                <div class="grid gap-3 sm:grid-cols-3" x-show="ab" x-cloak>
+                    <div class="sm:col-span-3"><x-ui.input name="subject_b" :label="__('campaign_ab.subject_b')" :value="old('subject_b', $campaign?->subject_b)" maxlength="160" /></div>
+                    <x-ui.input name="test_percent" type="number" min="10" max="50" :label="__('campaign_ab.test_percent')" :value="old('test_percent', $campaign?->test_percent ?? 20)" />
+                    <x-ui.input name="winner_hours" type="number" min="1" max="72" :label="__('campaign_ab.winner_hours')" :value="old('winner_hours', $campaign?->winner_hours ?? 4)" />
+                </div>
+            </div>
+            <div class="sm:col-span-2" x-show="channel === 'email'">
+                <input type="hidden" name="track_opens" value="0">
+                <label class="flex cursor-pointer items-center gap-2.5 text-sm"><input type="checkbox" name="track_opens" value="1" class="check" @checked(old('track_opens', $campaign?->track_opens ?? true))> {{ __('campaign_ab.track_opens') }}</label>
+                <p class="mt-1 text-xs text-muted">{{ __('campaign_ab.track_help') }}</p>
+            </div>
+        </div>
+        <div>
+            <label for="body" class="mb-1.5 block text-sm font-medium">{{ __('marketing.campaign_body') }}</label>
+            <textarea id="body" name="body" rows="10" maxlength="10000" required class="field" @error('body') aria-invalid="true" @enderror>{{ old('body', $campaign?->body) }}</textarea>
+            @error('body')<p class="mt-1.5 text-sm text-red-600" role="alert">{{ $message }}</p>@else<p class="mt-1.5 text-xs text-muted">{{ __('marketing.campaign_body_help') }}</p>@enderror
+        </div>
+        <div>
+            <x-ui.input name="min_orders" type="number" min="0" max="1000" :label="__('marketing.min_orders')" :value="$campaign?->min_orders ?? 0" :hint="__('marketing.min_orders_help')" />
+            <p class="mt-2 text-sm text-muted">{{ trans_choice('marketing.audience_now', $audience, ['count' => $audience]) }} {{ __('marketing.audience_note') }}</p>
+        </div>
+        <div class="flex gap-3"><x-ui.button :block="false">{{ __('admin.save') }}</x-ui.button><a href="{{ route('campaigns.index') }}" class="btn btn-secondary">{{ __('admin.cancel') }}</a></div>
+    </form>
+</x-layouts.app>

@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'nav' => 'Qonaq söhbəti',
+    'title' => 'Qonaq söhbəti',
+    'sub' => 'Qonaqların sifarişləri barədə mesajları. Buradan cavab verin; qonaq cavabınızı sifariş səhifəsində görür.',
+    'empty' => 'Hələ söhbət yoxdur',
+    'empty_text' => 'Qonaq sifariş səhifəsindən yazanda burada görünəcək.',
+    'guest' => 'Qonaq',
+    'you' => 'Siz',
+    'order_chat' => 'Söhbət · sifariş #:number',
+    'view_order' => 'Sifarişə bax',
+    'reply_placeholder' => 'Cavab yazın…',
+    'send' => 'Göndər',
+    'send_failed' => 'Göndərilmədi. Yenidən cəhd edin.',
+    'closed_staff' => 'Sifariş bitib, qonaq artıq yaza bilməz, amma siz cavab verə bilərsiniz.',
+    'turn_off' => 'Söhbəti bağla',
+    'turn_on' => 'Söhbəti aç',
+    'is_off' => 'Qonaq söhbəti bağlıdır: qonaqlar söhbət qutusunu görmür.',
+    'guest_title' => 'Restorana yazın',
+    'guest_hint' => 'Sifarişiniz, allergiyalar və ya başqa mövzuda soruşun. Cavabı burada veririk.',
+    'placeholder' => 'Mesaj yazın…',
+    'closed' => 'Sifariş bitdiyi üçün bu söhbət bağlandı.',
+    'staff' => 'Restoran',
+    'chat_button' => 'Qonaqla yaz',
+];

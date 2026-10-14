@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'nav' => 'Misafir sohbeti',
+    'title' => 'Misafir sohbeti',
+    'sub' => 'Misafirlerin siparişleri hakkındaki mesajları. Buradan yanıtlayın; misafir yanıtınızı sipariş sayfasında görür.',
+    'empty' => 'Henüz sohbet yok',
+    'empty_text' => 'Bir misafir sipariş sayfasından yazınca burada görünür.',
+    'guest' => 'Misafir',
+    'you' => 'Siz',
+    'order_chat' => 'Sohbet · sipariş #:number',
+    'view_order' => 'Siparişi gör',
+    'reply_placeholder' => 'Yanıt yazın…',
+    'send' => 'Gönder',
+    'send_failed' => 'Gönderilemedi. Tekrar deneyin.',
+    'closed_staff' => 'Sipariş tamamlandı, misafir artık yazamaz ama siz yine de yanıtlayabilirsiniz.',
+    'turn_off' => 'Sohbeti kapat',
+    'turn_on' => 'Sohbeti aç',
+    'is_off' => 'Misafir sohbeti kapalı: misafirler sohbet kutusunu görmez.',
+    'guest_title' => 'Restorana yazın',
+    'guest_hint' => 'Siparişiniz, alerjiler veya başka bir konuda sorun. Yanıtı burada veririz.',
+    'placeholder' => 'Mesaj yazın…',
+    'closed' => 'Sipariş tamamlandığı için bu sohbet kapandı.',
+    'staff' => 'Restoran',
+    'chat_button' => 'Misafirle yaz',
+];

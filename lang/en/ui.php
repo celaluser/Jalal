@@ -1,0 +1,17 @@
+<?php
+
+return [
+    'toggle_theme' => 'Light / dark',
+    'security' => 'Security',
+    'tablet_on' => 'Tablet mode', 'tablet_off' => 'Leave tablet mode',
+    'language' => 'Language',
+    'menu' => 'Menu',
+    'search' => 'Search menu',
+    'account' => 'Account',
+    'close' => 'Close',
+    'website' => 'Public website',
+    'logout' => 'Sign out',
+    'dashboard' => 'Dashboard',
+    'welcome' => 'Welcome, :name',
+    'nav_more' => 'Show all features (:count more)', 'nav_less' => 'Show essentials only',
+];

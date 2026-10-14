@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'nav' => '顾客聊天',
+    'title' => '顾客聊天',
+    'sub' => '顾客关于订单的消息。在这里回复；顾客会在订单页看到你的回复。',
+    'empty' => '还没有对话',
+    'empty_text' => '顾客从订单页发来消息后会显示在这里。',
+    'guest' => '顾客',
+    'you' => '你',
+    'order_chat' => '聊天 · 订单 #:number',
+    'view_order' => '查看订单',
+    'reply_placeholder' => '输入回复…',
+    'send' => '发送',
+    'send_failed' => '发送失败，请重试。',
+    'closed_staff' => '订单已结束，顾客无法再发言，但你仍可回复。',
+    'turn_off' => '关闭聊天',
+    'turn_on' => '开启聊天',
+    'is_off' => '顾客聊天已关闭：顾客看不到聊天框。',
+    'guest_title' => '给餐厅留言',
+    'guest_hint' => '询问订单、过敏或其他问题。我们会在这里回复。',
+    'placeholder' => '输入消息…',
+    'closed' => '订单已结束，此聊天已关闭。',
+    'staff' => '餐厅',
+    'chat_button' => '与顾客聊天',
+];

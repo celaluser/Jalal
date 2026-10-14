@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'enable' => 'Prova due oggetti (test A/B)',
+    'help' => 'Un piccolo gruppo riceve l\'oggetto A o B. Dopo l\'attesa, l\'oggetto con più aperture va a tutti gli altri. Servono almeno :min persone.',
+    'subject_b' => 'Oggetto B',
+    'test_percent' => 'Quota del pubblico nel test (%)',
+    'winner_hours' => 'Attesa prima di scegliere il vincitore (ore)',
+    'track_opens' => 'Conta le aperture (una minuscola immagine invisibile nell\'e-mail)',
+    'track_help' => 'Le aperture sono una stima: alcune app di posta caricano l\'immagine da sole, le aperture reali possono essere meno.',
+    'status_testing' => 'In test',
+    'results_title' => 'Risultati',
+    'variant' => 'Oggetto',
+    'stat_sent' => 'Inviati',
+    'stat_opens' => 'Aperti',
+    'stat_rate' => 'Tasso di apertura',
+    'winner' => 'Vincitore',
+    'open_note' => 'Le aperture sono solo un indicatore: alcune app di posta (ad esempio la protezione della privacy di Apple Mail) caricano le immagini in automatico e gonfiano i numeri.',
+    'testing_title' => 'Test dell\'oggetto in corso',
+    'testing_note' => 'L\'oggetto migliore va a tutti gli altri :time. Oppure scegli ora:',
+    'pick' => 'Invia :variant al resto',
+    'pick_confirm' => 'Inviare l\'oggetto :variant a tutti quelli che non hanno ancora ricevuto la campagna?',
+    'winner_sent' => 'L\'oggetto :variant è stato inviato al resto del pubblico.',
+    'not_testing' => 'Questa campagna non aspetta un vincitore.',
+    'error_small' => 'Un test dell\'oggetto richiede almeno :min persone nel pubblico.',
+];

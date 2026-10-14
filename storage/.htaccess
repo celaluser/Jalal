@@ -1,0 +1,14 @@
+# Private folder: never served over the web.
+<IfModule mod_authz_core.c>
+    Require all denied
+    # When the whole package sits inside public_html, uploaded files are asked for as /storage/... and the root .htaccess
+    # maps those to public/storage. Apache checks this file before that mapping, so let such addresses through, but never
+    # the real private folders of this directory.
+    <If "%{REQUEST_URI} =~ m#/storage/#i && %{REQUEST_URI} !~ m#/storage/(app|framework|logs|private)(/|$)#i">
+        Require all granted
+    </If>
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

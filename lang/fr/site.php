@@ -1,0 +1,48 @@
+<?php
+
+return [
+    'nav' => ['label' => 'Navigation principale', 'footer' => 'Mentions légales', 'features' => 'Fonctionnalités', 'pricing' => 'Tarifs', 'faq' => 'FAQ', 'blog' => 'Blog', 'start' => 'Commencer'],
+    'hero' => ['eyebrow' => 'Menus QR avec commande à table', 'no_card' => 'Aucune carte bancaire requise', 'cancel' => 'Résiliable à tout moment', 'setup' => 'Prêt en quelques minutes'],
+    'mock' => [
+        'table' => 'Table 7', 'restaurant' => 'Bella Italia', 'cat1' => 'Pizzas', 'cat2' => 'Pâtes', 'cat3' => 'Boissons',
+        'd1' => 'Margherita', 'd2' => 'Salade du jardin', 'd3' => 'Arrabbiata piquante', 'view_order' => 'Voir la commande · 2 articles',
+        'new_order' => 'Nouvelle commande', 'new_order_sub' => 'Table 7 · à l\'instant', 'scan' => 'Scannez pour commander',
+    ],
+    'strip' => ['title' => 'Conçu pour', 'restaurants' => 'Restaurants', 'cafes' => 'Cafés', 'bars' => 'Bars', 'hotels' => 'Hôtels', 'trucks' => 'Food trucks'],
+    'features' => ['title' => 'Tout ce dont votre salle a besoin'],
+    'how' => [
+        'eyebrow' => 'Comment ça marche', 'title' => 'De la carte papier aux commandes en direct en trois étapes',
+        'menu_title' => 'Créez votre menu', 'menu_text' => 'Ajoutez vos plats à la main ou laissez l\'IA lire une photo de votre carte papier.',
+        'print_title' => 'Imprimez vos QR codes', 'print_text' => 'Téléchargez des cartes prêtes à imprimer pour chaque table, à vos couleurs.',
+        'orders_title' => 'Recevez les commandes', 'orders_text' => 'Vos clients commandent depuis leur téléphone et la cuisine voit les tickets instantanément.',
+    ],
+    'cta' => ['title' => 'Offrez un meilleur menu à chaque table', 'text' => 'Démarrez votre essai gratuit dès aujourd\'hui. Votre premier QR code ne prend que quelques minutes.'],
+    'footer' => ['tagline' => 'Menus QR, commande à table et écran cuisine pour les restaurants de toutes tailles.', 'product' => 'Produit', 'resources' => 'Ressources', 'legal' => 'Mentions légales'],
+    'pricing' => [
+        'popular' => 'Le plus populaire', 'free' => 'Gratuit', 'one_time' => 'paiement unique', 'trial' => 'Essai gratuit de :days jours',
+        'unlimited' => 'Illimité', 'start_trial' => 'Démarrer l\'essai gratuit', 'choose' => 'Choisir l\'offre',
+    ],
+    'blog' => ['empty' => 'Aucun article pour le moment.', 'title' => 'Les dernières nouvelles du blog', 'read' => 'Lire l\'article'],
+    'landing_defaults' => [
+        'hero_title' => 'Votre menu, à un scan de distance',
+        'hero_subtitle' => 'Créez un beau menu QR, recevez les commandes de chaque table et développez votre restaurant — en quelques minutes, sans application.',
+        'hero_cta' => 'Démarrer l\'essai gratuit',
+        'hero_secondary' => 'Voir les tarifs',
+        'feature_1_title' => 'Des menus QR mis à jour instantanément',
+        'feature_1_text' => 'Modifiez prix et plats une seule fois : chaque table le voit immédiatement.',
+        'feature_2_title' => 'Commandes depuis la table',
+        'feature_2_text' => 'Les clients commandent et paient depuis leur téléphone, la cuisine reçoit les tickets en temps réel.',
+        'feature_3_title' => 'Multilingue et multidevise',
+        'feature_3_text' => 'Servez les touristes dans leur langue, avec prise en charge de l\'écriture de droite à gauche.',
+        'feature_4_title' => 'Import du menu par IA',
+        'feature_4_text' => 'Photographiez votre menu papier et laissez l\'IA créer le menu numérique.',
+        'pricing_title' => 'Des tarifs simples et honnêtes',
+        'pricing_subtitle' => 'Commencez par un essai gratuit. Évoluez quand vous grandissez.',
+        'faq_1_q' => 'Mes clients doivent-ils installer une application ?',
+        'faq_1_a' => 'Non. Ils scannent le code QR et le menu s\'ouvre dans leur navigateur.',
+        'faq_2_q' => 'Puis-je résilier à tout moment ?',
+        'faq_2_a' => 'Oui. Votre forfait reste actif jusqu\'à la fin de la période payée.',
+        'contact_title' => 'Des questions ? Parlons-en',
+        'contact_text' => 'Nous répondons généralement sous un jour ouvré.',
+    ],
+];

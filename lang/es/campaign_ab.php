@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'enable' => 'Probar dos asuntos (prueba A/B)',
+    'help' => 'Un grupo pequeño recibe el asunto A o B. Pasado el tiempo de espera, el asunto con más aperturas se envía al resto. Hacen falta al menos :min personas.',
+    'subject_b' => 'Asunto B',
+    'test_percent' => 'Parte de la audiencia en la prueba (%)',
+    'winner_hours' => 'Espera antes de elegir al ganador (horas)',
+    'track_opens' => 'Contar aperturas (una imagen diminuta e invisible en el correo)',
+    'track_help' => 'Las aperturas son una estimación: algunas apps de correo cargan la imagen solas, así que las reales pueden ser menos.',
+    'status_testing' => 'En prueba',
+    'results_title' => 'Resultados',
+    'variant' => 'Asunto',
+    'stat_sent' => 'Enviados',
+    'stat_opens' => 'Abiertos',
+    'stat_rate' => 'Tasa de apertura',
+    'winner' => 'Ganador',
+    'open_note' => 'Las aperturas son solo una guía: algunas apps de correo (por ejemplo la protección de privacidad de Apple Mail) cargan las imágenes automáticamente y suben las cifras.',
+    'testing_title' => 'Prueba de asunto en curso',
+    'testing_note' => 'El mejor asunto se envía al resto :time. O elige ahora:',
+    'pick' => 'Enviar :variant al resto',
+    'pick_confirm' => '¿Enviar el asunto :variant a todos los que aún no han recibido la campaña?',
+    'winner_sent' => 'El asunto :variant se envió al resto de la audiencia.',
+    'not_testing' => 'Esta campaña no espera un ganador.',
+    'error_small' => 'Una prueba de asunto necesita al menos :min personas en la audiencia.',
+];
