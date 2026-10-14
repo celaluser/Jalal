@@ -20,6 +20,8 @@ class SiteSettings
         'map_url' => '',
         'price_range' => '',       // "$", "$$", "$$$"
         'cuisine' => '',           // "Italian, Pizza"
+        'blocks' => [],            // page builder sections of the About page, in order (see SiteBuilder); empty = the standard layout
+        'gallery' => [],           // photos: [['media' => id, 'caption' => text]]
     ];
 
     /** @return array<string, mixed> */
@@ -52,6 +54,9 @@ class SiteSettings
         $clean['price_range'] = trim((string) ($input['price_range'] ?? ''));
         $clean['cuisine'] = trim(strip_tags((string) ($input['cuisine'] ?? '')));
 
+        // The page builder and the gallery arrive as JSON from the editor and are cleaned by SiteBuilder.
+        $clean += app(SiteBuilder::class)->clean($restaurant, $input['blocks_json'] ?? null, $input['gallery_json'] ?? null);
+
         $restaurant->update(['site_settings' => $clean]);
     }
 
@@ -64,6 +69,7 @@ class SiteSettings
             'seo_description' => ['nullable', 'array'], 'seo_description.*' => ['nullable', 'string', 'max:170'],
             'about' => ['nullable', 'array'], 'about.*' => ['nullable', 'string', 'max:3000'],
             'hours' => ['nullable', 'array'], 'hours.*' => ['nullable', 'string', 'max:60'],
+            'blocks_json' => ['nullable', 'string', 'max:60000'], 'gallery_json' => ['nullable', 'string', 'max:20000'],
             'map_url' => ['nullable', 'url:https', 'max:500'], 'price_range' => ['nullable', 'in:$,$$,$$$,$$$$'], 'cuisine' => ['nullable', 'string', 'max:80'],
         ];
     }
@@ -78,7 +84,7 @@ class SiteSettings
         $s = $this->for($restaurant);
         $data = array_filter([
             '@context' => 'https://schema.org', '@type' => 'Restaurant', 'name' => $restaurant->name, 'url' => $restaurant->publicUrl(), 'hasMenu' => $restaurant->publicUrl(),
-            'image' => $logo, 'telephone' => $restaurant->phone, 'servesCuisine' => $s['cuisine'] ?: null, 'priceRange' => $s['price_range'] ?: null,
+            'image' => $this->images($logo, $s), 'telephone' => $restaurant->phone, 'servesCuisine' => $s['cuisine'] ?: null, 'priceRange' => $s['price_range'] ?: null,
             'description' => $this->text($restaurant, 'seo_description', $locale) ?: null,
             'address' => $restaurant->address || $restaurant->city ? array_filter(['@type' => 'PostalAddress', 'streetAddress' => $restaurant->address, 'addressLocality' => $restaurant->city, 'addressCountry' => $restaurant->country]) : null,
             'openingHours' => $this->openingHours($s['hours']) ?: null,
@@ -86,6 +92,15 @@ class SiteSettings
         ]);
 
         return $data;
+    }
+
+    /** The logo alone as a string (as before); with photos a list, which search engines use for the restaurant's pictures. */
+    private function images(?string $logo, array $s): string|array|null
+    {
+        $photos = array_slice(array_values(app(SiteBuilder::class)->urls(['gallery' => $s['gallery']])), 0, 8);
+        $all = array_values(array_filter(array_merge([$logo], $photos)));
+
+        return count($all) > 1 ? $all : ($all[0] ?? null);
     }
 
     /** Lines such as "11:00-23:00" become schema.org "Mo 11:00-23:00"; anything else ("Closed", free text) is left out. @return list<string> */

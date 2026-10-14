@@ -51,4 +51,5 @@ Route::middleware(['web', SetLocale::class, ResolveTenant::class])->name('storef
 Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', 'permission:marketing.manage'])->group(function () {
     Route::get('website', [SiteSettingsController::class, 'edit'])->name('site.edit');
     Route::put('website', [SiteSettingsController::class, 'update'])->name('site.update');
+    Route::post('website/media', [SiteSettingsController::class, 'media'])->middleware('throttle:30,1')->name('site.media');
 });

@@ -55,7 +55,7 @@
 
                     <fieldset class="space-y-3">
                         <legend class="text-sm font-semibold">{{ __('platform.features_title') }}</legend>
-                        <div class="grid gap-3 sm:grid-cols-3">
+                        <div class="grid gap-3 sm:grid-cols-2">
                             @foreach (\App\Modules\Billing\Models\Plan::FEATURES as $key)
                                 @php($cur = $restaurant->feature_overrides[$key] ?? null)
                                 <div>

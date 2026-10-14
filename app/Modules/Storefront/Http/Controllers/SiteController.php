@@ -7,6 +7,7 @@ use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Marketing\Services\MarketingSettings;
 use App\Modules\Marketing\Services\ReviewService;
 use App\Modules\Storefront\Services\MenuLocale;
+use App\Modules\Storefront\Services\SiteBuilder;
 use App\Modules\Storefront\Services\SiteSettings;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Http\Request;
@@ -31,7 +32,7 @@ class SiteController extends Controller
 
         return view('storefront::about', [
             'restaurant' => $restaurant, 'locale' => $locale, 'dir' => $this->locales->isRtl($locale) ? 'rtl' : 'ltr', 's' => $s, 'marketing' => $marketing, 'rating' => $rating,
-            'about' => $this->site->text($restaurant, 'about', $locale), 'logo' => $restaurant->logo?->url(),
+            'urls' => app(SiteBuilder::class)->urls($s), 'about' => $this->site->text($restaurant, 'about', $locale), 'logo' => $restaurant->logo?->url(),
             'title' => $this->site->text($restaurant, 'seo_title', $locale) ?: $restaurant->name,
             'description' => $this->site->text($restaurant, 'seo_description', $locale) ?: __('customer.meta_description', ['name' => $restaurant->name]),
             'jsonLd' => $this->site->jsonLd($restaurant, $locale, $restaurant->logo?->url(), $rating),
