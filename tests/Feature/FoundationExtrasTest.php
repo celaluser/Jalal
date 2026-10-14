@@ -42,13 +42,13 @@ describe('thumbnails', function () {
 
         app(FileUploader::class)->delete($media);
         Storage::disk('public')->assertMissing(Media::thumbPath($media->path));
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('does not make a thumbnail for an image that is already small', function () {
         Storage::fake('public');
         $media = app(FileUploader::class)->store(UploadedFile::fake()->image('small.png', 300, 200));
         expect($media->has_thumb)->toBeFalse()->and($media->thumbUrl())->toBe($media->url());
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 });
 
 describe('proration', function () {

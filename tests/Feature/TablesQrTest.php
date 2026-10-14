@@ -78,7 +78,7 @@ describe('qr rendering', function () {
 
             expect($info[0])->toBe(300)->and($info[1])->toBe(300)->and($info['mime'])->toBe('image/png');
         }
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('places a logo in the centre, using stronger error correction', function () {
         $logo = imagecreatetruecolor(64, 64);
@@ -91,7 +91,7 @@ describe('qr rendering', function () {
 
         expect($plain)->not->toContain('<image')->and($branded)->toContain('<image')->toContain('data:image/png;base64,')
             ->and(getimagesizefromstring(QrCode::png('https://example.com/x', new QrStyle(logo: $png), 200))[0])->toBe(200);
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('refuses colours that are not plain hex values', function () {
         expect(fn () => new QrStyle('red'))->toThrow(InvalidArgumentException::class)
@@ -313,7 +313,7 @@ describe('qr design and downloads', function () {
         $this->put(route('tables.qr.update'), ['fg' => '#000000', 'bg' => '#ffffff', 'shape' => 'square', 'logo' => 1]);
 
         expect(app(TableQr::class)->settings($r->fresh())['logo'])->toBeTrue()->and(app(TableQr::class)->svg($r->fresh()))->toContain('<image');
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('previews unsaved values as SVG and rejects bad ones as JSON', function () {
         [$r, $owner] = tqShop();
@@ -335,7 +335,7 @@ describe('qr design and downloads', function () {
         $this->get(route('tables.qr.download', ['menu', 'png']))->assertOk();
         $this->get(route('tables.qr.download', ['nope', 'png']))->assertNotFound();
         $this->get('/tables/qr/download/'.$t->id.'/exe')->assertNotFound();
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('zips every table with safe unique file names', function () {
         [$r, $owner] = tqShop();
@@ -350,7 +350,7 @@ describe('qr design and downloads', function () {
 
         expect($names)->toBe(['evil.png', 'table-1-2.png', 'table-1.png']);
         $zip->close();
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('prints a PDF sheet and 404s without tables', function () {
         [$r, $owner] = tqShop();
@@ -364,7 +364,7 @@ describe('qr design and downloads', function () {
 
         $pdf = $this->get(route('tables.qr.pdf'))->assertOk();
         expect(str_starts_with($pdf->baseResponse->getContent(), '%PDF'))->toBeTrue();
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('prints only the requested tables of this restaurant', function () {
         [$r, $owner] = tqShop();
@@ -374,7 +374,7 @@ describe('qr design and downloads', function () {
 
         $this->actingAs($owner)->get(route('tables.qr.pdf', ['tables' => [$theirs->id]]))->assertNotFound();
         $this->get(route('tables.qr.pdf', ['tables' => [$mine->id]]))->assertOk();
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('renders the design page', function () {
         [$r, $owner] = tqShop();

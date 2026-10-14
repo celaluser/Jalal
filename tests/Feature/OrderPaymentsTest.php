@@ -339,7 +339,7 @@ it('shows a printable digital receipt and a PDF with the payments on it', functi
     $this->get('/r/'.$r->slug.'/order/'.str_repeat('q', 24).'/receipt')->assertNotFound();
     [$r2] = opShop();
     $this->get('/r/'.$r2->slug.'/order/'.$order->token.'/receipt')->assertNotFound(); // another restaurant's menu cannot show it
-});
+})->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
 it('invites happy guests to review publicly, with the owner’s own link', function () {
     [$r, $owner, $d] = opShop();

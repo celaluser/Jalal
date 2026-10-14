@@ -73,7 +73,7 @@ it('converts uploaded images to webp, scoped to the tenant', function () {
         ->and($media->path)->toContain("r{$restaurant->id}")
         ->and($media->width)->toBeLessThanOrEqual(1920);
     Storage::disk('public')->assertExists($media->path);
-});
+})->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
 it('rejects files that are not images', function () {
     Storage::fake('public');

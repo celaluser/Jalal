@@ -126,7 +126,7 @@ it('reads a menu from a photo, charges the photo price and validates the answer'
     expect($res->json('items'))->toBe(2)->and($res->json('warnings'))->toBe(['Salad'])->and($res->json('categories.0.name'))->toBe('Starters');
     expect(axIn($r, fn () => AiUsage::first()->credits))->toBe(15)->and(axIn($r, fn () => AiUsage::first()->task))->toBe('photo_import');
     Http::assertSent(fn (Request $q) => str_contains(json_encode($q->data(), JSON_UNESCAPED_SLASHES), 'data:image/png;base64,'));
-});
+})->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
 it('refuses non-images, oversized photos and a user without menu rights for the photo import', function () {
     axConfigure();
@@ -141,7 +141,7 @@ it('refuses non-images, oversized photos and a user without menu rights for the 
     $kitchen->assignRole(Permissions::KITCHEN);
     app(PermissionRegistrar::class)->setPermissionsTeamId(config('tenancy.platform_team_id'));
     $this->actingAs($kitchen)->postJson(route('ai.import.photo'), ['photo' => axPng()])->assertForbidden();
-});
+})->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
 it('reads a text PDF and tells the owner when a PDF is only a scan', function () {
     axConfigure();
@@ -324,4 +324,4 @@ it('reads several pages of a menu in one go and merges them by category', functi
     expect($res->json('items'))->toBe(4)->and($res->json('categories'))->toHaveCount(1)->and($res->json('categories.0.items'))->toHaveCount(4);
     expect(axIn($r, fn () => AiUsage::count()))->toBe(2);
     $this->actingAs($owner)->postJson(route('ai.import.photo'), ['photos' => array_fill(0, 6, axPng())])->assertStatus(422);
-});
+})->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');

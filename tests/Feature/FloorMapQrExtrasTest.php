@@ -108,7 +108,7 @@ it('saves a QR frame and paper layout and prints every layout as a PDF', functio
     }
 
     $this->actingAs($owner)->put(route('tables.qr.update'), ['fg' => '#000000', 'bg' => '#ffffff', 'shape' => 'square', 'frame' => 'zigzag'])->assertSessionHasErrors('frame');
-});
+})->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
 it('lists NFC links and exports them safely as CSV', function () {
     [$r, $owner, $d] = fmShop();

@@ -134,7 +134,7 @@ describe('categories', function () {
         inTenant($r, fn () => Product::query()->delete());
         $this->delete(route('menu.categories.destroy', $c))->assertRedirect(route('menu.index'));
         expect(inTenant($r, fn () => Category::count()))->toBe(0);
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 });
 
 describe('products', function () {
@@ -154,7 +154,7 @@ describe('products', function () {
             ->and($p->allergens)->toBe(['gluten', 'milk'])->and($p->dietary)->toBe(['vegetarian'])->and($p->is_featured)->toBeTrue()
             ->and($p->optionGroups->pluck('id')->all())->toBe([$g->id])->and($p->image)->not->toBeNull();
         Storage::disk('public')->assertExists($p->image->path);
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('validates input', function () {
         [$r, $owner] = menuShop();
@@ -189,7 +189,7 @@ describe('products', function () {
 
         $this->put(route('menu.products.update', $p), productPayload($b, ['remove_image' => 1]));
         expect(inTenant($r, fn () => $p->fresh()->image_media_id))->toBeNull();
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('toggles only whitelisted switches', function () {
         [$r, $owner] = menuShop();

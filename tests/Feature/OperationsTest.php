@@ -448,7 +448,7 @@ it('lets staff install the staff screens like an app', function () {
     $this->actingAs($owner)->get(route('tables.index'))->assertSee('staff.webmanifest', false);
     auth()->logout();
     $this->get(route('staff.manifest'))->assertRedirect(route('login'));
-});
+})->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
 // ---- delivery areas on the map and live courier tracking -------------------------------------------
 

@@ -152,7 +152,7 @@ describe('onboarding wizard', function () {
         $r = $owner->restaurant->fresh();
         expect($r->brandColor())->toBe('#aabbcc')->and($r->logo)->not->toBeNull();
         Storage::disk('public')->assertExists($r->logo->path);
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('keeps staff without settings permission out', function () {
         $restaurant = p4Staff()->restaurant;

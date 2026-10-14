@@ -157,7 +157,7 @@ describe('blog', function () {
 
         $this->delete("/admin/posts/{$post->id}");
         expect(BlogPost::count())->toBe(0);
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('allows the same slug in different languages but not twice in one', function () {
         $this->actingAs($this->admin);

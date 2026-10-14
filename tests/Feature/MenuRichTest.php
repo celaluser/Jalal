@@ -104,7 +104,7 @@ describe('dish media', function () {
         $this->actingAs($owner)->put(route('menu.products.update', $p->id), ['category_id' => $cat->id, 'name' => ['en' => 'Burger'], 'price' => '12.50', 'is_active' => '1', 'is_available' => '1', 'remove_gallery' => [$firstPhoto], 'order_types' => ['dine_in', 'takeaway', 'delivery']])->assertSessionHasNoErrors();
         $p = app(TenantContext::class)->runAs($r, fn () => $p->fresh());
         expect($p->gallery)->toHaveCount(1)->and($p->gallery)->not->toContain($firstPhoto)->and($p->order_types)->toBeNull()->and($p->badges)->toBeNull();
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('rejects an unknown badge', function () {
         [, $owner, $cat] = mrShop();
@@ -122,7 +122,7 @@ describe('dish media', function () {
         $many = array_map(fn ($i) => UploadedFile::fake()->image("p{$i}.jpg"), range(1, 7));
         $this->actingAs($owner)->post(route('menu.products.store'), ['category_id' => $cat->id, 'name' => ['en' => 'X'], 'price' => 1, 'gallery' => $many])->assertSessionHasErrors('gallery');
         $this->actingAs($owner)->post(route('menu.products.store'), ['category_id' => $cat->id, 'name' => ['en' => 'X'], 'price' => 1, 'gallery' => [UploadedFile::fake()->create('x.php', 4, 'text/x-php')]])->assertSessionHasErrors('gallery.0');
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 });
 
 describe('what the guest sees and can order', function () {

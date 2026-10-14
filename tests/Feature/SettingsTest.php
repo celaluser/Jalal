@@ -103,7 +103,7 @@ describe('settings screens', function () {
 
         $this->put('/admin/settings/general', formFor('general', ['remove_logo' => '1']));
         expect($this->settings->get('general.logo'))->toBeNull();
-    });
+    })->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
     it('rejects non-image logos, including svg', function () {
         $this->actingAs($this->admin)->put('/admin/settings/general', formFor('general', ['logo' => UploadedFile::fake()->create('logo.svg', 5, 'image/svg+xml')]))->assertSessionHasErrors('logo');

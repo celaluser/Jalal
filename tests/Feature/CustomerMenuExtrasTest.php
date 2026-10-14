@@ -96,7 +96,7 @@ it('serves the manifest, icons and a service worker that skips orders', function
 
     $this->get($base)->assertSee('manifest.webmanifest', false)->assertSee('apple-touch-icon', false);
     $this->get('/r/nope/manifest.webmanifest')->assertNotFound();
-});
+})->skip(! extension_loaded('gd'), 'needs the PHP GD extension (the installer checks for it)');
 
 it('lets guests view approximate prices in other currencies only when allowed and rated', function () {
     [$r, $owner] = cmShop();
