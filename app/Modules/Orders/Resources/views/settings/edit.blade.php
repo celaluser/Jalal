@@ -13,6 +13,11 @@
             </div>
         </x-ui.card>
 
+        <x-ui.card :title="__('tv.title')">
+            <p class="text-sm text-slate-600 dark:text-slate-300">{{ __('tv.help') }}</p>
+            <p class="mt-2"><a class="font-mono text-sm underline" href="{{ $restaurant->publicUrl('tv') }}" target="_blank" rel="noopener">{{ $restaurant->publicUrl('tv') }}</a></p>
+        </x-ui.card>
+
         <x-ui.card :title="__('orders.sec_types')">
             <div class="space-y-3">
                 <x-ui.checkbox name="dine_in" :label="__('orders.dine_in')" :checked="$s['dine_in']" />
