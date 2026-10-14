@@ -123,12 +123,22 @@ class PaymentLedger
     public function refund(OrderPayment $payment, ?int $amountCents, ?User $by = null, ?string $reason = null): array
     {
         $order = $payment->order;
-        $max = $payment->refundable();
-        $amount = min($amountCents ?? $max, $max);
 
-        if ($amount < 1) {
-            throw new OrderException('invalid_amount');
-        }
+        // Reserve the amount first, under a row lock: two clicks (or two requests) can no longer both refund the same money.
+        $amount = DB::transaction(function () use ($payment, $amountCents) {
+            $locked = OrderPayment::whereKey($payment->id)->lockForUpdate()->first();
+            $max = $locked->refundable();
+            $amount = min($amountCents ?? $max, $max);
+
+            if ($amount < 1) {
+                throw new OrderException('invalid_amount');
+            }
+
+            $locked->forceFill(['refunded_cents' => $locked->refunded_cents + $amount])->save();
+
+            return $amount;
+        });
+        $payment->refresh();
 
         $viaGateway = false;
 
@@ -137,17 +147,22 @@ class PaymentLedger
                 $gateway->refund($payment->transaction_id, Money::toMinor($amount / 100, (string) $order->currency_code), (string) $order->currency_code, $this->gateways->config($order->restaurant, $payment->gateway));
                 $viaGateway = true;
             } catch (GatewayException) {
+                // The gateway said no: give the reserved amount back so it can be tried again.
+                OrderPayment::whereKey($payment->id)->decrement('refunded_cents', $amount);
+
                 throw new OrderException('refund_failed');
             }
         }
 
         DB::transaction(function () use ($payment, $order, $amount, $by, $reason) {
-            $payment->forceFill(['refunded_cents' => $payment->refunded_cents + $amount, 'note' => $reason ? mb_substr(trim(strip_tags($reason)), 0, 200) : $payment->note])->save();
+            $payment->refresh();
+            $payment->forceFill(['note' => $reason ? mb_substr(trim(strip_tags($reason)), 0, 200) : $payment->note])->save();
             // The platform keeps no commission on money that went back.
             if ($payment->commission_cents > 0 && $payment->commission_billed_at === null) {
                 $payment->forceFill(['commission_cents' => $this->commission(max(0, $payment->amount_cents - $payment->refunded_cents))])->save();
             }
 
+            $order = Order::whereKey($order->id)->lockForUpdate()->first();
             $order->forceFill(['paid_cents' => max(0, $order->paid_cents - $amount), 'refunded_cents' => $order->refunded_cents + $amount]);
 
             if ($order->paid_cents < $order->total_cents) {

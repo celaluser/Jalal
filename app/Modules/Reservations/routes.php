@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 $guest = function () {
     Route::get('reserve', [GuestReservationController::class, 'form'])->name('reserve');
     Route::get('reserve/slots', [GuestReservationController::class, 'slots'])->middleware('throttle:60,1')->name('reserve.slots');
-    Route::post('reserve', [GuestReservationController::class, 'store'])->middleware('throttle:6,1')->name('reserve.store');
+    Route::post('reserve', [GuestReservationController::class, 'store'])->middleware(['throttle:6,1', 'recaptcha'])->name('reserve.store');
     Route::get('reserve/{token}', [GuestReservationController::class, 'show'])->where('token', '[a-z0-9]{24}')->name('reserve.show');
     Route::post('reserve/{token}/pay', [GuestReservationController::class, 'payDeposit'])->where('token', '[a-z0-9]{24}')->middleware('throttle:10,1')->name('reserve.pay');
     Route::match(['get', 'post'], 'reserve/{token}/pay/return', [GuestReservationController::class, 'depositReturn'])->where('token', '[a-z0-9]{24}')->middleware('throttle:30,1')->name('reserve.pay.return');

@@ -10,6 +10,7 @@ use App\Modules\Tenancy\Models\Restaurant;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
+use PragmaRX\Google2FA\Google2FA;
 use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
@@ -146,4 +147,15 @@ it('creates a super admin from the command line', function () {
 
     expect($user->isPlatformUser())->toBeTrue()
         ->and($user->hasRole(Permissions::SUPER_ADMIN))->toBeTrue();
+});
+
+it('accepts a one-time code only once inside its window', function () {
+    $service = app(TwoFactorService::class);
+    $user = User::factory()->create();
+    $secret = $service->generateSecret();
+    $service->enable($user, $secret);
+    $code = (new Google2FA)->getCurrentOtp($secret);
+
+    expect($service->attempt($user->fresh(), $code))->toBeTrue()
+        ->and($service->attempt($user->fresh(), $code))->toBeFalse();
 });

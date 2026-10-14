@@ -27,7 +27,11 @@ class SocialController extends Controller
         $this->guard($provider);
 
         if ($provider === 'apple') {
-            return redirect()->away($this->apple->authorizeUrl(route('social.callback', 'apple')));
+            $url = $this->apple->authorizeUrl(route('social.callback', 'apple'));
+            parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+            // Apple posts the answer back from another site, so the cookie that ties the state to this browser must allow that (SameSite=None, https only).
+            return redirect()->away($url)->withCookie(cookie('apple_state', (string) $this->apple->nonce($query['state'] ?? null), 10, '/', null, true, true, false, 'none'));
         }
 
         return $this->facebook()->redirect();
@@ -38,6 +42,7 @@ class SocialController extends Controller
     {
         $this->guard($provider);
         abort_if($provider === 'apple' && ! $this->apple->validState($request->input('state')), 400);
+        abort_if($provider === 'apple' && ! hash_equals((string) $request->cookie('apple_state'), (string) $this->apple->nonce($request->input('state'))), 400);
 
         try {
             [$id, $email] = $provider === 'apple' ? $this->fromApple($request) : $this->fromFacebook();

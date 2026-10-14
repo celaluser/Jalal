@@ -7,6 +7,7 @@ use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
 
@@ -49,7 +50,8 @@ class TwoFactorService
     public function attempt(User $user, string $code): bool
     {
         if ($this->verify($user->two_factor_secret, $code)) {
-            return true;
+            // A code is good once: someone who saw it over a shoulder or in a proxy log cannot replay it inside the 30-second window.
+            return Cache::add('totp-used:'.$user->id.':'.preg_replace('/\s+/', '', $code), true, 120);
         }
 
         $codes = $user->two_factor_recovery_codes ?? [];

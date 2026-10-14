@@ -44,9 +44,11 @@
                 @endif
             </div>
         @endif
+        <x-recaptcha />
         <button class="menu-btn w-full !py-3.5" :disabled="!time">{{ $deposit ? __('reservations.book_and_pay') : __('reservations.book') }}</button>
     </form>
 </main>
+@stack('scripts')
 <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('reserve', (cfg) => ({

@@ -40,6 +40,18 @@ class AppleSignIn
         return Crypt::encryptString(json_encode(['n' => Str::random(16), 'exp' => time() + 600]));
     }
 
+    /** The random part of a state: also kept in a browser cookie, so a state minted by someone else is useless in this browser. */
+    public function nonce(?string $state): ?string
+    {
+        try {
+            $data = json_decode(Crypt::decryptString((string) $state), true);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return is_array($data) && is_string($data['n'] ?? null) ? $data['n'] : null;
+    }
+
     public function validState(?string $state): bool
     {
         try {

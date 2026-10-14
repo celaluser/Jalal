@@ -39,6 +39,17 @@ function slAppleIdToken(array $over = []): string
     return $b('{"alg":"none"}').'.'.$b(json_encode(array_merge(['iss' => 'https://appleid.apple.com', 'aud' => 'svc.id', 'exp' => time() + 600, 'sub' => 'apple-123', 'email' => 'ana@example.com'], $over))).'.sig';
 }
 
+/** Starts an Apple sign-in like a browser does: returns the state from the link and keeps the cookie the app set. */
+function slAppleStart($test): array
+{
+    $response = $test->get('/auth/social/apple')->assertRedirect()->assertCookie('apple_state');
+    parse_str(parse_url($response->headers->get('Location'), PHP_URL_QUERY), $q);
+    $cookie = $response->getCookie('apple_state', false);
+    expect($cookie->getSameSite())->toBe('none')->and($cookie->isSecure())->toBeTrue();
+
+    return [$q['state'], app(AppleSignIn::class)->nonce($q['state'])];
+}
+
 it('keeps both buttons hidden and the routes closed until enabled', function () {
     $this->get('/login')->assertDontSee('Continue with Facebook')->assertDontSee('Continue with Apple');
     $this->get('/auth/social/facebook')->assertNotFound();
@@ -109,7 +120,8 @@ it('signs a valid ES256 client secret', function () {
 it('signs in through Apple and rejects bad tokens', function () {
     slEnable('apple', ['client_id' => 'svc.id', 'team_id' => 'T', 'key_id' => 'K', 'private_key' => slKey()]);
     $user = User::factory()->create(['email' => 'ana@example.com']);
-    $state = app(AppleSignIn::class)->makeState();
+    [$state, $cookie] = slAppleStart($this);
+    $this->withCookie('apple_state', $cookie);
 
     Http::fake(['appleid.apple.com/auth/token' => Http::sequence()->push(['id_token' => slAppleIdToken()])->push(['id_token' => slAppleIdToken(['aud' => 'someone-else'])])]);
     $this->post('/auth/social/apple/callback', ['code' => 'c', 'state' => $state])->assertRedirect(route('dashboard'));
@@ -121,6 +133,14 @@ it('signs in through Apple and rejects bad tokens', function () {
     $this->assertGuest();
 
     $this->post('/auth/social/apple/callback', ['code' => 'c', 'state' => 'forged'])->assertStatus(400);
+});
+
+it('refuses an Apple state that was not issued to this browser (login CSRF)', function () {
+    slEnable('apple', ['client_id' => 'svc.id']);
+    $state = app(AppleSignIn::class)->makeState();
+
+    $this->post('/auth/social/apple/callback', ['code' => 'c', 'state' => $state])->assertStatus(400);
+    $this->withCookie('apple_state', 'someone-elses-nonce')->post('/auth/social/apple/callback', ['code' => 'c', 'state' => $state])->assertStatus(400);
 });
 
 function slFacebookAs(string $id, string $email): void

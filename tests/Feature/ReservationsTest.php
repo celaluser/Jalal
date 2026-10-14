@@ -7,6 +7,7 @@ use App\Modules\Billing\Services\SubscriptionService;
 use App\Modules\Core\Mail\TemplatedMail;
 use App\Modules\Core\Models\Currency;
 use App\Modules\Core\Models\Language;
+use App\Modules\Core\Services\SettingsService;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Messaging\Services\MessagingManager;
 use App\Modules\Reservations\Models\Reservation;
@@ -225,4 +226,14 @@ it('also texts the reminder to guests with only a phone number, in their languag
     Http::assertSentCount(1);
     Http::assertSent(fn ($q) => $q['To'] === '+905321112233' && str_contains($q['Body'], 'hatırlatma') && str_contains($q['Body'], '4 kişilik'));
     Mail::assertNothingSent();
+});
+
+it('asks for the captcha on the booking form once it is switched on', function () {
+    [$r] = rsShop();
+    app(SettingsService::class)->set('security.recaptcha_enabled', '1');
+    app(SettingsService::class)->set('security.recaptcha_site_key', 'site-key');
+
+    $this->get('/r/'.$r->slug.'/reserve')->assertOk()->assertSee('g-recaptcha');
+    rsBook($this, $r)->assertSessionHasErrors('g-recaptcha-response');
+    expect(Reservation::count())->toBe(0);
 });
