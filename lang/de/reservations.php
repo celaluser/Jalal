@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => 'Reservierungen', 'subtitle' => 'Buchungen des Tages. Bestätigen Sie sie, weisen Sie einen Tisch zu und setzen Sie die Gäste.', 'settings' => 'Reservierungseinstellungen', 'settings_sub' => 'Wann Gäste buchen können und wie lange sie bleiben.',
+    'off_note' => 'Die Online-Buchung ist ausgeschaltet oder nicht in Ihrem Tarif enthalten. Sie können Buchungen weiterhin von Hand hinzufügen.', 'locked' => 'Ihr Tarif enthält keine Reservierungen.',
+    'date' => 'Datum', 'time' => 'Uhrzeit', 'party' => 'Gäste', 'note' => 'Notiz (Allergien, ein Geburtstag …)', 'table' => 'Tisch', 'no_table' => 'Noch kein Tisch',
+    'add' => 'Buchung hinzufügen', 'created' => 'Buchung hinzugefügt.', 'force' => 'Auch buchen, wenn die Zeit voll ist', 'empty' => 'Keine Buchungen an diesem Tag', 'empty_text' => 'Online getätigte Buchungen erscheinen hier.',
+    'prev_day' => 'Vorheriger Tag', 'next_day' => 'Nächster Tag', 'pending_count' => '{1} 1 Buchung zu bestätigen|[2,*] :count Buchungen zu bestätigen', 'people' => '{1} 1 Gast|[2,*] :count Gäste',
+    'status_pending' => 'Wartet', 'status_confirmed' => 'Bestätigt', 'status_seated' => 'Platziert', 'status_completed' => 'Erledigt', 'status_cancelled' => 'Storniert', 'status_no_show' => 'Nicht erschienen',
+    'action_confirmed' => 'Bestätigen', 'action_seated' => 'Platzieren', 'action_completed' => 'Abschließen', 'action_cancelled' => 'Stornieren', 'action_no_show' => 'Nicht erschienen',
+    'book_title' => 'Tisch reservieren', 'book' => 'Diese Zeit buchen', 'no_slots' => 'Keine freien Zeiten für diesen Tag und diese Personenzahl. Versuchen Sie einen anderen Tag.', 'contact_help' => 'Hinterlassen Sie eine Telefonnummer oder E-Mail-Adresse, damit wir Sie erreichen können.',
+    'your_booking' => 'Ihre Buchung', 'pending_text' => 'Wir bestätigen Ihre Buchung in Kürze.', 'cancel' => 'Buchung stornieren', 'cancel_confirm' => 'Diese Buchung stornieren?',
+    'error_not_available' => 'Diese Zeit ist nicht mehr frei. Bitte wählen Sie eine andere.', 'error_contact_required' => 'Bitte hinterlassen Sie eine Telefonnummer oder E-Mail-Adresse.', 'error_invalid_transition' => 'Diese Änderung ist nicht möglich.', 'error_cannot_cancel' => 'Diese Buchung kann nicht mehr storniert werden.',
+    'enabled' => 'Gästen Online-Buchung erlauben', 'auto_confirm' => 'Buchungen automatisch bestätigen', 'page_link' => 'Buchungsseite', 'hours' => 'Buchungszeiten', 'open_from' => 'Erste Buchung', 'open_to' => 'Letzte Platzierung endet', 'days_help' => 'Ohne ausgewählte Tage gilt jeder Tag.',
+    'rules' => 'Regeln', 'slot_minutes' => 'Abstand zwischen Zeitfenstern (Minuten)', 'duration' => 'Wie lange ein Tisch gehalten wird (Minuten)', 'max_party' => 'Größte Gruppe', 'lead' => 'Kürzeste Vorlaufzeit (Minuten)', 'days_ahead' => 'Wie viele Tage im Voraus',
+    'max_covers' => 'Gleichzeitige Plätze', 'max_covers_hint' => 'Wird nur verwendet, wenn Sie keine Tische eingerichtet haben.', 'remind' => 'Erinnerungs-E-Mail (Stunden vorher)', 'remind_hint' => '0 schaltet Erinnerungen aus.',
+    'reserve_link' => 'Tisch reservieren',
+    'sms_reminder' => 'Erinnerung von :restaurant: Ihr Tisch für :party ist am :when. Ändern oder stornieren: :url',
+    'status_awaiting' => 'Wartet auf Anzahlung', 'action_awaiting' => 'Wartet auf Anzahlung',
+    'deposit_title' => 'Anzahlung: :amount pro Gast', 'deposit_terms' => 'Sie zahlen sie jetzt, um den Tisch zu sichern (er wird :minutes Minuten gehalten). Bei Stornierung mindestens :hours Stunden vorher wird sie erstattet; bei späterer Stornierung oder Nichterscheinen behält das Restaurant sie ein. Sie wird bei Ihrem Besuch auf die Rechnung angerechnet.',
+    'deposit_pay_with' => 'Bezahlen mit', 'book_and_pay' => 'Buchen und Anzahlung leisten', 'pay_deposit' => 'Anzahlung leisten', 'awaiting_text' => 'Ihr Tisch wird gehalten, während Sie die Anzahlung von :amount leisten.',
+    'deposit_line' => 'Anzahlung :amount: :state', 'deposit_badge' => 'Anzahlung :amount · :state',
+    'deposit_none' => 'keine', 'deposit_pending' => 'wartet auf Zahlung', 'deposit_paid' => 'bezahlt', 'deposit_applied' => 'wird auf die Rechnung angerechnet', 'deposit_refunded' => 'erstattet', 'deposit_refund_due' => 'zu erstatten', 'deposit_forfeited' => 'vom Restaurant einbehalten', 'deposit_failed' => 'nicht bezahlt',
+    'deposit_mark_refunded' => 'Als erstattet markieren', 'error_payment_unavailable' => 'Die Online-Zahlung ist gerade nicht verfügbar. Bitte versuchen Sie es später erneut.', 'error_payment_failed' => 'Die Zahlungsseite konnte nicht geöffnet werden. Bitte versuchen Sie es erneut.',
+    'deposit_for' => 'Tischanzahlung für :party',
+    'deposit_setting' => 'Anzahlung pro Gast', 'deposit_setting_hint' => '0 = keine Anzahlung. Erfordert Online-Zahlungen (Ihr Tarif und ein unter Online-Zahlungen eingerichtetes Gateway). Wird bei vom Personal eingetragenen Buchungen nicht verlangt.', 'deposit_hold' => 'Unbezahlte Buchung halten für (Minuten)',
+    'deposit_refund' => 'Erstatten bei Stornierung mindestens (Stunden vorher)', 'deposit_refund_hint' => 'Bei späteren Stornierungen und Nichterscheinen bleibt die Anzahlung einbehalten. Stripe-Erstattungen erfolgen automatisch; bei anderen Gateways erscheint "zu erstatten", damit Sie manuell erstatten.',
+];

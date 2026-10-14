@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => 'Prenotazioni', 'subtitle' => 'Le prenotazioni del giorno. Confermale, assegna un tavolo e fai accomodare gli ospiti.', 'settings' => 'Impostazioni prenotazioni', 'settings_sub' => 'Quando gli ospiti possono prenotare e quanto si fermano.',
+    'off_note' => 'La prenotazione online è disattivata o non è inclusa nel tuo piano. Puoi comunque aggiungere prenotazioni a mano.', 'locked' => 'Il tuo piano non include le prenotazioni.',
+    'date' => 'Data', 'time' => 'Ora', 'party' => 'Ospiti', 'note' => 'Nota (allergie, un compleanno...)', 'table' => 'Tavolo', 'no_table' => 'Ancora nessun tavolo',
+    'add' => 'Aggiungi prenotazione', 'created' => 'Prenotazione aggiunta.', 'force' => 'Prenota anche se l\'orario è al completo', 'empty' => 'Nessuna prenotazione in questo giorno', 'empty_text' => 'Le prenotazioni fatte online compaiono qui.',
+    'prev_day' => 'Giorno precedente', 'next_day' => 'Giorno successivo', 'pending_count' => '{1} 1 prenotazione da confermare|[2,*] :count prenotazioni da confermare', 'people' => '{1} 1 ospite|[2,*] :count ospiti',
+    'status_pending' => 'In attesa', 'status_confirmed' => 'Confermata', 'status_seated' => 'Accomodata', 'status_completed' => 'Conclusa', 'status_cancelled' => 'Annullata', 'status_no_show' => 'Non presentato',
+    'action_confirmed' => 'Conferma', 'action_seated' => 'Accomoda', 'action_completed' => 'Concludi', 'action_cancelled' => 'Annulla', 'action_no_show' => 'Non presentato',
+    'book_title' => 'Prenota un tavolo', 'book' => 'Prenota questo orario', 'no_slots' => 'Nessun orario libero per questo giorno e questo numero di ospiti. Prova un altro giorno.', 'contact_help' => 'Lascia un numero di telefono o un\'email così possiamo contattarti.',
+    'your_booking' => 'La tua prenotazione', 'pending_text' => 'Confermeremo la tua prenotazione a breve.', 'cancel' => 'Annulla prenotazione', 'cancel_confirm' => 'Annullare questa prenotazione?',
+    'error_not_available' => 'Quell\'orario non è più libero. Scegline un altro.', 'error_contact_required' => 'Lascia un numero di telefono o un\'email.', 'error_invalid_transition' => 'Questa modifica non è possibile.', 'error_cannot_cancel' => 'Questa prenotazione non può più essere annullata.',
+    'enabled' => 'Consenti agli ospiti di prenotare online', 'auto_confirm' => 'Conferma le prenotazioni automaticamente', 'page_link' => 'Pagina di prenotazione', 'hours' => 'Orari di prenotazione', 'open_from' => 'Prima prenotazione', 'open_to' => 'Fine dell\'ultimo turno', 'days_help' => 'Nessun giorno selezionato significa tutti i giorni.',
+    'rules' => 'Regole', 'slot_minutes' => 'Intervallo tra gli orari (minuti)', 'duration' => 'Per quanto tempo il tavolo resta riservato (minuti)', 'max_party' => 'Gruppo più numeroso', 'lead' => 'Preavviso minimo (minuti)', 'days_ahead' => 'Quanti giorni in anticipo',
+    'max_covers' => 'Posti contemporanei', 'max_covers_hint' => 'Usato solo se non hai configurato i tavoli.', 'remind' => 'Email di promemoria (ore prima)', 'remind_hint' => '0 disattiva i promemoria.',
+    'reserve_link' => 'Prenota un tavolo',
+    'sms_reminder' => 'Promemoria da :restaurant: il tuo tavolo per :party è il :when. Modifica o annulla: :url',
+    'status_awaiting' => 'In attesa della caparra', 'action_awaiting' => 'In attesa della caparra',
+    'deposit_title' => 'Caparra: :amount a persona', 'deposit_terms' => 'La paghi ora per riservare il tavolo (resta riservato per :minutes minuti). Se annulli almeno :hours ore prima ti viene restituita; dopo, o se non ti presenti, il ristorante la trattiene. Viene scalata dal conto quando vieni a trovarci.',
+    'deposit_pay_with' => 'Paga con', 'book_and_pay' => 'Prenota e paga la caparra', 'pay_deposit' => 'Paga la caparra', 'awaiting_text' => 'Il tuo tavolo resta riservato mentre paghi la caparra di :amount.',
+    'deposit_line' => 'Caparra :amount: :state', 'deposit_badge' => 'Caparra :amount · :state',
+    'deposit_none' => 'nessuna', 'deposit_pending' => 'in attesa di pagamento', 'deposit_paid' => 'pagata', 'deposit_applied' => 'scalata dal conto', 'deposit_refunded' => 'restituita', 'deposit_refund_due' => 'da restituire', 'deposit_forfeited' => 'trattenuta dal ristorante', 'deposit_failed' => 'non pagata',
+    'deposit_mark_refunded' => 'Segna come restituita', 'error_payment_unavailable' => 'Il pagamento online non è disponibile al momento. Riprova più tardi.', 'error_payment_failed' => 'Non è stato possibile aprire la pagina di pagamento. Riprova.',
+    'deposit_for' => 'Caparra del tavolo per :party',
+    'deposit_setting' => 'Caparra a persona', 'deposit_setting_hint' => '0 = nessuna caparra. Richiede i pagamenti online (il tuo piano e un gateway configurato in Pagamenti online). Non viene richiesta per le prenotazioni inserite dal personale.', 'deposit_hold' => 'Mantieni una prenotazione non pagata per (minuti)',
+    'deposit_refund' => 'Restituisci in caso di annullamento con almeno (ore di anticipo)', 'deposit_refund_hint' => 'Le cancellazioni più tardive e i mancati arrivi trattengono la caparra. I rimborsi Stripe avvengono automaticamente; gli altri gateway mostrano "da restituire" per il rimborso manuale.',
+];

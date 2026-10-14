@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => '预订', 'subtitle' => '当天的预订。确认预订、分配桌台并安排入座。', 'settings' => '预订设置', 'settings_sub' => '顾客可预订的时间以及用餐时长。',
+    'off_note' => '在线预订已关闭或不在您的套餐内，您仍可手动添加预订。', 'locked' => '您的套餐不包含预订功能。',
+    'date' => '日期', 'time' => '时间', 'party' => '人数', 'note' => '备注（过敏、生日等）', 'table' => '桌台', 'no_table' => '尚未分配桌台',
+    'add' => '添加预订', 'created' => '预订已添加。', 'force' => '即使该时段已满也预订', 'empty' => '这一天没有预订', 'empty_text' => '在线预订会显示在这里。',
+    'prev_day' => '前一天', 'next_day' => '后一天', 'pending_count' => '{1} 1 个预订待确认|[2,*] :count 个预订待确认', 'people' => '{1} 1 位|[2,*] :count 位',
+    'status_pending' => '待确认', 'status_confirmed' => '已确认', 'status_seated' => '已入座', 'status_completed' => '已完成', 'status_cancelled' => '已取消', 'status_no_show' => '未到店',
+    'action_confirmed' => '确认', 'action_seated' => '入座', 'action_completed' => '完成', 'action_cancelled' => '取消', 'action_no_show' => '未到店',
+    'book_title' => '预订桌台', 'book' => '预订此时段', 'no_slots' => '该日期和人数没有空位，请试试其他日期。', 'contact_help' => '请留下电话或邮箱，以便我们联系您。',
+    'your_booking' => '您的预订', 'pending_text' => '我们会尽快确认您的预订。', 'cancel' => '取消预订', 'cancel_confirm' => '取消此预订？',
+    'error_not_available' => '该时段已无空位，请选择其他时间。', 'error_contact_required' => '请留下电话或邮箱。', 'error_invalid_transition' => '无法进行该更改。', 'error_cannot_cancel' => '此预订已无法取消。',
+    'enabled' => '允许顾客在线预订', 'auto_confirm' => '自动确认预订', 'page_link' => '预订页面', 'hours' => '预订时间', 'open_from' => '最早预订', 'open_to' => '最晚用餐结束', 'days_help' => '不勾选任何一天表示每天都可预订。',
+    'rules' => '规则', 'slot_minutes' => '时段间隔（分钟）', 'duration' => '桌台保留时长（分钟）', 'max_party' => '最大人数', 'lead' => '最短提前时间（分钟）', 'days_ahead' => '可提前预订的天数',
+    'max_covers' => '同时座位数', 'max_covers_hint' => '仅在您未设置桌台时使用。', 'remind' => '提醒邮件（提前小时数）', 'remind_hint' => '0 表示关闭提醒。',
+    'reserve_link' => '预订桌台',
+    'sms_reminder' => ':restaurant 的提醒：您 :party 的桌台预订时间为 :when。修改或取消：:url',
+    'status_awaiting' => '等待订金', 'action_awaiting' => '等待订金',
+    'deposit_title' => '订金：每位 :amount', 'deposit_terms' => '请现在支付以保留桌台（保留 :minutes 分钟）。若至少提前 :hours 小时取消，订金将退还；更晚取消或未到店，餐厅将不予退还。到店消费时订金可抵扣账单。',
+    'deposit_pay_with' => '支付方式', 'book_and_pay' => '预订并支付订金', 'pay_deposit' => '支付订金', 'awaiting_text' => '在您支付 :amount 订金期间，桌台会为您保留。',
+    'deposit_line' => '订金 :amount：:state', 'deposit_badge' => '订金 :amount · :state',
+    'deposit_none' => '无', 'deposit_pending' => '等待付款', 'deposit_paid' => '已付', 'deposit_applied' => '已抵扣账单', 'deposit_refunded' => '已退还', 'deposit_refund_due' => '待退还', 'deposit_forfeited' => '餐厅已没收', 'deposit_failed' => '未付款',
+    'deposit_mark_refunded' => '标记为已退还', 'error_payment_unavailable' => '在线支付暂不可用，请稍后再试。', 'error_payment_failed' => '无法打开支付页面，请重试。',
+    'deposit_for' => ':party 的桌台订金',
+    'deposit_setting' => '每位订金', 'deposit_setting_hint' => '0 = 无订金。需要在线支付功能（您的套餐，并在在线支付中设置网关）。员工手动录入的预订不收订金。', 'deposit_hold' => '未付款预订的保留时长（分钟）',
+    'deposit_refund' => '至少提前多少小时取消可退还（小时）', 'deposit_refund_hint' => '更晚取消和未到店将不退订金。Stripe 会自动退款；其他网关会显示“待退还”，需您手动退款。',
+];

@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => 'Reservas', 'subtitle' => 'Las reservas del día. Confírmalas, asígnales una mesa y siéntalas.', 'settings' => 'Ajustes de reservas', 'settings_sub' => 'Cuándo pueden reservar los clientes y cuánto tiempo se quedan.',
+    'off_note' => 'La reserva en línea está desactivada o no está en tu plan. Aun así puedes añadir reservas a mano.', 'locked' => 'Tu plan no incluye reservas.',
+    'date' => 'Fecha', 'time' => 'Hora', 'party' => 'Personas', 'note' => 'Nota (alergias, un cumpleaños...)', 'table' => 'Mesa', 'no_table' => 'Aún sin mesa',
+    'add' => 'Añadir reserva', 'created' => 'Reserva añadida.', 'force' => 'Reservar aunque el horario esté lleno', 'empty' => 'No hay reservas este día', 'empty_text' => 'Las reservas hechas en línea aparecen aquí.',
+    'prev_day' => 'Día anterior', 'next_day' => 'Día siguiente', 'pending_count' => '{1} 1 reserva por confirmar|[2,*] :count reservas por confirmar', 'people' => '{1} 1 persona|[2,*] :count personas',
+    'status_pending' => 'En espera', 'status_confirmed' => 'Confirmada', 'status_seated' => 'Sentados', 'status_completed' => 'Finalizada', 'status_cancelled' => 'Cancelada', 'status_no_show' => 'No se presentó',
+    'action_confirmed' => 'Confirmar', 'action_seated' => 'Sentar', 'action_completed' => 'Finalizar', 'action_cancelled' => 'Cancelar', 'action_no_show' => 'No se presentó',
+    'book_title' => 'Reserva una mesa', 'book' => 'Reservar este horario', 'no_slots' => 'No hay horarios libres para este día y tamaño de grupo. Prueba otro día.', 'contact_help' => 'Deja un teléfono o un correo para poder contactarte.',
+    'your_booking' => 'Tu reserva', 'pending_text' => 'Confirmaremos tu reserva en breve.', 'cancel' => 'Cancelar reserva', 'cancel_confirm' => '¿Cancelar esta reserva?',
+    'error_not_available' => 'Ese horario ya no está libre. Por favor, elige otro.', 'error_contact_required' => 'Por favor, deja un teléfono o un correo.', 'error_invalid_transition' => 'Ese cambio no es posible.', 'error_cannot_cancel' => 'Esta reserva ya no se puede cancelar.',
+    'enabled' => 'Permitir que los clientes reserven en línea', 'auto_confirm' => 'Confirmar reservas automáticamente', 'page_link' => 'Página de reservas', 'hours' => 'Horario de reservas', 'open_from' => 'Primera reserva', 'open_to' => 'Termina el último turno', 'days_help' => 'Si no marcas ningún día, se entienden todos.',
+    'rules' => 'Reglas', 'slot_minutes' => 'Tiempo entre turnos (minutos)', 'duration' => 'Tiempo que se reserva una mesa (minutos)', 'max_party' => 'Grupo más grande', 'lead' => 'Antelación mínima (minutos)', 'days_ahead' => 'Con cuántos días de antelación',
+    'max_covers' => 'Plazas simultáneas', 'max_covers_hint' => 'Solo se usa si no has configurado mesas.', 'remind' => 'Correo de recordatorio (horas antes)', 'remind_hint' => '0 desactiva los recordatorios.',
+    'reserve_link' => 'Reservar una mesa',
+    'sms_reminder' => 'Recordatorio de :restaurant: tu mesa para :party es el :when. Cambiar o cancelar: :url',
+    'status_awaiting' => 'Esperando depósito', 'action_awaiting' => 'Esperando depósito',
+    'deposit_title' => 'Depósito: :amount por persona', 'deposit_terms' => 'Lo pagas ahora para reservar la mesa (se mantiene durante :minutes minutos). Si cancelas con al menos :hours horas de antelación, se te devuelve; después, o si no vienes, el restaurante se lo queda. Se descuenta de tu cuenta cuando nos visites.',
+    'deposit_pay_with' => 'Pagar con', 'book_and_pay' => 'Reservar y pagar el depósito', 'pay_deposit' => 'Pagar el depósito', 'awaiting_text' => 'Tu mesa se mantiene mientras pagas el depósito de :amount.',
+    'deposit_line' => 'Depósito :amount: :state', 'deposit_badge' => 'Depósito :amount · :state',
+    'deposit_none' => 'ninguno', 'deposit_pending' => 'esperando pago', 'deposit_paid' => 'pagado', 'deposit_applied' => 'se descuenta de la cuenta', 'deposit_refunded' => 'devuelto', 'deposit_refund_due' => 'por devolver', 'deposit_forfeited' => 'retenido por el restaurante', 'deposit_failed' => 'no pagado',
+    'deposit_mark_refunded' => 'Marcar como devuelto', 'error_payment_unavailable' => 'El pago en línea no está disponible en este momento. Inténtalo de nuevo más tarde.', 'error_payment_failed' => 'No se pudo abrir la página de pago. Por favor, inténtalo de nuevo.',
+    'deposit_for' => 'Depósito de mesa para :party',
+    'deposit_setting' => 'Depósito por persona', 'deposit_setting_hint' => '0 = sin depósito. Requiere pagos en línea (tu plan y una pasarela configurada en Pagos en línea). No se pide en las reservas que registra el personal.', 'deposit_hold' => 'Mantener una reserva sin pagar durante (minutos)',
+    'deposit_refund' => 'Devolver si se cancela con al menos (horas de antelación)', 'deposit_refund_hint' => 'Las cancelaciones posteriores y las ausencias conservan el depósito. Los reembolsos de Stripe se hacen automáticamente; en otras pasarelas aparece "por devolver" para que lo reembolses a mano.',
+];

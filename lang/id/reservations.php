@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => 'Reservasi', 'subtitle' => 'Pemesanan hari ini. Konfirmasi, beri meja, dan dudukkan tamu.', 'settings' => 'Pengaturan reservasi', 'settings_sub' => 'Kapan tamu bisa memesan dan berapa lama mereka tinggal.',
+    'off_note' => 'Pemesanan online dinonaktifkan atau tidak ada di paket Anda. Anda masih dapat menambahkan pemesanan secara manual.', 'locked' => 'Paket Anda tidak mencakup reservasi.',
+    'date' => 'Tanggal', 'time' => 'Waktu', 'party' => 'Tamu', 'note' => 'Catatan (alergi, ulang tahun...)', 'table' => 'Meja', 'no_table' => 'Belum ada meja',
+    'add' => 'Tambah pemesanan', 'created' => 'Pemesanan ditambahkan.', 'force' => 'Pesan meskipun waktunya penuh', 'empty' => 'Tidak ada pemesanan hari ini', 'empty_text' => 'Pemesanan yang dibuat online muncul di sini.',
+    'prev_day' => 'Hari sebelumnya', 'next_day' => 'Hari berikutnya', 'pending_count' => '{1} 1 pemesanan perlu dikonfirmasi|[2,*] :count pemesanan perlu dikonfirmasi', 'people' => '{1} 1 tamu|[2,*] :count tamu',
+    'status_pending' => 'Menunggu', 'status_confirmed' => 'Dikonfirmasi', 'status_seated' => 'Duduk', 'status_completed' => 'Selesai', 'status_cancelled' => 'Dibatalkan', 'status_no_show' => 'Tidak hadir',
+    'action_confirmed' => 'Konfirmasi', 'action_seated' => 'Dudukkan', 'action_completed' => 'Selesaikan', 'action_cancelled' => 'Batalkan', 'action_no_show' => 'Tidak hadir',
+    'book_title' => 'Pesan meja', 'book' => 'Pesan waktu ini', 'no_slots' => 'Tidak ada waktu kosong untuk hari dan jumlah tamu ini. Coba hari lain.', 'contact_help' => 'Tinggalkan nomor telepon atau email agar kami dapat menghubungi Anda.',
+    'your_booking' => 'Pemesanan Anda', 'pending_text' => 'Kami akan segera mengonfirmasi pemesanan Anda.', 'cancel' => 'Batalkan pemesanan', 'cancel_confirm' => 'Batalkan pemesanan ini?',
+    'error_not_available' => 'Waktu itu sudah tidak kosong. Silakan pilih yang lain.', 'error_contact_required' => 'Silakan tinggalkan nomor telepon atau email.', 'error_invalid_transition' => 'Perubahan itu tidak dimungkinkan.', 'error_cannot_cancel' => 'Pemesanan ini tidak dapat dibatalkan lagi.',
+    'enabled' => 'Izinkan tamu memesan online', 'auto_confirm' => 'Konfirmasi pemesanan otomatis', 'page_link' => 'Halaman pemesanan', 'hours' => 'Jam pemesanan', 'open_from' => 'Pemesanan pertama', 'open_to' => 'Waktu duduk terakhir berakhir', 'days_help' => 'Jika tidak ada hari dicentang, berarti setiap hari.',
+    'rules' => 'Aturan', 'slot_minutes' => 'Jarak antar slot (menit)', 'duration' => 'Berapa lama meja ditahan (menit)', 'max_party' => 'Rombongan terbesar', 'lead' => 'Pemberitahuan tersingkat (menit)', 'days_ahead' => 'Berapa hari ke depan',
+    'max_covers' => 'Kursi sekaligus', 'max_covers_hint' => 'Dipakai hanya jika Anda belum menyiapkan meja.', 'remind' => 'Email pengingat (jam sebelumnya)', 'remind_hint' => '0 menonaktifkan pengingat.',
+    'reserve_link' => 'Pesan meja',
+    'sms_reminder' => 'Pengingat dari :restaurant: meja Anda untuk :party pada :when. Ubah atau batalkan: :url',
+    'status_awaiting' => 'Menunggu deposit', 'action_awaiting' => 'Menunggu deposit',
+    'deposit_title' => 'Deposit: :amount per tamu', 'deposit_terms' => 'Anda membayarnya sekarang untuk menahan meja (ditahan selama :minutes menit). Batalkan paling lambat :hours jam sebelumnya dan deposit dikembalikan; jika lebih lambat atau Anda tidak datang, restoran menyimpannya. Deposit dihitung sebagai bagian dari tagihan saat Anda berkunjung.',
+    'deposit_pay_with' => 'Bayar dengan', 'book_and_pay' => 'Pesan dan bayar deposit', 'pay_deposit' => 'Bayar deposit', 'awaiting_text' => 'Meja Anda ditahan selagi Anda membayar deposit :amount.',
+    'deposit_line' => 'Deposit :amount: :state', 'deposit_badge' => 'Deposit :amount · :state',
+    'deposit_none' => 'tidak ada', 'deposit_pending' => 'menunggu pembayaran', 'deposit_paid' => 'dibayar', 'deposit_applied' => 'dihitung ke tagihan', 'deposit_refunded' => 'dikembalikan', 'deposit_refund_due' => 'perlu dikembalikan', 'deposit_forfeited' => 'disimpan restoran', 'deposit_failed' => 'tidak dibayar',
+    'deposit_mark_refunded' => 'Tandai sudah dikembalikan', 'error_payment_unavailable' => 'Pembayaran online tidak tersedia saat ini. Silakan coba lagi nanti.', 'error_payment_failed' => 'Halaman pembayaran tidak dapat dibuka. Silakan coba lagi.',
+    'deposit_for' => 'Deposit meja untuk :party',
+    'deposit_setting' => 'Deposit per tamu', 'deposit_setting_hint' => '0 = tanpa deposit. Memerlukan pembayaran online (paket Anda dan gateway yang diatur di Pembayaran online). Tidak diminta untuk pemesanan yang diketik staf.', 'deposit_hold' => 'Tahan pemesanan yang belum dibayar selama (menit)',
+    'deposit_refund' => 'Kembalikan jika dibatalkan paling lambat (jam sebelumnya)', 'deposit_refund_hint' => 'Pembatalan yang lebih lambat dan tamu yang tidak hadir kehilangan deposit. Pengembalian Stripe berjalan otomatis; gateway lain menampilkan "perlu dikembalikan" untuk Anda kembalikan secara manual.',
+];
