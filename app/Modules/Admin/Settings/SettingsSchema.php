@@ -37,6 +37,7 @@ final class SettingsSchema
                     ['name' => 'support_email', 'key' => 'general.support_email', 'type' => 'email', 'label' => 'admin.settings.general.support_email', 'rules' => ['nullable', 'email', 'max:190']],
                     ['name' => 'custom_css', 'key' => 'general.custom_css', 'type' => 'textarea', 'label' => 'admin.settings.general.custom_css', 'help' => 'admin.settings.general.custom_code_help', 'rules' => ['nullable', 'string', 'max:20000']],
                     ['name' => 'custom_js', 'key' => 'general.custom_js', 'type' => 'textarea', 'label' => 'admin.settings.general.custom_js', 'rules' => ['nullable', 'string', 'max:20000']],
+                    ['name' => 'directory_enabled', 'key' => 'general.directory_enabled', 'type' => 'toggle', 'label' => 'platform.directory_setting', 'help' => 'platform.directory_help', 'default' => '1'],
                     ['name' => 'demo_stats', 'key' => 'general.demo_stats', 'type' => 'toggle', 'label' => 'admin.settings.general.demo_stats', 'help' => 'admin.settings.general.demo_stats_help'],
                     ['name' => 'maintenance', 'key' => 'general.maintenance', 'type' => 'toggle', 'label' => 'admin.settings.general.maintenance', 'help' => 'admin.settings.general.maintenance_help'],
                     ['name' => 'maintenance_message', 'key' => 'general.maintenance_message', 'type' => 'textarea', 'label' => 'admin.settings.general.maintenance_message', 'rules' => ['nullable', 'string', 'max:500']],

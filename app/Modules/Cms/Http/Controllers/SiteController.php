@@ -10,10 +10,12 @@ use App\Modules\Cms\Services\LandingContent;
 use App\Modules\Core\Services\SettingsService;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Storefront\Http\Controllers\PublicMenuController;
+use App\Modules\Tenancy\Models\Restaurant;
 use App\Modules\Tenancy\Services\TenantResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
@@ -32,8 +34,29 @@ class SiteController extends Controller
         return view('cms::site.landing', [
             'c' => $landing->for(app()->getLocale()),
             'plans' => Plan::active()->get(),
+            'featured' => $this->directoryEnabled($settings) ? $this->featured(6) : collect(),
             'registration' => (bool) $settings->get('auth.registration_enabled', true),
         ]);
+    }
+
+    /** The restaurants the platform owner chose to show: premium ones first, then by the order set by hand. */
+    public function directory(SettingsService $settings): View
+    {
+        abort_unless($this->directoryEnabled($settings), 404);
+
+        return view('cms::site.directory', ['restaurants' => $this->featured(60)]);
+    }
+
+    private function directoryEnabled(SettingsService $settings): bool
+    {
+        return $settings->get('general.directory_enabled', '1') === '1';
+    }
+
+    /** @return Collection<int, Restaurant> */
+    private function featured(int $limit)
+    {
+        return Restaurant::query()->with('logo')->where('is_featured', true)->where('status', Restaurant::STATUS_ACTIVE)->whereNotNull('onboarded_at')
+            ->orderByDesc('is_premium')->orderBy('featured_order')->orderBy('id')->limit($limit)->get();
     }
 
     public function blog(): View
@@ -87,6 +110,10 @@ class SiteController extends Controller
         $url = fn (string $path, string $locale) => url($path).($locale === $default ? '' : '?lang='.$locale);
 
         $entries = [['loc' => url('/'), 'lastmod' => null], ['loc' => url('/blog'), 'lastmod' => null]];
+
+        if ($this->directoryEnabled(app(SettingsService::class)) && Restaurant::where('is_featured', true)->exists()) {
+            $entries[] = ['loc' => url('/restaurants'), 'lastmod' => null];
+        }
 
         foreach (BlogPost::visible()->get() as $post) {
             $entries[] = ['loc' => $url('/blog/'.$post->slug, $post->locale), 'lastmod' => $post->updated_at];

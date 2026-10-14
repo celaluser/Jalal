@@ -36,6 +36,11 @@ class AppearanceController extends Controller
         $restaurant = $request->user()->restaurant;
         $data = $request->validate($this->themes->rules());
 
+        // The platform owner can pin a restaurant to one theme.
+        if ($restaurant->theme_locked && $data['theme'] !== $restaurant->theme) {
+            throw ValidationException::withMessages(['theme' => __('platform.theme_locked_notice')]);
+        }
+
         if (! $this->themes->allowed($restaurant, $data['theme'])) {
             throw ValidationException::withMessages(['theme' => __('store.theme_locked_help')]);
         }

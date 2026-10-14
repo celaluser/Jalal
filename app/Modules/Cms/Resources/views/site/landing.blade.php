@@ -109,6 +109,16 @@
         </div>
     </section>
 
+    @if ($featured->isNotEmpty())
+        <section id="restaurants" class="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 sm:py-20">
+            <div class="mx-auto max-w-2xl text-center"><p class="eyebrow text-accent-700 dark:text-accent-300">{{ __('platform.directory_eyebrow') }}</p><h2 class="display mt-3 text-3xl font-semibold sm:text-4xl">{{ __('platform.featured_title') }}</h2></div>
+            <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                @foreach ($featured as $r)@include('cms::site.restaurant-card', ['r' => $r])@endforeach
+            </div>
+            <p class="mt-8 text-center"><a href="{{ route('directory') }}" class="link">{{ __('platform.see_all') }}</a></p>
+        </section>
+    @endif
+
     {{-- Pricing, straight from the active plans --}}
     @if ($plans->isNotEmpty())
         <section id="pricing" class="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28">

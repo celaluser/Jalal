@@ -1,6 +1,9 @@
 <x-layouts.admin :title="$restaurant->name">
     <x-ui.page-header :title="$restaurant->name" :back="['url' => route('admin.restaurants.index'), 'label' => __('admin.nav.restaurants')]" :description="'/r/'.$restaurant->slug">
         <x-slot:actions>
+            @if ($restaurant->badgeKey())<x-ui.badge tone="info">{{ __('platform.badge_'.$restaurant->badgeKey()) }}</x-ui.badge>@endif
+            @if ($restaurant->is_featured)<x-ui.badge tone="success">{{ __('platform.featured') }}</x-ui.badge>@endif
+            @if ($restaurant->is_limited)<x-ui.badge tone="warning">{{ __('platform.limited') }}</x-ui.badge>@endif
             @if ($restaurant->trashed())<x-ui.status value="deleted" :label="__('admin.restaurants.deleted')" />@else<x-ui.status :value="$restaurant->status" :label="__('admin.restaurants.status_'.$restaurant->status)" />@endif
         </x-slot:actions>
     </x-ui.page-header>
@@ -14,6 +17,74 @@
                     <x-ui.input name="slug" :label="__('admin.restaurants.slug')" :value="old('slug', $restaurant->slug)" required />
                     <x-ui.input name="locale" :label="__('admin.restaurants.locale')" :value="old('locale', $restaurant->locale)" required />
                     <div class="sm:col-span-3"><x-ui.button :block="false">{{ __('admin.save') }}</x-ui.button></div>
+                </form>
+            </x-ui.card>
+
+            <x-ui.card :title="__('platform.options_title')" :description="__('platform.options_sub')">
+                <form method="POST" action="{{ route('admin.restaurants.options', $restaurant->id) }}" class="space-y-6">
+                    @csrf @method('PUT')
+
+                    <fieldset class="space-y-3">
+                        <legend class="text-sm font-semibold">{{ __('platform.showcase') }}</legend>
+                        <div class="grid gap-4 sm:grid-cols-3">
+                            <x-ui.select name="badge" :label="__('platform.badge')" :value="$restaurant->badge" :options="collect(\App\Modules\Tenancy\Models\Restaurant::BADGES)->mapWithKeys(fn ($b) => [$b => __('platform.badge_'.$b)])->all()" :placeholder="__('platform.badge_none')" />
+                            <x-ui.input name="featured_order" type="number" min="0" max="9999" :label="__('platform.featured_order')" :value="old('featured_order', $restaurant->featured_order)" />
+                            <div class="space-y-2 pt-1 sm:pt-7">
+                                <x-ui.checkbox name="is_premium" :label="__('platform.is_premium')" :checked="$restaurant->is_premium" />
+                                <x-ui.checkbox name="is_featured" :label="__('platform.is_featured')" :checked="$restaurant->is_featured" />
+                            </div>
+                        </div>
+                        <p class="text-xs text-muted">{{ __('platform.showcase_help') }}</p>
+                    </fieldset>
+
+                    <fieldset class="space-y-3" x-data="{ on: {{ old('is_limited', $restaurant->is_limited) ? 'true' : 'false' }} }">
+                        <legend class="text-sm font-semibold">{{ __('platform.limits_title') }}</legend>
+                        <label class="flex cursor-pointer items-center gap-2.5 text-sm"><input type="checkbox" name="is_limited" value="1" class="check" x-model="on" @checked(old('is_limited', $restaurant->is_limited))> <span>{{ __('platform.is_limited') }}</span></label>
+                        <p class="text-xs text-muted">{{ __('platform.limits_help', ['plan' => $subscription?->plan->name ?? __('platform.no_plan')]) }}</p>
+                        <div class="grid gap-3 sm:grid-cols-3" x-show="on" x-cloak>
+                            @foreach (\App\Modules\Billing\Models\Plan::LIMITS as $key)
+                                @php($ov = $restaurant->limit_overrides[$key] ?? '')
+                                <div>
+                                    <label for="limit-{{ $key }}" class="mb-1.5 block text-sm font-medium">{{ __('admin.plans.limit_'.$key) }}</label>
+                                    <input id="limit-{{ $key }}" name="limits[{{ $key }}]" class="field" value="{{ old('limits.'.$key, $ov) }}" inputmode="numeric" placeholder="{{ $subscription?->plan->limit($key) ?? '∞' }}" pattern="\d{1,9}|unlimited" title="{{ __('platform.limit_format') }}">
+                                </div>
+                            @endforeach
+                        </div>
+                        <p class="text-xs text-muted" x-show="on" x-cloak>{{ __('platform.limit_format') }}</p>
+                    </fieldset>
+
+                    <fieldset class="space-y-3">
+                        <legend class="text-sm font-semibold">{{ __('platform.features_title') }}</legend>
+                        <div class="grid gap-3 sm:grid-cols-3">
+                            @foreach (\App\Modules\Billing\Models\Plan::FEATURES as $key)
+                                @php($cur = $restaurant->feature_overrides[$key] ?? null)
+                                <div>
+                                    <label for="feature-{{ $key }}" class="mb-1.5 block text-sm font-medium">{{ __('admin.plans.feature_'.$key) }}</label>
+                                    <select id="feature-{{ $key }}" name="features[{{ $key }}]" class="field">
+                                        <option value="">{{ __('platform.follow_plan') }}{{ $subscription ? ' ('.($subscription->plan->hasFeature($key) ? __('platform.on') : __('platform.off')).')' : '' }}</option>
+                                        <option value="on" @selected($cur === true)>{{ __('platform.force_on') }}</option>
+                                        <option value="off" @selected($cur === false)>{{ __('platform.force_off') }}</option>
+                                    </select>
+                                </div>
+                            @endforeach
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="space-y-3">
+                        <legend class="text-sm font-semibold">{{ __('platform.theme_title') }}</legend>
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <x-ui.select name="theme" :label="__('platform.theme')" :value="$restaurant->theme" :options="$themes" />
+                            <div class="pt-1 sm:pt-7"><x-ui.checkbox name="theme_locked" :label="__('platform.theme_locked')" :checked="$restaurant->theme_locked" /></div>
+                        </div>
+                    </fieldset>
+
+                    <div>
+                        <label for="admin_notes" class="mb-1.5 block text-sm font-medium">{{ __('platform.notes') }}</label>
+                        <textarea id="admin_notes" name="admin_notes" rows="3" maxlength="2000" class="field">{{ old('admin_notes', $restaurant->admin_notes) }}</textarea>
+                        <p class="mt-1 text-xs text-muted">{{ __('platform.notes_help') }}</p>
+                    </div>
+
+                    <div><x-ui.button :block="false">{{ __('admin.save') }}</x-ui.button></div>
                 </form>
             </x-ui.card>
 

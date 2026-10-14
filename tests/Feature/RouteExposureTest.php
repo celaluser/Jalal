@@ -21,7 +21,7 @@ function guestRoutes(): array
 
 it('does not serve panel pages or accept panel actions from a guest', function () {
     // Pages and actions that are meant to work without signing in (guests of a restaurant, the website, the installer).
-    $public = '#^/($|login|register|forgot-password|reset-password|two-factor-challenge|auth/|blog|about|up$|install|sw\.js|manifest|staff\.webmanifest|robots\.txt|sitemap\.xml|widget\.js|cart|order|reserve|offers|request|tab|reviews|links|tablet-mode|account|email/verify|logout|api/)#';
+    $public = '#^/($|login|register|forgot-password|reset-password|two-factor-challenge|auth/|blog|about|restaurants$|up$|install|sw\.js|manifest|staff\.webmanifest|robots\.txt|sitemap\.xml|widget\.js|cart|order|reserve|offers|request|tab|reviews|links|tablet-mode|account|email/verify|logout|api/)#';
     $exposed = [];
     $checked = 0;
 

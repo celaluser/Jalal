@@ -36,7 +36,10 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
         Route::get('/', DashboardController::class)->name('dashboard');
 
         Route::get('restaurants', [RestaurantController::class, 'index'])->name('restaurants.index');
+        Route::get('restaurants/create', [RestaurantController::class, 'create'])->name('restaurants.create');
+        Route::post('restaurants', [RestaurantController::class, 'store'])->middleware('throttle:30,1')->name('restaurants.store');
         Route::get('restaurants/{restaurant}', [RestaurantController::class, 'show'])->name('restaurants.show');
+        Route::put('restaurants/{restaurant}/options', [RestaurantController::class, 'options'])->name('restaurants.options');
         Route::put('restaurants/{restaurant}', [RestaurantController::class, 'update'])->name('restaurants.update');
         Route::put('restaurants/{restaurant}/domain', [RestaurantController::class, 'domain'])->name('restaurants.domain');
         Route::post('restaurants/{restaurant}/domain/verify', [RestaurantController::class, 'verifyDomain'])->name('restaurants.domain.verify');

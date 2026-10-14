@@ -2,6 +2,7 @@
 
 namespace App\Modules\Store\Services;
 
+use App\Modules\Billing\Services\LimitGuard;
 use App\Modules\Billing\Services\SubscriptionService;
 use App\Modules\Tenancy\Models\Restaurant;
 
@@ -43,6 +44,6 @@ class StoreAccess
         }
 
         // A plan (or a purchase) that includes premium themes opens them all.
-        return (bool) $this->subscriptions->current($restaurant)?->plan?->hasFeature('premium_themes') || $this->featureGranted($restaurant, 'premium_themes');
+        return app(LimitGuard::class)->hasFeature($restaurant, 'premium_themes');
     }
 }

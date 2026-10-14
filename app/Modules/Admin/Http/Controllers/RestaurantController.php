@@ -3,17 +3,28 @@
 namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Modules\Auth\Support\Permissions;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Models\Plan;
 use App\Modules\Billing\Models\Subscription;
 use App\Modules\Billing\Services\SubscriptionService;
+use App\Modules\Core\Models\Currency;
+use App\Modules\Core\Models\Language;
+use App\Modules\Core\Services\SettingsService;
+use App\Modules\Menu\Services\ThemeLibrary;
 use App\Modules\Tenancy\Models\Restaurant;
 use App\Modules\Tenancy\Services\DomainService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use InvalidArgumentException;
+use Spatie\Permission\PermissionRegistrar;
 
 class RestaurantController extends Controller
 {
@@ -22,6 +33,7 @@ class RestaurantController extends Controller
         $search = trim((string) $request->query('q'));
         $status = $request->query('status');
         $planId = $request->query('plan');
+        $flag = $request->query('flag');
 
         $restaurants = Restaurant::query()
             ->with('owner')
@@ -32,6 +44,7 @@ class RestaurantController extends Controller
                     ->orWhereHas('owner', fn ($o) => $o->where('email', 'like', $like));
             }))
             ->when(in_array($status, [Restaurant::STATUS_ACTIVE, Restaurant::STATUS_SUSPENDED], true), fn ($q) => $q->where('status', $status))
+            ->when(in_array($flag, ['featured', 'premium', 'limited', 'locked'], true), fn ($q) => $q->where(['featured' => 'is_featured', 'premium' => 'is_premium', 'limited' => 'is_limited', 'locked' => 'theme_locked'][$flag], true))
             ->when($planId, fn ($q) => $q->whereIn('id', Subscription::allTenants()
                 ->where('plan_id', (int) $planId)->whereIn('status', Subscription::ACCESS_STATUSES)->select('restaurant_id')))
             ->latest('id')
@@ -47,7 +60,7 @@ class RestaurantController extends Controller
             'restaurants' => $restaurants,
             'current' => $current,
             'plans' => Plan::orderBy('name')->get(),
-            'filters' => ['q' => $search, 'status' => $status, 'plan' => $planId, 'trashed' => $request->boolean('trashed')],
+            'filters' => ['q' => $search, 'status' => $status, 'plan' => $planId, 'flag' => $flag, 'trashed' => $request->boolean('trashed')],
         ]);
     }
 
@@ -60,7 +73,133 @@ class RestaurantController extends Controller
             'invoices' => Invoice::allTenants()->where('restaurant_id', $restaurant->id)->latest('id')->limit(10)->get(),
             'staff' => $restaurant->users()->orderBy('name')->get(),
             'plans' => Plan::active()->get(),
+            'themes' => collect(app(ThemeLibrary::class)->all())->map(fn ($t, $key) => $t['name'])->all(),
         ]);
+    }
+
+    public function create(): View
+    {
+        $settings = app(SettingsService::class);
+
+        return view('admin::restaurants.create', [
+            'plans' => Plan::active()->orderBy('name')->get(),
+            'languages' => Language::where('is_active', true)->orderBy('name')->pluck('name', 'code')->all(),
+            'currencies' => Currency::where('is_active', true)->orderBy('code')->pluck('name', 'code')->all(),
+            'defaults' => ['locale' => app()->getLocale(), 'currency' => $settings->get('general.default_currency'), 'timezone' => $settings->get('general.timezone', config('app.timezone'))],
+            'themes' => collect(app(ThemeLibrary::class)->all())->map(fn ($t) => $t['name'])->all(),
+        ]);
+    }
+
+    /** The platform owner adds a restaurant (and its owner account) by hand: no sign-up form, no e-mail confirmation round trip. */
+    public function store(Request $request, SubscriptionService $subscriptions): RedirectResponse
+    {
+        $data = $request->validate([
+            'restaurant_name' => ['required', 'string', 'max:120'],
+            'slug' => ['nullable', 'string', 'max:80', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', Rule::unique('restaurants', 'slug')],
+            'owner_name' => ['required', 'string', 'max:120'],
+            'owner_email' => ['required', 'email', 'max:190', 'unique:users,email'],
+            'password' => ['nullable', 'string', 'min:8', 'max:100'],
+            'locale' => ['required', Rule::exists('languages', 'code')],
+            'currency_code' => ['nullable', Rule::exists('currencies', 'code')],
+            'timezone' => ['nullable', Rule::in(timezone_identifiers_list())],
+            'plan_id' => ['nullable', Rule::exists('plans', 'id')->whereNull('deleted_at')],
+            'start_trial' => ['nullable', 'boolean'],
+            'ends_at' => ['nullable', 'date', 'after:now'],
+            'is_premium' => ['nullable', 'boolean'],
+            'is_featured' => ['nullable', 'boolean'],
+            'badge' => ['nullable', Rule::in(Restaurant::BADGES)],
+            'theme' => ['nullable', Rule::in(array_keys(app(ThemeLibrary::class)->all()))],
+        ]);
+
+        $generated = empty($data['password']);
+
+        $restaurant = DB::transaction(function () use ($data, $subscriptions, $request) {
+            $restaurant = Restaurant::create([
+                'name' => trim($data['restaurant_name']),
+                'slug' => ($data['slug'] ?? null) ?: $this->uniqueSlug($data['restaurant_name']),
+                'locale' => $data['locale'],
+                'currency_code' => $data['currency_code'] ?? null,
+                'timezone' => $data['timezone'] ?? config('app.timezone'),
+                'theme' => $data['theme'] ?? app(ThemeLibrary::class)->defaultKey(),
+                'is_premium' => $request->boolean('is_premium'),
+                'is_featured' => $request->boolean('is_featured'),
+                'badge' => $data['badge'] ?? null,
+            ]);
+
+            $owner = User::create([
+                'restaurant_id' => $restaurant->id, 'name' => trim($data['owner_name']), 'email' => $data['owner_email'],
+                'password' => $data['password'] ?? Str::random(40), 'locale' => $data['locale'],
+            ]);
+            $owner->forceFill(['email_verified_at' => now()])->save();
+            $restaurant->update(['owner_id' => $owner->id]);
+
+            $registrar = app(PermissionRegistrar::class);
+            $registrar->setPermissionsTeamId($restaurant->id);
+            $owner->assignRole(Permissions::OWNER);
+            $registrar->setPermissionsTeamId(config('tenancy.platform_team_id'));
+
+            if (! empty($data['plan_id'])) {
+                $plan = Plan::findOrFail($data['plan_id']);
+
+                if ($request->boolean('start_trial') && $plan->trial_days > 0) {
+                    $subscriptions->startTrial($restaurant, $plan);
+                } else {
+                    $subscriptions->assign($restaurant, $plan, ! empty($data['ends_at']) ? Carbon::parse($data['ends_at']) : null, ['gateway' => 'manual']);
+                }
+            }
+
+            return $restaurant;
+        });
+
+        // No password typed: the owner gets the usual "choose your password" e-mail.
+        if ($generated) {
+            Password::broker()->sendResetLink(['email' => $data['owner_email']]);
+        }
+
+        return redirect()->route('admin.restaurants.show', $restaurant->id)->with('status', $generated ? __('platform.created_invited') : __('platform.created'));
+    }
+
+    /** What the platform owner decides about one restaurant: showcase, badge, custom limits and features, theme. */
+    public function options(Request $request, Restaurant $restaurant): RedirectResponse
+    {
+        $data = $request->validate([
+            'is_premium' => ['nullable', 'boolean'],
+            'is_featured' => ['nullable', 'boolean'],
+            'featured_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            'badge' => ['nullable', Rule::in(Restaurant::BADGES)],
+            'is_limited' => ['nullable', 'boolean'],
+            'limits' => ['nullable', 'array'],
+            'limits.*' => ['nullable', 'regex:/^(\d{1,9}|unlimited)$/'],
+            'features' => ['nullable', 'array'],
+            'features.*' => ['nullable', 'in:,on,off'],
+            'theme' => ['nullable', Rule::in(array_keys(app(ThemeLibrary::class)->all()))],
+            'theme_locked' => ['nullable', 'boolean'],
+            'admin_notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $limits = collect(Plan::LIMITS)->mapWithKeys(fn ($key) => [$key => $data['limits'][$key] ?? null])->filter(fn ($v) => $v !== null && $v !== '')
+            ->map(fn ($v) => $v === 'unlimited' ? 'unlimited' : (int) $v)->all();
+        $features = collect(Plan::FEATURES)->mapWithKeys(fn ($key) => [$key => $data['features'][$key] ?? ''])->filter(fn ($v) => $v !== '')->map(fn ($v) => $v === 'on')->all();
+
+        $restaurant->update([
+            'is_premium' => $request->boolean('is_premium'), 'is_featured' => $request->boolean('is_featured'), 'featured_order' => (int) ($data['featured_order'] ?? 0),
+            'badge' => $data['badge'] ?? null, 'is_limited' => $request->boolean('is_limited'), 'limit_overrides' => $limits ?: null, 'feature_overrides' => $features ?: null,
+            'theme' => ($data['theme'] ?? null) ?: $restaurant->theme, 'theme_locked' => $request->boolean('theme_locked'), 'admin_notes' => $data['admin_notes'] ?? null,
+        ]);
+
+        return back()->with('status', __('admin.saved'));
+    }
+
+    private function uniqueSlug(string $name): string
+    {
+        $base = Str::slug($name) ?: 'restaurant';
+        $slug = $base;
+
+        while (Restaurant::withTrashed()->where('slug', $slug)->exists()) {
+            $slug = $base.'-'.Str::lower(Str::random(4));
+        }
+
+        return $slug;
     }
 
     public function update(Request $request, Restaurant $restaurant): RedirectResponse

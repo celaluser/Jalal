@@ -17,10 +17,11 @@
 
         <div class="space-y-5 lg:col-span-3">
             <x-ui.card :title="__('menu.appearance.theme')" :description="__('menu.appearance.brand_note')">
+                @if ($restaurant->theme_locked)<x-ui.alert type="info" class="mb-4">{{ __('platform.theme_locked_notice') }}</x-ui.alert>@endif
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-3" role="radiogroup">
                     @foreach ($themes as $key => $t)
                         <label class="cursor-pointer">
-                            <input type="radio" name="theme" value="{{ $key }}" x-model="theme" class="peer sr-only" @disabled($t['locked'])>
+                            <input type="radio" name="theme" value="{{ $key }}" x-model="theme" class="peer sr-only" @disabled($t['locked'] || ($restaurant->theme_locked && $key !== $settings['theme']))>
                             <span class="block overflow-hidden rounded-2xl border border-line-strong transition peer-checked:border-accent-600 peer-checked:ring-2 peer-checked:ring-accent-600/30 peer-focus-visible:ring-2 peer-focus-visible:ring-accent-500">
                                 <span class="block p-3" style="background: {{ $t['bg'] }}">
                                     <span class="block h-2 w-10 rounded" style="background: {{ $t['fg'] }}"></span>

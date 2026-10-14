@@ -1,10 +1,13 @@
 <x-layouts.admin :title="__('admin.nav.restaurants')">
-    <x-ui.page-header :title="__('admin.nav.restaurants')" :description="__('admin.restaurants.description')" />
+    <x-ui.page-header :title="__('admin.nav.restaurants')" :description="__('admin.restaurants.description')">
+        <x-slot:actions><a href="{{ route('admin.restaurants.create') }}" class="btn btn-primary">{{ __('platform.new_restaurant') }}</a></x-slot:actions>
+    </x-ui.page-header>
 
     <form method="GET" class="card flex flex-wrap items-end gap-3 p-4">
         <div class="min-w-[14rem] flex-1"><x-ui.input name="q" :value="$filters['q']" :label="__('admin.search')" :placeholder="__('admin.restaurants.search_placeholder')" /></div>
         <div class="w-40"><x-ui.select name="status" :label="__('admin.status')" :value="$filters['status']" :placeholder="__('admin.all')" :options="['active' => __('admin.restaurants.status_active'), 'suspended' => __('admin.restaurants.status_suspended')]" /></div>
         <div class="w-44"><x-ui.select name="plan" :label="__('admin.restaurants.plan')" :value="$filters['plan']" :placeholder="__('admin.all')" :options="$plans->pluck('name', 'id')->all()" /></div>
+        <div class="w-44"><x-ui.select name="flag" :label="__('platform.filter_flag')" :value="$filters['flag']" :placeholder="__('admin.all')" :options="['featured' => __('platform.featured'), 'premium' => __('platform.is_premium_short'), 'limited' => __('platform.limited'), 'locked' => __('platform.theme_locked_short')]" /></div>
         <label class="flex items-center gap-2 pb-2.5 text-sm"><input type="checkbox" name="trashed" value="1" class="check" @checked($filters['trashed'])> {{ __('admin.restaurants.deleted_only') }}</label>
         <x-ui.button :block="false" icon="search">{{ __('admin.filter') }}</x-ui.button>
     </form>
@@ -18,7 +21,16 @@
                 <td>
                     <a class="flex items-center gap-3" href="{{ route('admin.restaurants.show', $restaurant->id) }}">
                         <x-ui.avatar :name="$restaurant->name" size="9" />
-                        <span><span class="link block">{{ $restaurant->name }}</span><span class="block text-xs text-muted">/r/{{ $restaurant->slug }}</span></span>
+                        <span><span class="link block">{{ $restaurant->name }}</span><span class="block text-xs text-muted">/r/{{ $restaurant->slug }}</span>
+                            @if ($restaurant->badgeKey() || $restaurant->is_featured || $restaurant->is_limited || $restaurant->theme_locked)
+                                <span class="mt-1 flex flex-wrap gap-1">
+                                    @if ($restaurant->badgeKey())<x-ui.badge tone="info">{{ __('platform.badge_'.$restaurant->badgeKey()) }}</x-ui.badge>@endif
+                                    @if ($restaurant->is_featured)<x-ui.badge tone="success">{{ __('platform.featured') }}</x-ui.badge>@endif
+                                    @if ($restaurant->is_limited)<x-ui.badge tone="warning">{{ __('platform.limited') }}</x-ui.badge>@endif
+                                    @if ($restaurant->theme_locked)<x-ui.badge>{{ __('platform.theme_locked_short') }}</x-ui.badge>@endif
+                                </span>
+                            @endif
+                        </span>
                     </a>
                 </td>
                 <td class="text-muted">{{ $restaurant->owner?->email ?? '—' }}</td>

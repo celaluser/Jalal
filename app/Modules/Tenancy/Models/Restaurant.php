@@ -36,7 +36,48 @@ class Restaurant extends Model
             'marketing_settings' => 'array',
             'site_settings' => 'array',
             'suspended_at' => 'datetime',
+            'is_premium' => 'boolean',
+            'is_featured' => 'boolean',
+            'is_limited' => 'boolean',
+            'theme_locked' => 'boolean',
+            'limit_overrides' => 'array',
+            'feature_overrides' => 'array',
         ];
+    }
+
+    /** The badges the platform owner can hand out. */
+    public const BADGES = ['verified', 'premium', 'partner', 'top_rated', 'recommended', 'new'];
+
+    /** The badge shown on the menu and in listings: the chosen one, else "premium" for premium restaurants. */
+    public function badgeKey(): ?string
+    {
+        $badge = in_array($this->badge, self::BADGES, true) ? $this->badge : null;
+
+        return $badge ?? ($this->is_premium ? 'premium' : null);
+    }
+
+    /**
+     * A limit set by hand for this restaurant, when custom limits are switched on.
+     *
+     * @return array{set: bool, value: ?int} value null = unlimited
+     */
+    public function limitOverride(string $key): array
+    {
+        if (! $this->is_limited || ! array_key_exists($key, (array) $this->limit_overrides)) {
+            return ['set' => false, 'value' => null];
+        }
+
+        $value = $this->limit_overrides[$key];
+
+        return ['set' => true, 'value' => is_numeric($value) ? max(0, (int) $value) : null];
+    }
+
+    /** A feature switched on or off by hand: true / false, or null to follow the plan. */
+    public function featureOverride(string $key): ?bool
+    {
+        $value = ((array) $this->feature_overrides)[$key] ?? null;
+
+        return is_bool($value) ? $value : null;
     }
 
     public function owner(): BelongsTo

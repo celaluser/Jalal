@@ -30,6 +30,7 @@
     <header>
         @if ($logo)<img src="{{ $logo }}" alt="">@endif
         <h1>{{ $restaurant->name }}</h1>
+        @if ($restaurant->badgeKey())<p><span class="rounded-full px-2.5 py-0.5 text-xs font-semibold menu-accent">★ {{ __('platform.badge_'.$restaurant->badgeKey()) }}</span></p>@endif
         @if ($rating)<p>★ {{ number_format($rating['average'], 1) }} · {{ trans_choice('marketing.review_count', $rating['count'], ['count' => $rating['count']]) }}</p>@endif
     </header>
     <main>

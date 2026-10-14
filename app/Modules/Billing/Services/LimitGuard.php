@@ -25,6 +25,13 @@ class LimitGuard
     /** @return int|null null = unlimited, 0 = nothing allowed */
     public function limit(Restaurant $restaurant, string $key): ?int
     {
+        // Limits typed in by the platform owner for this one restaurant come before the plan's.
+        $override = $restaurant->limitOverride($key);
+
+        if ($override['set']) {
+            return $override['value'];
+        }
+
         $plan = $this->plan($restaurant);
 
         return $plan ? $plan->limit($key) : 0;
@@ -46,6 +53,17 @@ class LimitGuard
 
     public function hasFeature(Restaurant $restaurant, string $feature): bool
     {
+        // A switch set by hand for this restaurant wins; a premium restaurant also gets the premium themes.
+        $override = $restaurant->featureOverride($feature);
+
+        if ($override !== null) {
+            return $override;
+        }
+
+        if ($feature === 'premium_themes' && $restaurant->is_premium) {
+            return true;
+        }
+
         // The plan decides first; otherwise the store may give it (free for everyone, bought, tried or granted).
         return (bool) $this->plan($restaurant)?->hasFeature($feature) || app(StoreAccess::class)->featureGranted($restaurant, $feature);
     }
