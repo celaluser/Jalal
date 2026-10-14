@@ -42,6 +42,7 @@ return [
         'online_payments' => '在线支付',
         'courier' => '我的配送',
         'shifts' => '现金班次',
+        'tips' => '小费池',
         'reservations' => '预订',
         'reservation_settings' => '预订设置',
         'delivery_zones' => '配送区域',

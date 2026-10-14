@@ -42,6 +42,7 @@ return [
         'online_payments' => 'Paiements en ligne',
         'courier' => 'Mes livraisons',
         'shifts' => 'Services de caisse',
+        'tips' => 'Cagnotte de pourboires',
         'reservations' => 'Réservations',
         'reservation_settings' => 'Paramètres de réservation',
         'delivery_zones' => 'Zones de livraison',

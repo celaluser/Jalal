@@ -42,6 +42,7 @@ return [
         'online_payments' => 'Pagamentos online',
         'courier' => 'Minhas entregas',
         'shifts' => 'Turnos de caixa',
+        'tips' => 'Pool de gorjetas',
         'reservations' => 'Reservas',
         'reservation_settings' => 'Configurações de reservas',
         'delivery_zones' => 'Áreas de entrega',

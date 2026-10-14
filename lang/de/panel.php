@@ -42,6 +42,7 @@ return [
         'online_payments' => 'Online-Zahlungen',
         'courier' => 'Meine Lieferungen',
         'shifts' => 'Kassenschichten',
+        'tips' => 'Trinkgeld-Pool',
         'reservations' => 'Reservierungen',
         'reservation_settings' => 'Reservierungseinstellungen',
         'delivery_zones' => 'Liefergebiete',

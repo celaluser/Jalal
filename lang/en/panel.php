@@ -42,6 +42,7 @@ return [
         'online_payments' => 'Online payments',
         'courier' => 'My deliveries',
         'shifts' => 'Cash shifts',
+        'tips' => 'Tip pool',
         'reservations' => 'Reservations',
         'reservation_settings' => 'Reservation settings',
         'delivery_zones' => 'Delivery areas',

@@ -42,6 +42,7 @@ return [
         'online_payments' => 'الدفع عبر الإنترنت',
         'courier' => 'توصيلاتي',
         'shifts' => 'ورديات الصندوق',
+        'tips' => 'صندوق البقشيش',
         'reservations' => 'الحجوزات',
         'reservation_settings' => 'إعدادات الحجز',
         'delivery_zones' => 'مناطق التوصيل',

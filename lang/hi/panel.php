@@ -42,6 +42,7 @@ return [
         'online_payments' => 'ऑनलाइन भुगतान',
         'courier' => 'मेरी डिलीवरी',
         'shifts' => 'कैश शिफ़्ट',
+        'tips' => 'टिप पूल',
         'reservations' => 'रिज़र्वेशन',
         'reservation_settings' => 'रिज़र्वेशन सेटिंग',
         'delivery_zones' => 'डिलीवरी क्षेत्र',

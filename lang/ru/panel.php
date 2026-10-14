@@ -42,6 +42,7 @@ return [
         'online_payments' => 'Онлайн-оплата',
         'courier' => 'Мои доставки',
         'shifts' => 'Кассовые смены',
+        'tips' => 'Пул чаевых',
         'reservations' => 'Бронирования',
         'reservation_settings' => 'Настройки бронирования',
         'delivery_zones' => 'Зоны доставки',

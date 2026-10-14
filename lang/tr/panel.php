@@ -42,6 +42,7 @@ return [
         'online_payments' => 'Online ödemeler',
         'courier' => 'Teslimatlarım',
         'shifts' => 'Kasa vardiyaları',
+        'tips' => 'Bahşiş havuzu',
         'reservations' => 'Rezervasyonlar',
         'reservation_settings' => 'Rezervasyon ayarları',
         'delivery_zones' => 'Teslimat bölgeleri',

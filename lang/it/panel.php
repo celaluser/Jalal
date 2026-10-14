@@ -42,6 +42,7 @@ return [
         'online_payments' => 'Pagamenti online',
         'courier' => 'Le mie consegne',
         'shifts' => 'Turni di cassa',
+        'tips' => 'Fondo mance',
         'reservations' => 'Prenotazioni',
         'reservation_settings' => 'Impostazioni prenotazioni',
         'delivery_zones' => 'Zone di consegna',

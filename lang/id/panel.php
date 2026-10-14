@@ -42,6 +42,7 @@ return [
         'online_payments' => 'Pembayaran online',
         'courier' => 'Pengiriman saya',
         'shifts' => 'Shift kas',
+        'tips' => 'Pool tip',
         'reservations' => 'Reservasi',
         'reservation_settings' => 'Pengaturan reservasi',
         'delivery_zones' => 'Area pengiriman',

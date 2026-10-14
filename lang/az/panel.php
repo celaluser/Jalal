@@ -42,6 +42,7 @@ return [
         'online_payments' => 'Onlayn ödənişlər',
         'courier' => 'Çatdırılmalarım',
         'shifts' => 'Kassa növbələri',
+        'tips' => 'Çay pulu hovuzu',
         'reservations' => 'Rezervasiyalar',
         'reservation_settings' => 'Rezervasiya parametrləri',
         'delivery_zones' => 'Çatdırılma zonaları',

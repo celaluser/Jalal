@@ -13,6 +13,7 @@ use App\Modules\Orders\Http\Controllers\PosController;
 use App\Modules\Orders\Http\Controllers\PrintQueueController;
 use App\Modules\Orders\Http\Controllers\ReceiptController;
 use App\Modules\Orders\Http\Controllers\ShiftController;
+use App\Modules\Orders\Http\Controllers\TipPoolController;
 use App\Modules\Orders\Http\Controllers\StaffAppController;
 use App\Modules\Orders\Http\Controllers\TabletModeController;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenant;
@@ -104,6 +105,12 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])-
         Route::get('/', [ShiftController::class, 'index'])->name('index');
         Route::post('/', [ShiftController::class, 'open'])->name('open');
         Route::post('{shift}/close', [ShiftController::class, 'close'])->whereNumber('shift')->name('close');
+    });
+
+    Route::middleware('permission:reports.view')->prefix('tips')->name('tips.')->group(function () {
+        Route::get('/', [TipPoolController::class, 'index'])->name('index');
+        Route::put('/', [TipPoolController::class, 'update'])->middleware('permission:payments.manage')->name('update');
+        Route::get('export', [TipPoolController::class, 'export'])->middleware('throttle:20,1')->name('export');
     });
 
     Route::post('orders/pause', [OrderBoardController::class, 'pause'])->middleware('permission:orders.manage')->name('orders.pause');

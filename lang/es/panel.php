@@ -42,6 +42,7 @@ return [
         'online_payments' => 'Pagos en línea',
         'courier' => 'Mis entregas',
         'shifts' => 'Turnos de caja',
+        'tips' => 'Fondo de propinas',
         'reservations' => 'Reservas',
         'reservation_settings' => 'Ajustes de reservas',
         'delivery_zones' => 'Zonas de reparto',
