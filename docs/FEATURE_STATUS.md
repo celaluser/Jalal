@@ -257,4 +257,5 @@ Counts at the time of writing: 16 modules, 211 routes, 548 automated tests (all 
 - ✅ **Platform options per restaurant** (super admin): create a restaurant and its owner, assign a plan or trial, premium / featured / badge, custom limits and feature switches over the plan, a pinned theme, a private note; public directory and landing section for featured restaurants (switchable).
 - ✅ Admin theme editing was already there (Content > Menu themes): colours, fonts, layout, effects, live preview, copy, switch off, default, and free or paid in the store.
 - ✅ **Website builder**: the About page is made of sections (text, picture, button, gallery, hours, contact, social links), per language, plus a photo gallery (also in the structured data). Only the restaurant's own uploads can be shown; button addresses are limited to https, tel and mailto.
-- 🔴 Not built yet: A/B testing of campaigns, saved-card auto-renewal.
+- ✅ **Campaign A/B test and open tracking** (e-mail): test share and waiting time are set per campaign, the winner is picked by open rate by the scheduler (`marketing:pick-winners`, every 10 minutes) or by hand; needs at least 10 recipients. 🟡 Opens are an estimate (mail apps that preload pictures, such as Apple Mail privacy protection, raise them); clicks are not tracked; no automatic send-time optimisation.
+- 🔴 Not built yet: saved-card auto-renewal.

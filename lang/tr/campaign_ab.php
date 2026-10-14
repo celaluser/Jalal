@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'enable' => 'İki konu satırını test et (A/B testi)',
+    'help' => 'Küçük bir gruba A veya B konusu gider. Bekleme süresinden sonra daha çok açılan konu geri kalan herkese gönderilir. En az :min kişi gerekir.',
+    'subject_b' => 'Konu B',
+    'test_percent' => 'Testteki kitle payı (%)',
+    'winner_hours' => 'Kazananı seçmeden önce bekleme (saat)',
+    'track_opens' => 'Açılmaları say (e-postadaki küçük görünmez bir resim)',
+    'track_help' => 'Açılmalar tahmindir: bazı posta uygulamaları resmi kendiliğinden yükler, gerçek açılma daha düşük olabilir.',
+    'status_testing' => 'Test ediliyor',
+    'results_title' => 'Sonuçlar',
+    'variant' => 'Konu',
+    'stat_sent' => 'Gönderilen',
+    'stat_opens' => 'Açılan',
+    'stat_rate' => 'Açılma oranı',
+    'winner' => 'Kazanan',
+    'open_note' => 'Açılmalar yalnızca bir göstergedir: bazı posta uygulamaları (örneğin Apple Mail gizlilik koruması) resimleri otomatik yükler ve rakamları yükseltir.',
+    'testing_title' => 'Konu testi sürüyor',
+    'testing_note' => 'Daha iyi konu :time geri kalan herkese gider. Ya da şimdi seçin:',
+    'pick' => 'Kalanlara :variant gönder',
+    'pick_confirm' => 'Kampanyayı henüz almamış herkese :variant konusu gönderilsin mi?',
+    'winner_sent' => ':variant konusu kitlenin geri kalanına gönderildi.',
+    'not_testing' => 'Bu kampanya bir kazanan beklemiyor.',
+    'error_small' => 'Konu testi için kitlede en az :min kişi olmalı.',
+];

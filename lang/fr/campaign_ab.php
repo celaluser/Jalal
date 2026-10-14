@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'enable' => 'Tester deux objets (test A/B)',
+    'help' => 'Un petit groupe reçoit l\'objet A ou B. Après le délai, l\'objet le plus ouvert part vers tous les autres. Il faut au moins :min personnes.',
+    'subject_b' => 'Objet B',
+    'test_percent' => 'Part de l\'audience dans le test (%)',
+    'winner_hours' => 'Attente avant de choisir le gagnant (heures)',
+    'track_opens' => 'Compter les ouvertures (une minuscule image invisible dans l\'e-mail)',
+    'track_help' => 'Les ouvertures sont une estimation : certaines applis de messagerie chargent l\'image seules, les vraies ouvertures peuvent être moins nombreuses.',
+    'status_testing' => 'En test',
+    'results_title' => 'Résultats',
+    'variant' => 'Objet',
+    'stat_sent' => 'Envoyés',
+    'stat_opens' => 'Ouverts',
+    'stat_rate' => 'Taux d\'ouverture',
+    'winner' => 'Gagnant',
+    'open_note' => 'Les ouvertures ne sont qu\'un repère : certaines applis de messagerie (par exemple la protection de la vie privée d\'Apple Mail) chargent automatiquement les images et gonflent les chiffres.',
+    'testing_title' => 'Test d\'objet en cours',
+    'testing_note' => 'Le meilleur objet part vers tous les autres :time. Ou choisissez maintenant :',
+    'pick' => 'Envoyer :variant aux autres',
+    'pick_confirm' => 'Envoyer l\'objet :variant à tous ceux qui n\'ont pas encore reçu la campagne ?',
+    'winner_sent' => 'L\'objet :variant a été envoyé au reste de l\'audience.',
+    'not_testing' => 'Cette campagne n\'attend pas de gagnant.',
+    'error_small' => 'Un test d\'objet demande au moins :min personnes dans l\'audience.',
+];

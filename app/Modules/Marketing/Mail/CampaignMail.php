@@ -20,7 +20,7 @@ class CampaignMail extends Mailable
 {
     public readonly string $unsubscribeUrl;
 
-    public function __construct(public readonly Campaign $campaign, public readonly Restaurant $restaurant, public readonly Customer $customer, private readonly bool $preview = false)
+    public function __construct(public readonly Campaign $campaign, public readonly Restaurant $restaurant, public readonly Customer $customer, private readonly bool $preview = false, private readonly ?string $variant = null, private readonly ?int $recipientId = null)
     {
         $this->unsubscribeUrl = URL::signedRoute('marketing.unsubscribe', ['customer' => $customer->id]);
         $this->locale($customer->locale ?: $restaurant->locale);
@@ -28,14 +28,14 @@ class CampaignMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: ($this->preview ? '[Test] ' : '').str_replace(["\r", "\n"], ' ', $this->fill($this->campaign->subject, escape: false)));
+        return new Envelope(subject: ($this->preview ? '[Test] ' : '').str_replace(["\r", "\n"], ' ', $this->fill($this->variant === 'B' && $this->campaign->subject_b ? $this->campaign->subject_b : $this->campaign->subject, escape: false)));
     }
 
     public function content(): Content
     {
         $html = Str::markdown($this->campaign->body, ['html_input' => 'strip', 'allow_unsafe_links' => false]);
 
-        return new Content(view: 'marketing::mail.campaign', with: ['body' => $this->fill($html, escape: true), 'restaurant' => $this->restaurant, 'unsubscribeUrl' => $this->unsubscribeUrl, 'menuUrl' => $this->restaurant->publicUrl()]);
+        return new Content(view: 'marketing::mail.campaign', with: ['body' => $this->fill($html, escape: true), 'restaurant' => $this->restaurant, 'unsubscribeUrl' => $this->unsubscribeUrl, 'menuUrl' => $this->restaurant->publicUrl(), 'pixelUrl' => $this->campaign->track_opens && $this->recipientId ? URL::signedRoute('marketing.open', ['recipient' => $this->recipientId]) : null]);
     }
 
     public function headers(): Headers

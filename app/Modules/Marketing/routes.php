@@ -8,6 +8,7 @@ use App\Modules\Marketing\Http\Controllers\GiftCardController;
 use App\Modules\Marketing\Http\Controllers\GrowthToolsController;
 use App\Modules\Marketing\Http\Controllers\GuestReviewController;
 use App\Modules\Marketing\Http\Controllers\MarketingSettingsController;
+use App\Modules\Marketing\Http\Controllers\OpenTrackingController;
 use App\Modules\Marketing\Http\Controllers\PriceRuleController;
 use App\Modules\Marketing\Http\Controllers\PromoController;
 use App\Modules\Marketing\Http\Controllers\PushOptInController;
@@ -27,6 +28,9 @@ $guest = function () {
 Route::middleware(['web', SetLocale::class, ResolveTenant::class])
     ->prefix(config('tenancy.path_prefix').'/{restaurant}')->name('storefront.')->where(['restaurant' => '[A-Za-z0-9-]+'])->group($guest);
 Route::middleware(['web', SetLocale::class, ResolveTenant::class])->name('storefront.host.')->group($guest);
+
+// The tracking picture of a campaign e-mail (signed, no session).
+Route::middleware('signed')->get('m/o/{recipient}', [OpenTrackingController::class, 'pixel'])->whereNumber('recipient')->name('marketing.open');
 
 // One-click unsubscribe from a campaign. Signed, no session: mail apps POST here without a CSRF token.
 Route::middleware(['signed', 'throttle:30,1'])->prefix('unsubscribe')->name('marketing.unsubscribe')->group(function () {
@@ -93,6 +97,7 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])-
             Route::get('campaigns/{campaign}/edit', [CampaignController::class, 'edit'])->whereNumber('campaign')->name('campaigns.edit');
             Route::put('campaigns/{campaign}', [CampaignController::class, 'update'])->whereNumber('campaign')->name('campaigns.update');
             Route::delete('campaigns/{campaign}', [CampaignController::class, 'destroy'])->whereNumber('campaign')->name('campaigns.destroy');
+            Route::post('campaigns/{campaign}/winner', [CampaignController::class, 'winner'])->middleware('throttle:10,1')->whereNumber('campaign')->name('campaigns.winner');
             Route::post('campaigns/{campaign}/send', [CampaignController::class, 'send'])->middleware('throttle:5,1')->whereNumber('campaign')->name('campaigns.send');
             Route::post('campaigns/{campaign}/test', [CampaignController::class, 'test'])->middleware('throttle:10,1')->whereNumber('campaign')->name('campaigns.test');
         });

@@ -6,6 +6,7 @@ use App\Modules\Core\Mail\EmailTemplateRegistry;
 use App\Modules\Core\Support\RestaurantNav;
 use App\Modules\Demo\Support\DemoDataRegistry;
 use App\Modules\Marketing\Console\Autopilot;
+use App\Modules\Marketing\Console\PickCampaignWinners;
 use App\Modules\Marketing\Database\Seeders\MarketingDemoSeeder;
 use App\Modules\Marketing\Listeners\RecordCustomerActivity;
 use Illuminate\Support\Facades\Blade;
@@ -37,7 +38,7 @@ class MarketingServiceProvider extends ServiceProvider
         RestaurantNav::add('marketing', 'panel.nav.loyalty', 'marketing.settings', icon: 'gift', can: 'marketing.manage');
 
         if ($this->app->runningInConsole()) {
-            $this->commands([Autopilot::class]);
+            $this->commands([Autopilot::class, PickCampaignWinners::class]);
         }
 
         Event::subscribe(RecordCustomerActivity::class);

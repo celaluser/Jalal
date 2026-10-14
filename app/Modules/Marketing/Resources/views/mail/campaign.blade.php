@@ -9,5 +9,6 @@
                 <a href="{{ $unsubscribeUrl }}" style="color:#888;">{{ __('marketing.unsub_link') }}</a></td></tr>
         </table>
     </td></tr></table>
+@if (! empty($pixelUrl))<img src="{{ $pixelUrl }}" width="1" height="1" alt="" style="display:none">@endif
 </body>
 </html>

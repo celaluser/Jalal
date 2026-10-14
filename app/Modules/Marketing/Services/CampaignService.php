@@ -13,6 +13,8 @@ use App\Modules\Messaging\Services\Messenger;
 use App\Modules\Orders\Services\PushNotifier;
 use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use InvalidArgumentException;
@@ -21,6 +23,9 @@ use Throwable;
 /** Builds the audience of a campaign and sends it, within the daily cap and only to people who agreed. */
 class CampaignService
 {
+    /** Fewest people for which a subject test makes sense. */
+    public const MIN_TEST_AUDIENCE = 10;
+
     public function __construct(private readonly MarketingSettings $settings, private readonly Segments $segments, private readonly Messenger $messenger) {}
 
     /** Guests who said yes to marketing, can be reached on the campaign's channel, did not unsubscribe, and are in its segment. */
@@ -61,8 +66,15 @@ class CampaignService
             throw new InvalidArgumentException('sent');
         }
 
-        if ($this->audience($campaign)->count() === 0) {
+        $audience = $this->audience($campaign)->count();
+
+        if ($audience === 0) {
             throw new InvalidArgumentException('empty');
+        }
+
+        // A subject test needs enough people on each side to mean anything.
+        if ($this->isTest($campaign) && $audience < self::MIN_TEST_AUDIENCE) {
+            throw new InvalidArgumentException('ab_small');
         }
 
         $campaign->forceFill(['status' => Campaign::SENDING])->save();
@@ -88,6 +100,11 @@ class CampaignService
             }
         });
 
+        // A subject test sends to a small group first (half A, half B); the rest wait ("held") for the winner.
+        if ($this->isTest($campaign) && $campaign->winner === null && $campaign->test_sent_at === null) {
+            $this->assignVariants($campaign);
+        }
+
         $room = $this->remainingToday($restaurant);
 
         CampaignRecipient::where('campaign_id', $campaign->id)->where('status', 'queued')->with('customer')->orderBy('id')->chunkById(100, function ($rows) use ($restaurant, $campaign, &$room) {
@@ -111,7 +128,7 @@ class CampaignService
 
                 try {
                     if ($email) {
-                        Mail::to($customer->email)->send(new CampaignMail($campaign, $restaurant, $customer));
+                        Mail::to($customer->email)->send(new CampaignMail($campaign, $restaurant, $customer, variant: $row->variant, recipientId: $row->id));
                     } elseif (! $this->messenger->send($restaurant, $campaign->channel, (string) $customer->phone, $this->text($campaign, $restaurant, $customer), 'campaign')) {
                         $row->update(['status' => 'failed']); // no provider, bad number or the monthly message allowance is used
 
@@ -128,6 +145,17 @@ class CampaignService
         });
 
         $counts = CampaignRecipient::where('campaign_id', $campaign->id)->selectRaw('status, count(*) as n')->groupBy('status')->pluck('n', 'status');
+
+        // The test group is out; the rest waits for the winner (picked after a few hours, or by hand).
+        if ($this->isTest($campaign) && $campaign->winner === null && ($counts['held'] ?? 0) > 0) {
+            $campaign->forceFill([
+                'status' => Campaign::TESTING, 'test_sent_at' => now(), 'recipients_count' => (int) $counts->sum(),
+                'sent_count' => (int) ($counts['sent'] ?? 0), 'skipped_count' => (int) (($counts['skipped'] ?? 0) + ($counts['failed'] ?? 0)),
+            ])->save();
+
+            return;
+        }
+
         $campaign->forceFill([
             'status' => Campaign::SENT, 'sent_at' => now(), 'recipients_count' => (int) $counts->sum(),
             'sent_count' => (int) ($counts['sent'] ?? 0), 'skipped_count' => (int) (($counts['skipped'] ?? 0) + ($counts['failed'] ?? 0)),
@@ -150,6 +178,90 @@ class CampaignService
         });
 
         $campaign->forceFill(['status' => Campaign::SENT, 'sent_at' => now(), 'recipients_count' => $total, 'sent_count' => $sent, 'skipped_count' => $total - $sent])->save();
+    }
+
+    public function isTest(Campaign $campaign): bool
+    {
+        return $campaign->ab_test && ($campaign->channel ?? 'email') === 'email' && trim((string) $campaign->subject_b) !== '';
+    }
+
+    /** Splits the waiting recipients: a test group, half on subject A and half on B, the rest held back. Safe to run twice. */
+    private function assignVariants(Campaign $campaign): void
+    {
+        if (CampaignRecipient::where('campaign_id', $campaign->id)->whereNotNull('variant')->exists()) {
+            return;
+        }
+
+        $ids = CampaignRecipient::where('campaign_id', $campaign->id)->where('status', 'queued')->pluck('id')->shuffle()->values();
+        $each = max(1, intdiv((int) round($ids->count() * max(10, min(50, (int) $campaign->test_percent)) / 100), 2));
+
+        CampaignRecipient::whereIn('id', $ids->slice(0, $each)->all())->update(['variant' => 'A']);
+        CampaignRecipient::whereIn('id', $ids->slice($each, $each)->all())->update(['variant' => 'B']);
+        CampaignRecipient::whereIn('id', $ids->slice($each * 2)->all())->update(['status' => 'held']);
+    }
+
+    /**
+     * Opens per subject: how many were sent, how many opened, and the rate.
+     *
+     * @return array<string, array{sent: int, opened: int, rate: float}>
+     */
+    public function variantStats(Campaign $campaign): array
+    {
+        $stats = [];
+
+        foreach (['A', 'B'] as $v) {
+            $q = CampaignRecipient::where('campaign_id', $campaign->id)->where('variant', $v)->where('status', 'sent');
+            $sent = (clone $q)->count();
+            $opened = (clone $q)->whereNotNull('opened_at')->count();
+            $stats[$v] = ['sent' => $sent, 'opened' => $opened, 'rate' => $sent > 0 ? round($opened / $sent * 100, 1) : 0.0];
+        }
+
+        return $stats;
+    }
+
+    /** Opens of the whole campaign, for the results card. @return array{sent: int, opened: int, rate: float} */
+    public function openStats(Campaign $campaign): array
+    {
+        $q = CampaignRecipient::where('campaign_id', $campaign->id)->where('status', 'sent');
+        $sent = (clone $q)->count();
+        $opened = (clone $q)->whereNotNull('opened_at')->count();
+
+        return ['sent' => $sent, 'opened' => $opened, 'rate' => $sent > 0 ? round($opened / $sent * 100, 1) : 0.0];
+    }
+
+    /**
+     * Sends the better subject (or the one chosen by hand) to everyone who was held back. Does nothing unless the test is running.
+     * The higher open rate wins; a tie goes to A.
+     */
+    public function pickWinner(Restaurant $restaurant, Campaign $campaign, ?string $force = null): ?string
+    {
+        $winner = DB::transaction(function () use ($campaign, $force) {
+            $locked = Campaign::whereKey($campaign->id)->lockForUpdate()->first();
+
+            if (! $locked || $locked->status !== Campaign::TESTING) {
+                return null;
+            }
+
+            $stats = $this->variantStats($locked);
+            $winner = in_array($force, ['A', 'B'], true) ? $force : ($stats['B']['rate'] > $stats['A']['rate'] ? 'B' : 'A');
+
+            CampaignRecipient::where('campaign_id', $locked->id)->where('status', 'held')->update(['status' => 'queued', 'variant' => $winner]);
+            $locked->forceFill(['winner' => $winner, 'status' => Campaign::SENDING])->save();
+
+            return $winner;
+        });
+
+        if ($winner !== null) {
+            SendCampaign::dispatch($restaurant->id, $campaign->id);
+        }
+
+        return $winner;
+    }
+
+    /** Tests whose waiting time is over. */
+    public function dueForWinner(): Collection
+    {
+        return Campaign::where('status', Campaign::TESTING)->get()->filter(fn (Campaign $c) => $c->test_sent_at !== null && $c->test_sent_at->addHours(max(1, (int) $c->winner_hours))->isPast())->values();
     }
 
     /** The SMS / WhatsApp text: the campaign body with the guest's name, and a way to stop (reply STOP is the provider's job; the link is ours). */

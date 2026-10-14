@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'enable' => 'Zwei Betreffzeilen testen (A/B-Test)',
+    'help' => 'Eine kleine Gruppe erhält Betreff A oder B. Nach der Wartezeit geht der Betreff mit mehr Öffnungen an alle anderen. Mindestens :min Personen nötig.',
+    'subject_b' => 'Betreff B',
+    'test_percent' => 'Anteil der Zielgruppe im Test (%)',
+    'winner_hours' => 'Wartezeit vor der Siegerwahl (Stunden)',
+    'track_opens' => 'Öffnungen zählen (ein winziges unsichtbares Bild in der E-Mail)',
+    'track_help' => 'Öffnungen sind eine Schätzung: Manche Mail-Apps laden das Bild selbst, echte Öffnungen können niedriger sein.',
+    'status_testing' => 'Im Test',
+    'results_title' => 'Ergebnisse',
+    'variant' => 'Betreff',
+    'stat_sent' => 'Gesendet',
+    'stat_opens' => 'Geöffnet',
+    'stat_rate' => 'Öffnungsrate',
+    'winner' => 'Sieger',
+    'open_note' => 'Öffnungen sind nur ein Anhaltspunkt: Manche Mail-Apps (z. B. der Datenschutzschutz von Apple Mail) laden Bilder automatisch und erhöhen die Zahlen.',
+    'testing_title' => 'Betreff-Test läuft',
+    'testing_note' => 'Der bessere Betreff geht :time an alle anderen. Oder jetzt wählen:',
+    'pick' => ':variant an den Rest senden',
+    'pick_confirm' => 'Betreff :variant an alle senden, die die Kampagne noch nicht erhalten haben?',
+    'winner_sent' => 'Betreff :variant wurde an den Rest der Zielgruppe gesendet.',
+    'not_testing' => 'Diese Kampagne wartet auf keinen Sieger.',
+    'error_small' => 'Ein Betreff-Test braucht mindestens :min Personen in der Zielgruppe.',
+];

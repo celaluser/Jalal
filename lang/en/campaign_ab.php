@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'enable' => 'Test two subject lines (A/B test)',
+    'help' => 'A small group gets subject A or B. After the waiting time the subject with more opens goes to everyone else. Needs at least :min people.',
+    'subject_b' => 'Subject B',
+    'test_percent' => 'Share of the audience in the test (%)',
+    'winner_hours' => 'Wait before picking the winner (hours)',
+    'track_opens' => 'Count opens (a tiny invisible picture in the e-mail)',
+    'track_help' => 'Opens are an estimate: some mail apps load the picture on their own, so real opens can be lower.',
+    'status_testing' => 'Testing',
+    'results_title' => 'Results',
+    'variant' => 'Subject',
+    'stat_sent' => 'Sent',
+    'stat_opens' => 'Opened',
+    'stat_rate' => 'Open rate',
+    'winner' => 'Winner',
+    'open_note' => 'Opens are only a guide: some mail apps (for example Apple Mail privacy protection) load pictures automatically, which raises the numbers.',
+    'testing_title' => 'Subject test running',
+    'testing_note' => 'The better subject goes to everyone else :time. Or choose now:',
+    'pick' => 'Send :variant to the rest',
+    'pick_confirm' => 'Send subject :variant to everyone who has not received the campaign yet?',
+    'winner_sent' => 'Subject :variant was sent to the rest of the audience.',
+    'not_testing' => 'This campaign is not waiting for a winner.',
+    'error_small' => 'A subject test needs at least :min people in the audience.',
+];

@@ -1,12 +1,14 @@
 <x-layouts.app :title="$campaign->name">
     <x-ui.page-header :title="$campaign->name" :description="$campaign->subject" :back="['url' => route('campaigns.index'), 'label' => __('marketing.campaigns_title')]">
         <x-slot:actions>
-            <x-ui.badge :tone="['draft' => 'neutral', 'sending' => 'warning', 'sent' => 'success'][$campaign->status]" dot>{{ __('marketing.status_'.$campaign->status) }}</x-ui.badge>
+            <x-ui.badge :tone="['draft' => 'neutral', 'sending' => 'warning', 'testing' => 'info', 'sent' => 'success'][$campaign->status]" dot>{{ $campaign->status === 'testing' ? __('campaign_ab.status_testing') : __('marketing.status_'.$campaign->status) }}</x-ui.badge>
             @if ($campaign->status === 'draft')<a href="{{ route('campaigns.edit', $campaign->id) }}" class="btn btn-secondary"><x-ui.icon name="pen" size="4" />{{ __('admin.edit') }}</a>@endif
         </x-slot:actions>
     </x-ui.page-header>
 
     @error('campaign')<x-ui.alert type="error" class="mb-4">{{ $message }}</x-ui.alert>@enderror
+    @if (session('error'))<x-ui.alert type="error" class="mb-4">{{ session('error') }}</x-ui.alert>@endif
+    @if (session('status'))<x-ui.alert type="success" class="mb-4">{{ session('status') }}</x-ui.alert>@endif
 
     <div class="grid items-start gap-5 lg:grid-cols-3">
         <x-ui.card :title="__('marketing.preview')" class="lg:col-span-2">
@@ -35,6 +37,33 @@
                     @if ($campaign->sent_at)<p class="mt-4 text-xs text-muted">{{ __('marketing.sent_on', ['date' => $campaign->sent_at->toDayDateTimeString()]) }}</p>@endif
                     @if ($campaign->skipped_count)<p class="mt-2 text-xs text-muted">{{ __('marketing.cap_note') }}</p>@endif
                 </x-ui.card>
+
+                @if ($opens)
+                    <x-ui.card :title="__('campaign_ab.results_title')" class="mt-5">
+                        @if ($variants)
+                            <table class="w-full text-sm">
+                                <thead><tr class="text-start text-xs text-muted"><th class="pb-2 text-start">{{ __('campaign_ab.variant') }}</th><th class="pb-2 text-end">{{ __('campaign_ab.stat_sent') }}</th><th class="pb-2 text-end">{{ __('campaign_ab.stat_opens') }}</th><th class="pb-2 text-end">{{ __('campaign_ab.stat_rate') }}</th></tr></thead>
+                                <tbody>
+                                    @foreach ($variants as $v => $st)
+                                        <tr class="border-t border-line"><td class="py-2 font-medium">{{ $v }}@if ($campaign->winner === $v) <x-ui.badge tone="success">{{ __('campaign_ab.winner') }}</x-ui.badge>@endif<span class="block text-xs font-normal text-muted">{{ $v === 'B' ? $campaign->subject_b : $campaign->subject }}</span></td><td class="py-2 text-end tnum">{{ $st['sent'] }}</td><td class="py-2 text-end tnum">{{ $st['opened'] }}</td><td class="py-2 text-end tnum">{{ $st['rate'] }}%</td></tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        @endif
+                        <p class="@if ($variants) mt-4 @endif text-sm"><bdi class="tnum font-semibold">{{ $opens['opened'] }}</bdi> / <bdi class="tnum">{{ $opens['sent'] }}</bdi> · <bdi class="tnum font-semibold">{{ $opens['rate'] }}%</bdi> {{ __('campaign_ab.stat_opens') }}</p>
+                        <p class="mt-2 text-xs text-muted">{{ __('campaign_ab.open_note') }}</p>
+                    </x-ui.card>
+                @endif
+                @if ($campaign->status === 'testing')
+                    <x-ui.card :title="__('campaign_ab.testing_title')" class="mt-5">
+                        <p class="text-sm">{{ __('campaign_ab.testing_note', ['time' => $campaign->test_sent_at->copy()->addHours($campaign->winner_hours)->diffForHumans()]) }}</p>
+                        <div class="mt-3 grid grid-cols-2 gap-2">
+                            @foreach (['A', 'B'] as $v)
+                                <form method="POST" action="{{ route('campaigns.winner', $campaign->id) }}" onsubmit="return confirm('{{ __('campaign_ab.pick_confirm', ['variant' => $v]) }}')">@csrf<input type="hidden" name="variant" value="{{ $v }}"><x-ui.button variant="secondary">{{ __('campaign_ab.pick', ['variant' => $v]) }}</x-ui.button></form>
+                            @endforeach
+                        </div>
+                    </x-ui.card>
+                @endif
             @endif
         </div>
     </div>
