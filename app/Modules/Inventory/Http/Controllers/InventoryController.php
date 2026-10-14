@@ -3,20 +3,20 @@
 namespace App\Modules\Inventory\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Inventory\Mail\PurchaseOrderMail;
 use App\Modules\Inventory\Models\Ingredient;
 use App\Modules\Inventory\Models\Purchase;
 use App\Modules\Inventory\Models\RecipeLine;
 use App\Modules\Inventory\Models\Supplier;
-use App\Modules\Inventory\Mail\PurchaseOrderMail;
 use App\Modules\Inventory\Services\PurchaseOrders;
 use App\Modules\Inventory\Services\Recipes;
 use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\Product;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 

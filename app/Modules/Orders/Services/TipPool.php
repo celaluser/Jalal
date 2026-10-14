@@ -7,6 +7,7 @@ use App\Modules\Core\Services\SettingsService;
 use App\Modules\Orders\Models\OrderPayment;
 use App\Modules\Tenancy\Models\Restaurant;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 
 /**
  * Splits the tips collected in a period between the staff by weight (a share each person counts for; 0 = not in the pool),
@@ -57,14 +58,14 @@ class TipPool
         $this->settings->set('tips.house_percent', (string) max(0.0, min(100.0, round($housePercent, 2))), $restaurant->id);
     }
 
-    /** @return \Illuminate\Support\Collection<int, User> */
+    /** @return Collection<int, User> */
     public function staff(Restaurant $restaurant)
     {
         return User::where('restaurant_id', $restaurant->id)->orderBy('name')->get(['id', 'name', 'email']);
     }
 
     /**
-     * @param array<int, float> $weights
+     * @param  array<int, float>  $weights
      * @return array{total: int, house: int, pool: int, shares: array<int, int>}
      */
     public function split(int $total, float $housePercent, array $weights): array

@@ -32,7 +32,7 @@ class PurchaseOrders
     /**
      * The lines of one order as submitted: only this supplier's items, quantities cleaned.
      *
-     * @param array<int|string, mixed> $qty ingredient id => quantity
+     * @param  array<int|string, mixed>  $qty  ingredient id => quantity
      * @return list<array<string, mixed>>
      */
     public function lines(int $supplierId, array $qty): array

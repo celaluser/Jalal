@@ -13,9 +13,9 @@ use App\Modules\Orders\Http\Controllers\PosController;
 use App\Modules\Orders\Http\Controllers\PrintQueueController;
 use App\Modules\Orders\Http\Controllers\ReceiptController;
 use App\Modules\Orders\Http\Controllers\ShiftController;
-use App\Modules\Orders\Http\Controllers\TipPoolController;
 use App\Modules\Orders\Http\Controllers\StaffAppController;
 use App\Modules\Orders\Http\Controllers\TabletModeController;
+use App\Modules\Orders\Http\Controllers\TipPoolController;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenant;
 use Illuminate\Support\Facades\Route;
 

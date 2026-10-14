@@ -75,7 +75,7 @@ it('e-mails the order with a PDF attached, and explains when the supplier has no
     [$r, $owner, $flour, , , , $farm, $nomail] = poShop();
 
     $this->actingAs($owner)->post(route('inventory.orders.mail'), ['supplier_id' => $farm->id, 'qty' => [$flour->id => 12.5], 'note' => 'Morning please'])->assertSessionHas('status');
-    Mail::assertSent(PurchaseOrderMail::class, function (PurchaseOrderMail $m) use ($flour) {
+    Mail::assertSent(PurchaseOrderMail::class, function (PurchaseOrderMail $m) {
         return $m->hasTo('farm@example.test') && $m->lines[0]['qty'] == 12.5 && count($m->attachments()) === 1 && $m->note === 'Morning please';
     });
 
