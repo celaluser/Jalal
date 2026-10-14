@@ -13,6 +13,10 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
     Route::post('suppliers', [InventoryController::class, 'storeSupplier'])->name('suppliers.store');
     Route::delete('suppliers/{supplier}', [InventoryController::class, 'destroySupplier'])->whereNumber('supplier')->name('suppliers.destroy');
 
+    Route::get('orders', [InventoryController::class, 'orders'])->name('orders');
+    Route::post('orders/pdf', [InventoryController::class, 'orderPdf'])->middleware('throttle:20,1')->name('orders.pdf');
+    Route::post('orders/mail', [InventoryController::class, 'orderMail'])->middleware('throttle:10,1')->name('orders.mail');
+
     Route::get('recipes', [InventoryController::class, 'recipes'])->name('recipes');
     Route::get('recipes/{product}', [InventoryController::class, 'editRecipe'])->whereNumber('product')->name('recipe');
     Route::put('recipes/{product}', [InventoryController::class, 'updateRecipe'])->whereNumber('product')->name('recipe.update');

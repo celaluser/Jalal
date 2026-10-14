@@ -7,10 +7,15 @@ use App\Modules\Inventory\Models\Ingredient;
 use App\Modules\Inventory\Models\Purchase;
 use App\Modules\Inventory\Models\RecipeLine;
 use App\Modules\Inventory\Models\Supplier;
+use App\Modules\Inventory\Mail\PurchaseOrderMail;
+use App\Modules\Inventory\Services\PurchaseOrders;
 use App\Modules\Inventory\Services\Recipes;
 use App\Modules\Menu\Models\Category;
 use App\Modules\Menu\Models\Product;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -97,6 +102,58 @@ class InventoryController extends Controller
         $supplier->delete();
 
         return back()->with('status', __('inventory.deleted'));
+    }
+
+    /** What is running low, grouped by supplier, with quantities to order. */
+    public function orders(Request $request): View
+    {
+        return view('inventory::orders', ['restaurant' => $request->user()->restaurant, 'groups' => app(PurchaseOrders::class)->groups()]);
+    }
+
+    public function orderPdf(Request $request): Response
+    {
+        [$supplier, $lines, $number, $note] = $this->prepareOrder($request);
+
+        return Pdf::loadView('inventory::po-pdf', $this->pdfData($request, $supplier, $lines, $number, $note))->download('purchase-order-'.$number.'.pdf');
+    }
+
+    public function orderMail(Request $request): RedirectResponse
+    {
+        [$supplier, $lines, $number, $note] = $this->prepareOrder($request);
+
+        if (! $supplier || ! $supplier->email) {
+            return back()->withErrors(['supplier_id' => __('inventory.po_no_email')]);
+        }
+
+        $restaurant = $request->user()->restaurant;
+        $pdf = Pdf::loadView('inventory::po-pdf', $this->pdfData($request, $supplier, $lines, $number, $note))->output();
+
+        try {
+            Mail::to($supplier->email)->send(new PurchaseOrderMail($restaurant, $supplier, $lines, $number, $pdf, $note));
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withErrors(['supplier_id' => __('inventory.po_send_failed')]);
+        }
+
+        return back()->with('status', __('inventory.po_sent', ['name' => $supplier->name]));
+    }
+
+    /** @return array{0: ?Supplier, 1: list<array<string, mixed>>, 2: string, 3: ?string} */
+    private function prepareOrder(Request $request): array
+    {
+        $data = $request->validate(['supplier_id' => ['required', 'integer', 'min:0'], 'qty' => ['required', 'array', 'max:500'], 'qty.*' => ['nullable', 'numeric', 'min:0', 'max:9999999'], 'note' => ['nullable', 'string', 'max:500']]);
+        $supplier = (int) $data['supplier_id'] > 0 ? Supplier::findOrFail((int) $data['supplier_id']) : null;
+        $lines = app(PurchaseOrders::class)->lines((int) $data['supplier_id'], $data['qty']);
+        abort_if($lines === [], 422);
+
+        return [$supplier, $lines, 'PO-'.now()->format('ymd-Hi'), $data['note'] ?? null];
+    }
+
+    /** @param list<array<string, mixed>> $lines @return array<string, mixed> */
+    private function pdfData(Request $request, ?Supplier $supplier, array $lines, string $number, ?string $note): array
+    {
+        return ['restaurant' => $request->user()->restaurant, 'supplier' => $supplier, 'lines' => $lines, 'number' => $number, 'note' => $note, 'date' => now()->toDateString(), 'total' => round(collect($lines)->sum('est'), 2)];
     }
 
     public function recipes(Request $request): View

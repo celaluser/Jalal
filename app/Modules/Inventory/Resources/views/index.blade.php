@@ -1,6 +1,6 @@
 <x-layouts.app :title="__('inventory.title')">
     <x-ui.page-header :title="__('inventory.title')" :description="__('inventory.subtitle')">
-        <x-slot:actions><a href="{{ route('inventory.recipes') }}" class="btn btn-secondary">{{ __('inventory.recipes') }}</a></x-slot:actions>
+        <x-slot:actions><a href="{{ route('inventory.orders') }}" class="btn btn-secondary">{{ __('inventory.po_title') }}</a><a href="{{ route('inventory.recipes') }}" class="btn btn-secondary">{{ __('inventory.recipes') }}</a></x-slot:actions>
     </x-ui.page-header>
 
     @if (session('status'))<x-ui.alert type="success" class="mb-4">{{ session('status') }}</x-ui.alert>@endif
