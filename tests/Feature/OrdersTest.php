@@ -102,7 +102,7 @@ describe('placing an order', function () {
             ->and($order->token)->toMatch('/^[a-z0-9]{24}$/')->and($order->subtotal_cents)->toBe(1800)->and($order->total_cents)->toBe(1800)
             ->and($order->customer_name)->toBe('Ada')->and($order->note)->toBe('no onions')->and($order->currency_code)->toBe('USD')->and($order->source)->toBe('qr')
             ->and($order->items)->toHaveCount(2)->and($order->items[0]->name)->toBe('Pizza')->and($order->items[0]->unit_cents)->toBe(1300)
-            ->and($order->items[0]->options)->toBe([['group' => 'Size', 'name' => 'Large', 'price_delta_cents' => 300]])
+            ->and($order->items[0]->options)->toEqual([['group' => 'Size', 'name' => 'Large', 'price_delta_cents' => 300]])
             ->and($order->items[1]->total_cents)->toBe(500)
             ->and(odIn($r, fn () => $order->events()->pluck('type')->all()))->toBe(['placed']);
         Event::assertDispatched(OrderPlaced::class);

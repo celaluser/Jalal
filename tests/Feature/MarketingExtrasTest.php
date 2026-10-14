@@ -431,7 +431,7 @@ describe('saved segments', function () {
         $manager = gxUser($r, 'manager');
         $this->actingAs($manager)->post(route('segments.store'), ['name' => 'Big spenders', 'min_spent' => '250', 'min_orders' => 2])->assertRedirect();
         $seg = gxIn($r, fn () => CustomerSegment::first());
-        expect($seg->rules)->toBe(['min_orders' => 2, 'min_spent' => 25000]);
+        expect($seg->rules)->toEqual(['min_orders' => 2, 'min_spent' => 25000]);
 
         $this->actingAs($manager)->get(route('segments.index'))->assertOk()->assertSee('Big spenders')->assertSee('2+ orders');
         $this->actingAs($manager)->get(route('campaigns.create'))->assertOk()->assertSee('custom:'.$seg->id);

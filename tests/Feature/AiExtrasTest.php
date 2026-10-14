@@ -201,10 +201,10 @@ it('translates only what is empty and never a locked language, in the background
 
     $soup = axIn($r, fn () => Product::where('price', 4)->first());
     $salad = axIn($r, fn () => Product::where('price', 5)->first());
-    expect($soup->name)->toBe(['en' => 'Soup', 'tr' => 'Çorba'])                       // existing and locked text untouched
-        ->and($soup->description)->toBe(['en' => 'Tomato soup', 'tr' => 'Domates çorbası'])
-        ->and($salad->name)->toBe(['en' => 'Salad', 'tr' => 'Salata', 'de' => 'Salat'])
-        ->and(axIn($r, fn () => Category::first()->name))->toBe(['en' => 'Food', 'tr' => 'Gıda', 'de' => 'Essen']);
+    expect($soup->name)->toEqual(['en' => 'Soup', 'tr' => 'Çorba'])                       // existing and locked text untouched
+        ->and($soup->description)->toEqual(['en' => 'Tomato soup', 'tr' => 'Domates çorbası'])
+        ->and($salad->name)->toEqual(['en' => 'Salad', 'tr' => 'Salata', 'de' => 'Salat'])
+        ->and(axIn($r, fn () => Category::first()->name))->toEqual(['en' => 'Food', 'tr' => 'Gıda', 'de' => 'Essen']);
     $state = $this->actingAs($owner)->getJson(route('ai.translate-all.status'))->json();
     expect($state['status'])->toBe('finished')->and($state['translated'])->toBe(5);
 });

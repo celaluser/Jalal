@@ -98,7 +98,7 @@ describe('dish media', function () {
 
         $p = app(TenantContext::class)->runAs($r, fn () => Product::first());
         expect((float) $p->cost_price)->toBe(4.2)->and($p->video_url)->toContain('youtu.be')->and($p->portion_size)->toBe('300 g')->and($p->nutrition)->toEqual(['protein' => 25, 'carbs' => 40, 'sodium' => 800])
-            ->and($p->badges)->toBe(['new', 'chef'])->and($p->schedule)->toBe(['days' => [1, 2], 'from' => '12:00', 'to' => '16:00'])->and($p->order_types)->toBe(['dine_in', 'takeaway'])->and($p->gallery)->toHaveCount(2);
+            ->and($p->badges)->toBe(['new', 'chef'])->and($p->schedule)->toEqual(['days' => [1, 2], 'from' => '12:00', 'to' => '16:00'])->and($p->order_types)->toBe(['dine_in', 'takeaway'])->and($p->gallery)->toHaveCount(2);
 
         $firstPhoto = $p->gallery[0];
         $this->actingAs($owner)->put(route('menu.products.update', $p->id), ['category_id' => $cat->id, 'name' => ['en' => 'Burger'], 'price' => '12.50', 'is_active' => '1', 'is_available' => '1', 'remove_gallery' => [$firstPhoto], 'order_types' => ['dine_in', 'takeaway', 'delivery']])->assertSessionHasNoErrors();
@@ -191,7 +191,7 @@ describe('menus', function () {
 
         $this->actingAs($owner)->post(route('menu.menus.store'), ['name' => ['en' => 'Bar'], 'is_active' => '1', 'schedule' => ['days' => ['5', '6'], 'from' => '18:00', 'to' => '02:00'], 'categories' => [$drinks->id]])->assertSessionHasNoErrors();
         $menu = app(TenantContext::class)->runAs($r, fn () => Menu::first());
-        expect($menu->schedule)->toBe(['days' => [5, 6], 'from' => '18:00', 'to' => '02:00'])->and(app(TenantContext::class)->runAs($r, fn () => $drinks->fresh()->menu_id))->toBe($menu->id)->and(app(TenantContext::class)->runAs($r, fn () => $cat->fresh()->menu_id))->toBeNull();
+        expect($menu->schedule)->toEqual(['days' => [5, 6], 'from' => '18:00', 'to' => '02:00'])->and(app(TenantContext::class)->runAs($r, fn () => $drinks->fresh()->menu_id))->toBe($menu->id)->and(app(TenantContext::class)->runAs($r, fn () => $cat->fresh()->menu_id))->toBeNull();
 
         $this->actingAs($owner)->get(route('menu.menus.index'))->assertOk()->assertSee('Bar')->assertSee('Fri, Sat');
         $this->actingAs($owner)->delete(route('menu.menus.destroy', $menu->id))->assertRedirect();

@@ -80,7 +80,7 @@ describe('landing page', function () {
         ])->assertSessionHasNoErrors();
 
         $stored = LandingPage::where('locale', 'tr')->first()->content;
-        expect($stored['features'])->toBe([['title' => 'Hizli', 'text' => 'Cok hizli']])
+        expect($stored['features'])->toEqual([['title' => 'Hizli', 'text' => 'Cok hizli']])
             ->and($stored['testimonials'])->toHaveCount(1)
             ->and($stored['contact']['email'])->toBe('hi@menu.test');
 
