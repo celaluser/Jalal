@@ -1,6 +1,6 @@
 <x-layouts.admin :title="__('admin.nav.pages')">
     <x-ui.page-header :title="__('admin.nav.pages')" :description="__('admin.cms.pages_description')">
-        <x-slot:actions><a href="{{ route('admin.pages.create') }}" class="btn btn-primary"><x-ui.icon name="plus" size="4" />{{ __('admin.cms.new_page') }}</a></x-slot:actions>
+        <x-slot:actions><form method="POST" action="{{ route('admin.pages.starter') }}">@csrf<button class="btn btn-secondary" title="{{ __('admin.cms.starter_hint') }}">{{ __('admin.cms.starter') }}</button></form><a href="{{ route('admin.pages.create') }}" class="btn btn-primary"><x-ui.icon name="plus" size="4" />{{ __('admin.cms.new_page') }}</a></x-slot:actions>
     </x-ui.page-header>
     <x-ui.table>
         <thead><tr><th>{{ __('admin.cms.title') }}</th><th>{{ __('admin.cms.slug') }}</th><th>{{ __('admin.cms.language') }}</th><th>{{ __('admin.status') }}</th><th><span class="sr-only">{{ __('admin.actions') }}</span></th></tr></thead>

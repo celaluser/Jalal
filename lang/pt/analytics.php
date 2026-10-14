@@ -1,0 +1,32 @@
+<?php
+
+return [
+    'title' => 'Relatórios', 'subtitle' => 'Vendas de :from a :to. Pedidos cancelados não são contados como vendas.',
+    'range_today' => 'Hoje', 'range_yesterday' => 'Ontem', 'range_7' => 'Últimos 7 dias', 'range_30' => 'Últimos 30 dias', 'range_90' => 'Últimos 90 dias', 'range_custom' => 'Personalizado', 'from' => 'De', 'to' => 'Até', 'apply' => 'Aplicar',
+    'export' => 'Exportar pedidos (CSV)', 'empty_title' => 'Nenhum pedido neste período', 'empty_text' => 'Escolha outro período ou aguarde os primeiros pedidos chegarem.', 'no_data' => 'Ainda não há dados.',
+    'revenue' => 'Vendas', 'orders' => 'Pedidos', 'average' => 'Ticket médio', 'cancel_rate' => 'Cancelados', 'vs_previous' => 'em relação ao período anterior', 'cancelled_count' => '{0} nenhum|{1} 1 pedido|[2,*] :count pedidos',
+    'revenue_by_day' => 'Vendas por dia',
+    'best_sellers' => 'Mais vendidos', 'items_sold' => '{0} Nada vendido|{1} 1 item vendido|[2,*] :count itens vendidos',
+    'how_they_order' => 'Como os clientes pedem', 'by_type' => 'Tipo de pedido', 'by_payment' => 'Pagamento', 'by_source' => 'Canal',
+    'busy_hours' => 'Horários de pico', 'busiest' => 'Maior movimento: :day às :hour (:count pedidos)', 'cell_orders' => '{0} nenhum pedido|{1} 1 pedido|[2,*] :count pedidos',
+    'mon' => 'Seg', 'tue' => 'Ter', 'wed' => 'Qua', 'thu' => 'Qui', 'fri' => 'Sex', 'sat' => 'Sáb', 'sun' => 'Dom',
+    'new_customers' => 'Novos clientes', 'returning_customers' => 'Clientes recorrentes', 'discounts' => 'Descontos concedidos', 'ready_time' => 'Tempo médio até ficar pronto', 'ready_time_hint' => 'Do pedido feito até ser marcado como pronto.', 'minutes' => ':count min',
+    'locked_title' => 'Mais relatórios em um plano superior', 'locked_text' => 'Mais vendidos, horários de pico, clientes, períodos mais longos e exportação CSV acompanham o recurso de análises.', 'upgrade' => 'Fazer upgrade do plano',
+
+    'eng_title' => 'Engenharia de cardápio', 'eng_sub' => 'Quais pratos merecem seu lugar, :from – :to. Requer o preço de custo nos pratos.',
+    'class_star' => 'Estrelas', 'class_plowhorse' => 'Burros de carga', 'class_puzzle' => 'Quebra-cabeças', 'class_dog' => 'Abacaxis',
+    'class_star_tip' => 'Populares e lucrativos. Mantenha e divulgue.', 'class_plowhorse_tip' => 'Populares, margem baixa. Aumente o preço ou reduza o custo.',
+    'class_puzzle_tip' => 'Lucrativos, mas raros. Suba no cardápio ou recomende.', 'class_dog_tip' => 'Raros e de margem baixa. Reformule ou retire.',
+    'food_cost' => 'Custo dos alimentos: :percent% das vendas (pratos com preço de custo)', 'thresholds' => 'Popular a partir de :pop vendidos · lucrativo a partir de :margin por porção',
+    'eng_dishes' => 'Pratos por lucro', 'dish' => 'Prato', 'sold' => 'Vendidos', 'unit_margin' => 'Por porção', 'margin' => 'Lucro', 'class' => 'Classe', 'by_category' => 'Vendas por categoria',
+    'no_cost' => '{1} :count prato não tem preço de custo e não foi classificado|[2,*] :count pratos não têm preço de custo e não foram classificados',
+    'ops_title' => 'Equipe e mesas', 'ops_sub' => 'O que sua equipe fez e a rapidez com que as mesas giram, :from – :to.',
+    'ops_staff' => 'Atividade da equipe', 'ops_staff_help' => 'Conta o que cada pessoa conectada fez com os pedidos. Etapas automáticas e ações de clientes não são incluídas.', 'ops_no_staff' => 'Nenhuma atividade da equipe neste período',
+    'ops_person' => 'Pessoa', 'ops_accepted' => 'Aceitos', 'ops_ready' => 'Marcados como prontos', 'ops_completed' => 'Concluídos', 'ops_cancelled' => 'Cancelados', 'ops_accept_time' => 'Tempo médio para aceitar',
+    'ops_tables' => 'Giro das mesas', 'ops_tables_help' => 'Pedidos concluídos no salão por mesa. Minutos = do pedido até a conclusão, uma estimativa de quanto tempo a mesa ficou ocupada.', 'ops_no_tables' => 'Nenhum pedido concluído no salão neste período',
+    'ops_table' => 'Mesa', 'ops_minutes' => 'Média de minutos',
+    'visits_title' => 'Leituras de QR e visualizações', 'visits_sub' => 'Quantas vezes os clientes abriram seu cardápio, :from – :to. Contado por hora; nenhum dado pessoal é guardado.',
+    'visits_scans' => 'Leituras de QR das mesas', 'visits_views' => 'Visualizações do cardápio', 'visits_orders' => 'Pedidos', 'visits_conversion' => 'Pedidos a cada 100 visualizações',
+    'visits_by_day' => 'Por dia', 'visits_by_hour' => 'Por hora do dia', 'visits_by_table' => 'Leituras por mesa', 'visits_none' => 'Nenhuma visita registrada neste período ainda.',
+    'visits_note' => 'Uma atualização em até 30 minutos no mesmo navegador não é contada novamente, e rastreadores são ignorados. A contagem começa quando este recurso é instalado.',
+];

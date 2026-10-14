@@ -109,6 +109,7 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user', '
 
         Route::get('landing', [LandingPageController::class, 'edit'])->name('landing.edit');
         Route::put('landing', [LandingPageController::class, 'update'])->name('landing.update');
+        Route::post('pages/starter', [PageController::class, 'starter'])->middleware('throttle:10,1')->name('pages.starter');
         Route::resource('pages', PageController::class)->except('show');
         Route::resource('posts', BlogPostController::class)->except('show');
 

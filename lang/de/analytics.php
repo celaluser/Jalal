@@ -1,0 +1,32 @@
+<?php
+
+return [
+    'title' => 'Berichte', 'subtitle' => 'Umsatz vom :from bis :to. Stornierte Bestellungen zählen nicht als Umsatz.',
+    'range_today' => 'Heute', 'range_yesterday' => 'Gestern', 'range_7' => 'Letzte 7 Tage', 'range_30' => 'Letzte 30 Tage', 'range_90' => 'Letzte 90 Tage', 'range_custom' => 'Benutzerdefiniert', 'from' => 'Von', 'to' => 'Bis', 'apply' => 'Anwenden',
+    'export' => 'Bestellungen exportieren (CSV)', 'empty_title' => 'Keine Bestellungen in diesem Zeitraum', 'empty_text' => 'Wählen Sie einen anderen Zeitraum oder warten Sie auf die ersten Bestellungen.', 'no_data' => 'Noch keine Daten.',
+    'revenue' => 'Umsatz', 'orders' => 'Bestellungen', 'average' => 'Ø Bestellwert', 'cancel_rate' => 'Storniert', 'vs_previous' => 'ggü. Vorzeitraum', 'cancelled_count' => '{0} keine|{1} 1 Bestellung|[2,*] :count Bestellungen',
+    'revenue_by_day' => 'Umsatz pro Tag',
+    'best_sellers' => 'Bestseller', 'items_sold' => '{0} Nichts verkauft|{1} 1 Artikel verkauft|[2,*] :count Artikel verkauft',
+    'how_they_order' => 'Wie Gäste bestellen', 'by_type' => 'Bestellart', 'by_payment' => 'Zahlung', 'by_source' => 'Kanal',
+    'busy_hours' => 'Stoßzeiten', 'busiest' => 'Am meisten los: :day um :hour Uhr (:count Bestellungen)', 'cell_orders' => '{0} keine Bestellungen|{1} 1 Bestellung|[2,*] :count Bestellungen',
+    'mon' => 'Mo', 'tue' => 'Di', 'wed' => 'Mi', 'thu' => 'Do', 'fri' => 'Fr', 'sat' => 'Sa', 'sun' => 'So',
+    'new_customers' => 'Neukunden', 'returning_customers' => 'Stammkunden', 'discounts' => 'Gewährte Rabatte', 'ready_time' => 'Ø Zeit bis fertig', 'ready_time_hint' => 'Von der Bestellung bis zur Markierung als fertig.', 'minutes' => ':count Min.',
+    'locked_title' => 'Mehr Berichte im höheren Tarif', 'locked_text' => 'Bestseller, Stoßzeiten, Kunden, längere Zeiträume und CSV-Export sind Teil der Analysefunktion.', 'upgrade' => 'Tarif upgraden',
+
+    'eng_title' => 'Speisekarten-Analyse', 'eng_sub' => 'Welche Gerichte ihren Platz verdienen, :from – :to. Erfordert einen Einkaufspreis bei den Gerichten.',
+    'class_star' => 'Stars', 'class_plowhorse' => 'Arbeitspferde', 'class_puzzle' => 'Rätsel', 'class_dog' => 'Ladenhüter',
+    'class_star_tip' => 'Beliebt und profitabel. Behalten und bewerben.', 'class_plowhorse_tip' => 'Beliebt, aber geringe Marge. Preis erhöhen oder Kosten senken.',
+    'class_puzzle_tip' => 'Profitabel, aber selten bestellt. Weiter oben platzieren oder empfehlen.', 'class_dog_tip' => 'Selten und geringe Marge. Überarbeiten oder streichen.',
+    'food_cost' => 'Wareneinsatz :percent% vom Umsatz (Gerichte mit Einkaufspreis)', 'thresholds' => 'Beliebt ab :pop verkauft · profitabel ab :margin pro Portion',
+    'eng_dishes' => 'Gerichte nach Gewinn', 'dish' => 'Gericht', 'sold' => 'Verkauft', 'unit_margin' => 'Pro Portion', 'margin' => 'Gewinn', 'class' => 'Klasse', 'by_category' => 'Umsatz nach Kategorie',
+    'no_cost' => '{1} :count Gericht hat keinen Einkaufspreis und wird nicht eingestuft|[2,*] :count Gerichte haben keinen Einkaufspreis und werden nicht eingestuft',
+    'ops_title' => 'Team & Tische', 'ops_sub' => 'Was Ihr Team getan hat und wie schnell Tische wechseln, :from – :to.',
+    'ops_staff' => 'Team-Aktivität', 'ops_staff_help' => 'Zählt, was jede angemeldete Person mit Bestellungen getan hat. Automatische Schritte und Gästeaktionen sind nicht enthalten.', 'ops_no_staff' => 'Keine Team-Aktivität in diesem Zeitraum',
+    'ops_person' => 'Person', 'ops_accepted' => 'Angenommen', 'ops_ready' => 'Als fertig markiert', 'ops_completed' => 'Abgeschlossen', 'ops_cancelled' => 'Storniert', 'ops_accept_time' => 'Ø Zeit bis Annahme',
+    'ops_tables' => 'Tischumschlag', 'ops_tables_help' => 'Abgeschlossene Bestellungen vor Ort pro Tisch. Minuten = von der Bestellung bis zum Abschluss, ein Richtwert für die Belegungsdauer des Tischs.', 'ops_no_tables' => 'Keine abgeschlossenen Bestellungen vor Ort in diesem Zeitraum',
+    'ops_table' => 'Tisch', 'ops_minutes' => 'Ø Minuten',
+    'visits_title' => 'QR-Scans & Aufrufe', 'visits_sub' => 'Wie oft Gäste Ihre Speisekarte geöffnet haben, :from – :to. Pro Stunde gezählt; es werden keine personenbezogenen Daten gespeichert.',
+    'visits_scans' => 'Tisch-QR-Scans', 'visits_views' => 'Menüaufrufe', 'visits_orders' => 'Bestellungen', 'visits_conversion' => 'Bestellungen pro 100 Aufrufe',
+    'visits_by_day' => 'Nach Tag', 'visits_by_hour' => 'Nach Tageszeit', 'visits_by_table' => 'Scans pro Tisch', 'visits_none' => 'In diesem Zeitraum wurden noch keine Besuche erfasst.',
+    'visits_note' => 'Ein erneutes Laden innerhalb von 30 Minuten im selben Browser wird nicht erneut gezählt, Crawler werden ignoriert. Die Zählung beginnt mit der Installation dieser Funktion.',
+];

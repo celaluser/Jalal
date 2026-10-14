@@ -4,7 +4,9 @@ namespace App\Modules\Admin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Cms\Models\Page;
+use App\Modules\Cms\Services\LegalTemplates;
 use App\Modules\Core\Models\Language;
+use App\Modules\Core\Services\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -15,6 +17,14 @@ class PageController extends Controller
     public function index(): View
     {
         return view('admin::cms.pages-index', ['pages' => Page::orderBy('locale')->orderBy('sort')->orderBy('title')->get()]);
+    }
+
+    /** Adds draft privacy, terms, cookie and refund pages to start from. */
+    public function starter(LegalTemplates $templates, SettingsService $settings): RedirectResponse
+    {
+        $created = $templates->install('en', (string) config('app.name'), (string) $settings->get('general.support_email', ''), url('/'));
+
+        return back()->with('status', $created > 0 ? __('admin.cms.starter_done', ['count' => $created]) : __('admin.cms.starter_none'));
     }
 
     public function create(): View
