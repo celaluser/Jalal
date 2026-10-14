@@ -308,3 +308,14 @@ body.mdl-open{overflow:hidden}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
 .grid2 > .card{margin-bottom:0}
 </style>
+
+<style>
+.tplgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.tplc{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card,transparent)}
+.tplp{height:170px;display:flex;align-items:center;justify-content:center;padding:14px;background:linear-gradient(135deg,#2c3045,#14151c)}
+.tplm{width:100%;padding:14px 12px;text-align:center;font-size:11px;box-shadow:0 10px 24px #0007}
+.tplm .tplb{display:inline-block;font-size:8px;font-weight:700;padding:2px 7px;border-radius:99px;margin-bottom:6px;text-transform:uppercase}
+.tplm b{display:block;font-size:12.5px;line-height:1.2;margin-bottom:9px}
+.tplm i{display:block;font-style:normal;font-weight:700;font-size:10.5px;padding:7px}
+.tplf{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;font-size:12.5px}
+</style>

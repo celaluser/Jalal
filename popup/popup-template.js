@@ -45,6 +45,7 @@
   /* Bu iki satiri cron her calistiginda gercek degerlerle degistirir. */
   var POPUPS = null;
   var SETTINGS = null;
+  var SKINS = null;
 
   /* Admin panelden gelen global ayarlar CONFIG'i ezer */
   (function () {
@@ -357,6 +358,41 @@
     return "default";
   }
 
+
+  /* ---- GORUNUM SABLONLARI (skin): SKINS tablosundan CSS uretir ---- */
+  function skinCss(k) {
+    var v = SKINS && SKINS[k]; if (!v) return "";
+    var c = ".igfp-s-" + k + " ", fg = v.fg || "#fff", r = v.r || "20px";
+    var css = c + ".igfp-frame{max-width:380px;padding:0;background:none;animation:none;border-radius:" + r + ";box-shadow:none}"
+      + c + ".igfp-box{background:" + v.bg + ";color:" + fg + ";border-radius:" + r + ";padding:28px 24px 22px;text-align:center;"
+      +   "box-shadow:0 24px 60px rgba(0,0,0,.45);" + (v.x || "") + "}"
+      + c + ".igfp-box:before{display:none}"
+      + c + ".igfp-h{color:" + fg + ";font-size:23px;line-height:1.15;margin:0 0 8px}"
+      + c + ".igfp-sub{color:" + fg + ";opacity:.85;font-size:13.5px;line-height:1.45;margin:0 auto 16px}"
+      + c + ".igfp-badge{background:" + v.bb + ";color:" + v.bf + ";border:0;font-size:11px;font-weight:700;padding:4px 10px;letter-spacing:.06em;margin-bottom:12px}"
+      + c + ".igfp-dot{display:none}"
+      + c + ".igfp-ic{color:" + fg + "}" + c + ".igfp-it{color:" + fg + "}"
+      + c + ".igfp-btn{background:" + v.btn + ";color:" + v.btnf + "!important;border-radius:" + (v.br || "12px") + ";font-size:14px;font-weight:700;padding:12px;box-shadow:none}"
+      + c + ".igfp-cpn-b{border:2px dashed currentColor;color:" + fg + ";border-radius:10px}"
+      + c + ".igfp-cpn-l{color:" + fg + "}" + c + ".igfp-cpn-code{background:transparent;color:" + fg + ";font-size:15px;letter-spacing:.1em}"
+      + c + ".igfp-cpn-btn{background:" + v.btn + ";color:" + v.btnf + "}"
+      + c + ".igfp-cd-c{background:rgba(0,0,0,.16);border:0;border-radius:10px;padding:8px 0}"
+      + c + ".igfp-cd-c b{color:" + fg + ";font-size:20px}" + c + ".igfp-cd-c span{color:" + fg + ";opacity:.7}"
+      + c + ".igfp-media{border-radius:12px}"
+      + c + ".igfp-x{color:" + fg + ";background:transparent;top:8px;right:10px;width:30px;height:30px;opacity:.6}"
+      + c + ".igfp-foot{color:" + fg + ";opacity:.45;font-size:11.5px;margin-top:14px}";
+    if (v.special === "banner") css += c + ".igfp-box{padding-top:0}" + c + ".igfp-box:before{display:block;position:static;width:auto;height:110px;border-radius:0;margin:0 -24px 18px;background:linear-gradient(135deg,#6366f1,#ec4899);filter:none}";
+    if (v.special === "corner") css += c + ".igfp-ov{}.igfp-ov.igfp-s-" + k + "{align-items:flex-end;justify-content:flex-end;background:none;-webkit-backdrop-filter:none;backdrop-filter:none;pointer-events:none}"
+      + c.replace(" ", "") + " .igfp-frame{pointer-events:auto;margin:0}" + c + ".igfp-foot{display:none}";
+    return css;
+  }
+  var skinDone = {};
+  function ensureSkin(k) {
+    if (!k || skinDone[k]) return; skinDone[k] = 1;
+    var css = skinCss(k); if (!css) return;
+    var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
+  }
+
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -442,6 +478,8 @@
   + '.igfp-cd-c span{display:block;margin-top:6px;font-size:11px;font-weight:600;color:var(--pillfg);'
   + 'text-transform:uppercase;letter-spacing:.08em}'
   /* ---- kupon ---- */
+  + '.igfp-ic{font-size:44px;line-height:1.1;margin:0 0 8px}.igfp-ic:empty{display:none}'
+  + '.igfp-items{margin:0 0 16px}.igfp-it{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;border-radius:10px;background:rgba(128,128,128,.16);margin-bottom:7px;font-size:13px;font-weight:600;color:#f4f2f8}'
   + '.igfp-cpn{margin:0 0 22px}'
   + '.igfp-cpn-l{display:block;margin-bottom:8px;font-size:12.5px;font-weight:600;color:#a5a2b6}'
   + '.igfp-cpn-b{display:flex;align-items:stretch;gap:0;border:1px dashed var(--cardb);border-radius:14px;overflow:hidden}'
@@ -481,6 +519,9 @@
   function renderContent(p) {
     var html = "";
     if (p.image) html += '<div class="igfp-media"><img src="' + esc(p.image) + '" alt="" loading="lazy"></div>';
+    if (p.items && p.items.length) {
+      html += '<div class="igfp-items">' + p.items.map(function (r) { return '<div class="igfp-it"><span>' + esc(r[0]) + '</span><b>' + esc(r[1]) + '</b></div>'; }).join('') + '</div>';
+    }
     if (p.countdown) {
       var lbls = ["gün", "saat", "dəq", "san"];
       var cells = "";
@@ -534,7 +575,8 @@
     var inner = (p.kind === "content") ? renderContent(p) : '<div class="igfp-list">' + renderServices(p) + "</div>";
 
     ov = document.createElement("div");
-    ov.className = "igfp-ov igfp-t-" + pickTheme(p);
+    ov.className = "igfp-ov igfp-t-" + pickTheme(p) + (p.skin && SKINS && SKINS[p.skin] ? " igfp-s-" + p.skin : "");
+    if (p.skin) ensureSkin(p.skin);
     ov.setAttribute("role", "dialog");
     ov.setAttribute("aria-modal", "true");
     ov.setAttribute("aria-label", p.title || p.badge || "");
@@ -542,6 +584,7 @@
         '<div class="igfp-frame"><div class="igfp-box">'
       +   '<button class="igfp-x" type="button" aria-label="Close">&#10005;</button>'
       +   '<div class="igfp-in">'
+      +     (p.icon ? '<div class="igfp-ic">' + esc(p.icon) + "</div>" : "")
       +     '<div class="igfp-badge"><span class="igfp-dot"></span>' + esc(p.badge || "") + "</div>"
       +     '<h2 class="igfp-h">' + esc(p.title || "") + "</h2>"
       +     '<p class="igfp-sub">' + esc(p.subtitle || "") + "</p>"

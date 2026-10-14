@@ -233,6 +233,9 @@ function form_data(array $p, bool $isAuto): array {
     } else {
         $d += [
             'badge'        => (string) ($p['badge'] ?? ''),
+            'skin'         => (string) ($p['skin'] ?? ''),
+            'icon'         => (string) ($p['icon'] ?? ''),
+            'items'        => (string) ($p['items'] ?? ''),
             'title'        => (string) ($p['title'] ?? ''),
             'subtitle'     => (string) ($p['subtitle'] ?? ''),
             'image'        => (string) ($p['image'] ?? ''),
@@ -429,6 +432,9 @@ if ($action === 'popup_save') {
     $entry = array_merge(popup_manual_default(), pcommon(20), [
         'id'           => $pid,
         'badge'        => trim((string) pv('badge')),
+        'skin'         => popup_skin_valid((string) pv('skin')),
+        'icon'         => trim((string) pv('icon')),
+        'items'        => trim((string) pv('items')),
         'title'        => trim((string) pv('title')),
         'subtitle'     => trim((string) pv('subtitle')),
         'image'        => trim((string) pv('image')),

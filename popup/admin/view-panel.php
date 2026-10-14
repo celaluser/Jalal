@@ -147,6 +147,7 @@ function f_common_head(array $themes, bool $isAuto): void { ?>
 $nav = [
   'durum'      => ['gauge',  'Durum'],
   'popuplar'   => ['layers', 'Popuplar'],
+  'sablonlar'  => ['eye',    'Şablonlar'],
   'gorunum'    => ['eye',    'Gösterim kuralları'],
   'sayfalar'   => ['route',  'Sayfa kuralları'],
   'istatistik' => ['chart',  'İstatistik'],
@@ -392,6 +393,30 @@ $nav = [
           <?php endforeach; endif; ?>
           <div style="margin-top:14px">
             <button class="btn" type="button" data-edit="manual" data-id=""><?= ico('plus') ?><span>Yeni manuel popup</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════ ŞABLONLAR (hazır görünümler) ═════════ -->
+    <div class="pane" data-p="sablonlar" hidden>
+      <div class="card">
+        <h2><?= ico('eye') ?> Hazır şablonlar</h2>
+        <p class="hint">Beğendiğin şablonu seç: başlık, metin, buton ve renkler hazır dolu gelir. Sadece linki ve
+           kuponu kendine göre değiştirip kaydet. Sonradan her şey düzenlenebilir.</p>
+        <div class="body">
+          <div class="tplgrid">
+          <?php $ti = 0; foreach (popup_skins() as $sk => $v): $ti++; ?>
+            <div class="tplc">
+              <div class="tplp"><div class="tplm" style="background:<?= h($v['bg']) ?>;color:<?= h($v['fg']) ?>;border-radius:<?= h($v['r']) ?>;<?= h($v['x']) ?>">
+                <span class="tplb" style="background:<?= h($v['bb']) ?>;color:<?= h($v['bf']) ?>"><?= h($v['t']['badge'] ?: 'Yeni') ?></span>
+                <b><?= h($v['t']['title']) ?></b>
+                <i style="background:<?= h($v['btn']) ?>;color:<?= h($v['btnf']) ?>;border-radius:<?= h($v['br']) ?>"><?= h($v['t']['btn_text']) ?></i>
+              </div></div>
+              <div class="tplf"><span><b><?= $ti ?>.</b> <?= h($v['n']) ?></span>
+                <button class="btn sm" type="button" data-tpl="<?= h($sk) ?>">Kullan</button></div>
+            </div>
+          <?php endforeach; ?>
           </div>
         </div>
       </div>
@@ -876,8 +901,14 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
         <div data-sec="icerik" hidden><div class="rows">
           <div class="row"><div class="lbl">Rozet<small>Üstteki küçük etiket</small></div>
             <input type="text" name="badge" placeholder="TELEGRAM"></div>
+          <div class="row"><div class="lbl">Görünüm şablonu<small>Şablonlar sekmesinden de seçebilirsin</small></div>
+            <select name="skin"><option value="">Klasik (koyu, çerçeveli)</option>
+              <?php foreach (popup_skins() as $sk => $v): ?><option value="<?= h($sk) ?>"><?= h($v['n']) ?></option><?php endforeach; ?></select></div>
+          <div class="row"><div class="lbl">İkon<small>Emoji, opsiyonel</small></div><input type="text" name="icon" placeholder="🔥"></div>
           <div class="row"><div class="lbl">Başlık</div><input type="text" name="title" placeholder="Kanalımıza katıl"></div>
           <div class="row"><div class="lbl">Açıklama</div><input type="text" name="subtitle" placeholder="Kampanyalardan ilk sen haberdar ol."></div>
+          <div class="row"><div class="lbl">Liste satırları<small>Her satıra: <code>Ad | Fiyat</code></small></div>
+            <textarea name="items" placeholder="Kart2Kart | 0% komisyon&#10;Birbank | Dərhal"></textarea></div>
           <div class="row"><div class="lbl">Görsel URL<small>Opsiyonel</small></div><input type="text" name="image" placeholder="https://…/afis.jpg"></div>
           <div class="row"><div class="lbl">Buton yazısı</div><input type="text" name="btn_text" placeholder="Telegram'a Katıl"></div>
           <div class="row"><div class="lbl">Buton linki</div><input type="text" name="btn_url" placeholder="https://t.me/kanaladi"></div>
@@ -906,7 +937,8 @@ var PDATA = {
   autos:      <?= json_encode($formAutos,     JSON_UNESCAPED_UNICODE) ?>,
   popups:     <?= json_encode($formPopups,    JSON_UNESCAPED_UNICODE) ?>,
   defAuto:    <?= json_encode($formDefAuto,   JSON_UNESCAPED_UNICODE) ?>,
-  defManual:  <?= json_encode($formDefManual, JSON_UNESCAPED_UNICODE) ?>
+  defManual:  <?= json_encode($formDefManual, JSON_UNESCAPED_UNICODE) ?>,
+  tpls:       <?= json_encode(array_map(function ($v) { return $v['t']; }, popup_skins()), JSON_UNESCAPED_UNICODE) ?>
 };
 
 (function () {
@@ -975,12 +1007,13 @@ var PDATA = {
     var body = mdl.querySelector('.mdl-body'); if (body) body.scrollTop = 0;
   }
 
-  function openModal(kind, id) {
+  function openModal(kind, id, over) {
     var mdl = document.getElementById(kind === 'auto' ? 'm-auto' : 'm-manual');
     var data = id
       ? (kind === 'auto' ? PDATA.autos[id] : PDATA.popups[id])
       : (kind === 'auto' ? PDATA.defAuto : PDATA.defManual);
     if (!data) return;
+    if (over) { data = Object.assign({}, data, over); }
     var form = mdl.querySelector('form');
     form.reset();
     fillForm(form, data);
@@ -1005,6 +1038,19 @@ var PDATA = {
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
 
+  document.querySelectorAll('[data-tpl]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var t = PDATA.tpls[b.dataset.tpl]; if (!t) return;
+      var cd = '';
+      if (t.cd) { var d = new Date(Date.now() + 7 * 864e5), z = function (n) { return (n < 10 ? '0' : '') + n; };
+        cd = d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()); }
+      openModal('manual', '', {
+        name: t.name, skin: t.skin, icon: t.icon, badge: t.badge, title: t.title, subtitle: t.subtitle,
+        btn_text: t.btn_text, btn_url: location.origin + '/', coupon: t.coupon, coupon_label: t.coupon ? 'Kupon kodu:' : '',
+        items: t.items, countdown: cd
+      });
+    });
+  });
   document.querySelectorAll('[data-edit]').forEach(function (b) {
     b.addEventListener('click', function () { openModal(b.dataset.edit, b.dataset.id || ''); });
   });

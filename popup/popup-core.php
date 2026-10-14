@@ -83,6 +83,25 @@ function popup_auto_default(): array {
     ];
 }
 
+/** Görünüm şablonları (popup-skins.php) */
+function popup_skins(): array {
+    static $s = null;
+    if ($s === null) { $f = __DIR__ . '/popup-skins.php'; $s = is_file($f) ? (array) include $f : []; }
+    return $s;
+}
+function popup_skin_valid(string $k): string { return isset(popup_skins()[$k]) ? $k : ''; }
+/** "Ad | Fiyat" satırlarını [[ad, fiyat], ...] yap */
+function popup_parse_items(string $t): array {
+    $o = [];
+    foreach (preg_split('/\R/', $t) as $ln) {
+        $ln = trim($ln); if ($ln === '') continue;
+        $p = array_map('trim', explode('|', $ln, 2));
+        $o[] = [$p[0], $p[1] ?? ''];
+        if (count($o) >= 8) break;
+    }
+    return $o;
+}
+
 /** Bir MANUEL popup şablonu */
 function popup_manual_default(): array {
     return [
@@ -98,6 +117,9 @@ function popup_manual_default(): array {
         'rules'        => null,
         'pages'        => null,
         'badge'        => '',
+        'skin'         => '',
+        'icon'         => '',
+        'items'        => '',
         'title'        => '',
         'subtitle'     => '',
         'image'        => '',
@@ -692,6 +714,9 @@ function popup_build_manual(array $m, array $c): ?array {
         'kind'      => 'content',
         'updated'   => time(),
         'badge'     => trim((string) $m['badge']),
+        'skin'      => popup_skin_valid((string) $m['skin']),
+        'icon'      => trim((string) $m['icon']),
+        'items'     => popup_parse_items((string) $m['items']),
         'title'     => $title,
         'subtitle'  => $subtitle,
         'image'     => trim((string) $m['image']),
@@ -860,6 +885,9 @@ function popup_publish(array $c, array $popups, array $autos): array {
 
     $js = str_replace('var POPUPS = null;',   'var POPUPS = '   . $enc(array_values($popups)) . ';', $tpl);
     $js = str_replace('var SETTINGS = null;', 'var SETTINGS = ' . $enc($client) . ';', $js);
+    $skinCss = [];
+    foreach (popup_skins() as $k => $v) { unset($v['t'], $v['n']); $skinCss[$k] = $v; }
+    $js = str_replace('var SKINS = null;', 'var SKINS = ' . $enc($skinCss) . ';', $js);
     $js = "/* Otomatik uretildi: " . date('Y-m-d H:i:s') . " — elle duzenlemeyin. */\n" . $js;
 
     if (!popup_write_atomic($p['embed'], $js)) return ['ok' => false, 'msg' => 'embed.js yazilamadi'];
