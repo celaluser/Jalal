@@ -48,7 +48,7 @@ tar -c \
 cp .env.example "$SRC/.env.example"
 
 echo "== Production dependencies (inside the staging folder)"
-(cd "$SRC" && composer install --no-dev --optimize-autoloader --no-scripts --no-interaction --quiet)
+(cd "$SRC" && composer install --no-dev --prefer-dist --optimize-autoloader --no-scripts --no-interaction --quiet)
 
 echo "== Slimming vendor (git folders, tests, unused AWS services)"
 find "$SRC/vendor" -maxdepth 3 -name .git -type d -prune -exec rm -rf {} +
