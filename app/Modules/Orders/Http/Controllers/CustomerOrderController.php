@@ -19,6 +19,7 @@ use App\Modules\Orders\Services\RestaurantGateways;
 use App\Modules\Orders\Support\OrderStatus;
 use App\Modules\Orders\Support\OrderType;
 use App\Modules\Storefront\Services\MenuLocale;
+use App\Modules\Surveys\Models\Survey;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -107,6 +108,7 @@ class CustomerOrderController extends Controller
             'cancelUrl' => $this->statusUrl($request, $order).'/cancel',
             'canCancel' => $this->canCancel($order),
             'reviewUrl' => $this->statusUrl($request, $order).'/review',
+            'surveyUrl' => ($survey = Survey::where('is_active', true)->where('after_order', true)->orderBy('id')->first()) ? $this->menuUrl($request).'/survey/'.$survey->slug.'?o='.$order->token : null,
             'pushUrl' => $this->statusUrl($request, $order).'/push',
             'payUrl' => $this->statusUrl($request, $order).'/pay',
             'receiptUrl' => $this->statusUrl($request, $order).'/receipt',

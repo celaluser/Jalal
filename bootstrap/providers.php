@@ -25,6 +25,7 @@ use App\Modules\Reservations\Providers\ReservationsServiceProvider;
 use App\Modules\Store\Providers\StoreServiceProvider;
 use App\Modules\Storefront\Providers\StorefrontServiceProvider;
 use App\Modules\Support\Providers\SupportServiceProvider;
+use App\Modules\Surveys\Providers\SurveysServiceProvider;
 use App\Modules\Tables\Providers\TablesServiceProvider;
 use App\Modules\Team\Providers\TeamServiceProvider;
 use App\Modules\Tenancy\Providers\TenancyServiceProvider;
@@ -44,6 +45,7 @@ return [
     BranchesServiceProvider::class,
     InventoryServiceProvider::class,
     HubServiceProvider::class,
+    SurveysServiceProvider::class,
     StoreServiceProvider::class,
     ApiServiceProvider::class,
     TablesServiceProvider::class,

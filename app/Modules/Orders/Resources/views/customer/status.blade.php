@@ -194,6 +194,7 @@
         </section>
 
         {{-- Feedback --}}
+        @if ($surveyUrl)<p class="text-center" x-show="s.status === 'completed'" x-cloak><a class="menu-btn menu-btn-quiet inline-block" href="{{ $surveyUrl }}">{{ __('surveys.order_link') }}</a></p>@endif
         @if (session('review_thanks'))<p class="menu-card menu-accent-text p-4 text-center font-semibold" role="status">{{ __('marketing.rate_thanks') }}</p>@endif
         <section class="menu-card p-5" x-show="s.review && (s.review.open || s.review.rating)" x-cloak x-data="{ rating: 0 }">
             <template x-if="s.review && s.review.open">
