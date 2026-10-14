@@ -26,7 +26,7 @@ Bu pakette **kasıtlı olarak bulunmayan** dosyalar:
 
 `settings.json` · `stats.json` · `versions.json` · `popup-cron.log` ·
 `.admin-throttle.json` · `embed.js` · `services.json` · `popup-config.php` ·
-`kill.json` · `audit.json` · `settings-history.json` · `auto-last.json`
+`kill.json` · `audit.json` · `settings-history.json` · `auto-last.json` · `coupons.json`
 
 Bunlar senin verilerin. Pakette olmadıkları için extract sırasında
 **üzerlerine yazılamaz.** Ayarların, istatistiklerin ve API anahtarın olduğu gibi kalır.
@@ -119,3 +119,17 @@ Açılan formda:
 - Özel tasarım **kapalıysa** seçili şablonun hazır ayarları kullanılır.
 
 Güncelleme sonrası panelde **"Şimdi güncelle"** butonuna bas.
+
+---
+
+## Yeni: kupon limiti, kişiye özel metin, kopyalama, şablonlarım, bot filtresi
+
+- **Kupon limiti:** manuel popup → İçerik → "Kupon limiti (sunucuda)". Açıkken kod sayfa kaynağında görünmez,
+  `coupon.php` hak kazanınca verir. Toplam kullanım ve "kişi başı 1 kez" ayarlanır. Çarkta stok her satıra yazılır:
+  `Etiket | KOD | stok`. Popup listesinde "limit: 37/100 verildi" görünür, "sıfırla" ile sayaç sıfırlanır.
+  `coupon.php` için `.htaccess` kuralı pakettedir; `.htaccess` dosyasını da üzerine yazmayı unutma.
+- **Kişiye özel metin:** başlık, açıklama, rozet ve buton yazısında `{ad}`, `{bakiye}`, `{siparis}`.
+  Veri yoksa yedek: `{ad|Dostum}`. Veri, sayfadaki `PANEL_USER` değişkeninden okunur.
+- **Kopyala:** Popuplar sekmesinde her popup'ın yanında. Kopya kapalı gelir.
+- **Şablonlarım:** Popuplar → bir manuel popup'ta "Şablon" butonu → Şablonlar sekmesinde "Şablonlarım".
+- **Bot filtresi:** Gösterim kuralları'nda açık/kapalı. Botlara popup gösterilmez ve istatistiğe yazılmaz.

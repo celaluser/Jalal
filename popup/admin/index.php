@@ -268,6 +268,9 @@ function form_data(array $p, bool $isAuto): array {
             'countdown'    => (string) ($p['countdown'] ?? ''),
             'coupon'       => (string) ($p['coupon'] ?? ''),
             'coupon_label' => (string) ($p['coupon_label'] ?? ''),
+            'limit_on'     => !empty($p['limit_on']) ? 1 : 0,
+            'coupon_total' => (int) ($p['coupon_total'] ?? 0),
+            'coupon_once'  => (!isset($p['coupon_once']) || !empty($p['coupon_once'])) ? 1 : 0,
         ];
     }
     return $d;
@@ -356,6 +359,7 @@ if ($action === 'save') {
             ],
             'segment'   => ['varName' => trim((string) pv('seg_varname')) ?: 'PANEL_USER'],
             'killCheck' => ['enabled' => pbool('kill_check'), 'url' => trim((string) pv('kill_url'))],
+            'botFilter' => pbool('bot_filter'),
         ],
     ];
     if (!popup_settings_save($s, 'global ayarlar')) {
@@ -444,6 +448,69 @@ if ($action === 'order_save') {
     $msg = 'Katman sırası kaydedildi. ' . ($res['ok'] ? 'embed.js yenilendi.' : $res['msg']);
     $msgType = $res['ok'] ? 'ok' : 'err';
     $cfg = popup_config();
+}
+
+/* --- KOPYALA / ŞABLONLARIM / KUPON SAYAÇ SIFIRLA --- */
+if ($action === 'popup_dup' || $action === 'auto_dup') {
+    $tab = 'popuplar';
+    $pid = preg_replace('/[^0-9A-Za-z_-]/', '', (string) pv('pid'));
+    $key = $action === 'auto_dup' ? 'autos' : 'popups';
+    $list = $cfg[$key]; $maxPri = 0; $src = null;
+    foreach ($list as $x) {
+        $maxPri = max($maxPri, (int) ($x['priority'] ?? 0));
+        if (($x['id'] ?? '') === $pid) $src = $x;
+    }
+    if ($src === null) { $msg = 'Kopyalanacak popup bulunamadı.'; $msgType = 'err'; }
+    else {
+        $src['id'] = popup_new_id();
+        $src['name'] = trim((string) ($src['name'] ?? $pid)) . ' (kopya)';
+        $src['enabled'] = false;                      // kopya kapalı gelir, hazır olunca başlatılır
+        $src['priority'] = min(999, $maxPri + 10);
+        $list[] = $src;
+        popup_settings_save([$key => array_values($list)], 'kopyala: ' . $pid);
+        $msg = 'Kopya oluşturuldu (kapalı). Düzenleyip "Başlat" diyebilirsin.'; $msgType = 'ok';
+        $cfg = popup_config();
+    }
+}
+
+if ($action === 'mytpl_save') {
+    $tab = 'sablonlar';
+    $pid = preg_replace('/[^0-9A-Za-z_-]/', '', (string) pv('pid'));
+    $nm  = mb_substr(trim((string) pv('tpl_name')), 0, 40);
+    $src = null;
+    foreach ($cfg['popups'] as $x) { if (($x['id'] ?? '') === $pid) { $src = $x; break; } }
+    if ($src === null || $nm === '') { $msg = 'Şablon kaydedilemedi: ad boş ya da popup bulunamadı.'; $msgType = 'err'; }
+    else {
+        $fd = form_data($src, false);
+        $keep = ['skin','layout','theme','icon','badge','title','subtitle','image','btn_text','btn_url','coupon','coupon_label','items','prizes','steps',
+                 'limit_on','coupon_total','coupon_once','st_on','st_bg','st_fg','st_btn','st_btnf','st_bb','st_bf','st_bc','st_r','st_w','st_pad',
+                 'st_tsz','st_ssz','st_bsz','st_br','st_bw','st_ov','st_sh','st_al','st_anim','st_css'];
+        $data = array_intersect_key($fd, array_flip($keep));
+        $tpls = (array) ($cfg['mytpls'] ?? []);
+        $tpls[] = ['id' => popup_new_id(), 'name' => $nm, 'data' => $data];
+        popup_settings_save(['mytpls' => array_values(array_slice($tpls, -60))], 'şablon kaydet: ' . $nm);
+        $msg = '"' . $nm . '" şablonlarına eklendi.'; $msgType = 'ok';
+        $cfg = popup_config();
+    }
+}
+
+if ($action === 'mytpl_del') {
+    $tab = 'sablonlar';
+    $tid = preg_replace('/[^0-9A-Za-z_-]/', '', (string) pv('tid'));
+    $tpls = array_values(array_filter((array) ($cfg['mytpls'] ?? []), function ($t) use ($tid) { return ($t['id'] ?? '') !== $tid; }));
+    popup_settings_save(['mytpls' => $tpls], 'şablon sil: ' . $tid);
+    $msg = 'Şablon silindi.'; $msgType = 'ok';
+    $cfg = popup_config();
+}
+
+if ($action === 'coupon_reset') {
+    $tab = 'popuplar';
+    $pid = preg_replace('/[^0-9A-Za-z_-]/', '', (string) pv('pid'));
+    $cf = popup_paths()['coupons'];
+    $db = popup_read_json($cf, []);
+    if ($pid !== '' && isset($db[$pid])) { unset($db[$pid]); popup_write_atomic($cf, json_encode($db, JSON_UNESCAPED_UNICODE)); }
+    popup_audit('save', 'kupon sayacı sıfırlandı: ' . $pid);
+    $msg = 'Kupon sayaçları ve kullanıcı kayıtları sıfırlandı.'; $msgType = 'ok';
 }
 
 /* --- MANUEL POPUP: kaydet / sil / aç-kapa --- */
@@ -546,9 +613,19 @@ foreach ($cfg['popups'] as $p) { $formPopups[$p['id']] = form_data($p, false); }
 $formDefAuto   = form_data(popup_auto_default(), true);
 $formDefManual = form_data(array_merge(popup_manual_default(), ['theme' => 'telegram']), false);
 
+/* kupon kullanım sayaçları (limitli popuplar için) */
+$couponUse = [];
+$cdb = popup_read_json(popup_paths()['coupons'], []);
+foreach ((array) $cdb as $cpid => $cv) {
+    if ($cpid === '_salt' || !is_array($cv)) continue;
+    $couponUse[$cpid] = ['used' => array_sum(array_map('intval', (array) ($cv['n'] ?? []))), 'users' => count((array) ($cv['u'] ?? [])) / 2];
+}
+$myTpls = [];
+foreach ((array) ($cfg['mytpls'] ?? []) as $t) { if (is_array($t) && !empty($t['id'])) $myTpls[$t['id']] = $t; }
+
 /* JS'in açacağı sekme */
 $forceTab = '';
-if (isset($_GET['tab']) || in_array($action, ['save','auto_save','auto_del','auto_toggle','order_save','popup_save','popup_del','popup_toggle','restore','newpass'], true)) {
+if (isset($_GET['tab']) || in_array($action, ['save','auto_save','auto_del','auto_toggle','order_save','popup_dup','auto_dup','mytpl_save','mytpl_del','coupon_reset','popup_save','popup_del','popup_toggle','restore','newpass'], true)) {
     $forceTab = $tab;
 }
 

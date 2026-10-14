@@ -26,6 +26,7 @@ header('Access-Control-Allow-Origin: *');
 header('Cache-Control: no-store');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { http_response_code(405); exit; }
+if (popup_is_bot_ua((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''))) { http_response_code(204); exit; }   // bot trafiği sayılmaz
 
 $raw = file_get_contents('php://input');
 if ($raw === false || strlen($raw) > 1024) { http_response_code(204); exit; }

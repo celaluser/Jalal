@@ -57,6 +57,17 @@ Options -Indexes
     </IfModule>
 </Files>
 
+# ---------- AÇIK #5: coupon.php (kupon limiti sunucusu) ----------
+<Files "coupon.php">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</Files>
+
 # ---------- AÇIK #4: cron-run.php (HTTP cron tetikleyici) ----------
 # Uzun bir anahtar olmadan hiçbir şey yapmaz, sadece güncellemeyi tetikler.
 <Files "cron-run.php">

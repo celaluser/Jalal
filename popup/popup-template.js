@@ -38,7 +38,9 @@
     // panel kullanici verisini hangi JS degiskeninden okuyalim (segmentasyon)
     segment: { varName: "PANEL_USER" },
     // acil durdurma kontrolu (embed.js cache'ini asar)
-    killCheck: { enabled: false, url: "" }
+    killCheck: { enabled: false, url: "" },
+    botFilter: true,
+    coupon: { url: "" }
   };
   /* ===================== /CONFIG ======================== */
 
@@ -273,7 +275,9 @@
     var bal = (u.balance != null) ? parseFloat(u.balance) : ((u.funds != null) ? parseFloat(u.funds) : null);
     var ord = (u.orders != null) ? parseInt(u.orders, 10) : ((u.order_count != null) ? parseInt(u.order_count, 10) : null);
     var ctry = String(u.country || u.country_code || "").toUpperCase();
+    var nm = String(u.name || u.username || u.first_name || u.firstname || u.login || u.user_name || "").trim();
     return {
+      name: nm,
       loggedIn: loggedIn,
       balance: (bal == null || isNaN(bal)) ? null : bal,
       orders:  (ord == null || isNaN(ord)) ? null : ord,
@@ -498,12 +502,15 @@
     if (!(p.button && p.button.url)) return "";
     return '<a class="igfp-btn" href="' + esc(href || p.button.url) + '"' + (CONFIG.openInNewTab ? ' target="_blank" rel="noopener"' : "") + ' data-cta="1">' + esc(p.button.text || "Aç") + "</a>";
   }
+  function lsJson(k) { var v = lsGet(k); if (!v) return null; try { return JSON.parse(v); } catch (e) { return null; } }
   function renderWheel(p) {
     var pr = p.prizes || []; if (pr.length < 2) pr = [["5%", "SPIN5"], ["10%", "SPIN10"]];
     var n = pr.length, seg = 360 / n, g = [], lab = "", i;
     for (i = 0; i < n; i++) g.push(WCOL[i % WCOL.length] + " " + (i * seg) + "deg " + ((i + 1) * seg) + "deg");
     for (i = 0; i < n; i++) lab += '<div style="position:absolute;left:50%;top:50%;transform:rotate(' + (i * seg + seg / 2) + 'deg)"><span class="igfp-wl">' + esc(pr[i][0]) + "</span></div>";
-    var done = lsGet("igfp_w_" + p.pid), res = done !== null && pr[parseInt(done, 10)] ? pr[parseInt(done, 10)] : null;
+    var res = null;
+    if (p.srv) { var o = lsJson("igfp_ws_" + p.pid); if (o && o.l != null) res = [o.l, o.c || ""]; }
+    else { var done = lsGet("igfp_w_" + p.pid); if (done !== null && pr[parseInt(done, 10)]) res = pr[parseInt(done, 10)]; }
     return '<div class="igfp-wh" data-n="' + n + '"><div class="igfp-wp"></div>'
          + '<div class="igfp-wr" style="background:conic-gradient(' + g.join(",") + ')">' + lab + '<b class="igfp-wc">SPIN</b></div></div>'
          + '<div class="igfp-wres">' + (res ? wheelResult(p, res, true) : '<button type="button" class="igfp-btn igfp-spin">Fırlat</button>') + "</div>";
@@ -515,28 +522,44 @@
   function initWheel(p) {
     var btn = ov.querySelector(".igfp-spin"); if (!btn) return;
     var pr = p.prizes && p.prizes.length > 1 ? p.prizes : [["5%", "SPIN5"], ["10%", "SPIN10"]];
-    btn.addEventListener("click", function () {
-      var n = pr.length, seg = 360 / n, idx = Math.floor(Math.random() * n);
+    function spinTo(idx, code, label) {
+      var n = pr.length, seg = 360 / n;
       var jit = (Math.random() - .5) * seg * .6, ang = 360 * 5 + (360 - (idx * seg + seg / 2)) + jit;
-      var w = ov.querySelector(".igfp-wr"); btn.disabled = true; btn.style.opacity = ".6";
+      var w = ov.querySelector(".igfp-wr");
       w.style.transition = "transform 4.2s cubic-bezier(.17,.67,.12,1)"; w.style.transform = "rotate(" + ang + "deg)";
-      lsSet("igfp_w_" + p.pid, String(idx));
       setTimeout(function () {
         var box = ov && ov.querySelector(".igfp-wres"); if (!box) return;
-        box.innerHTML = wheelResult(p, pr[idx], false); track("click", p.pid, "spin", p.v);
+        box.innerHTML = wheelResult(p, [label, code], false); track("click", p.pid, "spin", p.v);
       }, 4300);
+    }
+    btn.addEventListener("click", function () {
+      btn.disabled = true; btn.style.opacity = ".6";
+      if (p.srv) {                                   // sonucu SUNUCU belirler (stok + kisi basi limit)
+        claimCoupon(p, function (r) {
+          if (!ov) return;
+          if (!r.ok) { var bx = ov.querySelector(".igfp-wres"); if (bx) bx.innerHTML = '<div class="igfp-sub">' + esc(claimMsg(r)) + "</div>"; return; }
+          var idx = Math.max(0, Math.min(pr.length - 1, r.idx | 0));
+          lsSet("igfp_ws_" + p.pid, JSON.stringify({ l: r.label, c: r.code }));
+          spinTo(idx, r.code || "", r.label || pr[idx][0]);
+        });
+        return;
+      }
+      var idx = Math.floor(Math.random() * pr.length);
+      lsSet("igfp_w_" + p.pid, String(idx));
+      spinTo(idx, pr[idx][1], pr[idx][0]);
     });
   }
+  function scratchCode(p) { return (p.coupon && p.coupon.code) || (p.prizes && p.prizes[0] && p.prizes[0][1]) || "SUPER"; }
   function renderScratch(p) {
-    var code = (p.coupon && p.coupon.code) || (p.prizes && p.prizes[0] && p.prizes[0][1]) || "SUPER";
-    var seen = lsGet("igfp_s_" + p.pid) === "1";
+    var saved = p.srv ? lsJson("igfp_ss_" + p.pid) : null;
+    var seen = p.srv ? !!(saved && saved.c) : lsGet("igfp_s_" + p.pid) === "1";
+    var code = p.srv ? (saved && saved.c) || "••••••" : scratchCode(p);
     return '<div class="igfp-sc' + (seen ? " done" : "") + '"><div class="igfp-sp2">' + esc(code) + '</div><canvas class="igfp-cv" width="300" height="100"></canvas></div>'
          + '<div class="igfp-sres">' + (seen ? copyBtn(code) + ctaHtml(p) : '<div class="igfp-sub" style="margin:0">Kartı barmağınla və ya siçanla sil</div>') + "</div>";
   }
   function initScratch(p) {
     var cv = ov.querySelector(".igfp-cv"), wrap = ov.querySelector(".igfp-sc"); if (!cv || wrap.classList.contains("done")) return;
-    var code = (p.coupon && p.coupon.code) || (p.prizes && p.prizes[0] && p.prizes[0][1]) || "SUPER";
-    var cx = cv.getContext("2d"), W = cv.width, H = cv.height, down = false, last = 0;
+    var cx = cv.getContext("2d"), W = cv.width, H = cv.height, down = false, last = 0, code = p.srv ? "" : scratchCode(p), got = !p.srv, failed = null;
     cx.fillStyle = "#b9bdcc"; cx.fillRect(0, 0, W, H);
     cx.fillStyle = "#a3a8ba"; for (var i = -H; i < W; i += 16) { cx.beginPath(); cx.moveTo(i, H); cx.lineTo(i + H, 0); cx.lineTo(i + H + 8, 0); cx.lineTo(i + 8, H); cx.fill(); }
     cx.fillStyle = "#6b7080"; cx.font = "800 17px sans-serif"; cx.textAlign = "center"; cx.fillText("✋ qaşı", W / 2, H / 2 + 6);
@@ -546,11 +569,21 @@
     function cover() {
       try { var d = cx.getImageData(0, 0, W, H).data, c = 0, t = 0; for (var i = 3; i < d.length; i += 64) { t++; if (d[i] < 40) c++; } return c / t; } catch (e) { return 1; }
     }
-    function reveal() {
-      wrap.classList.add("done"); lsSet("igfp_s_" + p.pid, "1"); track("click", p.pid, "scratch", p.v);
-      ov.querySelector(".igfp-sres").innerHTML = copyBtn(code) + ctaHtml(p);
+    function startClaim() {
+      if (got || failed !== null || code) return; failed = false;
+      claimCoupon(p, function (r) {
+        if (!ov) return;
+        if (r.ok && r.code) { code = r.code; got = true; lsSet("igfp_ss_" + p.pid, JSON.stringify({ c: code })); var sp = ov.querySelector(".igfp-sp2"); if (sp) sp.textContent = code; }
+        else { failed = r; var sp2 = ov.querySelector(".igfp-sp2"); if (sp2) { sp2.textContent = r.reason === "out" ? "BİTİB" : "XƏTA"; sp2.style.fontSize = "20px"; } }
+      });
     }
-    cv.addEventListener("pointerdown", function (e) { down = true; dot(e); try { cv.setPointerCapture(e.pointerId); } catch (x) {} });
+    function reveal() {
+      if (p.srv && !got && !failed) return;                       // sunucu yaniti gelmeden acma
+      wrap.classList.add("done"); track("click", p.pid, "scratch", p.v);
+      if (!p.srv) lsSet("igfp_s_" + p.pid, "1");
+      ov.querySelector(".igfp-sres").innerHTML = failed ? '<div class="igfp-sub" style="margin:0">' + esc(claimMsg(failed)) + "</div>" : copyBtn(code) + ctaHtml(p);
+    }
+    cv.addEventListener("pointerdown", function (e) { down = true; if (p.srv) startClaim(); dot(e); try { cv.setPointerCapture(e.pointerId); } catch (x) {} });
     cv.addEventListener("pointermove", function (e) { if (!down) return; dot(e); var t = Date.now(); if (t - last > 120) { last = t; if (cover() > .45) reveal(); } });
     cv.addEventListener("pointerup", function () { down = false; if (cover() > .45) reveal(); });
   }
@@ -580,6 +613,68 @@
       o.classList.add("sel"); picks.push(o.getAttribute("data-o"));
       setTimeout(function () { go(cur + 1); }, 220);
     });
+  }
+
+  /* ---- bot / otomasyon filtresi ---- */
+  function isBot() {
+    try {
+      var ua = navigator.userAgent || "";
+      if (/bot|crawl|spider|slurp|bingpreview|facebookexternalhit|headless|lighthouse|pagespeed|gtmetrix|phantom|selenium|puppeteer|playwright|python-requests|curl\/|wget|httpclient|monitor|uptime|archive|preview/i.test(ua)) return true;
+      if (navigator.webdriver === true) return true;
+      if (!navigator.languages || !navigator.languages.length) return true;
+    } catch (e) {}
+    return false;
+  }
+
+  /* ---- kisiye ozel metin: {ad} {bakiye} {siparis}  (yedek: {ad|Dostum}) ---- */
+  function pz(str) {
+    if (!str || String(str).indexOf("{") < 0) return str;
+    var u = null; try { u = panelUser(); } catch (e) {}
+    return String(str).replace(/\{(ad|bakiye|siparis)(?:\|([^}]*))?\}/gi, function (m, k, fb) {
+      var v = "";
+      k = k.toLowerCase();
+      if (u) {
+        if (k === "ad") v = u.name || "";
+        else if (k === "bakiye") v = u.balance != null ? (Math.round(u.balance * 100) / 100) + "" : "";
+        else if (k === "siparis") v = u.orders != null ? String(u.orders) : "";
+      }
+      return v !== "" ? v : (fb != null ? fb : "");
+    }).replace(/\s+([,.!?:])/g, "$1").replace(/^[\s,]+/, "");
+  }
+  function pzPop(p) {
+    var q = {}, k;
+    for (k in p) { if (Object.prototype.hasOwnProperty.call(p, k)) q[k] = p[k]; }
+    q.badge = pz(p.badge); q.title = pz(p.title); q.subtitle = pz(p.subtitle);
+    if (p.button) q.button = { text: pz(p.button.text), url: p.button.url };
+    if (p.coupon) q.coupon = { code: p.coupon.code, label: pz(p.coupon.label), gated: p.coupon.gated };
+    return q;
+  }
+
+  /* ---- sunucu taraflı kupon (limitli): kodlar sadece buradan gelir ---- */
+  function visitorId() {
+    var v = null;
+    try { v = localStorage.getItem("igfp_vid"); } catch (e) {}
+    if (!v || v.length < 8) {
+      v = ""; for (var i = 0; i < 4; i++) v += Math.random().toString(36).slice(2, 8);
+      try { localStorage.setItem("igfp_vid", v); } catch (e) {}
+    }
+    return v;
+  }
+  function claimCoupon(p, cb) {
+    var cu = CONFIG.coupon && CONFIG.coupon.url, done = false;
+    function fin(r) { if (done) return; done = true; cb(r); }
+    if (!cu || typeof fetch !== "function") { fin({ ok: false, reason: "net" }); return; }
+    setTimeout(function () { fin({ ok: false, reason: "net" }); }, 8000);
+    try {
+      fetch(cu, { method: "POST", body: "a=claim&p=" + encodeURIComponent(p.pid) + "&k=" + encodeURIComponent(visitorId()),
+                  headers: { "Content-Type": "application/x-www-form-urlencoded" }, credentials: "omit" })
+        .then(function (r) { return r.json(); })
+        .then(function (j) { fin(j && typeof j === "object" ? j : { ok: false, reason: "net" }); })
+        .catch(function () { fin({ ok: false, reason: "net" }); });
+    } catch (e) { fin({ ok: false, reason: "net" }); }
+  }
+  function claimMsg(r) {
+    return r && r.reason === "out" ? "Təəssüf, kuponlar bitib." : "Bağlantı xətası. Bir az sonra yenidən cəhd edin.";
   }
 
   function esc(s) {
@@ -731,7 +826,12 @@
       for (var i = 0; i < 4; i++) cells += '<div class="igfp-cd-c"><b>00</b><span>' + lbls[i] + "</span></div>";
       html += '<div class="igfp-cd" data-cd="' + countdownTarget(p) + '">' + cells + "</div>";
     }
-    if (p.coupon && p.coupon.code) {
+    if (p.coupon && p.coupon.gated) {                 // limitli kupon: kod claim ile gelir
+      var sv = lsJson("igfp_cs_" + p.pid);
+      html += '<div class="igfp-cpn-slot">' + (sv && sv.c ? copyBtn(sv.c)
+            : (p.coupon.label ? '<span class="igfp-cpn-l" style="display:block;margin-bottom:8px">' + esc(p.coupon.label) + "</span>" : "")
+              + '<button type="button" class="igfp-btn igfp-claim" data-claim="1" style="margin:0 0 14px">Kuponu al</button>') + "</div>";
+    } else if (p.coupon && p.coupon.code) {
       html += '<div class="igfp-cpn">'
             + (p.coupon.label ? '<span class="igfp-cpn-l">' + esc(p.coupon.label) + "</span>" : "")
             + '<div class="igfp-cpn-b"><code class="igfp-cpn-code">' + esc(p.coupon.code) + "</code>"
@@ -768,6 +868,7 @@
   }
 
   function render(p) {
+    p = pzPop(p);
     if (!styled) {
       var st = document.createElement("style");
       st.textContent = CSS;
@@ -828,6 +929,16 @@
         var old = cp.textContent; cp.textContent = "Kopyalandı ✓"; cp.classList.add("ok");
         setTimeout(function () { cp.textContent = old; cp.classList.remove("ok"); }, 1600);
         recordClick(p.pid); track("click", p.pid, "coupon", p.v);
+        return;
+      }
+      var cl = e.target.closest("[data-claim]");
+      if (cl) {
+        cl.disabled = true; cl.textContent = "...";
+        claimCoupon(p, function (r) {
+          var slot = ov && ov.querySelector(".igfp-cpn-slot"); if (!slot) return;
+          if (r.ok && r.code) { lsSet("igfp_cs_" + p.pid, JSON.stringify({ c: r.code })); slot.innerHTML = copyBtn(r.code); track("click", p.pid, "claim", p.v); }
+          else slot.innerHTML = '<div class="igfp-sub">' + esc(claimMsg(r)) + "</div>";
+        });
         return;
       }
       var fb = e.target.closest(".igfp-fab");
@@ -987,6 +1098,7 @@
       openPopup(LIST[idx], false, null);
       return;
     }
+    if (CONFIG.botFilter !== false && isBot()) return;   // bot / otomasyon: gosterme, sayma
     visitBump();                                 // ziyaret sayacini isle (segmentasyon)
     killCheck(function (off) { if (!off) begin(); });
   }

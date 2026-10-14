@@ -161,6 +161,9 @@ function popup_manual_fields_from(array $in): array {
         'countdown'    => $g('countdown'),
         'coupon'       => $g('coupon'),
         'coupon_label' => $g('coupon_label'),
+        'limit_on'     => isset($in['limit_on']) && $in['limit_on'] !== '0',
+        'coupon_total' => max(0, (int) ($in['coupon_total'] ?? 0)),
+        'coupon_once'  => isset($in['coupon_once']) && $in['coupon_once'] !== '0',
     ];
 }
 
@@ -203,8 +206,8 @@ function popup_parse_prizes(string $t): array {
     $o = [];
     foreach (preg_split('/\R/', $t) as $ln) {
         $ln = trim($ln); if ($ln === '') continue;
-        $p = array_map('trim', explode('|', $ln, 2));
-        $o[] = [mb_substr($p[0], 0, 18), mb_substr($p[1] ?? '', 0, 40)];
+        $p = array_map('trim', explode('|', $ln, 3));
+        $o[] = [mb_substr($p[0], 0, 18), mb_substr($p[1] ?? '', 0, 40), max(0, (int) ($p[2] ?? 0))];   // [etiket, kod, stok(0=sınırsız)]
         if (count($o) >= 8) break;
     }
     return $o;
@@ -265,6 +268,9 @@ function popup_manual_default(): array {
         'countdown'    => '',
         'coupon'       => '',
         'coupon_label' => '',
+        'limit_on'     => false,   // kupon limiti sunucuda uygulansın mı
+        'coupon_total' => 0,       // 0 = sınırsız
+        'coupon_once'  => true,    // kişi başı 1 kez
     ];
 }
 
@@ -282,6 +288,7 @@ function popup_defaults(): array {
 
         'autos'  => [],   // otomatik popuplar
         'popups' => [],   // manuel popuplar
+        'mytpls' => [],   // kullanıcının kendi kaydettiği şablonlar
 
         // --- tarayıcı tarafı (embed.js'e gömülür) ---
         'client' => [
@@ -306,6 +313,10 @@ function popup_defaults(): array {
             'segment' => ['varName' => 'PANEL_USER'],
             // acil durdurma kontrolü (cache'i aşar)
             'killCheck' => ['enabled' => true, 'url' => ''],
+            // bot / tarayıcı otomasyonu filtresi
+            'botFilter' => true,
+            // kupon limiti sunucusu (çark, kazıma, limitli kuponlar)
+            'coupon' => ['url' => ''],
         ],
     ];
 }
@@ -325,6 +336,7 @@ function popup_paths(): array {
         'history'  => POPUP_DIR . '/settings-history.json',  // ayar yedekleri
         'audit'    => POPUP_DIR . '/audit.json',             // değişiklik günlüğü
         'autolast' => POPUP_DIR . '/auto-last.json',         // son başarılı otomatik veri
+        'coupons'  => POPUP_DIR . '/coupons.json',           // kupon kullanım sayaçları
     ];
 }
 
@@ -453,6 +465,9 @@ function popup_config(): array {
     // varsayılan uç adresleri
     if (($cfg['client']['stats']['url'] ?? '') === '') {
         $cfg['client']['stats']['url'] = popup_base_url() . '/stat.php';
+    }
+    if (($cfg['client']['coupon']['url'] ?? '') === '') {
+        $cfg['client']['coupon']['url'] = popup_base_url() . '/coupon.php';
     }
     if (($cfg['client']['killCheck']['url'] ?? '') === '') {
         $cfg['client']['killCheck']['url'] = popup_base_url() . '/data.php?state=1';
@@ -846,15 +861,24 @@ function popup_build_manual(array $m, array $c): ?array {
     $btnUrl   = trim((string) $m['btn_url']);
     if ($title === '' && $subtitle === '' && $btnText === '') return null;
 
+    $srv  = !empty($m['limit_on']);
+    $prizes = popup_parse_prizes((string) $m['prizes']);
+    if ($srv) { foreach ($prizes as $i => $pr) { $prizes[$i] = [$pr[0], '', 0]; } }   // kodlar embed.js'e GİRMEZ
+    $cpn = (trim((string) $m['coupon']) !== '')
+        ? ['code' => $srv ? '' : trim((string) $m['coupon']), 'label' => trim((string) $m['coupon_label'])]
+        : null;
+    if ($cpn && $srv) $cpn['gated'] = true;
+
     return array_merge([
         'pid'       => (string) $m['id'],
         'kind'      => 'content',
+        'srv'       => $srv ? 1 : 0,
         'updated'   => time(),
         'badge'     => trim((string) $m['badge']),
         'skin'      => popup_skin_valid((string) $m['skin']),
         'layout'    => popup_layout_valid((string) $m['layout']),
         'style'     => popup_norm_style($m['style']),
-        'prizes'    => popup_parse_prizes((string) $m['prizes']),
+        'prizes'    => $prizes,
         'steps'     => popup_parse_steps((string) $m['steps']),
         'icon'      => trim((string) $m['icon']),
         'items'     => popup_parse_items((string) $m['items']),
@@ -863,9 +887,7 @@ function popup_build_manual(array $m, array $c): ?array {
         'image'     => trim((string) $m['image']),
         'button'    => ($btnText !== '' && $btnUrl !== '') ? ['text' => $btnText, 'url' => $btnUrl] : null,
         'countdown' => popup_norm_countdown($m['countdown']),
-        'coupon'    => (trim((string) $m['coupon']) !== '')
-            ? ['code' => trim((string) $m['coupon']), 'label' => trim((string) $m['coupon_label'])]
-            : null,
+        'coupon'    => $cpn,
     ], popup_common_fields($m, 20));
 }
 
@@ -1070,7 +1092,7 @@ function popup_run(): array {
 /* ---------------- AYARLARI KAYDET ---------------- */
 /** settings.json'a yazılabilecek alanlar (şifre/anahtar asla buraya girmez) */
 function popup_settings_save(array $new, string $auditNote = ''): bool {
-    $allow = ['schema_version', 'enabled', 'autos', 'popups', 'client'];
+    $allow = ['schema_version', 'enabled', 'autos', 'popups', 'client', 'mytpls'];
     $clean = [];
     foreach ($allow as $k) { if (array_key_exists($k, $new)) $clean[$k] = $new[$k]; }
     $clean['schema_version'] = POPUP_SCHEMA;
@@ -1087,3 +1109,12 @@ function popup_settings_save(array $new, string $auditNote = ''): bool {
     if ($ok && $auditNote !== '') popup_audit('save', $auditNote);
     return $ok;
 }
+
+
+/* ---------------- BOT FİLTRESİ / KUPON YARDIMCILARI ---------------- */
+function popup_is_bot_ua(string $ua): bool {
+    if ($ua === '') return true;
+    return (bool) preg_match('/bot|crawl|spider|slurp|bingpreview|facebookexternalhit|headless|lighthouse|pagespeed|gtmetrix|phantom|selenium|puppeteer|playwright|python-requests|curl\/|wget|httpclient|monitor|uptime|archive|preview/i', $ua);
+}
+/** Yeni, benzersiz popup id */
+function popup_new_id(): string { return 'p' . substr(md5(uniqid('', true)), 0, 7); }

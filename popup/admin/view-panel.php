@@ -366,6 +366,11 @@ $nav = [
                 <input type="hidden" name="pid" value="<?= h($a['id']) ?>">
                 <button class="btn sec sm" type="submit"><?= !empty($a['enabled']) ? 'Durdur' : 'Başlat' ?></button>
               </form>
+              <form method="post" style="display:inline">
+                <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="auto_dup">
+                <input type="hidden" name="pid" value="<?= h($a['id']) ?>">
+                <button class="btn sec sm" type="submit" title="Kopyala"><?= ico('layers') ?><span>Kopyala</span></button>
+              </form>
               <form method="post" style="display:inline" onsubmit="return confirm('Bu otomatik popup silinsin mi?')">
                 <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="auto_del">
                 <input type="hidden" name="pid" value="<?= h($a['id']) ?>">
@@ -395,6 +400,10 @@ $nav = [
                   · öncelik <?= (int) ($p['priority'] ?? 20) ?>
                   <?php if (!empty($p['countdown'])): ?>· <span class="tagx">sayaç</span><?php endif; ?>
                   <?php if (!empty($p['coupon'])): ?>· <span class="tagx">kupon</span><?php endif; ?>
+                  <?php if (!empty($p['limit_on'])): $cu = $couponUse[$p['id']] ?? ['used' => 0, 'users' => 0]; ?>· <span class="tagx">limit: <?= (int) $cu['used'] ?><?= !empty($p['coupon_total']) ? '/' . (int) $p['coupon_total'] : '' ?> verildi</span>
+                    <form method="post" style="display:inline" onsubmit="return confirm('Kupon sayaçları sıfırlansın mı? Herkes yeniden hak kazanabilir.')">
+                      <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="coupon_reset"><input type="hidden" name="pid" value="<?= h($p['id']) ?>">
+                      <button class="tagx" type="submit" style="cursor:pointer;border:0">sıfırla</button></form><?php endif; ?>
                   <?php $ss = seg_summary($p['segment'] ?? null); if ($ss): ?>· <span class="segtag"><?= ico('user') ?><?= h($ss) ?></span><?php endif; ?>
                 </div>
               </div>
@@ -405,6 +414,12 @@ $nav = [
                 <input type="hidden" name="pid" value="<?= h($p['id']) ?>">
                 <button class="btn sec sm" type="submit"><?= !empty($p['enabled']) ? 'Durdur' : 'Başlat' ?></button>
               </form>
+              <form method="post" style="display:inline">
+                <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="popup_dup">
+                <input type="hidden" name="pid" value="<?= h($p['id']) ?>">
+                <button class="btn sec sm" type="submit" title="Kopyala"><?= ico('layers') ?><span>Kopyala</span></button>
+              </form>
+              <button class="btn sec sm" type="button" data-mytpl-save="<?= h($p['id']) ?>" title="Şablonlarıma kaydet"><?= ico('save') ?><span>Şablon</span></button>
               <form method="post" style="display:inline" onsubmit="return confirm('Bu popup silinsin mi?')">
                 <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="popup_del">
                 <input type="hidden" name="pid" value="<?= h($p['id']) ?>">
@@ -421,6 +436,24 @@ $nav = [
 
     <!-- ═════════ ŞABLONLAR (hazır görünümler) ═════════ -->
     <div class="pane" data-p="sablonlar" hidden>
+      <div class="card">
+        <h2><?= ico('save') ?> Şablonlarım</h2>
+        <p class="hint">Beğendiğin popup'ı "Popuplar" sekmesindeki <b>Şablon</b> butonuyla buraya kaydet; sonra tek tıkla aynı tasarımla yeni popup aç.</p>
+        <div class="body">
+          <?php if (!$myTpls): ?><p class="hint" style="margin:0">Henüz kayıtlı şablonun yok.</p>
+          <?php else: foreach ($myTpls as $tid => $t): ?>
+            <div class="poprow">
+              <div class="poprow-main"><div class="poprow-name"><?= h($t['name'] ?? $tid) ?>
+                <span class="ptheme"><?= h(popup_layouts()[$t['data']['layout'] ?? ''] ?? 'Klasik') ?></span></div></div>
+              <button class="btn sm" type="button" data-mytpl-use="<?= h($tid) ?>">Kullan</button>
+              <form method="post" style="display:inline" onsubmit="return confirm('Bu şablon silinsin mi?')">
+                <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="mytpl_del"><input type="hidden" name="tid" value="<?= h($tid) ?>">
+                <button class="btn sec sm" type="submit" title="Sil"><?= ico('trash') ?></button></form>
+            </div>
+          <?php endforeach; endif; ?>
+        </div>
+      </div>
+
       <div class="card">
         <h2><?= ico('layers') ?> Yerleşimler (popup biçimleri)</h2>
         <p class="hint">Popup'ın <b>ekrandaki şeklini</b> belirler: alt panel, yan panel, şerit, çark… Birini seç; hazır içerikle açılır.
@@ -545,6 +578,8 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
             <label class="sw"><input type="checkbox" name="kill_check" <?= !empty($cl['killCheck']['enabled']) ? 'checked' : '' ?>><i></i></label></div>
           <div class="row"><div class="lbl">Durum adresi<small>Boş bırakırsan otomatik bulunur</small></div>
             <input type="text" name="kill_url" value="<?= h($cl['killCheck']['url'] ?? '') ?>"></div>
+          <div class="row"><div class="lbl">Bot filtresi<small>Arama motoru, önizleme ve otomasyon botlarına popup gösterme ve sayma</small></div>
+            <label class="sw"><input type="checkbox" name="bot_filter" <?= ($cl['botFilter'] ?? true) ? 'checked' : '' ?>><i></i></label></div>
         </div>
       </div>
 
@@ -941,7 +976,7 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
           <div class="row"><div class="lbl">Rozet<small>Üstteki küçük etiket</small></div>
             <input type="text" name="badge" placeholder="TELEGRAM"></div>
           <div class="row"><div class="lbl">İkon<small>Emoji, opsiyonel</small></div><input type="text" name="icon" placeholder="🔥"></div>
-          <div class="row"><div class="lbl">Başlık</div><input type="text" name="title" placeholder="Kanalımıza katıl"></div>
+          <div class="row"><div class="lbl">Başlık<small>Kişiye özel: <code>{ad}</code> <code>{bakiye}</code> <code>{siparis}</code> · yedek: <code>{ad|Dostum}</code></small></div><input type="text" name="title" placeholder="Salam {ad|dostum}, kampaniya sənin üçündür"></div>
           <div class="row"><div class="lbl">Açıklama</div><input type="text" name="subtitle" placeholder="Kampanyalardan ilk sen haberdar ol."></div>
           <div class="row"><div class="lbl">Liste satırları<small>Her satıra: <code>Ad | Fiyat</code></small></div>
             <textarea name="items" placeholder="Kart2Kart | 0% komisyon&#10;Birbank | Dərhal"></textarea></div>
@@ -953,6 +988,14 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
           <div class="row"><div class="lbl">Kupon kodu<small>Tek tıkla kopyalanır</small></div>
             <input type="text" name="coupon" placeholder="INDIRIM20"></div>
           <div class="row"><div class="lbl">Kupon etiketi</div><input type="text" name="coupon_label" placeholder="Bu kodu kullan:"></div>
+          <div class="row"><div class="lbl">Kupon limiti (sunucuda)<small>Açıkken kod sayfa kaynağında görünmez, hak kazanınca sunucudan gelir. Çark, kazıma kartı ve kuponlu popuplarda geçerli.</small></div>
+            <label class="sw"><input type="checkbox" name="limit_on" data-toggle="limit"><i></i></label></div>
+          <div data-box="limit" hidden>
+            <div class="row"><div class="lbl">Toplam kullanım<small>Bu kupon en çok kaç kişiye verilsin · 0 = sınırsız. Çarkta limiti her satıra yaz: <code>Etiket | KOD | stok</code></small></div>
+              <input type="number" name="coupon_total" min="0" max="1000000" placeholder="0"></div>
+            <div class="row"><div class="lbl">Kişi başı 1 kez<small>Aynı kişi (tarayıcı ya da IP) ikinci kez alamaz, önceki sonucu görür</small></div>
+              <label class="sw"><input type="checkbox" name="coupon_once"><i></i></label></div>
+          </div>
         </div></div>
 
         <div data-sec="stil" hidden>
@@ -968,7 +1011,7 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
           <div class="row"><div class="lbl">Renk şablonu<small>Hazır renk ve köşe düzeni</small></div>
             <select name="skin" data-skin-sel><option value="">Klasik (koyu, çerçeveli)</option>
               <?php foreach (popup_skins() as $sk => $v): ?><option value="<?= h($sk) ?>"><?= h($v['n']) ?></option><?php endforeach; ?></select></div>
-          <div class="row" data-lay="wheel"><div class="lbl">Çark ödülleri<small>Her satıra: <code>Etiket | KUPON</code> (2–8 satır). Kuponsuz satır = boş dilim</small></div>
+          <div class="row" data-lay="wheel"><div class="lbl">Çark ödülleri<small>Her satıra: <code>Etiket | KUPON | stok</code> (2–8 satır). Kuponsuz satır = boş dilim, stok boş/0 = sınırsız. Stok için İçerik'te "Kupon limiti"ni aç</small></div>
             <textarea name="prizes" placeholder="5% | CARX5&#10;10% | CARX10&#10;Heç nə |"></textarea></div>
           <div class="row" data-lay="steps"><div class="lbl">Adımlar<small>Her satıra: <code>Soru :: Seçenek1, Seçenek2</code> (en çok 4 adım). Son ekranda İçerik sekmesindeki metin ve buton gelir.</small></div>
             <textarea name="steps" placeholder="Hansı platforma lazımdır? :: Instagram, TikTok, YouTube"></textarea></div>
@@ -1030,7 +1073,8 @@ var PDATA = {
   defManual:  <?= json_encode($formDefManual, JSON_UNESCAPED_UNICODE) ?>,
   tpls:       <?= json_encode(array_map(function ($v) { return $v['t']; }, popup_skins()), JSON_UNESCAPED_UNICODE) ?>,
   skins:      <?= json_encode(array_map(function ($v) { return array_intersect_key($v, array_flip(['bg','fg','btn','btnf','bb','bf','r'])); }, popup_skins()), JSON_UNESCAPED_UNICODE) ?>,
-  laytpls:    <?= json_encode(popup_layout_tpls(), JSON_UNESCAPED_UNICODE) ?>
+  laytpls:    <?= json_encode(popup_layout_tpls(), JSON_UNESCAPED_UNICODE) ?>,
+  mytpls:     <?= json_encode(array_map(function ($t) { return $t['data'] ?? []; }, $myTpls), JSON_UNESCAPED_UNICODE) ?>
 };
 
 (function () {
@@ -1101,7 +1145,7 @@ var PDATA = {
     var ls = form.querySelector('[data-lay-sel]');
     if (ls) form.querySelectorAll('[data-lay]').forEach(function (r) { r.hidden = (r.dataset.lay !== ls.value); });
     form.querySelectorAll('[data-cp]').forEach(function (cp) { syncCp(cp); });
-    ['rules', 'pages', 'stil'].forEach(function (nm) {
+    ['rules', 'pages', 'stil', 'limit'].forEach(function (nm) {
       var cb = form.querySelector('[data-toggle="' + nm + '"]');
       var bx = form.querySelector('[data-box="' + nm + '"]');
       if (cb && bx) bx.hidden = !cb.checked;
@@ -1179,6 +1223,22 @@ var PDATA = {
       });
     });
   }
+  document.querySelectorAll('[data-mytpl-use]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var d = PDATA.mytpls[b.dataset.mytplUse]; if (!d) return;
+      var o = Object.assign({}, d); o.name = ''; openModal('manual', '', o);
+    });
+  });
+  document.querySelectorAll('[data-mytpl-save]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var nm = prompt('Şablon adı:'); if (!nm || !nm.trim()) return;
+      var f = document.createElement('form'); f.method = 'post';
+      [['_t', <?= json_encode($tok) ?>], ['action', 'mytpl_save'], ['pid', b.dataset.mytplSave], ['tpl_name', nm.trim()]].forEach(function (kv) {
+        var i = document.createElement('input'); i.type = 'hidden'; i.name = kv[0]; i.value = kv[1]; f.appendChild(i);
+      });
+      document.body.appendChild(f); f.submit();
+    });
+  });
   document.querySelectorAll('[data-lay-use]').forEach(function (b) {
     b.addEventListener('click', function () {
       var k = b.dataset.layUse, t = PDATA.laytpls[k]; if (!t) return;
