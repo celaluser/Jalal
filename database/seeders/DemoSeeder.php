@@ -29,6 +29,11 @@ class DemoSeeder extends Seeder
     {
         $this->call([RolesAndPermissionsSeeder::class, LanguagesAndCurrenciesSeeder::class]);
 
+        // A public demo needs a password of its own: the built-in example one must never protect a production super admin.
+        if (app()->isProduction() && ! env('DEMO_PASSWORD')) {
+            throw new \RuntimeException('Set DEMO_PASSWORD in .env before seeding demo data on a production site.');
+        }
+
         $password = config('demo.password');
         $registrar = app(PermissionRegistrar::class);
 

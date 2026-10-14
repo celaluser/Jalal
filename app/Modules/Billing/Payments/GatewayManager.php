@@ -77,7 +77,7 @@ class GatewayManager
         $config = $this->config($code);
 
         foreach ($this->gateways[$code]->fields() as $field) {
-            if (empty($field['optional']) && $config->get($field['key']) === null) {
+            if (empty($field['optional']) && in_array($config->get($field['key']), [null, ''], true)) {
                 return false;
             }
         }

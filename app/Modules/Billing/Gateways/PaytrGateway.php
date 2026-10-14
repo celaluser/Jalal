@@ -94,6 +94,10 @@ class PaytrGateway extends BaseGateway implements RepliesToWebhook
         $status = (string) $request->input('status');
         $total = (string) $request->input('total_amount');
 
+        if ((string) $config->get('merchant_key') === '') {
+            throw new GatewayException('Merchant key is not configured');
+        }
+
         $expected = base64_encode(hash_hmac('sha256', $oid.$config->get('merchant_salt').$status.$total, (string) $config->get('merchant_key'), true));
 
         if (! $this->signatureMatches($expected, (string) $request->input('hash'))) {

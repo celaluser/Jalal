@@ -28,7 +28,7 @@ class PaymentCallbackController extends Controller
     public function webhook(Request $request, string $gateway): JsonResponse|Response
     {
         $driver = $this->gateways->find($gateway);
-        abort_if($driver === null || ! $this->gateways->isEnabled($gateway), 404);
+        abort_if($driver === null || ! $this->gateways->isReady($gateway), 404);
 
         try {
             $notification = $driver->webhook($request, $this->gateways->config($gateway));
@@ -52,7 +52,7 @@ class PaymentCallbackController extends Controller
     public function return(Request $request, string $gateway, string $invoice): RedirectResponse
     {
         $driver = $this->gateways->find($gateway);
-        abort_if($driver === null || ! $this->gateways->isEnabled($gateway), 404);
+        abort_if($driver === null || ! $this->gateways->isReady($gateway), 404);
 
         $model = Invoice::allTenants()->where('number', $invoice)->firstOrFail();
 

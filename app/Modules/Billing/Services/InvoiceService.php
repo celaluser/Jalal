@@ -3,6 +3,7 @@
 namespace App\Modules\Billing\Services;
 
 use App\Modules\Affiliate\Services\AffiliateService;
+use App\Modules\Billing\Exceptions\BillingException;
 use App\Modules\Billing\Models\Coupon;
 use App\Modules\Billing\Models\Invoice;
 use App\Modules\Billing\Models\Plan;
@@ -13,6 +14,7 @@ use App\Modules\Tenancy\Models\Restaurant;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Builds invoices. All money maths is done in integer cents so rounding never drifts.
@@ -168,7 +170,13 @@ class InvoiceService
         $this->affiliate->onInvoicePaid($invoice);
 
         if ($invoice->coupon_code && ($coupon = Coupon::where('code', $invoice->coupon_code)->first())) {
-            $this->coupons->redeem($coupon, $invoice);
+            // The customer has already paid the discounted amount: when the last use went to someone else in the meantime,
+            // the plan must still be activated, so a used-up coupon is logged instead of failing the whole settlement.
+            try {
+                $this->coupons->redeem($coupon, $invoice);
+            } catch (BillingException $e) {
+                Log::warning('Coupon was used up before the invoice settled', ['invoice' => $invoice->id, 'coupon' => $coupon->code]);
+            }
         }
 
         return $invoice;

@@ -87,6 +87,10 @@ class PaddleGateway extends BaseGateway
 
     private function verify(Request $request, string $secret): void
     {
+        if ($secret === '') {
+            throw new GatewayException('Webhook secret is not configured');
+        }
+
         $header = (string) $request->header('Paddle-Signature');
         $parts = [];
 

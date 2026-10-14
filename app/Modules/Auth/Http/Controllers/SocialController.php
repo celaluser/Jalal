@@ -48,7 +48,9 @@ class SocialController extends Controller
         }
 
         $column = $provider.'_id';
-        $user = User::where($column, $id)->first() ?? ($email ? User::where('email', $email)->first() : null);
+        // Facebook does not vouch for an address, so platform (super admin) accounts are never linked by email alone.
+        $byEmail = $email ? User::where('email', $email)->first() : null;
+        $user = User::where($column, $id)->first() ?? ($byEmail && ($provider === 'apple' || $byEmail->restaurant_id !== null) ? $byEmail : null);
 
         if (! $user || $user->disabled_at !== null || $user->restaurant?->isSuspended()) {
             return redirect()->route('login')->withErrors(['email' => __('auth.social_no_account', ['provider' => ucfirst($provider)])]);
@@ -60,6 +62,13 @@ class SocialController extends Controller
 
         if (! $user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
+        }
+
+        if ($user->hasTwoFactorEnabled()) {
+            $request->session()->put('two_factor.user_id', $user->id);
+            $request->session()->put('two_factor.remember', false);
+
+            return redirect()->route('two-factor.challenge');
         }
 
         Auth::login($user);

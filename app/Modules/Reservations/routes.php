@@ -24,10 +24,10 @@ Route::middleware(['web', SetLocale::class, 'auth', 'verified', 'tenant.user'])-
         Route::get('/', [ReservationController::class, 'index'])->name('index');
         Route::post('/', [ReservationController::class, 'store'])->name('store');
         Route::post('{reservation}/status', [ReservationController::class, 'status'])->whereNumber('reservation')->name('status');
-        Route::post('{reservation}/deposit-refunded', [ReservationController::class, 'depositRefunded'])->whereNumber('reservation')->name('deposit.refunded');
         Route::post('{reservation}/table', [ReservationController::class, 'table'])->whereNumber('reservation')->name('table');
     });
     Route::middleware('permission:reservations.manage')->group(function () {
+        Route::post('{reservation}/deposit-refunded', [ReservationController::class, 'depositRefunded'])->whereNumber('reservation')->name('deposit.refunded');
         Route::get('settings', [ReservationController::class, 'settings'])->name('settings');
         Route::put('settings', [ReservationController::class, 'saveSettings'])->name('settings.update');
     });

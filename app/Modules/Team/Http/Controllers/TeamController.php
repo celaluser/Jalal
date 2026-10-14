@@ -70,9 +70,12 @@ class TeamController extends Controller
             'role' => ['required', 'string', Rule::in($this->team->roles($restaurant))],
             'branch_id' => ['nullable', Rule::exists('branches', 'id')->where('restaurant_id', $restaurant->id)],
         ]);
-        $member->forceFill(['branch_id' => $data['branch_id'] ?? null])->save();
 
-        return $this->attempt(fn () => $this->team->changeRole($restaurant, $member, $data['role'], $request->user()), __('admin.saved'), route('team.index'));
+        // The owner and self guards run first (inside changeRole); the branch is only saved for someone who may be managed.
+        return $this->attempt(function () use ($restaurant, $member, $data, $request) {
+            $this->team->changeRole($restaurant, $member, $data['role'], $request->user());
+            $member->forceFill(['branch_id' => $data['branch_id'] ?? null])->save();
+        }, __('admin.saved'), route('team.index'));
     }
 
     public function toggle(Request $request, int $user): RedirectResponse

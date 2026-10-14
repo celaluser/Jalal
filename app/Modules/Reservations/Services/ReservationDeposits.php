@@ -108,7 +108,14 @@ class ReservationDeposits
             return false;
         }
 
-        $res->forceFill(['deposit_status' => 'paid', 'deposit_paid_at' => now(), 'deposit_transaction' => mb_substr($n->transactionId ?: (string) $res->deposit_transaction, 0, 120)])->save();
+        // Claim the payment atomically: a second call (return page plus webhook, or a replay) finds it already paid and stops.
+        $claimed = Reservation::whereKey($res->id)->where('deposit_status', 'pending')->update(['deposit_status' => 'paid', 'deposit_paid_at' => now(), 'deposit_transaction' => mb_substr($n->transactionId ?: (string) $res->deposit_transaction, 0, 120)]);
+
+        if ($claimed === 0) {
+            return false;
+        }
+
+        $res->refresh();
 
         // The table was held while the guest paid. If the hold ran out and the slot was lost, the deposit is paid back instead.
         if ($res->status !== 'awaiting') {

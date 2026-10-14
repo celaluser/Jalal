@@ -53,7 +53,14 @@ class TwoFactorService
         }
 
         $codes = $user->two_factor_recovery_codes ?? [];
-        $index = array_search(Str::lower(trim($code)), $codes, true);
+        $given = Str::lower(trim($code));
+        $index = false;
+
+        foreach ($codes as $i => $stored) {
+            if (hash_equals((string) $stored, $given)) {
+                $index = $i;
+            }
+        }
 
         if ($index === false) {
             return false;

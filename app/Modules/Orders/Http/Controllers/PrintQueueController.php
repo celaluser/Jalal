@@ -56,6 +56,7 @@ class PrintQueueController extends Controller
     public function queue(Request $request, Order $order): RedirectResponse
     {
         abort_unless($request->user()->canAny(['orders.view', 'kitchen.view']), 403);
+        abort_if($request->user()->branch_id !== null && $order->branch_id !== null && (int) $order->branch_id !== (int) $request->user()->branch_id, 404);
         $kind = $request->validate(['kind' => ['required', Rule::in(['kitchen', 'receipt'])]])['kind'];
         $this->printer->enqueue($order, $kind);
 

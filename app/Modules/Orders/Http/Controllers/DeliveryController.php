@@ -131,7 +131,9 @@ class DeliveryController extends Controller
 
     public function claim(Request $request, Order $order): RedirectResponse
     {
-        abort_unless($order->type === OrderType::DELIVERY && $order->courier_id === null, 404);
+        // Only a delivery that is ready to go (and in the courier's own branch) can be picked up.
+        abort_unless($order->type === OrderType::DELIVERY && $order->courier_id === null && $order->status === OrderStatus::READY && $order->dispatched_at === null, 404);
+        abort_if($request->user()->branch_id !== null && $order->branch_id !== null && (int) $order->branch_id !== (int) $request->user()->branch_id, 404);
         $order->forceFill(['courier_id' => $request->user()->id])->save();
 
         return back();

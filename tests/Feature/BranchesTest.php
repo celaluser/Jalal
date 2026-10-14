@@ -209,3 +209,24 @@ it('assigns a table and a staff member to a branch from their forms', function (
     [, , $other] = brShop();
     $this->actingAs($owner)->put(route('team.update', $waiter->id), ['role' => 'waiter', 'branch_id' => $other['north']->id])->assertSessionHasErrors('branch_id');
 });
+
+it('keeps staff fixed to one branch away from the orders of another branch', function () {
+    [$r, , $d] = brShop();
+    $waiter = brUser($r, Permissions::MANAGER, ['branch_id' => $d['north']->id]);
+    $mine = brOrder($r, $d['pizza']->id, ['branch_id' => $d['north']->id]);
+    $other = brOrder($r, $d['pizza']->id, ['branch_id' => $d['south']->id]);
+
+    $this->actingAs($waiter)->get(route('orders.show', $mine->id))->assertOk();
+    $this->actingAs($waiter)->get(route('orders.show', $other->id))->assertNotFound();
+    $this->actingAs($waiter)->get(route('orders.ticket', $other->id))->assertNotFound();
+    $this->actingAs($waiter)->post(route('orders.status', $other->id), ['status' => 'accepted'])->assertNotFound();
+    expect(app(TenantContext::class)->runAs($r, fn () => Order::find($other->id)->status))->toBe('new');
+});
+
+it('does not move the owner to a branch through the team form', function () {
+    [$r, $owner, $d] = brShop();
+    $manager = brUser($r, Permissions::MANAGER);
+
+    $this->actingAs($manager)->put(route('team.update', $owner->id), ['role' => Permissions::MANAGER, 'branch_id' => $d['north']->id]);
+    expect($owner->fresh()->branch_id)->toBeNull();
+});

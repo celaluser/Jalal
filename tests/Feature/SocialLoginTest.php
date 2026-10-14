@@ -4,6 +4,7 @@ use App\Models\User;
 use App\Modules\Auth\Services\AppleSignIn;
 use App\Modules\Core\Models\Language;
 use App\Modules\Core\Services\SettingsService;
+use App\Modules\Tenancy\Models\Restaurant;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Laravel\Socialite\Contracts\Factory;
@@ -53,7 +54,8 @@ it('shows the buttons once enabled', function () {
 
 it('signs in an existing user through Facebook, linking by e-mail', function () {
     slEnable('facebook', ['client_id' => 'x', 'client_secret' => 'y']);
-    $user = User::factory()->create(['email' => 'ana@example.com']);
+    $restaurant = Restaurant::create(['name' => 'R', 'slug' => 'r'.uniqid(), 'locale' => 'en', 'menu_locales' => ['en'], 'currency_code' => 'USD', 'timezone' => 'UTC']);
+    $user = User::factory()->create(['email' => 'ana@example.com', 'restaurant_id' => $restaurant->id]);
     $fb = (new SocialUser)->map(['id' => 'fb-1', 'email' => 'ana@example.com', 'name' => 'Ana']);
     $driver = Mockery::mock(FacebookProvider::class);
     $driver->shouldReceive('scopes')->andReturnSelf();
@@ -119,4 +121,35 @@ it('signs in through Apple and rejects bad tokens', function () {
     $this->assertGuest();
 
     $this->post('/auth/social/apple/callback', ['code' => 'c', 'state' => 'forged'])->assertStatus(400);
+});
+
+function slFacebookAs(string $id, string $email): void
+{
+    $fb = (new SocialUser)->map(['id' => $id, 'email' => $email, 'name' => 'Ana']);
+    $driver = Mockery::mock(FacebookProvider::class);
+    $driver->shouldReceive('scopes')->andReturnSelf();
+    $driver->shouldReceive('user')->andReturn($fb);
+    $factory = Mockery::mock(Factory::class);
+    $factory->shouldReceive('driver')->with('facebook')->andReturn($driver);
+    app()->instance(Factory::class, $factory);
+}
+
+it('sends a user with two-factor sign-in through the challenge instead of logging in', function () {
+    slEnable('facebook', ['client_id' => 'x', 'client_secret' => 'y']);
+    $restaurant = Restaurant::create(['name' => 'R', 'slug' => 'r'.uniqid(), 'locale' => 'en', 'menu_locales' => ['en'], 'currency_code' => 'USD', 'timezone' => 'UTC']);
+    $user = User::factory()->create(['email' => 'ana@example.com', 'restaurant_id' => $restaurant->id, 'two_factor_secret' => 'ABCDEFGHIJKLMNOP', 'two_factor_confirmed_at' => now()]);
+    slFacebookAs('fb-2', 'ana@example.com');
+
+    $this->get('/auth/social/facebook/callback')->assertRedirect(route('two-factor.challenge'));
+    $this->assertGuest();
+    expect(session('two_factor.user_id'))->toBe($user->id);
+});
+
+it('never links a platform (super admin) account to Facebook by e-mail alone', function () {
+    slEnable('facebook', ['client_id' => 'x', 'client_secret' => 'y']);
+    User::factory()->create(['email' => 'root@example.com', 'restaurant_id' => null]);
+    slFacebookAs('fb-3', 'root@example.com');
+
+    $this->get('/auth/social/facebook/callback')->assertRedirect(route('login'))->assertSessionHasErrors('email');
+    $this->assertGuest();
 });

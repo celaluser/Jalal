@@ -50,6 +50,10 @@ class RazorpayGateway extends BaseGateway
 
     public function webhook(Request $request, GatewayConfig $config): ?PaymentNotification
     {
+        if ((string) $config->get('webhook_secret') === '') {
+            throw new GatewayException('Webhook secret is not configured');
+        }
+
         $expected = hash_hmac('sha256', $request->getContent(), (string) $config->get('webhook_secret'));
 
         if (! $this->signatureMatches($expected, (string) $request->header('X-Razorpay-Signature'))) {

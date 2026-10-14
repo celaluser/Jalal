@@ -224,7 +224,8 @@ describe('invoices', function () {
 
         $this->invoices->markPaid($a);
 
-        expect(fn () => $this->invoices->markPaid($b))->toThrow(BillingException::class)
+        // The customer already paid: the last use went elsewhere, but settling must not fail (the plan has to activate).
+        expect($this->invoices->markPaid($b)->status)->toBe('paid')
             ->and($coupon->fresh()->used_count)->toBe(1);
     });
 

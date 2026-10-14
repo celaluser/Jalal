@@ -72,6 +72,8 @@ class OrderBoardController extends Controller
 
     public function show(Request $request, Order $order): View
     {
+        $this->guardBranch($request, $order);
+
         return view('orders::board.show', [
             'order' => $order->load(['items', 'events.user']),
             'restaurant' => $request->user()->restaurant,
@@ -84,6 +86,7 @@ class OrderBoardController extends Controller
 
     public function transition(Request $request, Order $order): JsonResponse|RedirectResponse
     {
+        $this->guardBranch($request, $order);
         $data = $request->validate([
             'status' => ['required', Rule::in([...OrderStatus::FLOW, OrderStatus::CANCELLED])],
             'reason' => ['nullable', 'string', 'max:200'],
@@ -102,6 +105,7 @@ class OrderBoardController extends Controller
 
     public function pay(Request $request, Order $order): JsonResponse|RedirectResponse
     {
+        $this->guardBranch($request, $order);
         abort_unless($request->user()->canAny(['orders.manage', 'payments.manage']), 403);
         $data = $request->validate(['method' => ['required', Rule::in(['cash', 'card'])]]);
 
@@ -117,6 +121,7 @@ class OrderBoardController extends Controller
     /** A part payment, a split or a tip taken at the table. */
     public function addPayment(Request $request, Order $order): JsonResponse|RedirectResponse
     {
+        $this->guardBranch($request, $order);
         abort_unless($request->user()->canAny(['orders.manage', 'payments.manage']), 403);
         $data = $request->validate(['method' => ['required', Rule::in(['cash', 'card'])], 'amount' => ['nullable', 'numeric', 'min:0.01', 'max:9999999'], 'tip' => ['nullable', 'numeric', 'min:0', 'max:9999999']]);
 
@@ -146,6 +151,7 @@ class OrderBoardController extends Controller
 
     public function discount(Request $request, Order $order): JsonResponse|RedirectResponse
     {
+        $this->guardBranch($request, $order);
         abort_unless($request->user()->can('orders.manage'), 403);
         $data = $request->validate(['type' => ['required', Rule::in(['percent', 'fixed'])], 'value' => ['required', 'numeric', 'min:0', 'max:9999999'], 'reason' => ['nullable', 'string', 'max:120']]);
 
@@ -171,6 +177,7 @@ class OrderBoardController extends Controller
     /** A delivery leaves with the courier. Guests who asked to be told hear that it is on the way. */
     public function dispatch(Request $request, Order $order): JsonResponse|RedirectResponse
     {
+        $this->guardBranch($request, $order);
         abort_unless($request->user()->canAny(['orders.manage', 'delivery.view']), 403);
 
         try {
@@ -241,6 +248,7 @@ class OrderBoardController extends Controller
      */
     public function stationDone(Request $request, Order $order): JsonResponse|RedirectResponse
     {
+        $this->guardBranch($request, $order);
         abort_unless($request->user()->canAny(['orders.manage', 'kitchen.view']), 403);
         $data = $request->validate(['station' => ['nullable', 'string', 'max:30']]);
         $station = $data['station'] ?? null;
@@ -275,7 +283,17 @@ class OrderBoardController extends Controller
     /** Receipt-style ticket for a kitchen or thermal printer. */
     public function ticket(Request $request, Order $order): View
     {
+        $this->guardBranch($request, $order);
+
         return view('orders::board.ticket', ['order' => $order->load('items'), 'restaurant' => $request->user()->restaurant]);
+    }
+
+    /** Staff fixed to one branch cannot open or change another branch's orders by guessing an id. */
+    private function guardBranch(Request $request, Order $order): void
+    {
+        $branchId = $request->user()->branch_id;
+
+        abort_if($branchId !== null && $order->branch_id !== null && (int) $order->branch_id !== (int) $branchId, 404);
     }
 
     /** @return list<string> statuses this user may set on this order */
@@ -295,10 +313,12 @@ class OrderBoardController extends Controller
     private function present(Order $o, User $user): array
     {
         $money = fn (int $c) => $o->restaurant->money($c / 100);
+        // Kitchen and waiter screens do not need the guest's phone number or home address; only people who run orders or deliveries do.
+        $pii = $user->canAny(['orders.manage', 'delivery.view']);
 
         return [
             'id' => $o->id, 'number' => $o->number, 'status' => $o->status, 'type' => $o->type, 'source' => $o->source,
-            'table' => $o->table_name, 'name' => $o->customer_name, 'phone' => $o->customer_phone, 'address' => $o->delivery_address, 'note' => $o->note,
+            'table' => $o->table_name, 'name' => $o->customer_name, 'phone' => $pii ? $o->customer_phone : null, 'address' => $pii ? $o->delivery_address : null, 'note' => $o->note,
             'created' => $o->created_at->toIso8601String(), 'prep_minutes' => $o->prep_minutes,
             'paid' => $o->isPaid(), 'method' => $o->payment_method, 'cancel_reason' => $o->cancel_reason,
             'total' => $money($o->total_cents),

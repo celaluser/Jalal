@@ -33,8 +33,10 @@ class GoogleController extends Controller
             return redirect()->route('login')->withErrors(['email' => __('auth.google_failed')]);
         }
 
+        // An address is only trusted for linking an existing account when Google says it is verified.
+        $verified = (bool) ($google->user['email_verified'] ?? false);
         $user = User::where('google_id', $google->getId())->first()
-            ?? User::where('email', $google->getEmail())->first();
+            ?? ($verified && $google->getEmail() ? User::where('email', $google->getEmail())->first() : null);
 
         if (! $user || $user->disabled_at !== null || $user->restaurant?->isSuspended()) {
             return redirect()->route('login')->withErrors(['email' => __('auth.google_no_account')]);
@@ -46,6 +48,13 @@ class GoogleController extends Controller
 
         if (! $user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
+        }
+
+        if ($user->hasTwoFactorEnabled()) {
+            $request->session()->put('two_factor.user_id', $user->id);
+            $request->session()->put('two_factor.remember', false);
+
+            return redirect()->route('two-factor.challenge');
         }
 
         Auth::login($user);

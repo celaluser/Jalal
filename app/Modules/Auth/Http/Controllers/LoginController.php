@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -25,6 +26,11 @@ class LoginController extends Controller
         ]);
 
         $user = User::where('email', $credentials['email'])->first();
+
+        if (! $user) {
+            // Same work as a real attempt, so the response time does not reveal which addresses have an account.
+            Hash::check($credentials['password'], '$2y$12$Ps97Zc7qt/esAASHdWDF8uTO0boGAfX9sKpPT6NcR/s/rb8qe3FoW');
+        }
 
         if (! $user || ! Auth::validate($credentials)) {
             throw ValidationException::withMessages(['email' => __('auth.failed')]);

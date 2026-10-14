@@ -123,8 +123,16 @@ class OnlinePayments
             return false;
         }
 
-        DB::transaction(function () use ($rows, $n) {
-            foreach ($rows as $row) {
+        // The return page and the webhook can arrive together (or be replayed on purpose): only the call that still finds
+        // the rows pending, with a lock held, may credit them.
+        $credited = DB::transaction(function () use ($rows, $n) {
+            $pending = OrderPayment::whereIn('id', $rows->pluck('id'))->where('status', OrderPayment::PENDING)->orderBy('id')->lockForUpdate()->get();
+
+            if ($pending->count() !== $rows->count()) {
+                return false;
+            }
+
+            foreach ($pending as $row) {
                 $order = Order::whereKey($row->order_id)->lockForUpdate()->first();
                 $row->forceFill(['status' => OrderPayment::PAID, 'paid_at' => now(), 'transaction_id' => mb_substr($n->transactionId ?: (string) $row->transaction_id, 0, 120), 'commission_cents' => $this->ledger->commission($row->amount_cents)])->save();
 
@@ -132,8 +140,10 @@ class OnlinePayments
                     $this->ledger->apply($order, $row);
                 }
             }
+
+            return true;
         });
 
-        return true;
+        return $credited;
     }
 }

@@ -42,6 +42,14 @@ class ImpersonationController extends Controller
 
         $admin = User::findOrFail($adminId);
 
+        // Whoever started the session must still be an enabled platform user, or the way back ends at the login screen.
+        if ($admin->disabled_at !== null || ! $admin->isPlatformUser()) {
+            Auth::logout();
+            $request->session()->invalidate();
+
+            return redirect()->route('login');
+        }
+
         Log::info('Impersonation stopped', ['admin_id' => $admin->id, 'was_user_id' => $request->user()?->id]);
 
         Auth::login($admin);

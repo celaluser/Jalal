@@ -52,6 +52,10 @@ class PaystackGateway extends BaseGateway
 
     public function webhook(Request $request, GatewayConfig $config): ?PaymentNotification
     {
+        if ((string) $config->get('secret_key') === '') {
+            throw new GatewayException('Webhook secret is not configured');
+        }
+
         $expected = hash_hmac('sha512', $request->getContent(), (string) $config->get('secret_key'));
 
         if (! $this->signatureMatches($expected, (string) $request->header('x-paystack-signature'))) {

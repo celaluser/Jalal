@@ -169,7 +169,8 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    // Secure by default once the site runs on https, so the session cookie is never sent over plain http.
+    'secure' => env('SESSION_SECURE_COOKIE', str_starts_with((string) env('APP_URL'), 'https://') ? true : null),
 
     /*
     |--------------------------------------------------------------------------

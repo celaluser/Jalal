@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Schema;
  */
 class SettingsService
 {
-    private const CACHE_KEY = 'settings.all.%s';
+    // v2: values are cached as stored (encrypted); the older key held decrypted secrets, so it is never read again.
+    private const CACHE_KEY = 'settings.v2.%s';
 
     /** Settings read during this request, per scope: a page asks for dozens of values but should load them once. @var array<string, array<string, mixed>> */
     private array $loaded = [];
@@ -53,15 +54,24 @@ class SettingsService
 
         $scope = (string) ($restaurantId ?? 'platform');
 
-        return $this->loaded[$scope] ??= Cache::remember(sprintf(self::CACHE_KEY, $scope), 3600, function () use ($restaurantId) {
+        if (isset($this->loaded[$scope])) {
+            return $this->loaded[$scope];
+        }
+
+        // The cache (a database table on shared hosting) keeps secrets exactly as stored, still encrypted; they are
+        // decrypted only here, in memory, for the current request.
+        $rows = Cache::remember(sprintf(self::CACHE_KEY, $scope), 3600, function () use ($restaurantId) {
             return Setting::query()
                 ->where('restaurant_id', $restaurantId)
                 ->get()
-                ->mapWithKeys(fn (Setting $s) => [
-                    $s->key => $s->is_encrypted && $s->value !== null ? Crypt::decryptString($s->value) : $s->value,
-                ])
+                ->mapWithKeys(fn (Setting $s) => [$s->key => ['v' => $s->value, 'e' => (bool) $s->is_encrypted]])
                 ->all();
         });
+
+        return $this->loaded[$scope] = array_map(
+            fn ($row) => $row['e'] && $row['v'] !== null ? Crypt::decryptString($row['v']) : $row['v'],
+            $rows,
+        );
     }
 
     private function databaseReady(): bool
@@ -87,5 +97,6 @@ class SettingsService
     {
         unset($this->loaded[(string) ($restaurantId ?? 'platform')]);
         Cache::forget(sprintf(self::CACHE_KEY, $restaurantId ?? 'platform'));
+        Cache::forget('settings.all.'.($restaurantId ?? 'platform')); // the pre-2 key, which held decrypted secrets
     }
 }

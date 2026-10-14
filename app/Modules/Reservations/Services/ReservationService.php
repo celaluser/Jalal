@@ -10,6 +10,7 @@ use App\Modules\Reservations\Events\ReservationStatusChanged;
 use App\Modules\Reservations\Models\Reservation;
 use App\Modules\Tenancy\Models\Restaurant;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -132,6 +133,17 @@ class ReservationService
         if (! $channel) {
             return;
         }
+
+        // Anyone can type any number into the booking form, so texts are capped per number and per restaurant (SMS pumping).
+        $phoneKey = 'res-sms-phone:'.sha1((string) $res->phone);
+        $shopKey = 'res-sms-shop:'.$restaurant->id;
+
+        if (RateLimiter::tooManyAttempts($phoneKey, 3) || RateLimiter::tooManyAttempts($shopKey, 300)) {
+            return;
+        }
+
+        RateLimiter::hit($phoneKey, 86400);
+        RateLimiter::hit($shopKey, 86400);
 
         $when = $res->starts_at->setTimezone($this->availability->zone($restaurant))->isoFormat('dddd D MMMM, HH:mm');
         $text = trans('reservations.sms_reminder', ['restaurant' => $restaurant->name, 'when' => $when, 'party' => $res->party_size, 'url' => $restaurant->publicUrl('reserve/'.$res->token)], $res->locale ?: $restaurant->locale);
