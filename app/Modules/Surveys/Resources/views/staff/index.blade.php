@@ -1,6 +1,6 @@
 <x-layouts.app :title="__('surveys.title')">
     <x-ui.page-header :title="__('surveys.title')" :description="__('surveys.sub')">
-        <x-ui.button :href="route('surveys.create')" :block="false" icon="plus">{{ __('surveys.new') }}</x-ui.button>
+        <x-slot:actions><a href="{{ route('surveys.create') }}" class="btn btn-primary">{{ __('surveys.new') }}</a></x-slot:actions>
     </x-ui.page-header>
 
     @if ($surveys->isEmpty())
@@ -20,8 +20,8 @@
                             <p class="mt-1 break-all text-xs" dir="ltr"><a class="link" href="{{ $url }}" target="_blank" rel="noopener">{{ $url }}</a></p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <x-ui.button :href="route('surveys.results', $s->id)" variant="secondary" size="sm" :block="false">{{ __('surveys.results') }}</x-ui.button>
-                            <x-ui.button :href="route('surveys.edit', $s->id)" variant="secondary" size="sm" :block="false">{{ __('admin.edit') }}</x-ui.button>
+                            <a href="{{ route('surveys.results', $s->id) }}" class="btn btn-secondary btn-sm">{{ __('surveys.results') }}</a>
+                            <a href="{{ route('surveys.edit', $s->id) }}" class="btn btn-secondary btn-sm">{{ __('admin.edit') }}</a>
                             <form method="POST" action="{{ route('surveys.destroy', $s->id) }}" onsubmit="return confirm('{{ __('surveys.delete_confirm') }}')">@csrf @method('DELETE')<button class="px-2 text-sm text-red-600">{{ __('admin.delete') }}</button></form>
                         </div>
                     </div>

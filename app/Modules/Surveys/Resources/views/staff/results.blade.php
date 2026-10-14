@@ -1,6 +1,6 @@
 <x-layouts.app :title="$survey->title">
     <x-ui.page-header :title="$survey->title" :description="trans_choice('surveys.responses', $survey->responses_count, ['count' => $survey->responses_count])">
-        <x-ui.button :href="route('surveys.export', $survey->id)" variant="secondary" :block="false">{{ __('surveys.export') }}</x-ui.button>
+        <x-slot:actions><a href="{{ route('surveys.export', $survey->id) }}" class="btn btn-secondary">{{ __('surveys.export') }}</a></x-slot:actions>
     </x-ui.page-header>
 
     @if ($survey->responses_count === 0)

@@ -72,7 +72,7 @@ it('lets the owner build, edit and delete a survey', function () {
     expect($survey->slug)->toBe('dinner-feedback')->and($survey->after_order)->toBeTrue()
         ->and($survey->questions[1]['options'])->toBe(['Lunch', 'Dinner'])->and($survey->questions[0]['id'])->toStartWith('q');
 
-    $this->actingAs($owner)->get(route('surveys.index'))->assertOk()->assertSee('Dinner feedback')->assertSee('/survey/dinner-feedback');
+    $this->actingAs($owner)->get(route('surveys.index'))->assertOk()->assertSee('Dinner feedback')->assertSee('/survey/dinner-feedback')->assertSee(route('surveys.create'));
     $this->actingAs($owner)->put(route('surveys.update', $survey->id), ['title' => 'Renamed', 'questions' => [['id' => $survey->questions[0]['id'], 'type' => 'text', 'label' => 'Say something']]])->assertRedirect();
     expect(app(TenantContext::class)->runAs($r, fn () => Survey::find($survey->id)))->title->toBe('Renamed')->slug->toBe('dinner-feedback')->is_active->toBeFalse();
 

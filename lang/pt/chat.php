@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'nav' => 'Chat com clientes',
+    'title' => 'Chat com clientes',
+    'sub' => 'Mensagens dos clientes sobre o pedido. Responda aqui; o cliente vê a resposta na página do pedido.',
+    'empty' => 'Ainda não há conversas',
+    'empty_text' => 'Quando um cliente escrever a partir da página do pedido, aparece aqui.',
+    'guest' => 'Cliente',
+    'you' => 'Você',
+    'order_chat' => 'Chat · pedido n.º :number',
+    'view_order' => 'Ver pedido',
+    'reply_placeholder' => 'Escreva uma resposta…',
+    'send' => 'Enviar',
+    'send_failed' => 'Não foi possível enviar. Tente novamente.',
+    'closed_staff' => 'O pedido terminou, o cliente já não pode escrever, mas você pode responder.',
+    'turn_off' => 'Desativar o chat',
+    'turn_on' => 'Ativar o chat',
+    'is_off' => 'O chat com clientes está desativado: não veem a caixa de chat.',
+    'guest_title' => 'Escreva ao restaurante',
+    'guest_hint' => 'Pergunte sobre o pedido, alergias ou o que precisar. Respondemos aqui.',
+    'placeholder' => 'Escreva uma mensagem…',
+    'closed' => 'Este chat está fechado porque o pedido terminou.',
+    'staff' => 'Restaurante',
+    'chat_button' => 'Conversar com o cliente',
+];

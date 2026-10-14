@@ -6,6 +6,7 @@
             <form method="POST" action="{{ route('orders.print', $order->id) }}" class="inline-flex gap-1">@csrf
                 <button name="kind" value="kitchen" class="btn btn-secondary btn-sm"><x-ui.icon name="printer" size="4" />{{ __('orders.print_kitchen') }}</button>
                 <button name="kind" value="receipt" class="btn btn-secondary btn-sm">{{ __('orders.print_receipt') }}</button></form>
+            @can('orders.view')<a class="btn btn-secondary btn-sm" href="{{ route('chat.show', $order->id) }}">{{ __('chat.chat_button') }}</a>@endcan
             <a class="btn btn-secondary btn-sm" href="{{ route('orders.ticket', $order->id) }}" target="_blank" rel="noopener"><x-ui.icon name="receipt" size="4" />{{ __('orders.print') }}</a>
         </x-slot:actions>
     </x-ui.page-header>

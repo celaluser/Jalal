@@ -10,6 +10,7 @@ use App\Modules\Api\Providers\ApiServiceProvider;
 use App\Modules\Auth\Providers\AuthServiceProvider;
 use App\Modules\Billing\Providers\BillingServiceProvider;
 use App\Modules\Branches\Providers\BranchesServiceProvider;
+use App\Modules\Chat\Providers\ChatServiceProvider;
 use App\Modules\Cms\Providers\CmsServiceProvider;
 use App\Modules\Core\Providers\CoreServiceProvider;
 use App\Modules\Demo\Providers\DemoServiceProvider;
@@ -46,6 +47,7 @@ return [
     InventoryServiceProvider::class,
     HubServiceProvider::class,
     SurveysServiceProvider::class,
+    ChatServiceProvider::class,
     StoreServiceProvider::class,
     ApiServiceProvider::class,
     TablesServiceProvider::class,

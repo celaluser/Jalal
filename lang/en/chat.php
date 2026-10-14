@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'nav' => 'Guest chat',
+    'title' => 'Guest chat',
+    'sub' => 'Messages from guests about their order. Answer here; guests see your reply on their order page.',
+    'empty' => 'No conversations yet',
+    'empty_text' => 'When a guest writes from their order page, it shows up here.',
+    'guest' => 'Guest',
+    'you' => 'You',
+    'order_chat' => 'Chat · order #:number',
+    'view_order' => 'View order',
+    'reply_placeholder' => 'Write a reply…',
+    'send' => 'Send',
+    'send_failed' => 'Could not send. Try again.',
+    'closed_staff' => 'The order is finished, so the guest can no longer write, but you can still reply.',
+    'turn_off' => 'Turn chat off',
+    'turn_on' => 'Turn chat on',
+    'is_off' => 'Guest chat is off: guests do not see the chat box.',
+    'guest_title' => 'Message the restaurant',
+    'guest_hint' => 'Ask about your order, allergies or anything else. We reply here.',
+    'placeholder' => 'Type a message…',
+    'closed' => 'This chat is closed because the order is finished.',
+    'staff' => 'Restaurant',
+    'chat_button' => 'Chat with guest',
+];

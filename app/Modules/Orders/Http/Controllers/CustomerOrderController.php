@@ -4,6 +4,7 @@ namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Branches\Services\GuestBranch;
+use App\Modules\Chat\Services\Chat;
 use App\Modules\Core\Tenancy\TenantContext;
 use App\Modules\Marketing\Services\LoyaltyService;
 use App\Modules\Marketing\Services\MarketingSettings;
@@ -108,6 +109,7 @@ class CustomerOrderController extends Controller
             'cancelUrl' => $this->statusUrl($request, $order).'/cancel',
             'canCancel' => $this->canCancel($order),
             'reviewUrl' => $this->statusUrl($request, $order).'/review',
+            'chatUrl' => app(Chat::class)->enabled($restaurant) && app(Chat::class)->open($order) ? $this->statusUrl($request, $order).'/chat' : null,
             'surveyUrl' => ($survey = Survey::where('is_active', true)->where('after_order', true)->orderBy('id')->first()) ? $this->menuUrl($request).'/survey/'.$survey->slug.'?o='.$order->token : null,
             'pushUrl' => $this->statusUrl($request, $order).'/push',
             'payUrl' => $this->statusUrl($request, $order).'/pay',

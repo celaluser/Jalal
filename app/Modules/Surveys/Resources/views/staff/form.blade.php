@@ -58,7 +58,7 @@
         </x-ui.card>
 
         <div class="flex justify-end gap-2">
-            <x-ui.button :href="route('surveys.index')" variant="secondary" :block="false">{{ __('admin.cancel') }}</x-ui.button>
+            <a href="{{ route('surveys.index') }}" class="btn btn-secondary">{{ __('admin.cancel') }}</a>
             <x-ui.button :block="false">{{ __('admin.save') }}</x-ui.button>
         </div>
     </form>

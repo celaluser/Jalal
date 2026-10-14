@@ -193,6 +193,8 @@
             <p class="menu-muted mt-1 text-xs" x-text="s.reward ? @js(__('marketing.reward_valid_until', ['date' => ':date'])).replace(':date', s.reward.until) : ''"></p>
         </section>
 
+        @if ($chatUrl)@include('chat::widget', ['chatUrl' => $chatUrl])@endif
+
         {{-- Feedback --}}
         @if ($surveyUrl)<p class="text-center" x-show="s.status === 'completed'" x-cloak><a class="menu-btn menu-btn-quiet inline-block" href="{{ $surveyUrl }}">{{ __('surveys.order_link') }}</a></p>@endif
         @if (session('review_thanks'))<p class="menu-card menu-accent-text p-4 text-center font-semibold" role="status">{{ __('marketing.rate_thanks') }}</p>@endif
