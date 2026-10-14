@@ -73,7 +73,7 @@ class OrderPaymentController extends Controller
     {
         $restaurant = $this->tenant->get();
         $order = $this->order($request);
-        $reference = (string) $request->query('ref');
+        $reference = scalar_string($request->query('ref'));
         $row = OrderPayment::where('reference', $reference)->where('order_id', $order->id)->first();
         $back = ($request->route('restaurant') !== null ? url('/'.config('tenancy.path_prefix').'/'.$request->route('restaurant')) : url('/')).'/order/'.$order->token;
 

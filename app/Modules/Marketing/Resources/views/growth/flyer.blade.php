@@ -9,6 +9,8 @@
         .sheet { width: 148mm; height: 210mm; margin: 12px auto; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 14mm; box-sizing: border-box; border-top: 10mm solid {{ $restaurant->brandColor() }} }
         h1 { font-size: 30pt; margin: 0 0 4mm; line-height: 1.1 } h2 { font-size: 15pt; font-weight: 500; margin: 0 0 10mm; color: #444 }
         .qr { width: 80mm; height: 80mm } .qr svg { width: 100%; height: 100% } p { font-size: 11pt; margin: 8mm 0 0; color: #333; word-break: break-all }
+        /* The sheet has the real paper size; on a phone screen it is shown smaller so the page does not scroll sideways. */
+        @media screen and (max-width: 600px) { .sheet { zoom: .62 } }
         @media print { body { background: #fff } .sheet { margin: 0 } .bar { display: none } }
         .bar { text-align: center; padding: 10px } button { padding: 8px 18px; font-size: 14px }
     </style>

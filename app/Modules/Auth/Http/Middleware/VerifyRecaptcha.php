@@ -28,7 +28,7 @@ class VerifyRecaptcha
             return $next($request);
         }
 
-        $token = (string) $request->input('g-recaptcha-response');
+        $token = scalar_string($request->input('g-recaptcha-response'));
         $secret = (string) $this->settings->get('security.recaptcha_secret');
 
         $passed = false;
@@ -59,7 +59,7 @@ class VerifyRecaptcha
     /** Cloudflare Turnstile: same idea, different endpoint and field. Fails closed too. */
     private function turnstile(Request $request, Closure $next): Response
     {
-        $token = (string) $request->input('cf-turnstile-response');
+        $token = scalar_string($request->input('cf-turnstile-response'));
         $secret = (string) $this->settings->get('security.turnstile_secret');
         $passed = false;
 

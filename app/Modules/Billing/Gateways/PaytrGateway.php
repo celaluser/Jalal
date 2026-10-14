@@ -90,9 +90,9 @@ class PaytrGateway extends BaseGateway implements RepliesToWebhook
 
     public function webhook(Request $request, GatewayConfig $config): ?PaymentNotification
     {
-        $oid = (string) $request->input('merchant_oid');
-        $status = (string) $request->input('status');
-        $total = (string) $request->input('total_amount');
+        $oid = scalar_string($request->input('merchant_oid'));
+        $status = scalar_string($request->input('status'));
+        $total = scalar_string($request->input('total_amount'));
 
         if ((string) $config->get('merchant_key') === '') {
             throw new GatewayException('Merchant key is not configured');
@@ -100,7 +100,7 @@ class PaytrGateway extends BaseGateway implements RepliesToWebhook
 
         $expected = base64_encode(hash_hmac('sha256', $oid.$config->get('merchant_salt').$status.$total, (string) $config->get('merchant_key'), true));
 
-        if (! $this->signatureMatches($expected, (string) $request->input('hash'))) {
+        if (! $this->signatureMatches($expected, scalar_string($request->input('hash')))) {
             throw new GatewayException('PayTR: invalid callback hash.');
         }
 
@@ -110,7 +110,7 @@ class PaytrGateway extends BaseGateway implements RepliesToWebhook
             throw new GatewayException('PayTR: unreadable order id.');
         }
 
-        $currency = array_search((string) $request->input('payment_currency', 'TL'), self::CURRENCIES, true) ?: 'TRY';
+        $currency = array_search(scalar_string($request->input('payment_currency', 'TL')), self::CURRENCIES, true) ?: 'TRY';
 
         return new PaymentNotification('paytr', $reference, $oid, $status === 'success' ? PaymentNotification::SUCCEEDED : PaymentNotification::FAILED,
             (int) $request->input('payment_amount', $total), $currency, ['status' => $status]);

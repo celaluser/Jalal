@@ -104,7 +104,7 @@ class GuestSurveyController extends Controller
 
     private function order(Request $request): ?Order
     {
-        $token = (string) $request->input('o', $request->query('o', ''));
+        $token = scalar_string($request->input('o', $request->query('o', '')));
 
         return preg_match('/^[A-Za-z0-9]{24}$/', $token) === 1 ? Order::where('token', $token)->first() : null;
     }

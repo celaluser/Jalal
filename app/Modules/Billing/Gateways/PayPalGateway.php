@@ -92,7 +92,7 @@ class PayPalGateway extends BaseGateway
 
     public function confirmReturn(Request $request, Invoice $invoice, GatewayConfig $config): ?PaymentNotification
     {
-        $orderId = (string) $request->query('token');
+        $orderId = scalar_string($request->query('token'));
         $expected = Payment::allTenants()->where('invoice_id', $invoice->id)->where('gateway', 'paypal')->latest('id')->value('transaction_id');
 
         // Only the order we created for this invoice may be captured for it.

@@ -26,6 +26,17 @@ if (! function_exists('markdown_safe')) {
     }
 }
 
+if (! function_exists('scalar_string')) {
+    /**
+     * A request value as text. A visitor can send ?q[]=x or a JSON array where text is expected; casting that with (string)
+     * raises "Array to string conversion" (a server error), so anything that is not a plain value becomes the default.
+     */
+    function scalar_string(mixed $value, string $default = ''): string
+    {
+        return is_string($value) || is_int($value) || is_float($value) ? (string) $value : $default;
+    }
+}
+
 if (! function_exists('table_label')) {
     /** "5" becomes "Table 5"; a name like "Terrace 2" or "Bar" is shown as it is. */
     function table_label(?string $name): string

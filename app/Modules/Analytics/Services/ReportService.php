@@ -23,8 +23,12 @@ class ReportService
      *
      * @return array{from: CarbonImmutable, to: CarbonImmutable, key: string, days: int}
      */
-    public function period(Restaurant $restaurant, ?string $range, ?string $from = null, ?string $to = null, int $maxDays = self::MAX_DAYS): array
+    public function period(Restaurant $restaurant, mixed $range, mixed $from = null, mixed $to = null, int $maxDays = self::MAX_DAYS): array
     {
+        // These come straight from the address bar and can be anything (?from[]=x).
+        $range = scalar_string($range);
+        $from = scalar_string($from) ?: null;
+        $to = scalar_string($to) ?: null;
         $tz = $this->tz($restaurant);
         $today = CarbonImmutable::now($tz)->startOfDay();
         $key = in_array($range, ['today', 'yesterday', '7', '30', '90', 'custom'], true) ? $range : '7';

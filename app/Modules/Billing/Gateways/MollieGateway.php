@@ -50,7 +50,7 @@ class MollieGateway extends BaseGateway
 
     public function webhook(Request $request, GatewayConfig $config): ?PaymentNotification
     {
-        $id = (string) $request->input('id');
+        $id = scalar_string($request->input('id'));
 
         if (! preg_match('/^tr_[A-Za-z0-9]+$/', $id)) {
             throw new GatewayException('Mollie: malformed payment id.');

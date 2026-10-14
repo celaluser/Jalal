@@ -21,7 +21,7 @@ class MenuThemeController extends Controller
     public function create(Request $request): View
     {
         // A copy of an existing theme is the easiest start.
-        $from = $this->themes->all()[$request->query('from')] ?? $this->themes->all()[$this->themes->defaultKey()];
+        $from = $this->themes->all()[scalar_string($request->query('from'))] ?? $this->themes->all()[$this->themes->defaultKey()];
 
         return view('admin::themes.form', ['theme' => ['key' => null, 'builtin' => false] + array_merge($from, ['name' => $from['name'].' 2'])]);
     }

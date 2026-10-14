@@ -61,7 +61,7 @@ class BlogPostController extends Controller
      */
     private function validated(Request $request, ?BlogPost $post = null): array
     {
-        $locale = (string) $request->input('locale');
+        $locale = scalar_string($request->input('locale'));
 
         $data = $request->validate([
             'locale' => ['required', 'string', 'max:12', 'exists:languages,code'],

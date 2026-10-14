@@ -18,7 +18,7 @@ class TicketController extends Controller
     {
         $status = $request->query('status');
         $priority = $request->query('priority');
-        $search = trim((string) $request->query('q'));
+        $search = trim(scalar_string($request->query('q')));
 
         return view('admin::tickets.index', [
             'tickets' => Ticket::allTenants()

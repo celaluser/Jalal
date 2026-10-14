@@ -28,7 +28,7 @@ class EmailTemplateController extends Controller
     {
         $definition = EmailTemplateRegistry::find($key) ?? abort(404);
         $locales = Language::active()->pluck('name', 'code')->all() ?: ['en' => 'English'];
-        $locale = array_key_exists((string) $request->query('locale'), $locales) ? $request->query('locale') : array_key_first($locales);
+        $locale = array_key_exists(scalar_string($request->query('locale')), $locales) ? $request->query('locale') : array_key_first($locales);
         $row = EmailTemplate::where(['key' => $key, 'locale' => $locale])->first();
 
         return view('admin::email-templates.edit', [
@@ -61,7 +61,7 @@ class EmailTemplateController extends Controller
     {
         EmailTemplateRegistry::find($key) ?? abort(404);
 
-        EmailTemplate::where(['key' => $key, 'locale' => (string) $request->input('locale')])->delete();
+        EmailTemplate::where(['key' => $key, 'locale' => scalar_string($request->input('locale'))])->delete();
 
         return redirect()->route('admin.email-templates.edit', [$key, 'locale' => $request->input('locale')])->with('status', __('admin.email_templates.reset_done'));
     }
@@ -81,7 +81,7 @@ class EmailTemplateController extends Controller
     public function test(Request $request, string $key): RedirectResponse
     {
         $definition = EmailTemplateRegistry::find($key) ?? abort(404);
-        $locale = (string) $request->input('locale');
+        $locale = scalar_string($request->input('locale'));
 
         $sent = SafeMail::send($request->user(), new TemplatedMail($key, $definition['sample'], $locale));
 

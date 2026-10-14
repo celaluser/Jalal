@@ -22,7 +22,7 @@ class TranslationController extends Controller
     {
         $locale = $this->locale($request->query('locale'));
         $group = $this->group($request->query('group'));
-        $q = trim((string) $request->query('q'));
+        $q = trim(scalar_string($request->query('q')));
 
         $base = $this->lines('en', $group);
         $own = $this->lines($locale, $group);
@@ -89,13 +89,15 @@ class TranslationController extends Controller
         return collect(glob(lang_path('en/*.php')))->map(fn ($f) => basename($f, '.php'))->reject(fn ($g) => in_array($g, ['validation', 'pagination', 'passwords'], true))->sort()->values()->all();
     }
 
-    private function group(?string $group): string
+    private function group(mixed $group): string
     {
         return in_array($group, $this->groups(), true) ? $group : 'customer';
     }
 
-    private function locale(?string $locale): string
+    private function locale(mixed $locale): string
     {
+        $locale = scalar_string($locale);
+
         return Language::where('code', $locale)->exists() ? $locale : (string) (Language::where('is_default', true)->value('code') ?? 'en');
     }
 }

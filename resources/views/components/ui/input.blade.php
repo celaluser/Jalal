@@ -8,7 +8,7 @@
         <label for="{{ $name }}" class="mb-1.5 block text-sm font-medium">{{ $label }}</label>
     @endif
     <input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}"
-           @if ($type !== 'password') value="{{ old($oldKey, $value) }}" @endif
+           @if ($type !== 'password') value="{{ is_scalar($shown = old($oldKey, $value)) ? $shown : '' }}" @endif
            {{ $attributes->class(['field']) }}
            @error($oldKey) aria-invalid="true" aria-describedby="{{ $name }}-error" @enderror>
     @if ($hint && ! $errors->has($oldKey))<p class="mt-1.5 text-xs text-muted">{{ $hint }}</p>@endif

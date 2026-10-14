@@ -34,10 +34,10 @@ class RegisterController extends Controller
         abort_unless($this->enabled(), 404);
 
         $plans = Plan::active()->get();
-        $selected = $plans->firstWhere('slug', old('plan', $request->query('plan'))) ?? $this->onboarding->defaultPlan();
+        $selected = $plans->firstWhere('slug', scalar_string(old('plan', $request->query('plan')))) ?? $this->onboarding->defaultPlan();
 
         // A referral link: remember who sent this visitor until they sign up.
-        if ($ref = $request->query('ref')) {
+        if ($ref = scalar_string($request->query('ref'))) {
             $request->session()->put('referral_code', Str::upper(Str::limit(preg_replace('/[^A-Za-z0-9]/', '', (string) $ref), 12, '')));
         }
 

@@ -13,9 +13,9 @@ class LogController extends Controller
     public function index(Request $request, LogReader $logs): View
     {
         $files = $logs->files();
-        $file = (string) $request->query('file', $files[0]['name'] ?? '');
-        $level = (string) $request->query('level', '');
-        $search = trim((string) $request->query('q', ''));
+        $file = scalar_string($request->query('file', $files[0]['name'] ?? ''));
+        $level = scalar_string($request->query('level', ''));
+        $search = trim(scalar_string($request->query('q', '')));
 
         return view('admin::system.logs', [
             'files' => $files,
@@ -29,7 +29,7 @@ class LogController extends Controller
 
     public function clear(Request $request, LogReader $logs): RedirectResponse
     {
-        abort_unless($logs->clear((string) $request->input('file')), 404);
+        abort_unless($logs->clear(scalar_string($request->input('file'))), 404);
 
         return back()->with('status', __('admin.system.log_cleared'));
     }

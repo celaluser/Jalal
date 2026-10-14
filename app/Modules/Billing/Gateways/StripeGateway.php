@@ -82,7 +82,7 @@ class StripeGateway extends BaseGateway implements RefundableGateway, SavesCards
 
     public function confirmReturn(Request $request, Invoice $invoice, GatewayConfig $config): ?PaymentNotification
     {
-        $sessionId = (string) $request->query('session_id');
+        $sessionId = scalar_string($request->query('session_id'));
 
         if (! preg_match('/^cs_[A-Za-z0-9_]+$/', $sessionId)) {
             return null;

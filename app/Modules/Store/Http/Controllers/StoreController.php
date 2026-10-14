@@ -33,7 +33,7 @@ class StoreController extends Controller
 
     public function index(Request $request): View
     {
-        $restaurant = $request->user()->restaurant;
+        $restaurant = $this->restaurant($request);
         $items = collect($this->catalog->all())->filter(fn ($i) => $i['visible'] || $this->entitlements->owns($restaurant, $i['slug']))->map(fn ($i) => $i + ['state' => $this->state($restaurant, $i)]);
 
         return view('store::panel.index', [
@@ -47,7 +47,7 @@ class StoreController extends Controller
 
     public function show(Request $request, string $slug): View
     {
-        $restaurant = $request->user()->restaurant;
+        $restaurant = $this->restaurant($request);
         $item = $this->item($slug);
         $state = $this->state($restaurant, $item);
         $units = $this->checkout->units($item);
@@ -74,7 +74,7 @@ class StoreController extends Controller
         ]);
 
         try {
-            $outcome = $this->checkout->start($request->user()->restaurant, $slug, (int) ($data['units'] ?? 1), $data['gateway'], ($data['coupon'] ?? '') ?: null);
+            $outcome = $this->checkout->start($this->restaurant($request), $slug, (int) ($data['units'] ?? 1), $data['gateway'], ($data['coupon'] ?? '') ?: null);
         } catch (BillingException $e) {
             return back()->withInput()->withErrors(['checkout' => $e->getMessage()]);
         }
@@ -94,7 +94,7 @@ class StoreController extends Controller
     {
         $this->item($slug);
 
-        return $this->entitlements->startTrial($request->user()->restaurant, $slug)
+        return $this->entitlements->startTrial($this->restaurant($request), $slug)
             ? redirect()->route('store.show', $slug)->with('status', __('store.trial_started'))
             : redirect()->route('store.show', $slug)->withErrors(['checkout' => __('store.trial_unavailable')]);
     }
@@ -103,7 +103,7 @@ class StoreController extends Controller
     private function item(string $slug): array
     {
         $item = $this->catalog->find($slug) ?? abort(404);
-        abort_unless($item['visible'] || $this->entitlements->owns(request()->user()->restaurant, $slug), 404);
+        abort_unless($item['visible'] || $this->entitlements->owns($this->restaurant(request()), $slug), 404);
 
         return $item;
     }
@@ -147,5 +147,11 @@ class StoreController extends Controller
             $this->catalog->purchasable($item) => ['status' => 'buy', 'until' => null],
             default => ['status' => 'upgrade', 'until' => null],
         };
+    }
+
+    /** The store belongs to a restaurant; a platform user (super admin) has none and is sent away instead of hitting an error. */
+    private function restaurant(Request $request): Restaurant
+    {
+        return $request->user()->restaurant ?? abort(404);
     }
 }

@@ -73,13 +73,13 @@ class RazorpayGateway extends BaseGateway
 
     public function confirmReturn(Request $request, Invoice $invoice, GatewayConfig $config): ?PaymentNotification
     {
-        $linkId = (string) $request->query('razorpay_payment_link_id');
-        $paymentId = (string) $request->query('razorpay_payment_id');
+        $linkId = scalar_string($request->query('razorpay_payment_link_id'));
+        $paymentId = scalar_string($request->query('razorpay_payment_id'));
 
         // The callback query is signed with the key secret: reference and status cannot be forged.
         $signed = implode('|', [$linkId, $request->query('razorpay_payment_link_reference_id'), $request->query('razorpay_payment_link_status'), $paymentId]);
 
-        if (! $this->signatureMatches(hash_hmac('sha256', $signed, (string) $config->get('key_secret')), (string) $request->query('razorpay_signature'))) {
+        if (! $this->signatureMatches(hash_hmac('sha256', $signed, (string) $config->get('key_secret')), scalar_string($request->query('razorpay_signature')))) {
             return null;
         }
 

@@ -87,7 +87,7 @@ class IyzicoGateway extends BaseGateway
 
     public function confirmReturn(Request $request, Invoice $invoice, GatewayConfig $config): ?PaymentNotification
     {
-        $token = (string) $request->input('token');
+        $token = scalar_string($request->input('token'));
 
         if (! preg_match('/^[A-Za-z0-9-]{10,80}$/', $token)) {
             return null;

@@ -26,7 +26,7 @@ class CustomerController extends Controller
         }, $sort === 'name' ? 'asc' : 'desc')->orderByDesc('id')->paginate(25)->withQueryString();
 
         return view('marketing::customers.index', [
-            'customers' => $customers, 'filter' => $filter, 'sort' => $sort, 'q' => trim((string) $request->query('q')),
+            'customers' => $customers, 'filter' => $filter, 'sort' => $sort, 'q' => trim(scalar_string($request->query('q'))),
             'totals' => ['all' => Customer::count(), 'opted' => Customer::where('marketing_opt_in', true)->whereNull('unsubscribed_at')->whereNotNull('email')->count(), 'repeat' => Customer::where('orders_count', '>=', 2)->count()],
             'canManage' => $request->user()->can('customers.manage'), 'restaurant' => $request->user()->restaurant,
         ]);
@@ -85,7 +85,7 @@ class CustomerController extends Controller
 
     private function query(Request $request)
     {
-        $q = trim((string) $request->query('q'));
+        $q = trim(scalar_string($request->query('q')));
         $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $q).'%';
 
         return Customer::query()

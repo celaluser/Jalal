@@ -16,7 +16,7 @@ class LandingPageController extends Controller
     public function edit(Request $request, LandingContent $landing): View
     {
         $locales = Language::active()->pluck('name', 'code')->all() ?: ['en' => 'English'];
-        $locale = array_key_exists((string) $request->query('locale'), $locales) ? $request->query('locale') : array_key_first($locales);
+        $locale = array_key_exists(scalar_string($request->query('locale')), $locales) ? $request->query('locale') : array_key_first($locales);
 
         return view('admin::cms.landing', [
             'locales' => $locales,

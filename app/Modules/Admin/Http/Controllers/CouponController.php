@@ -55,7 +55,7 @@ class CouponController extends Controller
     private function validated(Request $request, ?Coupon $coupon = null): array
     {
         // Codes are stored upper-case, so uniqueness must be checked against the normalised value.
-        $request->merge(['code' => strtoupper(trim((string) $request->input('code')))]);
+        $request->merge(['code' => strtoupper(trim(scalar_string($request->input('code'))))]);
 
         $data = $request->validate([
             'code' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('coupons', 'code')->ignore($coupon?->id)],

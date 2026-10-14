@@ -152,9 +152,9 @@ class PublicMenuController extends Controller
 
         // Stay on the host the guest scanned from: the table is remembered in this host's session.
         $url = $request->route('restaurant') !== null ? url('/'.config('tenancy.path_prefix').'/'.$restaurant->slug) : url('/');
-        $lang = $request->query('lang');
+        $lang = scalar_string($request->query('lang'));
 
-        return redirect()->to($url.($lang ? '?lang='.urlencode((string) $lang) : ''))->with($table ? [] : ['table_invalid' => true]);
+        return redirect()->to($url.($lang !== '' ? '?lang='.urlencode($lang) : ''))->with($table ? [] : ['table_invalid' => true]);
     }
 
     /** Server-side pricing of the browser's cart. */

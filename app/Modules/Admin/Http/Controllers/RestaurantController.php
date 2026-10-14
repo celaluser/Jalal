@@ -30,7 +30,7 @@ class RestaurantController extends Controller
 {
     public function index(Request $request): View
     {
-        $search = trim((string) $request->query('q'));
+        $search = trim(scalar_string($request->query('q')));
         $status = $request->query('status');
         $planId = $request->query('plan');
         $flag = $request->query('flag');

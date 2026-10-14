@@ -4,6 +4,7 @@ use App\Modules\Admin\Http\Middleware\PseudoCron;
 use App\Modules\Core\Http\Middleware\SecurityHeaders;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenant;
 use App\Modules\Tenancy\Http\Middleware\SetTenantFromUser;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -58,4 +59,24 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // New files uploaded over an old installation, database not updated yet: a missing table or column.
+        // Show a short, calm page instead of a server error (the error itself is still logged).
+        $exceptions->render(function (QueryException $e, Request $request) {
+            $installed = config('installer.force_installed') || is_file((string) config('installer.lock_file'));
+
+            if (! $installed || preg_match('/no such (table|column)|Base table or view not found|Unknown column|Undefined (table|column)|doesn\'t exist|has no column/i', $e->getMessage()) !== 1) {
+                return null;
+            }
+
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json(['message' => 'The site is finishing an update. Please try again in a minute.'], 503, ['Retry-After' => 60]);
+            }
+
+            try {
+                return response()->view('update-pending', ['showAdminHint' => (bool) $request->user()?->isPlatformUser()], 503, ['Retry-After' => 60]);
+            } catch (Throwable) {
+                return response('The site is finishing an update. Please try again in a minute.', 503, ['Retry-After' => 60]);
+            }
+        });
     })->create();

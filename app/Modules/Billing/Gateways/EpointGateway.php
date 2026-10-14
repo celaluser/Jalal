@@ -65,10 +65,10 @@ class EpointGateway extends BaseGateway
 
     public function webhook(Request $request, GatewayConfig $config): ?PaymentNotification
     {
-        $data = (string) $request->input('data');
+        $data = scalar_string($request->input('data'));
         $expected = $this->signature($data, $config);
 
-        if (! $this->signatureMatches($expected, (string) $request->input('signature'))) {
+        if (! $this->signatureMatches($expected, scalar_string($request->input('signature')))) {
             throw new GatewayException('Epoint: invalid callback signature.');
         }
 

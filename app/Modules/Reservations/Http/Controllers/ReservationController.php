@@ -26,8 +26,9 @@ class ReservationController extends Controller
     {
         $restaurant = $request->user()->restaurant;
         $tz = $this->availability->zone($restaurant);
-        $date = $request->query('date');
-        $day = $date && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? CarbonImmutable::parse($date, $tz) : CarbonImmutable::now($tz);
+        $date = scalar_string($request->query('date'));
+        $valid = preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $m) === 1 && checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
+        $day = $valid ? CarbonImmutable::parse($date, $tz) : CarbonImmutable::now($tz);
 
         return view('reservations::staff.index', [
             'restaurant' => $restaurant, 'day' => $day, 'tz' => $tz, 's' => $this->settings->for($restaurant), 'active' => $this->settings->active($restaurant),

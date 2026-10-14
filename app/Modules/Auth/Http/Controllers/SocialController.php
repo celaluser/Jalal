@@ -85,7 +85,7 @@ class SocialController extends Controller
     /** @return array{0: string, 1: ?string} */
     private function fromApple(Request $request): array
     {
-        $identity = $this->apple->identity((string) $request->input('code'), route('social.callback', 'apple'));
+        $identity = $this->apple->identity(scalar_string($request->input('code')), route('social.callback', 'apple'));
 
         return [$identity['id'], $identity['email']];
     }

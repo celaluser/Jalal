@@ -71,7 +71,7 @@ class SubscriptionPanelController extends Controller
         return view('billing::panel.checkout', $this->summary($model, null) + [
             'plan' => $model,
             'gateways' => $this->gateways->availableFor($model->currency_code),
-            'coupon' => (string) $request->query('coupon', ''),
+            'coupon' => scalar_string($request->query('coupon', '')),
         ]);
     }
 
@@ -108,7 +108,7 @@ class SubscriptionPanelController extends Controller
         $model = $this->plan($plan);
 
         try {
-            $coupon = $coupons->validate((string) $request->query('coupon'), $model);
+            $coupon = $coupons->validate(scalar_string($request->query('coupon')), $model);
         } catch (BillingException $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
         }

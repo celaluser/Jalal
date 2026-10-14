@@ -13,7 +13,7 @@ class ActivityController extends Controller
     public function index(Request $request): View
     {
         $subject = $request->query('subject');
-        $q = trim((string) $request->query('q'));
+        $q = trim(scalar_string($request->query('q')));
         $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $q).'%';
 
         $logs = ActivityLog::query()
