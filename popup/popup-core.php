@@ -90,6 +90,95 @@ function popup_skins(): array {
     return $s;
 }
 function popup_skin_valid(string $k): string { return isset(popup_skins()[$k]) ? $k : ''; }
+/** Yerleşim (popup biçimi) türleri */
+function popup_layouts(): array {
+    return [
+        'sheet'     => 'Alt panel',
+        'drawer'    => 'Yan panel',
+        'topbar'    => 'Üst elan şeridi',
+        'stickybar' => 'Alt yapışkan çubuk',
+        'full'      => 'Tam ekran',
+        'split'     => 'İki bölmeli',
+        'fab'       => 'Yüzen düğme + kart',
+        'wheel'     => 'Fırlanan çark',
+        'steps'     => 'Adım adım',
+        'scratch'   => 'Qaşınan kart',
+    ];
+}
+function popup_layout_valid(string $k): string { return isset(popup_layouts()[$k]) ? $k : ''; }
+
+/** Her yerleşim için hazır başlangıç içeriği (panel "Kullan" butonu bunu doldurur) */
+function popup_layout_tpls(): array {
+    return [
+        'sheet' => ['skin' => 'sk01', 'icon' => '🎁', 'badge' => 'Kampaniya', 'title' => 'İlk sifarişə 20% endirim',
+            'subtitle' => 'Mobil istifadəçilərə xüsusi. Kodu daxil et.', 'btn_text' => 'Endirimi al', 'coupon' => 'ILK20'],
+        'drawer' => ['skin' => 'sk23', 'icon' => '', 'badge' => 'Kampaniya', 'title' => 'Bu həftə ən çox alınanlar',
+            'subtitle' => 'Seçilmiş xidmətlər, aşağı qiymətlə.', 'btn_text' => 'Hamısına bax',
+            'items' => "Followers | 0.95₼\nLikes | 0.40₼\nViews | 0.12₼"],
+        'topbar' => ['skin' => 'sk03', 'icon' => '🔥', 'badge' => '', 'title' => 'Bu gün -20% endirim!',
+            'subtitle' => 'Kodu istifadə et:', 'btn_text' => 'Al', 'coupon' => 'GUN20'],
+        'stickybar' => ['skin' => 'sk23', 'icon' => '💬', 'badge' => '', 'title' => 'Telegram kanalımıza qoşul',
+            'subtitle' => 'Gündəlik endirimlər', 'btn_text' => 'Qoşul'],
+        'full' => ['skin' => 'sk28', 'icon' => '🚀', 'badge' => 'Böyüt', 'title' => 'Hesabını böyütməyin vaxtıdır',
+            'subtitle' => 'Min-minlərlə müştəri bizi seçir. İndi qoşul, ilk sifarişə 20% endirim al.', 'btn_text' => 'Başla'],
+        'split' => ['skin' => 'sk03', 'icon' => '📸', 'badge' => 'Instagram', 'title' => 'Followerlər 0.95₼-dən',
+            'subtitle' => 'Real, təhlükəsiz, sürətli. 30 gün zəmanət.', 'btn_text' => 'Sifariş ver'],
+        'fab' => ['skin' => 'sk06', 'icon' => '💬', 'badge' => 'Onlayn', 'title' => 'Salam! Kömək lazımdır?',
+            'subtitle' => 'Operator onlayndır, 2 dəqiqəyə cavab verir.', 'btn_text' => 'WhatsApp-da yaz'],
+        'wheel' => ['skin' => 'sk18', 'icon' => '', 'badge' => 'Şansını sına', 'title' => 'Çarxı fırlat, endirim qazan!',
+            'subtitle' => '', 'btn_text' => 'Sifariş ver',
+            'prizes' => "5% | CARX5\n10% | CARX10\n15% | CARX15\n20% | CARX20\n3₼ | BONUS3\nHeç nə | \n7% | CARX7\n25% | CARX25"],
+        'steps' => ['skin' => 'sk01', 'icon' => '', 'badge' => 'Sürətli seçim', 'title' => 'Sənə uyğun təklif hazır!',
+            'subtitle' => 'Seçimlərinə görə ən yaxşı xidmətləri göstəririk.', 'btn_text' => 'Təklifə bax', 'coupon' => 'SEC10',
+            'steps' => "Hansı platforma lazımdır? :: Instagram, TikTok, YouTube, Telegram\nNə lazımdır? :: İzləyici, Bəyənmə, Baxış"],
+        'scratch' => ['skin' => 'sk01', 'icon' => '', 'badge' => 'Hədiyyə', 'title' => 'Qaşı, kuponunu aç!',
+            'subtitle' => '', 'btn_text' => 'Sifariş ver', 'coupon' => 'SUPER15'],
+    ];
+}
+
+/** Güvenli CSS değeri (renk / gradyan). Geçersizse ''. */
+function popup_css_val($v): string {
+    $v = trim((string) $v);
+    if ($v === '' || strlen($v) > 220) return '';
+    if (!preg_match('/^[#a-zA-Z0-9(),.%\s\-]+$/', $v)) return '';
+    if (preg_match('/url|expression|import|var\(/i', $v)) return '';
+    return $v;
+}
+/** Popup başına özel renk/ölçü: bg fg btn btnf bb bf r. Hepsi boşsa null. */
+function popup_norm_style($v): ?array {
+    if (!is_array($v)) return null;
+    $o = [];
+    foreach (['bg', 'fg', 'btn', 'btnf', 'bb', 'bf'] as $k) {
+        $c = popup_css_val($v[$k] ?? ''); if ($c !== '') $o[$k] = $c;
+    }
+    if (isset($v['r']) && $v['r'] !== '' && is_numeric($v['r'])) $o['r'] = max(0, min(60, (int) $v['r'])) . 'px';
+    return $o ?: null;
+}
+/** Çark/kazıma: "Etiket | KOD" satırları */
+function popup_parse_prizes(string $t): array {
+    $o = [];
+    foreach (preg_split('/\R/', $t) as $ln) {
+        $ln = trim($ln); if ($ln === '') continue;
+        $p = array_map('trim', explode('|', $ln, 2));
+        $o[] = [mb_substr($p[0], 0, 18), mb_substr($p[1] ?? '', 0, 40)];
+        if (count($o) >= 8) break;
+    }
+    return $o;
+}
+/** Adımlar: "Soru :: Seçenek1, Seçenek2" satırları */
+function popup_parse_steps(string $t): array {
+    $o = [];
+    foreach (preg_split('/\R/', $t) as $ln) {
+        $ln = trim($ln); if ($ln === '' || strpos($ln, '::') === false) continue;
+        list($q, $opts) = array_map('trim', explode('::', $ln, 2));
+        $opts = array_values(array_filter(array_map('trim', explode(',', $opts)), 'strlen'));
+        if ($q === '' || count($opts) < 2) continue;
+        $o[] = ['q' => mb_substr($q, 0, 80), 'o' => array_map(function ($x) { return mb_substr($x, 0, 30); }, array_slice($opts, 0, 6))];
+        if (count($o) >= 4) break;
+    }
+    return $o;
+}
+
 /** "Ad | Fiyat" satırlarını [[ad, fiyat], ...] yap */
 function popup_parse_items(string $t): array {
     $o = [];
@@ -118,6 +207,10 @@ function popup_manual_default(): array {
         'pages'        => null,
         'badge'        => '',
         'skin'         => '',
+        'layout'       => '',
+        'style'        => null,
+        'prizes'       => '',
+        'steps'        => '',
         'icon'         => '',
         'items'        => '',
         'title'        => '',
@@ -715,6 +808,10 @@ function popup_build_manual(array $m, array $c): ?array {
         'updated'   => time(),
         'badge'     => trim((string) $m['badge']),
         'skin'      => popup_skin_valid((string) $m['skin']),
+        'layout'    => popup_layout_valid((string) $m['layout']),
+        'style'     => popup_norm_style($m['style']),
+        'prizes'    => popup_parse_prizes((string) $m['prizes']),
+        'steps'     => popup_parse_steps((string) $m['steps']),
         'icon'      => trim((string) $m['icon']),
         'items'     => popup_parse_items((string) $m['items']),
         'title'     => $title,
@@ -886,7 +983,12 @@ function popup_publish(array $c, array $popups, array $autos): array {
     $js = str_replace('var POPUPS = null;',   'var POPUPS = '   . $enc(array_values($popups)) . ';', $tpl);
     $js = str_replace('var SETTINGS = null;', 'var SETTINGS = ' . $enc($client) . ';', $js);
     $skinCss = [];
-    foreach (popup_skins() as $k => $v) { unset($v['t'], $v['n']); $skinCss[$k] = $v; }
+    $need = [];   // embed.js'i hafif tut: sadece kullanilan sablonlar gomulur
+    foreach ($popups as $pp) {
+        if (!empty($pp['skin'])) $need[$pp['skin']] = 1;
+        elseif (!empty($pp['layout']) || !empty($pp['style'])) $need['sk01'] = 1;
+    }
+    foreach (popup_skins() as $k => $v) { if (!isset($need[$k])) continue; unset($v['t'], $v['n']); $skinCss[$k] = $v; }
     $js = str_replace('var SKINS = null;', 'var SKINS = ' . $enc($skinCss) . ';', $js);
     $js = "/* Otomatik uretildi: " . date('Y-m-d H:i:s') . " — elle duzenlemeyin. */\n" . $js;
 

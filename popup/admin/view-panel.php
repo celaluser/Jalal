@@ -23,6 +23,27 @@ $activePopups = 0;
 foreach ($cfg['autos'] as $a)  { if (!empty($a['enabled'])) $activePopups++; }
 foreach ($cfg['popups'] as $p) { if (!empty($p['enabled'])) $activePopups++; }
 
+function layout_svg(string $k): string {
+  $bg = '<rect width="160" height="100" fill="#20233a"/><rect x="8" y="8" width="60" height="6" rx="3" fill="#3a3f5e"/><rect x="8" y="20" width="110" height="5" rx="2.5" fill="#323653"/><rect x="8" y="30" width="90" height="5" rx="2.5" fill="#323653"/><rect x="8" y="46" width="44" height="24" rx="4" fill="#2b2f4a"/><rect x="58" y="46" width="44" height="24" rx="4" fill="#2b2f4a"/><rect x="108" y="46" width="44" height="24" rx="4" fill="#2b2f4a"/>';
+  $dim = '<rect width="160" height="100" fill="#000" opacity=".5"/>';
+  $btn = function ($x, $y, $w) { return '<rect x="' . $x . '" y="' . $y . '" width="' . $w . '" height="9" rx="4.5" fill="#6366f1"/>'; };
+  $ln  = function ($x, $y, $w, $c = '#c9ccdd') { return '<rect x="' . $x . '" y="' . $y . '" width="' . $w . '" height="4" rx="2" fill="' . $c . '"/>'; };
+  $o = '';
+  switch ($k) {
+    case 'sheet':   $o = $dim . '<rect x="20" y="42" width="120" height="58" rx="8" fill="#fff"/><rect x="72" y="46" width="16" height="3" rx="1.5" fill="#cfd3e0"/>' . $ln(32, 56, 70, '#14161c') . $ln(32, 65, 90) . $btn(32, 78, 96); break;
+    case 'drawer':  $o = $dim . '<rect x="96" y="0" width="64" height="100" fill="#0f172a"/>' . $ln(104, 12, 36, '#38bdf8') . $ln(104, 22, 46, '#fff') . '<rect x="104" y="34" width="48" height="10" rx="3" fill="#1e293b"/><rect x="104" y="48" width="48" height="10" rx="3" fill="#1e293b"/><rect x="104" y="62" width="48" height="10" rx="3" fill="#1e293b"/>' . $btn(104, 80, 48); break;
+    case 'topbar':  $o = '<rect width="160" height="14" fill="#a855f7"/><rect x="8" y="5" width="70" height="4" rx="2" fill="#fff"/><rect x="128" y="3" width="22" height="8" rx="4" fill="#fff"/>'; break;
+    case 'stickybar': $o = '<rect y="84" width="160" height="16" fill="#111827"/><rect x="8" y="90" width="64" height="4" rx="2" fill="#fff"/><rect x="118" y="87" width="32" height="10" rx="5" fill="#2aabee"/>'; break;
+    case 'full':    $o = '<rect width="160" height="100" fill="#7c3aed"/><circle cx="80" cy="34" r="12" fill="#fff" opacity=".9"/>' . $ln(40, 54, 80, '#fff') . $ln(52, 63, 56, '#e9d5ff') . '<rect x="58" y="74" width="44" height="11" rx="5.5" fill="#fff"/>'; break;
+    case 'split':   $o = $dim . '<rect x="22" y="22" width="116" height="58" rx="8" fill="#fff"/><rect x="22" y="22" width="48" height="58" rx="8" fill="#ec4899"/>' . $ln(78, 36, 50, '#14161c') . $ln(78, 45, 52) . $btn(78, 62, 50); break;
+    case 'fab':     $o = '<rect x="88" y="32" width="64" height="40" rx="7" fill="#fff"/>' . $ln(94, 40, 40, '#14161c') . $ln(94, 49, 50) . '<rect x="94" y="58" width="52" height="8" rx="4" fill="#25d366"/><circle cx="140" cy="86" r="9" fill="#25d366"/>'; break;
+    case 'wheel':   $o = $dim . '<rect x="38" y="8" width="84" height="86" rx="10" fill="#2e1065"/><circle cx="80" cy="46" r="26" fill="#fbbf24"/><path d="M80 46 L80 20 A26 26 0 0 1 106 46Z" fill="#f43f5e"/><path d="M80 46 L80 72 A26 26 0 0 1 54 46Z" fill="#22c55e"/><circle cx="80" cy="46" r="7" fill="#fff"/>' . $btn(52, 80, 56); break;
+    case 'steps':   $o = $dim . '<rect x="30" y="14" width="100" height="72" rx="8" fill="#fff"/><rect x="38" y="22" width="28" height="3" rx="1.5" fill="#6366f1"/><rect x="69" y="22" width="28" height="3" rx="1.5" fill="#6366f1"/><rect x="100" y="22" width="22" height="3" rx="1.5" fill="#dfe2ee"/>' . $ln(38, 32, 60, '#14161c') . '<rect x="38" y="42" width="40" height="12" rx="4" fill="#eef2ff" stroke="#6366f1"/><rect x="82" y="42" width="40" height="12" rx="4" fill="#fff" stroke="#dfe2ee"/><rect x="38" y="58" width="40" height="12" rx="4" fill="#fff" stroke="#dfe2ee"/><rect x="82" y="58" width="40" height="12" rx="4" fill="#fff" stroke="#dfe2ee"/>'; break;
+    case 'scratch': $o = $dim . '<rect x="32" y="12" width="96" height="76" rx="10" fill="#fff"/>' . $ln(50, 22, 60, '#14161c') . '<rect x="42" y="36" width="76" height="26" rx="5" fill="#b9bdcc"/><rect x="42" y="36" width="34" height="26" rx="5" fill="#fff"/><rect x="48" y="45" width="22" height="7" rx="2" fill="#e11d48"/>' . $btn(44, 70, 72); break;
+  }
+  return '<svg viewBox="0 0 160 100" width="100%" style="display:block">' . $bg . $o . '</svg>';
+}
+
 function ico($n) {
   $p = [
     'zap'    => '<path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"/>',
@@ -400,6 +421,23 @@ $nav = [
 
     <!-- ═════════ ŞABLONLAR (hazır görünümler) ═════════ -->
     <div class="pane" data-p="sablonlar" hidden>
+      <div class="card">
+        <h2><?= ico('layers') ?> Yerleşimler (popup biçimleri)</h2>
+        <p class="hint">Popup'ın <b>ekrandaki şeklini</b> belirler: alt panel, yan panel, şerit, çark… Birini seç; hazır içerikle açılır.
+           Renk ve metinlerin hepsini <b>Stil</b> ve <b>İçerik</b> sekmelerinden değiştirebilirsin.</p>
+        <div class="body">
+          <div class="tplgrid">
+          <?php foreach (popup_layouts() as $lk => $ln): ?>
+            <div class="tplc">
+              <div class="tplp" style="padding:0;height:auto"><?= layout_svg($lk) ?></div>
+              <div class="tplf"><span><?= h($ln) ?></span>
+                <button class="btn sm" type="button" data-lay-use="<?= h($lk) ?>">Kullan</button></div>
+            </div>
+          <?php endforeach; ?>
+          </div>
+        </div>
+      </div>
+
       <div class="card">
         <h2><?= ico('eye') ?> Hazır şablonlar</h2>
         <p class="hint">Beğendiğin şablonu seç: başlık, metin, buton ve renkler hazır dolu gelir. Sadece linki ve
@@ -890,6 +928,7 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
       <div class="mdl-tabs">
         <button type="button" class="on" data-s="genel">Genel</button>
         <button type="button" data-s="icerik">İçerik</button>
+        <button type="button" data-s="stil">Stil</button>
         <button type="button" data-s="zaman">Zamanlama</button>
         <button type="button" data-s="hedef">Hedefleme</button>
         <button type="button" data-s="segment">Segment</button>
@@ -901,9 +940,6 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
         <div data-sec="icerik" hidden><div class="rows">
           <div class="row"><div class="lbl">Rozet<small>Üstteki küçük etiket</small></div>
             <input type="text" name="badge" placeholder="TELEGRAM"></div>
-          <div class="row"><div class="lbl">Görünüm şablonu<small>Şablonlar sekmesinden de seçebilirsin</small></div>
-            <select name="skin"><option value="">Klasik (koyu, çerçeveli)</option>
-              <?php foreach (popup_skins() as $sk => $v): ?><option value="<?= h($sk) ?>"><?= h($v['n']) ?></option><?php endforeach; ?></select></div>
           <div class="row"><div class="lbl">İkon<small>Emoji, opsiyonel</small></div><input type="text" name="icon" placeholder="🔥"></div>
           <div class="row"><div class="lbl">Başlık</div><input type="text" name="title" placeholder="Kanalımıza katıl"></div>
           <div class="row"><div class="lbl">Açıklama</div><input type="text" name="subtitle" placeholder="Kampanyalardan ilk sen haberdar ol."></div>
@@ -917,6 +953,36 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
           <div class="row"><div class="lbl">Kupon kodu<small>Tek tıkla kopyalanır</small></div>
             <input type="text" name="coupon" placeholder="INDIRIM20"></div>
           <div class="row"><div class="lbl">Kupon etiketi</div><input type="text" name="coupon_label" placeholder="Bu kodu kullan:"></div>
+        </div></div>
+
+        <div data-sec="stil" hidden><div class="rows">
+          <div class="row"><div class="lbl">Yerleşim<small>Popup'ın ekrandaki biçimi</small></div>
+            <select name="layout" data-lay-sel><option value="">Klasik pencere (ortada)</option>
+              <?php foreach (popup_layouts() as $lk => $ln): ?><option value="<?= h($lk) ?>"><?= h($ln) ?></option><?php endforeach; ?></select></div>
+          <div class="row"><div class="lbl">Renk şablonu<small>Hazır renk ve köşe düzeni</small></div>
+            <select name="skin" data-skin-sel><option value="">Klasik (koyu, çerçeveli)</option>
+              <?php foreach (popup_skins() as $sk => $v): ?><option value="<?= h($sk) ?>"><?= h($v['n']) ?></option><?php endforeach; ?></select></div>
+          <div class="row" data-lay="wheel"><div class="lbl">Çark ödülleri<small>Her satıra: <code>Etiket | KUPON</code> (2–8 satır). Kuponsuz satır = boş dilim</small></div>
+            <textarea name="prizes" placeholder="5% | CARX5&#10;10% | CARX10&#10;Heç nə |"></textarea></div>
+          <div class="row" data-lay="steps"><div class="lbl">Adımlar<small>Her satıra: <code>Soru :: Seçenek1, Seçenek2</code> (en çok 4 adım). Son ekranda İçerik sekmesindeki metin ve buton gelir.</small></div>
+            <textarea name="steps" placeholder="Hansı platforma lazımdır? :: Instagram, TikTok, YouTube"></textarea></div>
+          <div class="row"><div class="lbl">Renkleri özelleştir<small>Kapalıysa seçili şablonun renkleri kullanılır</small></div>
+            <label class="sw"><input type="checkbox" name="st_on" data-toggle="stil"><i></i></label></div>
+          <div data-box="stil" hidden>
+          <div class="row"><div class="lbl">Arka plan<small>Renk ya da gradyan</small></div>
+            <div class="colr"><input type="color" data-cp aria-label="Arka plan"><input type="text" name="st_bg" placeholder="Şablon rengi"></div></div>
+          <div class="row"><div class="lbl">Yazı rengi</div>
+            <div class="colr"><input type="color" data-cp aria-label="Yazı rengi"><input type="text" name="st_fg" placeholder="Şablon rengi"></div></div>
+          <div class="row"><div class="lbl">Buton rengi<small>Renk ya da gradyan</small></div>
+            <div class="colr"><input type="color" data-cp aria-label="Buton rengi"><input type="text" name="st_btn" placeholder="Şablon rengi"></div></div>
+          <div class="row"><div class="lbl">Buton yazısı</div>
+            <div class="colr"><input type="color" data-cp aria-label="Buton yazısı"><input type="text" name="st_btnf" placeholder="Şablon rengi"></div></div>
+          <div class="row"><div class="lbl">Rozet arka planı</div>
+            <div class="colr"><input type="color" data-cp aria-label="Rozet arka planı"><input type="text" name="st_bb" placeholder="Şablon rengi"></div></div>
+          <div class="row"><div class="lbl">Rozet yazısı</div>
+            <div class="colr"><input type="color" data-cp aria-label="Rozet yazısı"><input type="text" name="st_bf" placeholder="Şablon rengi"></div></div>
+            <div class="row"><div class="lbl">Köşe yuvarlaklığı<small>px · 0–60</small></div><input type="number" name="st_r" min="0" max="60" placeholder="20"></div>
+          </div>
         </div></div>
 
         <div data-sec="zaman" hidden><div class="rows"><?php f_schedule(); f_trigger(); ?></div></div>
@@ -938,7 +1004,9 @@ var PDATA = {
   popups:     <?= json_encode($formPopups,    JSON_UNESCAPED_UNICODE) ?>,
   defAuto:    <?= json_encode($formDefAuto,   JSON_UNESCAPED_UNICODE) ?>,
   defManual:  <?= json_encode($formDefManual, JSON_UNESCAPED_UNICODE) ?>,
-  tpls:       <?= json_encode(array_map(function ($v) { return $v['t']; }, popup_skins()), JSON_UNESCAPED_UNICODE) ?>
+  tpls:       <?= json_encode(array_map(function ($v) { return $v['t']; }, popup_skins()), JSON_UNESCAPED_UNICODE) ?>,
+  skins:      <?= json_encode(array_map(function ($v) { return array_intersect_key($v, array_flip(['bg','fg','btn','btnf','bb','bf','r'])); }, popup_skins()), JSON_UNESCAPED_UNICODE) ?>,
+  laytpls:    <?= json_encode(popup_layout_tpls(), JSON_UNESCAPED_UNICODE) ?>
 };
 
 (function () {
@@ -986,12 +1054,30 @@ var PDATA = {
     });
   }
 
+  /* renk seçici <-> metin kutusu */
+  function syncCp(cp) {
+    var t = cp.parentNode.querySelector('input[type=text]');
+    if (t && /^#[0-9a-f]{6}$/i.test(t.value.trim())) cp.value = t.value.trim();
+  }
+  var STK = ['bg', 'fg', 'btn', 'btnf', 'bb', 'bf', 'r'];
+  function fillStyle(form, force) {
+    var sel = form.querySelector('[data-skin-sel]'), v = PDATA.skins[sel && sel.value ? sel.value : 'sk01'] || {};
+    STK.forEach(function (k) {
+      var el = form.querySelector('[name="st_' + k + '"]'); if (!el) return;
+      if (force || !el.value) el.value = k === 'r' ? parseInt(v.r, 10) || '' : (v[k] || '');
+    });
+    form.querySelectorAll('[data-cp]').forEach(syncCp);
+  }
+
   /* koşullu kutular (kaydırma yüzdesi / kural / sayfa) */
   function syncConditionals(form) {
     var trig = form.querySelector('select[data-trig]');
     var trow = form.querySelector('[data-trigrow]');
     if (trig && trow) trow.hidden = (trig.value !== 'scroll');
-    ['rules', 'pages'].forEach(function (nm) {
+    var ls = form.querySelector('[data-lay-sel]');
+    if (ls) form.querySelectorAll('[data-lay]').forEach(function (r) { r.hidden = (r.dataset.lay !== ls.value); });
+    form.querySelectorAll('[data-cp]').forEach(function (cp) { syncCp(cp); });
+    ['rules', 'pages', 'stil'].forEach(function (nm) {
       var cb = form.querySelector('[data-toggle="' + nm + '"]');
       var bx = form.querySelector('[data-box="' + nm + '"]');
       if (cb && bx) bx.hidden = !cb.checked;
@@ -1038,6 +1124,21 @@ var PDATA = {
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
 
+  document.addEventListener('input', function (e) {
+    var t = e.target; if (!t.closest || !t.closest('.colr')) return;
+    if (t.matches('[data-cp]')) t.parentNode.querySelector('input[type=text]').value = t.value;
+    else syncCp(t.parentNode.querySelector('[data-cp]'));
+  });
+  document.querySelectorAll('[data-lay-use]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var k = b.dataset.layUse, t = PDATA.laytpls[k]; if (!t) return;
+      openModal('manual', '', {
+        name: t.title || k, layout: k, skin: t.skin || '', icon: t.icon || '', badge: t.badge || '', title: t.title || '',
+        subtitle: t.subtitle || '', btn_text: t.btn_text || '', btn_url: location.origin + '/', coupon: t.coupon || '',
+        coupon_label: t.coupon ? 'Kupon kodu:' : '', items: t.items || '', prizes: t.prizes || '', steps: t.steps || ''
+      });
+    });
+  });
   document.querySelectorAll('[data-tpl]').forEach(function (b) {
     b.addEventListener('click', function () {
       var t = PDATA.tpls[b.dataset.tpl]; if (!t) return;
@@ -1063,7 +1164,9 @@ var PDATA = {
   document.addEventListener('change', function (e) {
     var t = e.target;
     if (!t.closest || !t.closest('.mdl')) return;
-    if (t.matches('select[data-trig]') || t.matches('[data-toggle]')) syncConditionals(t.closest('form'));
+    if (t.matches('select[data-trig]') || t.matches('[data-toggle]') || t.matches('[data-lay-sel]')) syncConditionals(t.closest('form'));
+    if (t.matches('[data-toggle="stil"]') && t.checked) fillStyle(t.closest('form'), false);
+    if (t.matches('[data-skin-sel]')) { var fm = t.closest('form'), on = fm.querySelector('[data-toggle="stil"]'); if (on && on.checked) fillStyle(fm, true); }
   });
   document.addEventListener('keydown', function (e) {
     if (!openMdl) return;

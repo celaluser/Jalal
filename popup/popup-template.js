@@ -359,10 +359,21 @@
   }
 
 
-  /* ---- GORUNUM SABLONLARI (skin): SKINS tablosundan CSS uretir ---- */
-  function skinCss(k) {
-    var v = SKINS && SKINS[k]; if (!v) return "";
-    var c = ".igfp-s-" + k + " ", fg = v.fg || "#fff", r = v.r || "20px";
+  /* ---- GORUNUM: sablon (skin) + yerlesim (layout) + ozel renkler -> CSS ---- */
+  var NONMODAL = { topbar: 1, stickybar: 1, fab: 1 };             // sayfayi karartmaz / kilitlemez
+  var KEEP     = { topbar: 1, stickybar: 1, fab: 1, wheel: 1, scratch: 1, steps: 1 }; // sadece X ile kapanir
+  function pk(p) { return "k-" + String(p.pid || "x").replace(/[^0-9A-Za-z_-]/g, ""); }
+  function effSkin(p) {
+    var base = SKINS && (SKINS[p.skin] || SKINS.sk01); if (!base) return null;
+    var v = {}, k, st = p.style || {};
+    for (k in base) { if (Object.prototype.hasOwnProperty.call(base, k)) v[k] = base[k]; }
+    for (k in st) { if (Object.prototype.hasOwnProperty.call(st, k)) v[k] = st[k]; }
+    return v;
+  }
+  function popCss(p) {
+    var v = effSkin(p); if (!v) return "";
+    var l = p.layout || "", c = ".igfp-ov." + pk(p) + " ", on = ".igfp-ov." + pk(p) + ".igfp-on ";
+    var fg = v.fg || "#fff", r = v.r || "20px", br = v.br || "12px", acc = String(v.btn).indexOf("gradient") < 0 ? v.btn : "#6366f1";
     var css = c + ".igfp-frame{max-width:380px;padding:0;background:none;animation:none;border-radius:" + r + ";box-shadow:none}"
       + c + ".igfp-box{background:" + v.bg + ";color:" + fg + ";border-radius:" + r + ";padding:28px 24px 22px;text-align:center;"
       +   "box-shadow:0 24px 60px rgba(0,0,0,.45);" + (v.x || "") + "}"
@@ -371,26 +382,186 @@
       + c + ".igfp-sub{color:" + fg + ";opacity:.85;font-size:13.5px;line-height:1.45;margin:0 auto 16px}"
       + c + ".igfp-badge{background:" + v.bb + ";color:" + v.bf + ";border:0;font-size:11px;font-weight:700;padding:4px 10px;letter-spacing:.06em;margin-bottom:12px}"
       + c + ".igfp-dot{display:none}"
-      + c + ".igfp-ic{color:" + fg + "}" + c + ".igfp-it{color:" + fg + "}"
-      + c + ".igfp-btn{background:" + v.btn + ";color:" + v.btnf + "!important;border-radius:" + (v.br || "12px") + ";font-size:14px;font-weight:700;padding:12px;box-shadow:none}"
+      + c + ".igfp-ic,"+ c + ".igfp-it{color:" + fg + "}"
+      + c + ".igfp-btn{background:" + v.btn + ";color:" + v.btnf + "!important;border-radius:" + br + ";font-size:14px;font-weight:700;padding:12px;box-shadow:none}"
       + c + ".igfp-cpn-b{border:2px dashed currentColor;color:" + fg + ";border-radius:10px}"
-      + c + ".igfp-cpn-l{color:" + fg + "}" + c + ".igfp-cpn-code{background:transparent;color:" + fg + ";font-size:15px;letter-spacing:.1em}"
+      + c + ".igfp-cpn-l,"+ c + ".igfp-cpn-code{color:" + fg + "}"
+      + c + ".igfp-cpn-code{background:transparent;font-size:15px;letter-spacing:.1em}"
       + c + ".igfp-cpn-btn{background:" + v.btn + ";color:" + v.btnf + "}"
       + c + ".igfp-cd-c{background:rgba(0,0,0,.16);border:0;border-radius:10px;padding:8px 0}"
       + c + ".igfp-cd-c b{color:" + fg + ";font-size:20px}" + c + ".igfp-cd-c span{color:" + fg + ";opacity:.7}"
       + c + ".igfp-media{border-radius:12px}"
       + c + ".igfp-x{color:" + fg + ";background:transparent;top:8px;right:10px;width:30px;height:30px;opacity:.6}"
-      + c + ".igfp-foot{color:" + fg + ";opacity:.45;font-size:11.5px;margin-top:14px}";
-    if (v.special === "banner") css += c + ".igfp-box{padding-top:0}" + c + ".igfp-box:before{display:block;position:static;width:auto;height:110px;border-radius:0;margin:0 -24px 18px;background:linear-gradient(135deg,#6366f1,#ec4899);filter:none}";
-    if (v.special === "corner") css += c + ".igfp-ov{}.igfp-ov.igfp-s-" + k + "{align-items:flex-end;justify-content:flex-end;background:none;-webkit-backdrop-filter:none;backdrop-filter:none;pointer-events:none}"
-      + c.replace(" ", "") + " .igfp-frame{pointer-events:auto;margin:0}" + c + ".igfp-foot{display:none}";
+      + c + ".igfp-foot{color:" + fg + ";opacity:.45;font-size:11.5px;margin-top:14px}"
+      + c + ".igfp-opt{background:rgba(128,128,128,.14);color:" + fg + ";border:2px solid rgba(128,128,128,.3)}"
+      + c + ".igfp-opt:hover," + c + ".igfp-opt.sel{border-color:" + acc + "}"
+      + c + ".igfp-dots i{background:rgba(128,128,128,.35)}" + c + ".igfp-dots i.on{background:" + acc + "}"
+      + c + ".igfp-wp{border-top-color:" + fg + "}" + c + ".igfp-wc{color:" + acc + "}"
+      + c + ".igfp-vis{background:" + v.btn + ";color:" + v.btnf + "}"
+      + c + ".igfp-fab{background:" + v.btn + ";color:" + v.btnf + "}";
+    if (v.special === "banner" && !l) css += c + ".igfp-box{padding-top:0}" + c + ".igfp-box:before{display:block;position:static;width:auto;height:110px;border-radius:0;margin:0 -24px 18px;background:linear-gradient(135deg,#6366f1,#ec4899);filter:none}";
+    if (v.special === "corner" && !l) css += ".igfp-ov." + pk(p) + "{align-items:flex-end;justify-content:flex-end;background:none;-webkit-backdrop-filter:none;backdrop-filter:none;pointer-events:none}"
+      + c + ".igfp-frame{pointer-events:auto;margin:0}" + c + ".igfp-foot{display:none}";
+    if (NONMODAL[l]) css += ".igfp-ov." + pk(p) + "{background:none;-webkit-backdrop-filter:none;backdrop-filter:none;pointer-events:none;padding:0;overflow:visible}"
+      + c + ".igfp-frame{pointer-events:auto}" + c + ".igfp-foot{display:none}";
+    if (KEEP[l]) css += c + ".igfp-foot{display:none}";
+    var tr = ".igfp-frame{transition:transform .34s cubic-bezier(.2,.9,.3,1),opacity .34s ease}";
+    switch (l) {
+      case "sheet":
+        css += ".igfp-ov." + pk(p) + "{align-items:flex-end;padding:0}"
+          + c + ".igfp-frame{max-width:560px;margin:0 auto;transform:translateY(100%);opacity:1}" + on + ".igfp-frame{transform:none}"
+          + c + ".igfp-box{border-radius:" + r + " " + r + " 0 0;text-align:left;padding:14px 22px 24px}"
+          + c + ".igfp-box:before{display:block;position:static;width:42px;height:5px;border-radius:3px;background:rgba(128,128,128,.4);margin:0 auto 16px;filter:none}";
+        break;
+      case "drawer":
+        css += ".igfp-ov." + pk(p) + "{justify-content:flex-end;padding:0}"
+          + c + ".igfp-frame{max-width:380px;width:100%;height:100%;margin:0;transform:translateX(100%);opacity:1}" + on + ".igfp-frame{transform:none}"
+          + c + ".igfp-box{border-radius:0;min-height:100%;text-align:left;padding:54px 22px 24px;overflow-y:auto}";
+        break;
+      case "topbar": case "stickybar":
+        css += ".igfp-ov." + pk(p) + "{align-items:" + (l === "topbar" ? "flex-start" : "flex-end") + "}"
+          + c + ".igfp-frame{max-width:none;width:100%;margin:0;transform:translateY(" + (l === "topbar" ? "-100%" : "100%") + ");opacity:1;pointer-events:auto}" + on + ".igfp-frame{transform:none}"
+          + c + ".igfp-box{border-radius:0;padding:10px 44px 10px 16px;text-align:left}"
+          + c + ".igfp-in{display:flex;align-items:center;gap:12px;flex-wrap:wrap}"
+          + c + ".igfp-ic{font-size:26px;margin:0}" + c + ".igfp-badge{display:none}"
+          + c + ".igfp-h{font-size:15px;margin:0}" + c + ".igfp-sub{margin:0;font-size:12.5px;flex:1 1 200px}"
+          + c + ".igfp-btn{width:auto;flex:none;padding:8px 18px;margin:0}"
+          + c + ".igfp-items,"+ c + ".igfp-media,"+ c + ".igfp-cd{display:none}" + c + ".igfp-cpn{margin:0}" + c + ".igfp-cpn-l{display:none}"
+          + c + ".igfp-cpn-code{padding:6px 12px;font-size:13px}" + c + ".igfp-cpn-btn{padding:0 12px;font-size:12px}"
+          + c + ".igfp-x{top:50%;margin-top:-15px}";
+        break;
+      case "full":
+        css += ".igfp-ov." + pk(p) + "{padding:0}"
+          + c + ".igfp-frame{max-width:none;height:100%;margin:0}"
+          + c + ".igfp-box{border-radius:0;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px}"
+          + c + ".igfp-in{max-width:520px;width:100%}" + c + ".igfp-ic{font-size:72px}"
+          + c + ".igfp-h{font-size:34px}" + c + ".igfp-sub{font-size:16px}" + c + ".igfp-btn{font-size:16px;padding:16px;border-radius:999px}"
+          + c + ".igfp-x{top:16px;right:18px;font-size:20px}";
+        break;
+      case "split":
+        css += c + ".igfp-frame{max-width:680px}"
+          + c + ".igfp-box{display:flex;padding:0;text-align:left;overflow:hidden}"
+          + c + ".igfp-vis{flex:0 0 42%;display:flex;align-items:center;justify-content:center;font-size:84px;background-size:cover;background-position:center}"
+          + c + ".igfp-in{flex:1;padding:30px 24px 22px}"
+          + "@media(max-width:560px){.igfp-ov." + pk(p) + " .igfp-box{flex-direction:column}.igfp-ov." + pk(p) + " .igfp-vis{flex:none;height:140px}}";
+        break;
+      case "fab":
+        css += ".igfp-ov." + pk(p) + "{align-items:flex-end;justify-content:flex-end;padding:16px}"
+          + c + ".igfp-frame{max-width:300px;margin:0 0 70px;transform-origin:bottom right;pointer-events:auto}"
+          + c + ".igfp-box{text-align:left;padding:20px 18px 16px;border-radius:" + r + " " + r + " 4px " + r + "}"
+          + c + ".igfp-fab{position:absolute;right:16px;bottom:16px;width:54px;height:54px;border-radius:50%;border:0;cursor:pointer;font-size:26px;pointer-events:auto;"
+          +   "box-shadow:0 8px 24px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}"
+          + ".igfp-ov." + pk(p) + ".igfp-fab-closed .igfp-frame{transform:scale(.6);opacity:0;pointer-events:none}";
+        break;
+      case "wheel": case "scratch": case "steps":
+        css += c + ".igfp-frame{max-width:400px}";
+        break;
+    }
     return css;
   }
   var skinDone = {};
-  function ensureSkin(k) {
-    if (!k || skinDone[k]) return; skinDone[k] = 1;
-    var css = skinCss(k); if (!css) return;
-    var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
+  function ensureSkin(p) {
+    var k = pk(p); if (skinDone[k] && skinDone[k] === p.v) return;
+    var old = document.getElementById("igfp-s-" + k); if (old) old.remove();
+    skinDone[k] = p.v || 1;
+    var css = popCss(p); if (!css) return;
+    var st = document.createElement("style"); st.id = "igfp-s-" + k; st.textContent = css; document.head.appendChild(st);
+  }
+
+  /* ---- Etkilesimli parcalar: carx / kazima / adimlar ---- */
+  var WCOL = ["#f43f5e", "#fbbf24", "#22c55e", "#3b82f6", "#a855f7", "#f97316", "#14b8a6", "#ec4899"];
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function copyBtn(code) {
+    return '<div class="igfp-cpn"><div class="igfp-cpn-b"><code class="igfp-cpn-code">' + esc(code) + '</code>'
+         + '<button type="button" class="igfp-cpn-btn" data-copy="' + esc(code) + '">Kopyala</button></div></div>';
+  }
+  function ctaHtml(p, href) {
+    if (!(p.button && p.button.url)) return "";
+    return '<a class="igfp-btn" href="' + esc(href || p.button.url) + '"' + (CONFIG.openInNewTab ? ' target="_blank" rel="noopener"' : "") + ' data-cta="1">' + esc(p.button.text || "Aç") + "</a>";
+  }
+  function renderWheel(p) {
+    var pr = p.prizes || []; if (pr.length < 2) pr = [["5%", "SPIN5"], ["10%", "SPIN10"]];
+    var n = pr.length, seg = 360 / n, g = [], lab = "", i;
+    for (i = 0; i < n; i++) g.push(WCOL[i % WCOL.length] + " " + (i * seg) + "deg " + ((i + 1) * seg) + "deg");
+    for (i = 0; i < n; i++) lab += '<div style="position:absolute;left:50%;top:50%;transform:rotate(' + (i * seg + seg / 2) + 'deg)"><span class="igfp-wl">' + esc(pr[i][0]) + "</span></div>";
+    var done = lsGet("igfp_w_" + p.pid), res = done !== null && pr[parseInt(done, 10)] ? pr[parseInt(done, 10)] : null;
+    return '<div class="igfp-wh" data-n="' + n + '"><div class="igfp-wp"></div>'
+         + '<div class="igfp-wr" style="background:conic-gradient(' + g.join(",") + ')">' + lab + '<b class="igfp-wc">SPIN</b></div></div>'
+         + '<div class="igfp-wres">' + (res ? wheelResult(p, res, true) : '<button type="button" class="igfp-btn igfp-spin">Fırlat</button>') + "</div>";
+  }
+  function wheelResult(p, r, again) {
+    return '<div class="igfp-sub" style="margin-bottom:10px">' + (again ? "Əvvəl qazandığınız: " : "Təbriklər! Qazandınız: ") + "<b>" + esc(r[0]) + "</b></div>"
+         + (r[1] ? copyBtn(r[1]) : "") + ctaHtml(p);
+  }
+  function initWheel(p) {
+    var btn = ov.querySelector(".igfp-spin"); if (!btn) return;
+    var pr = p.prizes && p.prizes.length > 1 ? p.prizes : [["5%", "SPIN5"], ["10%", "SPIN10"]];
+    btn.addEventListener("click", function () {
+      var n = pr.length, seg = 360 / n, idx = Math.floor(Math.random() * n);
+      var jit = (Math.random() - .5) * seg * .6, ang = 360 * 5 + (360 - (idx * seg + seg / 2)) + jit;
+      var w = ov.querySelector(".igfp-wr"); btn.disabled = true; btn.style.opacity = ".6";
+      w.style.transition = "transform 4.2s cubic-bezier(.17,.67,.12,1)"; w.style.transform = "rotate(" + ang + "deg)";
+      lsSet("igfp_w_" + p.pid, String(idx));
+      setTimeout(function () {
+        var box = ov && ov.querySelector(".igfp-wres"); if (!box) return;
+        box.innerHTML = wheelResult(p, pr[idx], false); track("click", p.pid, "spin", p.v);
+      }, 4300);
+    });
+  }
+  function renderScratch(p) {
+    var code = (p.coupon && p.coupon.code) || (p.prizes && p.prizes[0] && p.prizes[0][1]) || "SUPER";
+    var seen = lsGet("igfp_s_" + p.pid) === "1";
+    return '<div class="igfp-sc' + (seen ? " done" : "") + '"><div class="igfp-sp2">' + esc(code) + '</div><canvas class="igfp-cv" width="300" height="100"></canvas></div>'
+         + '<div class="igfp-sres">' + (seen ? copyBtn(code) + ctaHtml(p) : '<div class="igfp-sub" style="margin:0">Kartı barmağınla və ya siçanla sil</div>') + "</div>";
+  }
+  function initScratch(p) {
+    var cv = ov.querySelector(".igfp-cv"), wrap = ov.querySelector(".igfp-sc"); if (!cv || wrap.classList.contains("done")) return;
+    var code = (p.coupon && p.coupon.code) || (p.prizes && p.prizes[0] && p.prizes[0][1]) || "SUPER";
+    var cx = cv.getContext("2d"), W = cv.width, H = cv.height, down = false, last = 0;
+    cx.fillStyle = "#b9bdcc"; cx.fillRect(0, 0, W, H);
+    cx.fillStyle = "#a3a8ba"; for (var i = -H; i < W; i += 16) { cx.beginPath(); cx.moveTo(i, H); cx.lineTo(i + H, 0); cx.lineTo(i + H + 8, 0); cx.lineTo(i + 8, H); cx.fill(); }
+    cx.fillStyle = "#6b7080"; cx.font = "800 17px sans-serif"; cx.textAlign = "center"; cx.fillText("✋ qaşı", W / 2, H / 2 + 6);
+    cx.globalCompositeOperation = "destination-out";
+    function pos(e) { var r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; }
+    function dot(e) { var q = pos(e); cx.beginPath(); cx.arc(q[0], q[1], 16, 0, 7); cx.fill(); }
+    function cover() {
+      try { var d = cx.getImageData(0, 0, W, H).data, c = 0, t = 0; for (var i = 3; i < d.length; i += 64) { t++; if (d[i] < 40) c++; } return c / t; } catch (e) { return 1; }
+    }
+    function reveal() {
+      wrap.classList.add("done"); lsSet("igfp_s_" + p.pid, "1"); track("click", p.pid, "scratch", p.v);
+      ov.querySelector(".igfp-sres").innerHTML = copyBtn(code) + ctaHtml(p);
+    }
+    cv.addEventListener("pointerdown", function (e) { down = true; dot(e); try { cv.setPointerCapture(e.pointerId); } catch (x) {} });
+    cv.addEventListener("pointermove", function (e) { if (!down) return; dot(e); var t = Date.now(); if (t - last > 120) { last = t; if (cover() > .45) reveal(); } });
+    cv.addEventListener("pointerup", function () { down = false; if (cover() > .45) reveal(); });
+  }
+  function renderSteps(p, finalHtml) {
+    var st = p.steps || [], i, h = '<div class="igfp-dots">';
+    for (i = 0; i <= st.length; i++) h += "<i" + (i === 0 ? ' class="on"' : "") + "></i>";
+    h += "</div>";
+    for (i = 0; i < st.length; i++) {
+      h += '<div class="igfp-stp" data-i="' + i + '"' + (i ? " hidden" : "") + '><h2 class="igfp-h">' + esc(st[i].q) + '</h2><div class="igfp-opts">'
+        + st[i].o.map(function (o) { return '<button type="button" class="igfp-opt" data-o="' + esc(o) + '">' + esc(o) + "</button>"; }).join("") + "</div></div>";
+    }
+    return h + '<div class="igfp-stp" data-i="' + st.length + '"' + (st.length ? " hidden" : "") + ">" + finalHtml + "</div>";
+  }
+  function initSteps(p) {
+    var st = p.steps || [], picks = [], cur = 0, root = ov.querySelector(".igfp-in");
+    function go(n) {
+      cur = n;
+      root.querySelectorAll(".igfp-stp").forEach(function (el) { el.hidden = (parseInt(el.getAttribute("data-i"), 10) !== n); });
+      root.querySelectorAll(".igfp-dots i").forEach(function (d, i) { d.classList.toggle("on", i <= n); });
+      if (n === st.length) {
+        var a = root.querySelector("[data-cta]");
+        if (a && picks.length) { var u = a.getAttribute("href"); a.setAttribute("href", u + (u.indexOf("?") < 0 ? "?" : "&") + "popup_choice=" + encodeURIComponent(picks.join("|"))); }
+      }
+    }
+    root.addEventListener("click", function (e) {
+      var o = e.target.closest(".igfp-opt"); if (!o) return;
+      o.classList.add("sel"); picks.push(o.getAttribute("data-o"));
+      setTimeout(function () { go(cur + 1); }, 220);
+    });
   }
 
   function esc(s) {
@@ -480,6 +651,20 @@
   /* ---- kupon ---- */
   + '.igfp-ic{font-size:44px;line-height:1.1;margin:0 0 8px}.igfp-ic:empty{display:none}'
   + '.igfp-items{margin:0 0 16px}.igfp-it{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;border-radius:10px;background:rgba(128,128,128,.16);margin-bottom:7px;font-size:13px;font-weight:600;color:#f4f2f8}'
+  + '.igfp-wh{position:relative;width:190px;height:190px;margin:6px auto 14px}'
+  + '.igfp-wr{position:absolute;inset:0;border-radius:50%;border:6px solid #fff;box-shadow:0 0 0 3px rgba(124,58,237,.9),0 10px 30px rgba(0,0,0,.4)}'
+  + '.igfp-wl{position:absolute;left:-26px;top:-84px;width:52px;text-align:center;font-size:10.5px;font-weight:800;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}'
+  + '.igfp-wc{position:absolute;inset:70px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px}'
+  + '.igfp-wp{position:absolute;z-index:3;top:-10px;left:50%;margin-left:-12px;border:12px solid transparent;border-top:20px solid #fff;border-bottom:0}'
+  + '.igfp-spin{border:0;cursor:pointer;font-family:inherit}.igfp-spin:disabled{cursor:default}'
+  + '.igfp-sc{position:relative;height:100px;border-radius:14px;overflow:hidden;margin:0 auto 14px;max-width:300px;background:#fff}'
+  + '.igfp-sp2{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;letter-spacing:.1em;color:#e11d48}'
+  + '.igfp-cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab;transition:opacity .4s}.igfp-sc.done .igfp-cv{opacity:0;pointer-events:none}'
+  + '.igfp-dots{display:flex;gap:6px;margin:0 0 18px}.igfp-dots i{flex:1;height:5px;border-radius:3px}'
+  + '.igfp-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 4px}'
+  + '.igfp-opt{font:inherit;font-weight:700;font-size:13px;padding:12px 8px;border-radius:12px;cursor:pointer;transition:border-color .15s}'
+  + '.igfp-stp[hidden]{display:none}'
+  + '.igfp-vis{display:none}.igfp-fab{display:none}'
   + '.igfp-cpn{margin:0 0 22px}'
   + '.igfp-cpn-l{display:block;margin-bottom:8px;font-size:12.5px;font-weight:600;color:#a5a2b6}'
   + '.igfp-cpn-b{display:flex;align-items:stretch;gap:0;border:1px dashed var(--cardb);border-radius:14px;overflow:hidden}'
@@ -573,28 +758,44 @@
     }
 
     var inner = (p.kind === "content") ? renderContent(p) : '<div class="igfp-list">' + renderServices(p) + "</div>";
+    var lay = p.layout || "";
+    if (lay === "wheel")   { inner = renderWheel(p); }
+    if (lay === "scratch") { inner = renderScratch(p); }
+    var main =
+        '<div class="igfp-badge"><span class="igfp-dot"></span>' + esc(p.badge || "") + "</div>"
+      + '<h2 class="igfp-h">' + esc(p.title || "") + "</h2>"
+      + '<p class="igfp-sub">' + esc(p.subtitle || "") + "</p>" + inner;
+    if (lay === "steps" && p.steps && p.steps.length) {
+      main = '<div class="igfp-badge"><span class="igfp-dot"></span>' + esc(p.badge || "") + "</div>"
+           + renderSteps(p, '<h2 class="igfp-h">' + esc(p.title || "") + '</h2><p class="igfp-sub">' + esc(p.subtitle || "") + "</p>" + inner);
+    }
 
     ov = document.createElement("div");
-    ov.className = "igfp-ov igfp-t-" + pickTheme(p) + (p.skin && SKINS && SKINS[p.skin] ? " igfp-s-" + p.skin : "");
-    if (p.skin) ensureSkin(p.skin);
+    var styled2 = !!(SKINS && (p.skin || lay || p.style));
+    ov.className = "igfp-ov igfp-t-" + pickTheme(p) + (styled2 ? " " + pk(p) + (lay ? " igfp-l-" + lay : "") : "");
+    if (styled2) ensureSkin(p);
     ov.setAttribute("role", "dialog");
     ov.setAttribute("aria-modal", "true");
     ov.setAttribute("aria-label", p.title || p.badge || "");
+    var vis = "";
+    if (lay === "split") vis = '<div class="igfp-vis"' + (p.image ? ' style="background-image:url(&quot;' + esc(p.image) + '&quot;)"' : "") + ">" + (p.image ? "" : esc(p.icon || "")) + "</div>";
+    if (lay === "split" && p.image && p.kind === "content") inner = inner.replace(/<div class="igfp-media">.*?<\/div>/, "");
     ov.innerHTML =
         '<div class="igfp-frame"><div class="igfp-box">'
-      +   '<button class="igfp-x" type="button" aria-label="Close">&#10005;</button>'
+      +   '<button class="igfp-x" type="button" aria-label="Close">&#10005;</button>' + vis
       +   '<div class="igfp-in">'
-      +     (p.icon ? '<div class="igfp-ic">' + esc(p.icon) + "</div>" : "")
-      +     '<div class="igfp-badge"><span class="igfp-dot"></span>' + esc(p.badge || "") + "</div>"
-      +     '<h2 class="igfp-h">' + esc(p.title || "") + "</h2>"
-      +     '<p class="igfp-sub">' + esc(p.subtitle || "") + "</p>"
-      +     inner
+      +     (p.icon && lay !== "split" ? '<div class="igfp-ic">' + esc(p.icon) + "</div>" : "")
+      +     main
       +     '<div class="igfp-foot">' + esc(CONFIG.footer) + "</div>"
       +   "</div>"
-      + "</div></div>";
+      + "</div></div>"
+      + (lay === "fab" ? '<button class="igfp-fab" type="button" aria-label="Open">' + esc(p.icon || "💬") + "</button>" : "");
 
     document.body.appendChild(ov);
-    if (p.countdown) startCountdown(p);
+    if (p.countdown && lay !== "wheel" && lay !== "scratch") startCountdown(p);
+    if (lay === "wheel") initWheel(p);
+    if (lay === "scratch") initScratch(p);
+    if (lay === "steps" && p.steps && p.steps.length) initSteps(p);
     ov.addEventListener("click", function (e) {
       var cp = e.target.closest("[data-copy]");
       if (cp) {                                   // kupon kodunu kopyala
@@ -611,17 +812,20 @@
         recordClick(p.pid); track("click", p.pid, "coupon", p.v);
         return;
       }
+      var fb = e.target.closest(".igfp-fab");
+      if (fb) { ov.classList.toggle("igfp-fab-closed"); return; }
       var card = e.target.closest(".igfp-card");
       if (card) { recordClick(p.pid); track("click", p.pid, card.getAttribute("data-id"), p.v); return; }
       var cta = e.target.closest("[data-cta]");
       if (cta) { recordClick(p.pid); track("click", p.pid, "", p.v); return; }  // link kendisi gider
+      if (KEEP[lay] && !e.target.closest(".igfp-x") && (e.target.closest(".igfp-box") || NONMODAL[lay])) return;
       close();
     });
   }
 
   var shownAt = 0, shownPid = "", shownV = "";
   function show(p, auto) {
-    document.body.style.overflow = "hidden";
+    if (!NONMODAL[p.layout || ""]) document.body.style.overflow = "hidden";
     requestAnimationFrame(function () { ov && ov.classList.add("igfp-on"); });
     if (auto) {
       recordShow(p.pid);

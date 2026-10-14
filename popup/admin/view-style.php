@@ -307,6 +307,8 @@ body.mdl-open{overflow:hidden}
 /* ---------- iki sutunlu kart gridi ---------- */
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
 .grid2 > .card{margin-bottom:0}
+[hidden]{display:none!important}
+.colr{display:flex;gap:8px;align-items:center}.colr input[type=color]{width:42px;height:36px;padding:2px;border-radius:8px;flex:none;cursor:pointer}.colr input[type=text]{flex:1;min-width:0}
 </style>
 
 <style>
@@ -318,4 +320,5 @@ body.mdl-open{overflow:hidden}
 .tplm b{display:block;font-size:12.5px;line-height:1.2;margin-bottom:9px}
 .tplm i{display:block;font-style:normal;font-weight:700;font-size:10.5px;padding:7px}
 .tplf{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;font-size:12.5px}
+.colr{display:flex;gap:8px;align-items:center}.colr input[type=color]{width:42px;height:36px;padding:2px;border-radius:8px;flex:none;cursor:pointer}.colr input[type=text]{flex:1;min-width:0}
 </style>
