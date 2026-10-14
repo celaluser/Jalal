@@ -52,7 +52,7 @@
     "src": "node_modules/leaflet/dist/images/marker-icon.png"
   },
   "resources/css/app.css": {
-    "file": "assets/app-DAi8K2Y0.css",
+    "file": "assets/app-DiTE8jro.css",
     "name": "app",
     "names": [
       "app.css"
@@ -103,13 +103,13 @@
     ]
   },
   "resources/js/orders.js": {
-    "file": "assets/orders-GDGlo3zE.js",
+    "file": "assets/orders-CxsUzLfv.js",
     "name": "orders",
     "src": "resources/js/orders.js",
     "isEntry": true
   },
   "resources/js/storefront.js": {
-    "file": "assets/storefront-otn6qQfT.js",
+    "file": "assets/storefront-DKPGIko6.js",
     "name": "storefront",
     "src": "resources/js/storefront.js",
     "isEntry": true,
