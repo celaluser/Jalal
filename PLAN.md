@@ -63,3 +63,13 @@ Paketler `dist/` klasöründe (git'e eklenmez): `PulsePop-3.27.1.zip`, `PulsePop
 **Yapıldı:** A1 A2 A3 A4 A5 A6 A7 A8 · B1 B2 B3 B4 · C1 C3 C4 C5 C6 C8 (C8: sorun yokmuş, `php -S` kaynaklı yanlış alarm; C7: SDK zaten budanmış, değişiklik gerekmedi).
 **Yapılamadı / senin elinde:** A9 ve B5 (PHPUnit bu ortamda kurulamadı), C2 (QR Menu testleri bu paketlerde yok; kendi deponuzdan eklemelisiniz),
 D1 (Envato kurallarının güncel halini kendin kontrol et).
+
+### Güncelleme (madde 10–15)
+
+- 10 Envato kuralları: kural sayfalarına bu ortamdan erişilemedi (ağ engeli); doğrulanmadı, CHECKLIST.md'ye yazıldı.
+- 11 Yasal: PulsePop `LICENSE.txt` §4 düzeltildi (paketlenen bağımlılıklar, dompdf LGPL, yazı tipleri); QR Menu için OFL yazı tipi lisansı eklendi.
+- 12 Güvenlik: `composer audit` üç üründe temiz; QR Menu'ye CSRF/XSS/SQLi/brute-force/fiyat manipülasyonu probları temiz.
+- 13 Performans: yerel ölçüm yapıldı (QR Menu menü sayfası ~55 ms, 21–36 sorgu); gerçek sunucu yükü ölçülmedi.
+- 14 Çeviriler: QR Menu 12 dilde %100 anahtar tamam, PulsePop 15 dilde tam; kalite örneklemesi iyi, native kontrol yok.
+- 15 Gönderim: `dist/submission/` altında ilan taslakları, ekran görüntüleri ve kontrol listesi.
+- Düzeltilen gerçek hata: QR Menu misafir menüsünde bilgi kartı arama çubuğunun altında kalıyordu.
