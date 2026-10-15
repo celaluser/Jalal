@@ -34,7 +34,10 @@ $cfg = [
     'limit'     => (int)(getenv('PAGE_LIMIT') ?: 100),
     'max_pages' => (int)(getenv('MAX_PAGES') ?: 10),
     'state'     => getenv('STATE_FILE') ?: __DIR__ . '/payment_guard_state.json',
-    'methods'   => json_decode(getenv('METHOD_IDS') ?: '{}', true) ?: [],
+    // Üsul adı => disallow_methods ID. METHOD_IDS ilə əlavə/əvəz edilə bilər.
+    'methods'   => (json_decode(getenv('METHOD_IDS') ?: '{}', true) ?: []) + [
+        'Epoint #2' => 216157,
+    ],
 ];
 $dryRun   = in_array('--dry-run', $argv, true);
 $discover = in_array('--discover', $argv, true);
