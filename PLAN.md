@@ -52,3 +52,14 @@
 3. Doküman: A4, A5, A7, C5.
 4. Altyapı/test: B1, B2, A6, A9, B5.
 5. Cila: kalan P2'ler.
+
+---
+
+## Durum (15 Ekim 2026)
+
+Paketler `dist/` klasöründe (git'e eklenmez): `PulsePop-3.27.1.zip`, `PulsePop-Hub-3.1.2.zip`, `qr-menu-1.0.1.zip`,
+`QR-Menu-listing-material.md` (QR Menu ilan metni, paketten çıkarıldı).
+
+**Yapıldı:** A1 A2 A3 A4 A5 A6 A7 A8 · B1 B2 B3 B4 · C1 C3 C4 C5 C6 C8 (C8: sorun yokmuş, `php -S` kaynaklı yanlış alarm; C7: SDK zaten budanmış, değişiklik gerekmedi).
+**Yapılamadı / senin elinde:** A9 ve B5 (PHPUnit bu ortamda kurulamadı), C2 (QR Menu testleri bu paketlerde yok; kendi deponuzdan eklemelisiniz),
+D1 (Envato kurallarının güncel halini kendin kontrol et).
