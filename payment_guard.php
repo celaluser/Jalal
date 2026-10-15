@@ -164,6 +164,13 @@ if ($cfg['key'] === '') { fwrite(STDERR, "PANEL_API_KEY təyin edilməyib\n"); e
 if ($discover) {
     $p = api($cfg, 'GET', 'payments?offset=0&limit=3');
     echo "PAYMENTS:\n" . json_encode($p, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+    // php payment_guard.php --discover --user=42 : kullanıcının allow/disallow_methods ID-lərini göstərir
+    foreach ($argv as $a) {
+        if (preg_match('/^--user=(\d+)$/', $a, $m)) {
+            $u = api($cfg, 'GET', "users/{$m[1]}/edit");
+            echo "USER {$m[1]}:\n" . json_encode($u, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+        }
+    }
     exit(0);
 }
 
