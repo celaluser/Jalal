@@ -73,3 +73,18 @@ D1 (Envato kurallarının güncel halini kendin kontrol et).
 - 14 Çeviriler: QR Menu 12 dilde %100 anahtar tamam, PulsePop 15 dilde tam; kalite örneklemesi iyi, native kontrol yok.
 - 15 Gönderim: `dist/submission/` altında ilan taslakları, ekran görüntüleri ve kontrol listesi.
 - Düzeltilen gerçek hata: QR Menu misafir menüsünde bilgi kartı arama çubuğunun altında kalıyordu.
+
+### Güncelleme ("yapabildiklerini yap" turu, 16 Ekim)
+
+Yapıldı ve doğrulandı:
+- MariaDB 10.11 kuruldu; **QR Menu** gerçek veritabanında kuruldu, 147 sayfa tarandı (5xx yok), sipariş ve idempotency denendi.
+- **PulsePop'un 36 senaryosu** MariaDB'de geçti (6 eksik senaryo dahil; PHPUnit 9.6 sınıfları apt ile eklendi). **Hub** senaryosu 463 kontrolle MariaDB ve sqlite'ta geçti.
+- Bulunan ve düzeltilen gerçek hatalar: PulsePop yedekleme (çok veritabanlı MySQL hesabı), QR Menu kurulum (aynı neden), QR Menu web-cron'da kayıtsız komutlar
+  (haftalık özet, win-back, A/B kazanan), QR Menu sipariş panosu kontrastı, PulsePop panel/builder kontrast ve ARIA, QR Menu'de eksik `print-bridge.php`.
+- İki PulsePop test satırı sqlite'ta boşa geçiyordu (var olmayan sütun adı); düzeltildi (`identity`, `customers`).
+- Güncelleme paketi akışı (imza, kurcalama, tekrar) QR Menu'de uçtan uca denendi.
+- `$guarded = []` taraması: ham istekten yazma yok; takım yönetimi uçları yalnızca sahibe açık.
+- Dokümanlardaki eski sayılar düzeltildi (PulsePop README), bozuk bağlantı yok.
+
+Hâlâ yapılamayanlar: Envato kural sayfaları, gerçek ödeme/e-posta/SMS, MySQL 8 ve gerçek barındırma, PHP 8.2/8.4, tarayıcı çeşitliliği (Safari/Firefox),
+resmi PHPUnit 12 kurulumu, QR Menu otomatik testleri, native çeviri kontrolü, hukuki inceleme, Hub'ın canlıya alınması.
