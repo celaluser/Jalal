@@ -88,3 +88,10 @@ Yapıldı ve doğrulandı:
 
 Hâlâ yapılamayanlar: Envato kural sayfaları, gerçek ödeme/e-posta/SMS, MySQL 8 ve gerçek barındırma, PHP 8.2/8.4, tarayıcı çeşitliliği (Safari/Firefox),
 resmi PHPUnit 12 kurulumu, QR Menu otomatik testleri, native çeviri kontrolü, hukuki inceleme, Hub'ın canlıya alınması.
+
+### Güncelleme (antivirüs / zararlı-site algısı kontrolü, 17 Ekim)
+
+`dist/submission/SECURITY-SCAN-REPORT.md` ve `dist/submission/tools/av/` içinde. Özet: YARA web kabuğu imzaları (PulsePop, QR Menu, Hub, `vendor/` dahil) son paketlerde 0 eşleşme;
+reklam engelleyici listeleri PulsePop'un 25 ve QR Menu'nün 15 adresini engellemiyor; ziyaretçi JS'inde madencilik/obfuscation/gizli iframe yok. Düzeltilenler: `vendor/` içinden
+Windows ikilisi ve `.bat`/`.sh`/test dosyaları, iki yanlış alarm (test dosyasındaki webshell benzeri metin, SecurityHeaders ara katmanı). Yapılamayan: ClamAV imza DB'si, VirusTotal,
+Google Safe Browsing/SmartScreen (alan adı değerlendirmesi), hosting tarayıcıları, Envato'nun kendi tarayıcısı.
