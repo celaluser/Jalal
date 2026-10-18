@@ -95,3 +95,15 @@ resmi PHPUnit 12 kurulumu, QR Menu otomatik testleri, native çeviri kontrolü, 
 reklam engelleyici listeleri PulsePop'un 25 ve QR Menu'nün 15 adresini engellemiyor; ziyaretçi JS'inde madencilik/obfuscation/gizli iframe yok. Düzeltilenler: `vendor/` içinden
 Windows ikilisi ve `.bat`/`.sh`/test dosyaları, iki yanlış alarm (test dosyasındaki webshell benzeri metin, SecurityHeaders ara katmanı). Yapılamayan: ClamAV imza DB'si, VirusTotal,
 Google Safe Browsing/SmartScreen (alan adı değerlendirmesi), hosting tarayıcıları, Envato'nun kendi tarayıcısı.
+
+### Güncelleme (rakip listesindeki eksiklerin kapatılması, 18 Ekim) — QR Menu 1.1.0
+
+Yapıldı ve doğrulandı:
+- **Japonca** eklendi (14 dil, 3717 anahtarın tamamı; yer tutucu ve çoğul sözdizimi otomatik doğrulandı, makine destekli — native kontrol yok).
+- **Reklam ve canlı sohbet** ayarı: Google AdSense (+ `/ads.txt`) ve Tawk.to. Yalnızca herkese açık tanıtım sitesinde ve çerez onayından sonra yüklenir; panellerde ve restoran menülerinde yüklenmez. Tarayıcıda denendi (onaydan önce istek yok, sonra iki betik de yükleniyor); CSP ana makineleri yalnızca ayar doluyken ekleniyor.
+- **Ödeme geçitleri ek ücretli eklenti olarak**: Telr, PayTabs, PayU (PayUmoney), CCAvenue, Paytm, 2Checkout. Çekirdek değişmedi; `examples/gateway-addon` şablonu pakette. `dist/addons/*.zip` (imzasız; satmak için kendi anahtarınla `package:build --addon=<slug>`). Her eklentinin `tests/verify.php` dosyası simüle yanıtlarla geçti (7–11 kontrol); **canlı/sandbox hesapla denenmedi**.
+- Gerçek hatalar: `config/version.php` paketlerde **boştu** (eklentiler "1.0.0 gerekli" diyerek açılmıyordu) → 1.1.0 yazıldı; pakette `.env` (ortak APP_KEY, APP_ENV=local), test görselleri ve eski bootstrap önbelleği vardı → çıkarıldı; çerez bannerında bir betik yüklenince diğerinin yüklenmesi atlanıyordu → düzeltildi; admin ayar rotasında bölüm beyaz listesi yeni bölümü engelliyordu → eklendi.
+- Doğrulama: temiz kurulum MariaDB'de (demo veriyle), 510 sayfa (en/ja/ar, restoran sahibi) + 316 sayfa (süper yönetici) 5xx yok; YARA son pakette ve eklentilerde 0 eşleşme.
+
+Paketler: `dist/qr-menu-1.1.0.zip` (eski 1.0.1 silindi), `dist/addons/`.
+Bilinen sınırlar: 2Checkout IPN yanıt biçimi en belirsiz kısım; Paytm/PayU/CCAvenue/Paytabs/Telr canlı denenmedi; Japonca çeviri native kontrol bekliyor; çeviri sözlüğü (degisken) özelliği henüz yapılmadı (kullanıcı kodlama adımı istedi).
