@@ -709,7 +709,7 @@
   + '.igfp-ov{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:flex-start;justify-content:center;'
   + 'padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;'
   + 'background:rgba(8,6,16,.62);-webkit-backdrop-filter:blur(14px) saturate(120%);backdrop-filter:blur(14px) saturate(120%);'
-  + 'opacity:0;transition:opacity .28s ease;font-family:Poppins,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}'
+  + 'opacity:0;transition:opacity .28s ease;font-family:Poppins,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji"}'
   + '.igfp-ov.igfp-on{opacity:1}'
   + '.igfp-frame{position:relative;width:100%;max-width:830px;margin:auto;padding:2px;border-radius:30px;'
   + 'background:conic-gradient(from var(--igfp-a),var(--g));'

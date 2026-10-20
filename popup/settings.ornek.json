@@ -50,7 +50,7 @@
             "order_url": "https://panelbaku.com/?service={id}",
             "subtitle": "Sifarişləriniz üçün ən uyğun {category} servisini seçin.",
             "badge_template": "{category}",
-            "badge_strip_emoji": true
+            "strip_emoji": false
         }
     ],
     "popups": [],

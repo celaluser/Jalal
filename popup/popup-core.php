@@ -79,7 +79,7 @@ function popup_auto_default(): array {
         'order_url'         => 'https://panelbaku.com/?service={id}',
         'subtitle'          => 'Sifarişləriniz üçün ən uyğun {category} servisini seçin.',
         'badge_template'    => '{category}',
-        'badge_strip_emoji' => true,
+        'strip_emoji'       => false,   // true: kategori adındaki emojiler rozet/başlıktan silinir
     ];
 }
 
@@ -418,7 +418,7 @@ function popup_migrate(array $cfg): array {
         if (isset($cfg['auto_targeting'])) $a['targeting'] = $cfg['auto_targeting'];
         foreach (['count','sort','skip_zero','category_mode','category_manual','skip_categories',
                   'currency','currency_before','decimals','price_multiplier','order_url',
-                  'subtitle','badge_template','badge_strip_emoji'] as $k) {
+                  'subtitle','badge_template','strip_emoji'] as $k) {
             if (array_key_exists($k, $cfg)) $a[$k] = $cfg[$k];
         }
         $cfg['autos'] = [$a];
@@ -482,7 +482,7 @@ function popup_config(): array {
         foreach (['auto_enabled','auto_priority','auto_theme','auto_schedule','auto_trigger','auto_targeting',
                   'count','sort','skip_zero','category_mode','category_manual','skip_categories',
                   'currency','currency_before','decimals','price_multiplier','order_url',
-                  'subtitle','badge_template','badge_strip_emoji',
+                  'subtitle','badge_template','strip_emoji',
                   'manual_mode','manual_badge','manual_title','manual_subtitle','manual_services'] as $k) {
             unset($new[$k]);
         }
@@ -588,8 +588,8 @@ function popup_strip_emoji(string $s): string {
     return trim(preg_replace('/\s{2,}/u', ' ', $s));
 }
 
-function popup_clean_title(string $s): string {
-    $s = popup_strip_emoji($s);
+function popup_clean_title(string $s, bool $stripEmoji = false): string {
+    if ($stripEmoji) $s = popup_strip_emoji($s);
     $s = preg_split('/\s*[|\x{2013}\x{2014}\x{00BB}\x{203A}~>]+\s*/u', $s)[0] ?? $s;
     $s = preg_replace('/\[[^\]]*\]|\([^)]*\)|\{[^}]*\}/u', ' ', $s);
     $s = preg_replace('/^[\s\-\x{2013}\x{2014}:,.\x{00B7}]+|[\s\-\x{2013}\x{2014}:,.\x{00B7}]+$/u', '', $s);
@@ -644,7 +644,7 @@ function popup_fetch_services(array $c): array {
     $r = popup_api($c, ['key' => $c['api_key'], 'action' => 'services']);
     if (isset($r['err'])) return ['err' => $r['err']];
 
-    $list = json_decode($r['body'], true);
+    $list = json_decode($r['body'], true, 512, JSON_INVALID_UTF8_SUBSTITUTE);
     if (!is_array($list))      return ['err' => 'API JSON dondurmedi: ' . substr($r['body'], 0, 200)];
     if (isset($list['error'])) return ['err' => 'API hatasi: ' . (is_string($list['error']) ? $list['error'] : json_encode($list['error']))];
     if (!$list || !isset($list[0])) return ['err' => 'Servis listesi bos geldi.'];
@@ -821,9 +821,9 @@ function popup_build_auto(array $list, array $a, array $c): array {
     }
     $picked = array_slice($picked, 0, max(1, (int) $a['count']));
 
-    $badge = !empty($a['badge_strip_emoji']) ? popup_strip_emoji($target) : $target;
+    $badge = !empty($a['strip_emoji']) ? popup_strip_emoji($target) : $target;
     $badge = str_replace('{category}', $badge, $a['badge_template'] !== '' ? $a['badge_template'] : '{category}');
-    $title = popup_clean_title($target);
+    $title = popup_clean_title($target, !empty($a['strip_emoji']));
     if ($title === '') $title = $badge;
 
     $services = [];
@@ -1019,7 +1019,7 @@ function popup_version_record(string $vid, array $p): void {
 /** Şablon JS'ine popup/ayar/renk-şablonu verisini gömer (embed.js ve canlı önizleme ortak kullanır) */
 function popup_embed_js(string $tpl, array $popups, array $client): string {
     $enc = function ($v) {
-        $s = json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $s = json_encode($v, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);   // emoji/ə/ş → \\uXXXX (karakter kodlaması sorun çıkarmaz)
         return str_replace(['</', '<!--'], ['<\\/', '<\\u0021--'], $s);
     };
     $js = str_replace('var POPUPS = null;',   'var POPUPS = '   . $enc(array_values($popups)) . ';', $tpl);
@@ -1031,7 +1031,8 @@ function popup_embed_js(string $tpl, array $popups, array $client): string {
         elseif (!empty($pp['layout']) || !empty($pp['style'])) $need['sk01'] = 1;
     }
     foreach (popup_skins() as $k => $v) { if (!isset($need[$k])) continue; unset($v['t'], $v['n']); $skinCss[$k] = $v; }
-    return str_replace('var SKINS = null;', 'var SKINS = ' . $enc($skinCss) . ';', $js);
+    $js = str_replace('var SKINS = null;', 'var SKINS = ' . $enc($skinCss) . ';', $js);
+    return popup_js_ascii($js);
 }
 
 /* ---------------- YAYINLA ---------------- */
@@ -1059,7 +1060,7 @@ function popup_publish(array $c, array $popups, array $autos): array {
     $client = $c['client'];
     $client['enabled'] = !empty($c['enabled']);
     $js = popup_embed_js($tpl, $popups, $client);
-    $js = "/* Otomatik uretildi: " . date('Y-m-d H:i:s') . " — elle duzenlemeyin. */\n" . $js;
+    $js = "/* Otomatik uretildi: " . date('Y-m-d H:i:s') . "  - elle duzenlemeyin. */\n" . $js;
 
     if (!popup_write_atomic($p['embed'], $js)) return ['ok' => false, 'msg' => 'embed.js yazilamadi'];
     return ['ok' => true, 'msg' => count($popups) . ' popup yayinda'];
@@ -1118,3 +1119,12 @@ function popup_is_bot_ua(string $ua): bool {
 }
 /** Yeni, benzersiz popup id */
 function popup_new_id(): string { return 'p' . substr(md5(uniqid('', true)), 0, 7); }
+
+/** JS içindeki ASCII dışı karakterleri \uXXXX yap: sunucu/sayfa karakter kodlaması ne olursa olsun emoji ve ə,ş,ı bozulmaz. */
+function popup_js_ascii(string $js): string {
+    return preg_replace_callback('/[^\x00-\x7F]/u', function ($m) {
+        $cp = mb_ord($m[0], 'UTF-8');
+        if ($cp > 0xFFFF) { $cp -= 0x10000; return sprintf('\\u%04x\\u%04x', 0xD800 + ($cp >> 10), 0xDC00 + ($cp & 0x3FF)); }
+        return sprintf('\\u%04x', $cp);
+    }, $js) ?? $js;
+}

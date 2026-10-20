@@ -9,6 +9,10 @@
 # Klasör içeriği listelenemesin
 Options -Indexes
 
+# Emoji ve Azərbaycan harfleri için dosyalar UTF-8 sunulsun
+AddDefaultCharset UTF-8
+AddCharset UTF-8 .js .json
+
 # Bu klasör sitenin yönlendirme kurallarından etkilenmesin
 <IfModule mod_rewrite.c>
     RewriteEngine Off

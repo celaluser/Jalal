@@ -931,8 +931,8 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
             <input type="text" name="badge_template"></div>
           <div class="row"><div class="lbl">Alt açıklama<small><code>{category}</code> kullanabilirsin</small></div>
             <input type="text" name="subtitle"></div>
-          <div class="row"><div class="lbl">Rozetteki emojileri temizle</div>
-            <label class="sw"><input type="checkbox" name="badge_strip_emoji"><i></i></label></div>
+          <div class="row"><div class="lbl">Emojileri temizle<small>Kapalıysa kategori adındaki emojiler rozet ve başlıkta aynen görünür</small></div>
+            <label class="sw"><input type="checkbox" name="strip_emoji"><i></i></label></div>
         </div></div>
 
         <div data-sec="zaman" hidden><div class="rows"><?php f_schedule(); f_trigger(); ?></div></div>

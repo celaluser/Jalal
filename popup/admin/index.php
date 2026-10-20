@@ -228,7 +228,7 @@ function form_data(array $p, bool $isAuto): array {
             'order_url'         => (string) ($p['order_url'] ?? ''),
             'subtitle'          => (string) ($p['subtitle'] ?? ''),
             'badge_template'    => (string) ($p['badge_template'] ?? '{category}'),
-            'badge_strip_emoji' => !empty($p['badge_strip_emoji']) ? 1 : 0,
+            'strip_emoji'       => !empty($p['strip_emoji']) ? 1 : 0,
         ];
     } else {
         $d += [
@@ -395,7 +395,7 @@ if ($action === 'auto_save') {
         'order_url'         => trim((string) pv('order_url')),
         'subtitle'          => trim((string) pv('subtitle')),
         'badge_template'    => trim((string) pv('badge_template')),
-        'badge_strip_emoji' => pbool('badge_strip_emoji'),
+        'strip_emoji'       => pbool('strip_emoji'),
     ]);
     if ($entry['name'] === '') $entry['name'] = 'Otomatik ' . $pid;
 
