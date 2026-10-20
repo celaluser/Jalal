@@ -124,3 +124,5 @@ Bilinen sınırlar: 2Checkout IPN yanıt biçimi en belirsiz kısım; Paytm/PayU
 ### Güncelleme (74 sayfa incelemesi, masaüstü + mobil, 20 Ekim) — QR Menu 1.3.1
 
 Her sayfa 1440 px ve 390 px'te açık/koyu modda gözden geçirildi. Bulunan ve düzeltilenler: aktif filtre çiplerinde koyu üstüne koyu yazı (global `a{color:inherit}` Tailwind katmanlı sınıfları eziyordu); ek sekme açıkken son sekmenin kesilmesi (sığmayanlar artık *More*'a taşınıyor); telefonda sayfanın fazla geniş çizilip uzaklaştırılması (tablodaki gizli `sr-only` etiketi kaydırma kutusunun dışına taşıyordu); telefonda üst sekmeler yana kayıyor, *More* sayfa olarak açılıyor; iç sayfaların turuncu düğmeleri yeni mavi vurguyla uyumlu; kat planı telefonda masaları üst üste yığıyordu (haritaya yatay kaydırma). Doğrulama: 296 sayfa × süper yönetici/restoran sahibi, 5xx yok; YARA 0.
+
+- QR Menu 1.3.2: top-tabs panel design is now the default (cookie/platform setting still switch back). dist/qr-menu-1.3.2.zip.
