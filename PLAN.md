@@ -107,3 +107,10 @@ Yapıldı ve doğrulandı:
 
 Paketler: `dist/qr-menu-1.1.0.zip` (eski 1.0.1 silindi), `dist/addons/`.
 Bilinen sınırlar: 2Checkout IPN yanıt biçimi en belirsiz kısım; Paytm/PayU/CCAvenue/Paytabs/Telr canlı denenmedi; Japonca çeviri native kontrol bekliyor; çeviri sözlüğü (degisken) özelliği henüz yapılmadı (kullanıcı kodlama adımı istedi).
+
+### Güncelleme (ödeme eklentileri Hub'da, 20 Ekim) — QR Menu 1.2.0, Hub 3.2.0
+
+- **Hub 3.2.0**: `php artisan hub:addon-products` altı eklentiyi (kapalı, yer tutucu fiyatlı, 1 site/koltuk) lisanslı ürün olarak açar. Yeni uç nokta gerekmedi; mevcut `activate`/`update` ürün anahtarıyla çalışıyor. Hub senaryosu 463 → 469 denetim, hepsi geçti.
+- **QR Menu 1.2.0**: *Admin → Eklentiler → Eklenti mağazası* (isteğe bağlı; `ADDON_STORE_URL` boşken görünmez, hiçbir yere bağlanmaz). Satın alma kodu girilir → imzalı paket indirilir (Hub imzası + paket imzası), kurulur, açılır; günlük `addons:store-update` yeni sürümleri kurar. Eklenti kaldırılınca koltuk Hub'a geri verilir.
+- Gerçek Hub süreciyle uçtan uca denendi: kod kullanımı, güncelleme 1.0.0→1.0.1, yanlış anahtarla imzalı paket reddi, ikinci siteye red, koltuğun iadesi, tarayıcıdan arayüz.
+- Yapılması gereken (yazar): gerçek paket imza anahtarı üret (`package:keys`), 6 paketi imzala, Hub'da Konsol → Güncellemeler'e yükle, fiyat belirle, ürünleri aç; QR Menu `.env.example`/config'e Hub adresi ve genel anahtarları yaz (şu an boş).
