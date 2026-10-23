@@ -310,7 +310,7 @@ function popup_defaults(): array {
             'pages' => ['mode' => 'exclude', 'patterns' => []],
             'stats' => ['enabled' => true, 'url' => ''],
             // segmentasyon: panel kullanıcı verisini hangi JS değişkeninden okuyalım
-            'segment' => ['varName' => 'PANEL_USER'],
+            'segment' => ['varName' => 'PANEL_USER', 'balanceSelector' => '.default-dropdown__toggle'],
             // acil durdurma kontrolü (cache'i aşar)
             'killCheck' => ['enabled' => true, 'url' => ''],
             // bot / tarayıcı otomasyonu filtresi

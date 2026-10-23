@@ -36,7 +36,7 @@
       clickCooldownDays: 7
     },
     // panel kullanici verisini hangi JS degiskeninden okuyalim (segmentasyon)
-    segment: { varName: "PANEL_USER" },
+    segment: { varName: "PANEL_USER", balanceSelector: ".default-dropdown__toggle" },
     // acil durdurma kontrolu (embed.js cache'ini asar)
     killCheck: { enabled: false, url: "" },
     botFilter: true,
@@ -258,6 +258,30 @@
     return v;
   }
 
+  /* "1,00 ₼" / "1.234,50 ₼" / "$12.30" -> sayi */
+  function parseMoney(t) {
+    var x = String(t || "").replace(/[^\d.,]/g, "");
+    if (!x || !/\d/.test(x)) return null;
+    var lc = x.lastIndexOf(","), ld = x.lastIndexOf(".");
+    if (lc >= 0 && ld >= 0) { x = lc > ld ? x.replace(/\./g, "").replace(",", ".") : x.replace(/,/g, ""); }
+    else if (lc >= 0) { x = /,\d{1,2}$/.test(x) ? x.replace(",", ".") : x.replace(/,/g, ""); }
+    var n = parseFloat(x);
+    return isNaN(n) ? null : n;
+  }
+  /* panelin kendi sayfasinda gosterdigi bakiye (giris yapilmissa ust menude gorunur) */
+  function domBalance() {
+    var sel = (CONFIG.segment && CONFIG.segment.balanceSelector) || "";
+    if (!sel) return null;
+    try {
+      var els = document.querySelectorAll(sel);
+      for (var i = 0; i < els.length; i++) {
+        var t = (els[i].textContent || "").trim();
+        if (/^[^\d]{0,4}\d[\d.,\s]*[^\d\s]{0,4}$/.test(t)) { var n = parseMoney(t); if (n != null) return n; }   // sadece "para gibi" metinler (dil/hesap menusu degil)
+      }
+    } catch (e) {}
+    return null;
+  }
+
   /* ---- panelin sayfaya verdigi kullanici bilgisi ---- */
   function panelUser() {
     var name = (CONFIG.segment && CONFIG.segment.varName) || "PANEL_USER";
@@ -270,7 +294,10 @@
         if (b) u = JSON.parse(b);
       } catch (e) {}
     }
-    if (!u || typeof u !== "object") return null;
+    if (!u || typeof u !== "object") {
+      var db = domBalance();                       // sayfada gorunen bakiye yazisindan (ornek: "1,00 ₼")
+      return db == null ? null : { name: "", loggedIn: true, balance: db, orders: null, country: "" };
+    }
     var loggedIn = !!(u.loggedIn || u.logged_in || u.isLoggedIn || u.user_id || u.userId || u.uid);
     var bal = (u.balance != null) ? parseFloat(u.balance) : ((u.funds != null) ? parseFloat(u.funds) : null);
     var ord = (u.orders != null) ? parseInt(u.orders, 10) : ((u.order_count != null) ? parseInt(u.order_count, 10) : null);

@@ -357,7 +357,7 @@ if ($action === 'save') {
                 'enabled' => pbool('stats_enabled'),
                 'url'     => trim((string) pv('stats_url')),
             ],
-            'segment'   => ['varName' => trim((string) pv('seg_varname')) ?: 'PANEL_USER'],
+            'segment'   => ['varName' => trim((string) pv('seg_varname')) ?: 'PANEL_USER', 'balanceSelector' => trim((string) pv('seg_balsel'))],
             'killCheck' => ['enabled' => pbool('kill_check'), 'url' => trim((string) pv('kill_url'))],
             'botFilter' => pbool('bot_filter'),
         ],

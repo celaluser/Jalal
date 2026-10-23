@@ -437,6 +437,18 @@ $nav = [
     <!-- ═════════ ŞABLONLAR (hazır görünümler) ═════════ -->
     <div class="pane" data-p="sablonlar" hidden>
       <div class="card">
+        <h2><?= ico('zap') ?> Hazır senaryolar</h2>
+        <p class="hint">İçerik ve hedefleme (segment) birlikte hazır gelir; sadece linki kendine göre değiştir.</p>
+        <div class="body">
+          <div class="poprow">
+            <div class="poprow-main"><div class="poprow-name">Düşük bakiye uyarısı <span class="ptheme">üst şerit</span></div>
+              <div class="poprow-sub">Giriş yapmış ve bakiyesi 1 ₼ altında olanlara "Bakiye ekle" şeridi. Bakiye sayfadan okunur (Gösterim kuralları → Bakiye seçicisi).</div></div>
+            <button class="btn sm" type="button" data-scen="lowbal">Kullan</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
         <h2><?= ico('save') ?> Şablonlarım</h2>
         <p class="hint">Beğendiğin popup'ı "Popuplar" sekmesindeki <b>Şablon</b> butonuyla buraya kaydet; sonra tek tıkla aynı tasarımla yeni popup aç.</p>
         <div class="body">
@@ -566,6 +578,8 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
         <div class="rows" style="margin-top:6px">
           <div class="row"><div class="lbl">Değişken adı</div>
             <input type="text" name="seg_varname" value="<?= h($cl['segment']['varName'] ?? 'PANEL_USER') ?>"></div>
+          <div class="row"><div class="lbl">Bakiye seçicisi (CSS)<small>Sayfada bakiye yazan kutunun CSS seçicisi. <code>PANEL_USER</code> yoksa bakiye buradan okunur ("1,00 ₼" → 1). Boş = kapalı.</small></div>
+            <input type="text" name="seg_balsel" value="<?= h($cl['segment']['balanceSelector'] ?? '.default-dropdown__toggle') ?>" placeholder=".default-dropdown__toggle"></div>
         </div>
       </div>
 
@@ -1223,6 +1237,17 @@ var PDATA = {
       });
     });
   }
+  document.querySelectorAll('[data-scen]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (b.dataset.scen !== 'lowbal') return;
+      openModal('manual', '', {
+        name: 'Düşük bakiye uyarısı', layout: 'topbar', skin: 'sk27', icon: '⚠️', badge: '',
+        title: 'Balansınız azdır', subtitle: 'Sifarişlərin dayanmaması üçün balansı artırın.',
+        btn_text: 'Balans artır', btn_url: location.origin + '/addfunds',
+        seg_login: 'in', seg_balmax: '0.99'
+      });
+    });
+  });
   document.querySelectorAll('[data-mytpl-use]').forEach(function (b) {
     b.addEventListener('click', function () {
       var d = PDATA.mytpls[b.dataset.mytplUse]; if (!d) return;
