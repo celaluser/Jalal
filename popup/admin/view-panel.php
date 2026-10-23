@@ -356,6 +356,7 @@ $nav = [
                 </div>
               </div>
               <span class="pill <?= !empty($a['enabled']) ? 'on' : 'off' ?>"><b></b><?= !empty($a['enabled']) ? 'Açık' : 'Kapalı' ?></span>
+              <button class="btn sec sm" type="button" data-pstats="<?= h($a['id']) ?>" data-pname="<?= h($a['name'] ?? $a['id']) ?>"><?= ico('chart') ?><span>İstatistik</span></button>
               <button class="btn sec sm" type="button" data-edit="auto" data-id="<?= h($a['id']) ?>"><?= ico('edit') ?><span>Düzenle</span></button>
               <form method="post" style="display:inline">
                 <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="auto_toggle">
@@ -404,6 +405,7 @@ $nav = [
                 </div>
               </div>
               <span class="pill <?= !empty($p['enabled']) ? 'on' : 'off' ?>"><b></b><?= !empty($p['enabled']) ? 'Açık' : 'Kapalı' ?></span>
+              <button class="btn sec sm" type="button" data-pstats="<?= h($p['id']) ?>" data-pname="<?= h($p['name'] ?? $p['id']) ?>"><?= ico('chart') ?><span>İstatistik</span></button>
               <button class="btn sec sm" type="button" data-edit="manual" data-id="<?= h($p['id']) ?>"><?= ico('edit') ?><span>Düzenle</span></button>
               <form method="post" style="display:inline">
                 <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="popup_toggle">
@@ -500,6 +502,8 @@ $nav = [
              Bakiye, sitede görünen bakiye yazısından okunur
              (seçici: <b>Gösterim kuralları → Segment verisi</b>). Anahtarla istediğin an açıp kapatabilirsin.</p>
           <div class="body"><div class="rows">
+            <div class="row"><div class="lbl">İstatistik<small>Bu uyarının gösterim ve tıklama verileri</small></div>
+              <button class="btn sec sm" type="button" data-pstats="lowbal" data-pname="Düşük bakiye uyarısı" style="justify-self:start"><?= ico('chart') ?><span>İstatistiği aç</span></button></div>
             <div class="row"><div class="lbl">Uyarı açık<small>Anahtara basınca hemen kaydedilir</small></div>
               <label class="sw"><input type="checkbox" name="lb_on" onchange="this.form.submit()"><i></i></label></div>
             <div class="row"><div class="lbl">Bakiye eşiği (₼)<small>Bakiye bu değerin <b>altındaysa</b> gösterilir</small></div>
@@ -773,80 +777,7 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
         </div>
       </div>
 
-      <?php if ($stD !== null): ?>
-      <div class="tiles">
-        <div class="tile"><div class="t-lbl">Gösterim</div><div class="t-val"><?= number_format($stD['view'], 0, ',', '.') ?></div>
-          <div class="t-sub"><?= h($popupNames[$stPid] ?? $stPid) ?></div></div>
-        <div class="tile"><div class="t-lbl">Tıklama</div><div class="t-val"><?= number_format($stD['click'], 0, ',', '.') ?></div>
-          <div class="t-sub">oran %<?= st_ctr($stD['view'], $stD['click']) ?></div></div>
-        <div class="tile"><div class="t-lbl">Tekil ziyaretçi</div><div class="t-val"><?= $stD['hasDetail'] || $stD['uniq'] ? number_format($stD['uniq'], 0, ',', '.') : '—' ?></div>
-          <div class="t-sub">günlük tekil toplamı</div></div>
-        <div class="tile"><div class="t-lbl">Ort. açık kalma</div><div class="t-val"><?= $stD['close'] ? $stD['avgSec'] . 'sn' : '—' ?></div>
-          <div class="t-sub"><?= $stD['close'] ? '%' . $stD['quickPct'] . ' hemen kapattı' : 'veri yok' ?></div></div>
-      </div>
-
-      <div class="card">
-        <h2><?= ico('chart') ?> Günlük gösterim</h2>
-        <div class="body">
-          <?php if ($stD['view'] + $stD['click'] === 0): ?>
-            <p class="hint" style="margin:0">Bu popup için seçili aralıkta veri yok.</p>
-          <?php else: ?>
-            <div class="chart">
-              <?php foreach ($stDBuckets as $b): $hh = round($b['view'] / $stDBest * 100); ?>
-                <div class="bar" style="height:<?= max(3, $hh) ?>%" title="<?= h($b['full']) ?> — <?= (int) $b['view'] ?> gösterim, <?= (int) $b['click'] ?> tıklama">
-                  <?php if ($b['view'] > 0 && count($stDBuckets) <= 20): ?><span><?= (int) $b['view'] ?></span><?php endif; ?>
-                </div>
-              <?php endforeach; ?>
-            </div>
-            <div class="chart-x"><?php foreach ($stDBuckets as $b): ?><div><?= h($b['label']) ?></div><?php endforeach; ?></div>
-          <?php endif; ?>
-        </div>
-      </div>
-
-      <?php if (!$stD['hasDetail'] && $stD['view'] > 0): ?>
-        <p class="hint" style="margin:0 4px 14px">Cihaz, kaynak ve sayfa ayrıntısı bu güncellemeden sonraki gösterimler için toplanır; eski kayıtlarda yalnızca günlük toplam vardır.</p>
-      <?php endif; ?>
-
-      <?php if ($stD['act']): ?>
-      <div class="card">
-        <h2><?= ico('zap') ?> Popup içi eylemler</h2>
-        <div class="body tbl-wrap"><table><tr><th>Eylem</th><th class="num">Adet</th></tr>
-          <?php foreach ($stD['act'] as $k => $n): ?><tr><td><?= h(st_action_name((string) $k)) ?></td><td class="num"><b><?= (int) $n ?></b></td></tr><?php endforeach; ?>
-        </table></div>
-      </div>
-      <?php endif; ?>
-
-      <div class="grid2" style="grid-template-columns:1fr">
-        <?php if ($stD['dev']): ?>
-        <div class="card"><h2><?= ico('phone') ?> Cihaz</h2><div class="body tbl-wrap">
-          <table><tr><th>Cihaz</th><th class="num">Gösterim</th><th class="num">Tıklama</th><th class="num">Oran</th></tr>
-            <?php foreach ($stD['dev'] as $k => $v): ?><tr><td><?= h(st_device_name((string) $k)) ?></td><td class="num"><b><?= (int) $v['view'] ?></b></td><td class="num"><?= (int) $v['click'] ?></td><td class="num">%<?= st_ctr($v['view'], $v['click']) ?></td></tr><?php endforeach; ?>
-          </table></div></div>
-        <?php endif; ?>
-        <?php if ($stD['src']): ?>
-        <div class="card"><h2><?= ico('route') ?> Trafik kaynağı</h2><div class="body tbl-wrap">
-          <table><tr><th>Kaynak</th><th class="num">Gösterim</th><th class="num">Tıklama</th><th class="num">Oran</th></tr>
-            <?php foreach (array_slice($stD['src'], 0, 12, true) as $k => $v): ?><tr><td><?= h($k) ?></td><td class="num"><b><?= (int) $v['view'] ?></b></td><td class="num"><?= (int) $v['click'] ?></td><td class="num">%<?= st_ctr($v['view'], $v['click']) ?></td></tr><?php endforeach; ?>
-          </table></div></div>
-        <?php endif; ?>
-      </div>
-
-      <?php if ($stD['pg']): ?>
-      <div class="card"><h2><?= ico('folder') ?> Sayfa bazında</h2><div class="body tbl-wrap">
-        <table><tr><th>Sayfa</th><th class="num">Gösterim</th><th class="num">Tıklama</th><th class="num">Oran</th></tr>
-          <?php foreach (array_slice($stD['pg'], 0, 15, true) as $k => $v): ?><tr><td><code><?= h($k) ?></code></td><td class="num"><b><?= (int) $v['view'] ?></b></td><td class="num"><?= (int) $v['click'] ?></td><td class="num">%<?= st_ctr($v['view'], $v['click']) ?></td></tr><?php endforeach; ?>
-        </table></div></div>
-      <?php endif; ?>
-
-      <?php if ($stD['svc']): ?>
-      <div class="card"><h2><?= ico('text') ?> Tıklanan servisler</h2><div class="body tbl-wrap">
-        <table><tr><th>ID</th><th>Servis</th><th class="num">Tıklama</th></tr>
-          <?php foreach (array_slice($stD['svc'], 0, 15, true) as $sid => $n): $nm = st_service_name($vhist, (string) $sid); ?>
-            <tr><td><?= h($sid) ?></td><td><?= $nm ? h($nm) : '<span class="dim">—</span>' ?></td><td class="num"><b><?= (int) $n ?></b></td></tr>
-          <?php endforeach; ?>
-        </table></div></div>
-      <?php endif; ?>
-      <?php endif; /* popup detayı */ ?>
+      <?php if ($stD !== null) echo pstats_html($stats, $vhist, $popupNames, $stPid, $range, false); ?>
 
       <?php if ($stD === null): ?>
       <div class="tiles">
@@ -1103,6 +1034,18 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
     </div><!-- /inner -->
   </div><!-- /main -->
 </div><!-- /app -->
+
+<!-- ═════════════ MODAL: POPUP İSTATİSTİĞİ ═════════════ -->
+<div class="mdl" id="m-pstats" hidden>
+  <div class="mdl-scrim" data-close></div>
+  <div class="mdl-box" role="dialog" aria-modal="true" aria-labelledby="m-ps-t">
+    <div class="mdl-head">
+      <h3 id="m-ps-t" class="mdl-title">İstatistik</h3>
+      <button type="button" class="mdl-x" data-close aria-label="Kapat"><?= ico('x') ?></button>
+    </div>
+    <div class="mdl-body" id="pstats-body"></div>
+  </div>
+</div>
 
 <!-- ═════════════ MODAL: OTOMATİK POPUP ═════════════ -->
 <div class="mdl" id="m-auto" hidden>
@@ -1434,6 +1377,50 @@ var PDATA = {
     });
     soonL();
   }
+
+  /* ---------- şablonlarım: kullan / kaydet ---------- */
+  document.querySelectorAll('[data-mytpl-use]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var d = PDATA.mytpls[b.dataset.mytplUse]; if (!d) return;
+      var o = Object.assign({}, d); o.name = ''; openModal('manual', '', o);
+    });
+  });
+  document.querySelectorAll('[data-mytpl-save]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var nm = prompt('Şablon adı:'); if (!nm || !nm.trim()) return;
+      var f = document.createElement('form'); f.method = 'post';
+      [['_t', <?= json_encode($tok) ?>], ['action', 'mytpl_save'], ['pid', b.dataset.mytplSave], ['tpl_name', nm.trim()]].forEach(function (kv) {
+        var i = document.createElement('input'); i.type = 'hidden'; i.name = kv[0]; i.value = kv[1]; f.appendChild(i);
+      });
+      document.body.appendChild(f); f.submit();
+    });
+  });
+
+  /* ---------- popup istatistik modalı ---------- */
+  (function () {
+    var mdl = document.getElementById('m-pstats'); if (!mdl) return;
+    var body = document.getElementById('pstats-body'), title = document.getElementById('m-ps-t');
+    var curPid = '', curRange = '30';
+    function load() {
+      body.innerHTML = '<p class="hint">Yükleniyor…</p>';
+      fetch('popup-stats.php?pid=' + encodeURIComponent(curPid) + '&range=' + encodeURIComponent(curRange), { credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) throw 0; return r.text(); })
+        .then(function (h) { body.innerHTML = h; })
+        .catch(function () { body.innerHTML = '<p class="hint">İstatistik yüklenemedi. Sayfayı yenileyip tekrar dene.</p>'; });
+    }
+    document.querySelectorAll('[data-pstats]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        curPid = b.dataset.pstats; curRange = '30';
+        title.textContent = (b.dataset.pname || curPid) + ' — istatistik';
+        lastFocus = document.activeElement; mdl.hidden = false; document.body.classList.add('mdl-open'); openMdl = mdl;
+        load();
+      });
+    });
+    body.addEventListener('click', function (e) {
+      var a = e.target.closest('[data-pstat-range]'); if (!a) return;
+      e.preventDefault(); curRange = a.dataset.pstatRange; load();
+    });
+  })();
 
   document.querySelectorAll('[data-lay-use]').forEach(function (b) {
     b.addEventListener('click', function () {

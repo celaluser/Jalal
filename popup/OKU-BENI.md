@@ -144,3 +144,12 @@ Güncelleme sonrası panelde **"Şimdi güncelle"** butonuna bas.
   kapanma süresi ve popup içi eylemler (çark, kazıma, kupon al) görünür. Cihaz/kaynak/sayfa ayrıntısı
   güncellemeden sonraki gösterimler için toplanır.
 - **Popuplar** sekmesinde önce otomatik ve manuel liste, sonra katman sırası gelir.
+
+---
+
+## F5 sorunu ve popup istatistik modalı
+
+- Panelde bir işlem yaptıktan sonra sayfa yönlendiriliyor; F5'e basınca artık "formu yeniden gönder" sorusu çıkmaz,
+  işlem tekrarlanmaz. Sonuç mesajı bir kez gösterilir.
+- Popuplar listesinde her popup'ın yanındaki **İstatistik** butonu (ve Düşük bakiye sekmesindeki buton) o popup'ın
+  istatistiğini pencerede açar. Pencerenin üstünden 7 gün / 30 gün / 3 ay / 6 ay / 1 yıl / tümü seçilir.

@@ -9,6 +9,7 @@ define('IGFP_ADMIN', true);
 
 require __DIR__ . '/auth.php';
 require __DIR__ . '/stats-lib.php';
+require __DIR__ . '/view-pstats.php';
 
 $paths = popup_paths();
 $msg = ''; $msgType = 'ok';
@@ -596,6 +597,20 @@ if ($action === 'popup_del' || $action === 'popup_toggle') {
     $msg = ($action === 'popup_del' ? 'Popup silindi. ' : 'Durum değişti. ') . ($res['ok'] ? 'embed.js yenilendi.' : $res['msg']);
     $msgType = $res['ok'] ? 'ok' : 'err';
     $cfg = popup_config();
+}
+
+/* ---------------- POST → YÖNLENDİR (F5'te "formu yeniden gönder" sorunu olmasın) ---------------- */
+adm_start();
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    $_SESSION['igfp_flash'] = ['msg' => $msg, 'type' => $msgType, 'newHash' => $newHash, 'cats' => $runCats];
+    $to = 'index.php?tab=' . rawurlencode($tab !== '' ? $tab : 'durum');
+    header('Location: ' . $to, true, 303);
+    exit;
+}
+if (!empty($_SESSION['igfp_flash']) && is_array($_SESSION['igfp_flash'])) {
+    $fl = $_SESSION['igfp_flash']; unset($_SESSION['igfp_flash']);
+    $msg = (string) ($fl['msg'] ?? ''); $msgType = (string) ($fl['type'] ?? 'ok');
+    $newHash = (string) ($fl['newHash'] ?? ''); $runCats = (array) ($fl['cats'] ?? []);
 }
 
 /* ---------------- DURUM BİLGİSİ ---------------- */
