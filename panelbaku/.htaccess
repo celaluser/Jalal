@@ -1,0 +1,3 @@
+<FilesMatch "\.(json|example)$|^config.*\.php$|^telegram_config\.php$|(PanelApi|HistoryStore)\.php$">
+    Require all denied
+</FilesMatch>

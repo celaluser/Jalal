@@ -1,0 +1,5 @@
+<?php
+// Bu faylı config.local.php adı ilə kopyala və doldur (git-ə düşmür).
+define('PANEL_API_KEY', '');
+define('TELEGRAM_BOT_TOKEN', '');
+define('TELEGRAM_CHANNEL_ID', '@kanal_useradi');
