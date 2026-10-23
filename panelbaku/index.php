@@ -53,7 +53,7 @@ foreach ($historyItems as $h) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=<?= (int)@filemtime(__DIR__ . '/style.css') ?>">
 <script>
 (function () {
     try {
@@ -208,7 +208,7 @@ foreach ($historyItems as $h) {
 </div>
 
 <script id="categoriesData" type="application/json"><?= json_encode($categoriesForJs, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?></script>
-<script src="script.js"></script>
+<script src="script.js?v=<?= (int)@filemtime(__DIR__ . '/script.js') ?>"></script>
 
 </body>
 </html>
