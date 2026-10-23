@@ -284,6 +284,42 @@ $nav = [
     <div class="pane" data-p="popuplar" hidden>
 
       <?php
+        $lb = null; foreach ($cfg['popups'] as $x) { if (($x['id'] ?? '') === 'lowbal') { $lb = $x; break; } }
+        $lbOn  = $lb && !empty($lb['enabled']);
+        $lbMax = ($lb && ($lb['segment']['balanceMax'] ?? '') !== '') ? (float) $lb['segment']['balanceMax'] : 0.99;
+        $lbThr = rtrim(rtrim(number_format($lbMax + 0.01, 2, '.', ''), '0'), '.');
+      ?>
+      <div class="card">
+        <h2><?= ico('zap') ?> Düşük bakiye uyarısı
+          <span class="pill <?= $lbOn ? 'on' : 'off' ?>" style="margin-left:8px"><b></b><?= $lbOn ? 'Açık' : 'Kapalı' ?></span></h2>
+        <p class="hint">Giriş yapmış ve bakiyesi <b>eşiğin altında</b> olanlara "Bakiye ekle" şeridi gösterir.
+           Bakiye, sitede görünen bakiye yazısından okunur. Anahtarla istediğin an açıp kapatabilirsin.</p>
+        <div class="body">
+          <form method="post">
+            <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="lowbal_save">
+            <div class="rows">
+              <div class="row"><div class="lbl">Uyarı açık<small>Kapatınca hemen kaydedilir, popup gösterilmez</small></div>
+                <label class="sw"><input type="checkbox" name="lb_on" <?= $lbOn ? 'checked' : '' ?> onchange="this.form.submit()"><i></i></label></div>
+              <div class="row"><div class="lbl">Bakiye eşiği (₼)<small>Bakiye bu değerin <b>altındaysa</b> gösterilir</small></div>
+                <input type="text" name="lb_thr" value="<?= h($lbThr) ?>" placeholder="1"></div>
+              <div class="row"><div class="lbl">Başlık</div>
+                <input type="text" name="lb_title" value="<?= h($lb['title'] ?? 'Balansınız azdır') ?>"></div>
+              <div class="row"><div class="lbl">Açıklama</div>
+                <input type="text" name="lb_sub" value="<?= h($lb['subtitle'] ?? 'Sifarişlərin dayanmaması üçün balansı artırın.') ?>"></div>
+              <div class="row"><div class="lbl">Buton yazısı</div>
+                <input type="text" name="lb_btn" value="<?= h($lb['btn_text'] ?? 'Balans artır') ?>"></div>
+              <div class="row"><div class="lbl">Buton linki<small>Panelinin bakiye yükleme sayfası</small></div>
+                <input type="text" name="lb_url" value="<?= h($lb['btn_url'] ?? '/addfunds') ?>"></div>
+              <div class="row"><div class="lbl">Bakiye seçicisi (CSS)<small>Sayfada bakiye yazan kutu. Genelde değiştirmen gerekmez.</small></div>
+                <input type="text" name="lb_sel" value="<?= h($cl['segment']['balanceSelector'] ?? '.default-dropdown__toggle') ?>"></div>
+            </div>
+            <div style="margin-top:14px"><button class="btn" type="submit"><?= ico('save') ?><span>Kaydet</span></button>
+              <?php if ($lb): ?><button class="btn sec" type="button" data-edit="manual" data-id="lowbal"><?= ico('edit') ?><span>Gelişmiş düzenle</span></button><?php endif; ?></div>
+          </form>
+        </div>
+      </div>
+
+      <?php
         $layers = [];
         foreach ($cfg['autos'] as $a)   { $layers[] = ['k' => 'a:' . $a['id'], 'n' => $a['name'] ?? $a['id'], 't' => 'Otomatik', 'pr' => (int) ($a['priority'] ?? 10), 'on' => !empty($a['enabled'])]; }
         foreach ($cfg['popups'] as $m)  { $layers[] = ['k' => 'm:' . $m['id'], 'n' => $m['name'] ?? $m['id'], 't' => 'Manuel',   'pr' => (int) ($m['priority'] ?? 20), 'on' => !empty($m['enabled'])]; }
@@ -436,18 +472,6 @@ $nav = [
 
     <!-- ═════════ ŞABLONLAR (hazır görünümler) ═════════ -->
     <div class="pane" data-p="sablonlar" hidden>
-      <div class="card">
-        <h2><?= ico('zap') ?> Hazır senaryolar</h2>
-        <p class="hint">İçerik ve hedefleme (segment) birlikte hazır gelir; sadece linki kendine göre değiştir.</p>
-        <div class="body">
-          <div class="poprow">
-            <div class="poprow-main"><div class="poprow-name">Düşük bakiye uyarısı <span class="ptheme">üst şerit</span></div>
-              <div class="poprow-sub">Giriş yapmış ve bakiyesi 1 ₼ altında olanlara "Bakiye ekle" şeridi. Bakiye sayfadan okunur (Gösterim kuralları → Bakiye seçicisi).</div></div>
-            <button class="btn sm" type="button" data-scen="lowbal">Kullan</button>
-          </div>
-        </div>
-      </div>
-
       <div class="card">
         <h2><?= ico('save') ?> Şablonlarım</h2>
         <p class="hint">Beğendiğin popup'ı "Popuplar" sekmesindeki <b>Şablon</b> butonuyla buraya kaydet; sonra tek tıkla aynı tasarımla yeni popup aç.</p>
@@ -1237,17 +1261,6 @@ var PDATA = {
       });
     });
   }
-  document.querySelectorAll('[data-scen]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      if (b.dataset.scen !== 'lowbal') return;
-      openModal('manual', '', {
-        name: 'Düşük bakiye uyarısı', layout: 'topbar', skin: 'sk27', icon: '⚠️', badge: '',
-        title: 'Balansınız azdır', subtitle: 'Sifarişlərin dayanmaması üçün balansı artırın.',
-        btn_text: 'Balans artır', btn_url: location.origin + '/addfunds',
-        seg_login: 'in', seg_balmax: '0.99'
-      });
-    });
-  });
   document.querySelectorAll('[data-mytpl-use]').forEach(function (b) {
     b.addEventListener('click', function () {
       var d = PDATA.mytpls[b.dataset.mytplUse]; if (!d) return;

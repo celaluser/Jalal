@@ -450,6 +450,41 @@ if ($action === 'order_save') {
     $cfg = popup_config();
 }
 
+/* --- DÜŞÜK BAKİYE UYARISI: tek yerden aç/kapa + ayar --- */
+if ($action === 'lowbal_save') {
+    $tab = 'popuplar';
+    $thr = max(0.01, (float) str_replace(',', '.', (string) pv('lb_thr', '1')));
+    $pops = $cfg['popups']; $idx = null;
+    foreach ($pops as $i => $x) { if (($x['id'] ?? '') === 'lowbal') { $idx = $i; break; } }
+    $base = $idx !== null ? $pops[$idx] : array_merge(popup_manual_default(), [
+        'id' => 'lowbal', 'name' => 'Düşük bakiye uyarısı', 'priority' => 5, 'theme' => 'telegram',
+        'layout' => 'topbar', 'skin' => 'sk27', 'icon' => '⚠️',
+    ]);
+    $entry = array_merge($base, [
+        'enabled'  => pbool('lb_on'),
+        'title'    => trim((string) pv('lb_title')),
+        'subtitle' => trim((string) pv('lb_sub')),
+        'btn_text' => trim((string) pv('lb_btn')),
+        'btn_url'  => trim((string) pv('lb_url')),
+        'segment'  => array_merge(popup_segment_default(), ['login' => 'in', 'balanceMax' => (string) round($thr - 0.01, 2)]),
+    ]);
+    if ($entry['title'] === '' && $entry['subtitle'] === '' && $entry['btn_text'] === '') {
+        $msg = 'Kaydedilmedi: başlık, açıklama ya da buton yazısından en az biri dolu olmalı.'; $msgType = 'err';
+    } else {
+        if ($idx === null) $pops[] = $entry; else $pops[$idx] = $entry;
+        $sel = trim((string) pv('lb_sel'));
+        $ok = popup_settings_save(['popups' => array_values($pops), 'client' => ['segment' => ['balanceSelector' => $sel]]],
+                                  'düşük bakiye uyarısı ' . ($entry['enabled'] ? 'açık' : 'kapalı'));
+        if (!$ok) { $msg = 'Kaydedilemedi — settings.json izni?'; $msgType = 'err'; }
+        else {
+            $res = popup_run();
+            $msg = 'Düşük bakiye uyarısı ' . ($entry['enabled'] ? 'AÇIK' : 'KAPALI') . '. ' . ($res['ok'] ? 'embed.js yenilendi.' : 'AMA: ' . $res['msg']);
+            $msgType = $res['ok'] ? 'ok' : 'err';
+        }
+        $cfg = popup_config();
+    }
+}
+
 /* --- KOPYALA / ŞABLONLARIM / KUPON SAYAÇ SIFIRLA --- */
 if ($action === 'popup_dup' || $action === 'auto_dup') {
     $tab = 'popuplar';
@@ -625,7 +660,7 @@ foreach ((array) ($cfg['mytpls'] ?? []) as $t) { if (is_array($t) && !empty($t['
 
 /* JS'in açacağı sekme */
 $forceTab = '';
-if (isset($_GET['tab']) || in_array($action, ['save','auto_save','auto_del','auto_toggle','order_save','popup_dup','auto_dup','mytpl_save','mytpl_del','coupon_reset','popup_save','popup_del','popup_toggle','restore','newpass'], true)) {
+if (isset($_GET['tab']) || in_array($action, ['save','auto_save','auto_del','auto_toggle','order_save','popup_dup','auto_dup','lowbal_save','mytpl_save','mytpl_del','coupon_reset','popup_save','popup_del','popup_toggle','restore','newpass'], true)) {
     $forceTab = $tab;
 }
 

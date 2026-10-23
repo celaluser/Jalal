@@ -1067,17 +1067,33 @@ function popup_publish(array $c, array $popups, array $autos): array {
 }
 
 /** Tek adımda: ayarları al, popupları topla, dosyaları yaz */
+/** Gösterilecek popup yokken embed.js'i BOŞALT (yoksa kapatılan popup sitede görünmeye devam eder) */
+function popup_publish_empty(array $c, string $why): bool {
+    $p = popup_paths();
+    if (!is_file($p['template'])) return false;
+    $client = $c['client']; $client['enabled'] = false;
+    $js = popup_embed_js((string) file_get_contents($p['template']), [], $client);
+    $js = "/* Otomatik uretildi: " . date('Y-m-d H:i:s') . "  - elle duzenlemeyin. */\n" . $js;
+    $ok = popup_write_atomic($p['embed'], $js);
+    popup_log(($ok ? 'OK — ' : 'HATA — ') . 'embed.js bosaltildi: ' . $why);
+    return $ok;
+}
+
 function popup_run(): array {
     $c = popup_config();
 
     if (empty($c['enabled'])) {
         popup_log('Ana salter kapali, guncelleme yapilmadi.');
-        return ['ok' => false, 'msg' => 'Popup ana salteri kapali.', 'categories' => []];
+        $ok = popup_publish_empty($c, 'ana salter kapali');
+        return ['ok' => false, 'msg' => 'Popup ana salteri kapali' . ($ok ? ' (embed.js boşaltıldı, sitede popup görünmez).' : '.'), 'categories' => []];
     }
 
     $a = popup_assemble($c);
     if (!$a['ok']) {
         popup_log('HATA: ' . $a['msg']);
+        if (empty($a['popups']) && popup_publish_empty($c, $a['msg'])) {
+            return ['ok' => true, 'msg' => 'Yayında aktif popup yok, embed.js boşaltıldı. (' . $a['msg'] . ')', 'categories' => $a['categories']];
+        }
         return ['ok' => false, 'msg' => $a['msg'], 'categories' => $a['categories']];
     }
     $pub = popup_publish($c, $a['popups'], $a['autos']);
