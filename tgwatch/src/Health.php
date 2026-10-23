@@ -34,9 +34,14 @@ final class Health
 
         $dir = (string)$c['data_dir'];
         $r[] = ['data_dir yazılabilir', is_dir($dir) && is_writable($dir) ? self::OK : self::FAIL, $dir];
-        $docRoot = isset($_SERVER['DOCUMENT_ROOT']) ? realpath((string)$_SERVER['DOCUMENT_ROOT']) : false;
-        if ($docRoot && is_dir($dir) && str_starts_with((string)realpath($dir), $docRoot)) {
-            $r[] = ['data_dir konumu', self::FAIL, 'public_html içinde! Veritabanı internetten indirilebilir.'];
+        if (App::insideDocRoot(TGWATCH_ROOT)) {
+            $missing = array_filter(['', '/src', '/tools', '/tests', '/data'], static fn($d) => !is_file(TGWATCH_ROOT . $d . '/.htaccess'));
+            $r[] = ['Web koruması', $missing ? self::FAIL : self::OK, $missing
+                ? '.htaccess eksik: ' . implode(', ', array_map(static fn($d) => ($d ?: '/') , $missing)) . ' — zip\'teki gizli dosyalar (.htaccess) açılmamış olabilir'
+                : 'tgwatch public_html içinde; .htaccess dosyaları yerinde, veritabanı adı rastgele'];
+        }
+        if (is_dir($dir) && App::insideDocRoot($dir) && !is_file($dir . '/.htaccess')) {
+            $r[] = ['data_dir konumu', self::WARN, 'public_html içinde ve .htaccess yok (veritabanı adı rastgele olduğu için yine de tahmin edilemez)'];
         }
         if (is_file(TGWATCH_ROOT . '/config.php') && (fileperms(TGWATCH_ROOT . '/config.php') & 0o004)) {
             $r[] = ['config.php izinleri', self::WARN, 'herkes okuyabilir — 600 ya da 640 yapın'];

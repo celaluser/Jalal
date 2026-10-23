@@ -4,6 +4,11 @@ declare(strict_types=1);
 // Otomatik testler:  php tests/run.php
 // Ağa çıkmaz: Telegram ve kanal okuyucu sahte sınıflarla değiştirilir.
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit;
+}
+
 require dirname(__DIR__) . '/src/bootstrap.php';
 
 use TgWatch\App;
@@ -487,6 +492,20 @@ test('geçersiz kanal adı reddedilir', function () {
         ok(false, 'hata bekleniyordu');
     } catch (InvalidArgumentException) {
     }
+});
+
+echo "Kurulum\n";
+test('veritabanı adı rastgele, secret.php bir kez oluşur, eski dosya taşınır', function () {
+    global $tmp;
+    $dir = $tmp . '/dbp';
+    mkdir($dir);
+    file_put_contents($dir . '/tgwatch.sqlite', 'eski');
+    $a = App::dbPath($dir);
+    ok(preg_match('~/tgwatch_[a-f0-9]{24}\.sqlite$~', $a) === 1, $a);
+    eq($a, App::dbPath($dir));
+    eq('eski', file_get_contents($a));
+    ok(!is_file($dir . '/tgwatch.sqlite'));
+    ok(str_starts_with(file_get_contents($dir . '/secret.php'), '<?php'));
 });
 
 echo "Dictionary\n";

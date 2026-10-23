@@ -1,2 +1,8 @@
-# Bu klasör public_html dışında olmalı; yine de yanlışlıkla web'e açılırsa erişimi engelle.
-Require all denied
+# Bu klasör web'den erişilemez.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

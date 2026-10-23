@@ -1,2 +1,14 @@
-# tgwatch klasörü public_html dışında olmalı; yanlışlıkla web'e açılırsa her şeyi engelle.
-Require all denied
+# tgwatch public_html içine açılırsa: yalnızca public/ ve bu index.php web'den erişilebilir.
+# (src/, tools/, tests/, data/ klasörlerinin kendi .htaccess dosyaları erişimi tamamen kapatır.)
+Options -Indexes
+DirectoryIndex index.php
+
+<FilesMatch "^(config.*\.php|cron\.php|README\.md|\.gitignore|.*\.sqlite.*|.*\.lock)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

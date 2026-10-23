@@ -13,83 +13,80 @@ Onaydan sonra yayın yapar. Her şeyi web panelden izleyebilirsin.
 | Parça | Durum |
 |---|---|
 | Çeviri, ayrıştırma, bot akışı, cron mantığı, web panel | Otomatik testler (`php tests/run.php`) + yerel PHP sunucusunda denendi |
+| `public_html/system/tgwatch` düzeni, `.htaccess` koruması, web kurulum ekranı, webhook ucu (gizli anahtar) | Apache 2.4 + mod_php ile denendi. LiteSpeed'de **denenmedi** |
 | Gerçek `t.me/s` sayfası | **Denenmedi** (geliştirme ortamından Telegram kapalıydı). Test sayfası Telegram'ın bilinen yapısına göre yazıldı |
-| Telegram Bot API, webhook | **Denenmedi** |
+| Telegram Bot API'ye gerçek istek | **Denenmedi** |
 | Claude API (Yeniden oluştur) | **Denenmedi**, isteğe bağlı |
 
 ## Dosyalar
 
 ```
-tgwatch/                 → /home/KULLANICI/tgwatch   (public_html DIŞINDA)
+tgwatch/                 → zip'i İSTEDİĞİN klasöre aç (public_html içi ya da dışı)
+  public/                → web panel (index.php) ve Telegram webhook (bot.php)
   config.sample.php      → config.php olarak kopyala ve doldur
   cron.php               → her dakika cron
-  src/                   → kod
-  tools/check.php        → kurulum kontrolü
-  tools/make_hash.php    → panel şifresi hash'i / webhook gizli anahtarı
-  tools/set_webhook.php  → webhook kur/kaldır/bilgi
-  tests/run.php          → testler
-  data/                  → veritabanı (otomatik oluşur)
-  public/                → içeriğini public_html/tgadmin/ altına kopyala
-    index.php            → web panel
-    bot.php              → Telegram webhook
-    app_path.php         → APP_DIR burada (tek düzenlenecek satır)
+  src/ tools/ tests/     → kod ve araçlar (web'den erişilemez)
+  data/                  → veritabanı (otomatik oluşur, adı rastgele, web'den erişilemez)
 ```
 
-## Kurulum (DirectAdmin)
+Yol ayarı gerekmez: `public/app_path.php` tgwatch klasörünü kendisi bulur.
+Örnek: zip `public_html/system/tgwatch` altına açıldıysa
+panel `https://ALANADIN/system/tgwatch/public/`, webhook `https://ALANADIN/system/tgwatch/public/bot.php` olur.
+
+**public_html içine açarsan:** Yalnızca `public/` web'den açılır. `config.php`, `cron.php`, `src/`, `tools/`, `tests/`, `data/`
+`.htaccess` ile kapalıdır (Apache/LiteSpeed). Ayrıca veritabanı dosyasının adı rastgeledir, `.htaccess` çalışmasa bile tahmin edilemez.
+Zip'i açarken gizli dosyaların (`.htaccess`) da çıktığından emin ol. **Sağlık** sayfasındaki "Web koruması" satırı bunu kontrol eder.
+İstersen tgwatch'ı public_html dışına koyup sadece `public/` içeriğini web'e kopyalayabilirsin (o zaman `app_path.php` içindeki yolu düzelt).
+
+## Kurulum (DirectAdmin, SSH gerekmez)
 
 ### 0. Eski token
 Daha önce bir sohbete token yapıştırdıysan: BotFather → `/mybots` → bot → **API Token → Revoke current token**.
 Token'ı, Claude anahtarını ve şifre hash'ini **yalnızca hosting'deki config.php'ye** yaz. Sohbete yazma.
 
 ### 1. Bot
-1. BotFather → `/newbot` → token'ı al.
-2. Kendi botuna `/start` yaz. Kurulum bitince bot sana ID'ni söyler (adım 6). Önce öğrenmek istersen
-   tarayıcıda `https://api.telegram.org/bot<TOKEN>/getUpdates` aç, `"from":{"id":…}` senin ID'n. (Webhook kurulunca bu adres çalışmaz.)
+BotFather → `/newbot` → token'ı al.
 
-### 2. Dosyalar
-1. File Manager → `/home/KULLANICI/` → `tgwatch` klasörüne zip'i aç.
-2. `tgwatch/public/` **içindeki** dosyaları `public_html/tgadmin/` klasörüne kopyala (`.htaccess` dahil).
-3. `public_html/tgadmin/app_path.php` içinde `/home/KULLANICI/tgwatch` yolunu kendi kullanıcı adınla düzelt.
+### 2. Dosyalar ve PHP
+1. File Manager → istediğin klasöre zip'i yükle ve **Extract** et.
+2. DirectAdmin'de **Select PHP Version** / **PHP Selector** (adı hosting'e göre değişir): **8.1+** seç,
+   `curl`, `mbstring`, `dom`, `pdo_sqlite` eklentilerini aç.
 
-### 3. PHP
-DirectAdmin'de **Select PHP Version** / **PHP Selector** (hosting'e göre adı değişir): **8.1+** seç,
-`curl`, `mbstring`, `dom`, `pdo_sqlite` eklentilerini aç.
+### 3. config.php ve panel şifresi
+1. `config.sample.php` dosyasını aynı klasörde **Copy** ile `config.php` adıyla kopyala, izinlerini **600** (ya da 640) yap.
+2. Tarayıcıda paneli aç (`…/tgwatch/public/`). Şifre henüz ayarlı olmadığı için **Kurulum** ekranı gelir:
+   şifreyi iki kez yaz → `admin_password_hash`, `webhook_secret` ve `webhook_url` satırları üretilir.
+   Bu satırları File Manager → `config.php` → **Edit** ile aynı satırların yerine yapıştır. Bu ekran hiçbir dosyaya yazmaz.
+3. `bot_token` yaz. `owner_id` için şimdilik 0 bırak (adım 4'te öğreneceksin).
+4. Sayfayı yenile → giriş ekranı gelir → giriş yap.
 
-### 4. config.php
-`config.sample.php` → `config.php` olarak kopyala, izinleri **600** yap. Doldur:
-- `bot_token`, `owner_id`
-- `admin_password_hash`: `php tools/make_hash.php` çıktısı
-- Webhook modu (önerilen): `webhook_url` = `https://ALANADIN/tgadmin/bot.php`, `webhook_secret` = `php tools/make_hash.php --secret` çıktısı
-- HTTPS yoksa ya da webhook çalışmazsa: `'bot_mode' => 'polling'` (butonlar cron aralığında işlenir)
+Yazım hatası yaparsan panel hangi satırda hata olduğunu söyler.
 
-**SSH yoksa** komutları geçici bir cron satırıyla çalıştırıp çıktıyı dosyaya yazdır, işin bitince satırı ve dosyayı sil:
-```
-/usr/local/bin/php /home/KULLANICI/tgwatch/tools/check.php > /home/KULLANICI/tgwatch/data/out.txt 2>&1
-```
-PHP CLI yolu hosting'e göre değişir: `/usr/local/bin/php`, `/usr/local/php81/bin/php`, `/opt/alt/php81/usr/bin/php`… Hangisi olduğunu
-hosting'in cron sayfası ya da desteği söyler. `check.php` ilk satırda kullandığı PHP yolunu ve sürümünü yazar.
-Şifreyi cron satırına `--password='...'` ile yazdıysan, hash'i aldıktan hemen sonra o satırı sil.
+### 4. Webhook ve Telegram ID
+1. Panel → **Sağlık** → **Webhook'u kur** → **Webhook bilgisi** ("Son hata: yok" görmelisin).
+2. Bota `/start` yaz → bot "Telegram ID'niz: …" der. Bu sayıyı `config.php` → `owner_id` olarak yaz.
+3. Tekrar `/start` → "✅ tgwatch hazır" gelmeli.
+
+HTTPS sertifikan yoksa ya da webhook hata veriyorsa: `'bot_mode' => 'polling'` yap ve **Webhook'u kaldır**.
+Butonlar o zaman cron her çalıştığında işlenir.
 
 ### 5. Kontrol
-`php tools/check.php` → ✗ olan satırları düzelt. Çıktıyı paylaşacaksan önce gözden geçir (token yazmaz).
+Panel → **Sağlık** → **Ağ testlerini çalıştır**. ✗ olan satırları düzelt. (SSH varsa aynısı: `php tools/check.php`.)
 
-### 6. Webhook ve kanal
-1. `php tools/set_webhook.php` (polling modunda gerekmez).
-2. Bota `/start` yaz: "✅ tgwatch hazır" gelmeli.
-3. Panel `https://ALANADIN/tgadmin/` → **Kanallar** → kanal ekle → **Test**. Ya da `php cron.php --add-channel=kanaladi`.
+### 6. Kanal ve ilk deneme
+1. Panel → **Kanallar** → kanal ekle → **Test** (kaydetmeden okur ve çeviriyi gösterir).
+2. Aynı sayfada **"son 3 gönderiyi gerçekten işle"** → servis duyurusu varsa bota onay mesajı gelir.
+   (SSH varsa: `php cron.php --test`, `php cron.php --backfill=3`.)
 
 ### 7. Cron
-DirectAdmin → **Cron Jobs** → her dakika:
+DirectAdmin → **Cron Jobs** → her dakika. Komut **Sağlık → Kurulum bilgileri**'nde tam yoluyla yazar:
 ```
-* * * * * /usr/local/bin/php /home/KULLANICI/tgwatch/cron.php >/dev/null 2>&1
+* * * * * PHP_YOLU /TAM/YOL/tgwatch/cron.php >/dev/null 2>&1
 ```
-Dakikalık izin yoksa `*/5 * * * *`.
+PHP_YOLU hosting'e göre değişir: `/usr/local/bin/php`, `/usr/local/php81/bin/php`, `/opt/alt/php81/usr/bin/php`…
+Cron'un kullandığı PHP sürümü web'dekinden farklı olabilir, 8.1+ olduğundan emin ol.
+Doğru çalıştığını **Özet** sayfasındaki "Cron son çalışma" satırından görürsün. Dakikalık izin yoksa `*/5 * * * *`.
 
-### 8. İlk deneme
-```
-php cron.php --test          # okur ve çevirir, hiçbir şey kaydetmez/göndermez
-php cron.php --backfill=3    # her kanalın son 3 gönderisini gerçekten işler → bota onay mesajı gelir
-```
 Normal çalışmada kanal ilk kez okunduğunda **eski gönderiler işlenmez**, sadece sonrakiler işlenir.
 
 ## Kullanım
@@ -124,7 +121,8 @@ ID satırlarından önceki kısa başlık satırı alınır. Gerçek kanallarda 
 
 ## Güvenlik
 
-- `tgwatch/` ve `data/` public_html dışında. Yanlışlıkla web'e açılırsa `.htaccess` erişimi engeller.
+- public_html içindeyken yalnızca `public/` açıktır. Diğer her şey `.htaccess` ile kapalıdır. CLI betikleri web'den çağrılırsa çalışmaz,
+  veritabanı adı rastgeledir (`data/secret.php`, silme).
 - Panel: şifre (Argon2id/bcrypt hash), aynı IP'den 5 yanlış denemede 15 dk kilit, CSRF, sıkı CSP, 2 saat hareketsizlikte oturum kapanır.
 - Webhook: `X-Telegram-Bot-Api-Secret-Token` doğrulanır.
 - `config.php` git'e girmez (`.gitignore`).

@@ -5,4 +5,11 @@ declare(strict_types=1);
 require __DIR__ . '/app_path.php';
 require APP_DIR . '/src/bootstrap.php';
 
-(new TgWatch\Web\Admin(TgWatch\App::config()))->handle();
+try {
+    $config = TgWatch\App::config();
+} catch (Throwable $e) {
+    http_response_code(500);
+    header('Content-Type: text/plain; charset=utf-8');
+    exit($e->getMessage() . "\n");
+}
+(new TgWatch\Web\Admin($config))->handle();

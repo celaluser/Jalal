@@ -109,9 +109,68 @@ final class Admin
         return (string)($_SERVER['REMOTE_ADDR'] ?? '0');
     }
 
+    /** Önerilen webhook adresi: bu panelin yanındaki bot.php. */
+    private function suggestedWebhook(): string
+    {
+        $host = preg_replace('/[^A-Za-z0-9.\-:]/', '', (string)($_SERVER['HTTP_HOST'] ?? 'ALANADI'));
+        $dir = rtrim(str_replace('\\', '/', dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/index.php'))), '/');
+        return 'https://' . $host . $dir . '/bot.php';
+    }
+
+    /**
+     * İlk kurulum: admin_password_hash boşken şifre hash'i ve webhook anahtarı üretir (SSH gerekmez).
+     * Hiçbir dosyaya yazmaz; çıktıyı kullanıcı config.php'ye kendisi yapıştırır.
+     */
+    private function setup(): void
+    {
+        $out = '';
+        $msg = '';
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['p'] ?? '') === 'setup') {
+            $pw = (string)($_POST['password'] ?? '');
+            if (!hash_equals((string)$_SESSION['csrf'], (string)($_POST['csrf'] ?? ''))) {
+                $msg = 'Oturum süresi doldu, tekrar deneyin.';
+            } elseif (mb_strlen($pw) < 12) {
+                $msg = 'Şifre en az 12 karakter olmalı.';
+            } elseif ($pw !== (string)($_POST['password2'] ?? '')) {
+                $msg = 'Şifreler aynı değil.';
+            } else {
+                $algo = defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT;
+                $out = "    'admin_password_hash' => '" . password_hash($pw, $algo) . "',\n";
+                if ((string)$this->config['webhook_secret'] === '') {
+                    $out .= "    'webhook_secret' => '" . rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=') . "',\n";
+                }
+                if ((string)$this->config['webhook_url'] === '') {
+                    $out .= "    'webhook_url' => '" . $this->suggestedWebhook() . "',\n";
+                }
+            }
+        }
+        $cfg = TGWATCH_ROOT . '/config.php';
+        $h = '<div class="card"><b>İlk kurulum.</b> Panel şifresi henüz ayarlı değil.<ol>'
+            . '<li><code>' . $this->e(TGWATCH_ROOT) . '/config.sample.php</code> dosyasını aynı klasörde <code>config.php</code> adıyla kopyalayın'
+            . (is_file($cfg) ? ' <span class="ok">✓ var</span>' : ' <span class="bad">✗ henüz yok</span>') . '.</li>'
+            . '<li>Aşağıda şifrenizi belirleyin. Çıkan satırları <code>config.php</code> içindeki aynı satırların yerine yapıştırın.</li>'
+            . '<li><code>bot_token</code> ve <code>owner_id</code> değerlerini de doldurun, kaydedin, bu sayfayı yenileyin.</li></ol>'
+            . '<p class="mut">Bu sayfa hiçbir dosyaya yazmaz. Şifre hash\'i ayarlanınca kaybolur ve yerine giriş ekranı gelir.</p></div>';
+        if ($out !== '') {
+            $h .= '<h2>config.php içine yapıştırın</h2><div class="card"><pre>' . $this->e($out) . '</pre></div>'
+                . '<p class="warn">Bu satırları sohbetlere ya da başka yerlere yapıştırmayın.</p>';
+        } else {
+            $h .= '<form method="post" action="?p=setup" class="login">' . ($msg !== '' ? '<p class="bad">' . $this->e($msg) . '</p>' : '')
+                . $this->csrf()
+                . '<label>Yeni panel şifresi (en az 12 karakter)<br><input type="password" name="password" required minlength="12" autocomplete="new-password"></label>'
+                . '<label>Şifre tekrar<br><input type="password" name="password2" required minlength="12" autocomplete="new-password"></label>'
+                . '<button>Satırları oluştur</button></form>';
+        }
+        $this->page('Kurulum', $h, false);
+    }
+
     private function login(): void
     {
         $hash = (string)$this->config['admin_password_hash'];
+        if ($hash === '') {
+            $this->setup();
+            return;
+        }
         $msg = '';
         $row = $this->db->one('SELECT * FROM login_attempts WHERE ip = ?', [$this->ip()]);
         $locked = $row && (int)$row['locked_until'] > time();
@@ -139,9 +198,6 @@ final class Admin
                 usleep(500000);
                 $msg = $until ? 'Çok fazla hatalı deneme, 15 dk kilitlendi.' : 'Şifre yanlış.';
             }
-        }
-        if ($hash === '') {
-            $msg = 'admin_password_hash ayarlı değil. Sunucuda php tools/make_hash.php çalıştırıp config.php içine yazın.';
         }
         $html = '<form method="post" action="?p=login" class="login">'
             . ($msg !== '' ? '<p class="bad">' . $this->e($msg) . '</p>' : '')
@@ -351,6 +407,9 @@ CSS;
                     . $this->button('channel_delete', 'Sil', ['id' => $c['id']], 'danger') . '</td></tr>';
             }
             $h .= '</table></div>';
+            $h .= '<form method="post" action="?p=backfill" class="card row">' . $this->csrf()
+                . 'Her etkin kanalın son <input type="number" name="n" value="3" min="1" max="20"> gönderisini <b>gerçekten</b> işle'
+                . ' <button class="sec">Çalıştır</button><span class="mut">Servis duyurusu varsa iş oluşur ve bota onay mesajı gider. Aynı gönderi iki kez işlenmez.</span></form>';
         } else {
             $h .= '<p class="mut">Henüz kanal yok.</p>';
         }
@@ -421,6 +480,25 @@ CSS;
             $h .= '<tr><td>' . $this->e($name) . '</td><td class="' . $cls . '"><b>' . $icon . '</b></td><td>' . $this->e($detail) . '</td></tr>';
         }
         $h .= '</table></div><p>' . $this->button('health_net', 'Ağ testlerini çalıştır (Telegram, bot, webhook)', [], 'sec') . '</p>';
+
+        $root = TGWATCH_ROOT;
+        $h .= '<h2>Kurulum bilgileri</h2><div class="wrap"><table>'
+            . '<tr><td>tgwatch klasörü</td><td><code>' . $this->e($root) . '</code></td></tr>'
+            . '<tr><td>Önerilen webhook_url</td><td><code>' . $this->e($this->suggestedWebhook()) . '</code>'
+            . ((string)$this->config['webhook_url'] === $this->suggestedWebhook() ? ' <span class="ok">✓ config ile aynı</span>' : ' <span class="warn">config.php\'dekinden farklı</span>') . '</td></tr>'
+            . '<tr><td>Cron komutu (her dakika)</td><td><code>PHP_YOLU ' . $this->e($root) . '/cron.php &gt;/dev/null 2&gt;&amp;1</code>'
+            . '<div class="mut">PHP_YOLU hosting\'e göre değişir: /usr/local/bin/php, /usr/local/php81/bin/php, /opt/alt/php81/usr/bin/php…</div></td></tr>'
+            . '</table></div>';
+        if ($this->config['bot_mode'] === 'webhook') {
+            $h .= '<h2>Webhook</h2><p class="row">'
+                . $this->button('webhook', 'Webhook\'u kur', ['do' => 'set'])
+                . $this->button('webhook', 'Webhook bilgisi', ['do' => 'info'], 'sec')
+                . $this->button('webhook', 'Webhook\'u kaldır', ['do' => 'delete'], 'danger') . '</p>';
+        }
+        if (!empty($_SESSION['webhook_report'])) {
+            $h .= '<div class="card"><pre>' . $this->e($_SESSION['webhook_report']) . '</pre></div>';
+            unset($_SESSION['webhook_report']);
+        }
         $this->page('Sağlık', $h);
     }
 
@@ -495,6 +573,42 @@ CSS;
                     return;
                 case 'health_net':
                     $this->health(true);
+                    return;
+                case 'webhook':
+                    $tg = App::telegram();
+                    $do = (string)($_POST['do'] ?? '');
+                    if ($do === 'set') {
+                        $url = (string)$this->config['webhook_url'];
+                        $secret = (string)$this->config['webhook_secret'];
+                        if (!str_starts_with($url, 'https://') || !preg_match('/^[A-Za-z0-9_-]{16,256}$/', $secret)) {
+                            throw new \RuntimeException('config.php: webhook_url (https://…) ve webhook_secret ayarlı olmalı.');
+                        }
+                        $tg->call('setWebhook', ['url' => $url, 'secret_token' => $secret, 'allowed_updates' => ['message', 'callback_query'], 'max_connections' => 5]);
+                        $report = "✓ Webhook kuruldu: $url\nBirkaç saniye sonra \"Webhook bilgisi\" ile kontrol edin, sonra bota /start yazın.";
+                    } elseif ($do === 'delete') {
+                        $tg->call('deleteWebhook', ['drop_pending_updates' => false]);
+                        $report = '✓ Webhook kaldırıldı.';
+                    } else {
+                        $i = $tg->call('getWebhookInfo');
+                        $report = 'URL: ' . (($i['url'] ?? '') ?: '(yok)') . "\nBekleyen güncelleme: " . ($i['pending_update_count'] ?? 0)
+                            . (!empty($i['last_error_message']) ? "\nSon hata: " . $i['last_error_message'] . ' (' . date('Y-m-d H:i', (int)$i['last_error_date']) . ')' : "\nSon hata: yok");
+                    }
+                    $this->db->log('info', 'web', "Webhook $do");
+                    $_SESSION['webhook_report'] = $report;
+                    $this->redirect('health');
+                    return;
+                case 'backfill':
+                    $n = max(1, min(20, (int)($_POST['n'] ?? 3)));
+                    $w = new Watcher($this->db, App::flow(), new ChannelReader((int)$this->config['fetch_timeout']));
+                    $out = '';
+                    foreach ($w->runAll($n) as $u => $r) {
+                        $out .= $r['ok']
+                            ? "✓ @$u: son {$r['posts']} gönderi, " . count($r['found']) . ' servis duyurusu, yeni iş: ' . (implode(', ', array_map(static fn($j) => "#$j", $r['jobs'])) ?: 'yok (daha önce işlenmiş olabilir)') . "\n"
+                            : "✗ @$u: {$r['error']}\n";
+                    }
+                    $this->db->log('info', 'web', "Backfill $n çalıştırıldı");
+                    $_SESSION['test_report'] = $out !== '' ? $out : 'Etkin kanal yok.';
+                    $this->redirect('channels');
                     return;
             }
             $this->redirect('dash');
