@@ -49,8 +49,8 @@ final class Admin
         }
         $p = (string)($_GET['p'] ?? 'dash');
 
-        if ($p === 'theme') {
-            $this->theme();
+        if ($p === 'theme') { // eski tema bağlantıları: görünüm artık sistem ayarını izler
+            $this->redirect('dash');
             return;
         }
         if (!$this->loggedIn()) {
@@ -67,6 +67,7 @@ final class Admin
             return;
         }
         match ($p) {
+            'queue' => $this->queue(),
             'jobs' => $this->jobs(),
             'job' => $this->job((int)($_GET['id'] ?? 0)),
             'job_txt' => $this->jobTxt((int)($_GET['id'] ?? 0)),
@@ -86,7 +87,7 @@ final class Admin
     private function headers(): void
     {
         $n = $this->nonce;
-        header("Content-Security-Policy: default-src 'none'; script-src 'nonce-$n'; style-src 'nonce-$n' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
+        header("Content-Security-Policy: default-src 'none'; script-src 'nonce-$n'; style-src 'nonce-$n'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
         header('X-Frame-Options: DENY');
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: no-referrer');
@@ -159,21 +160,6 @@ final class Admin
         $_SESSION['flash'][] = [$type, $msg];
     }
 
-    private function themeName(): string
-    {
-        $t = (string)($_COOKIE['tgw_theme'] ?? 'auto');
-        return in_array($t, ['auto', 'light', 'dark'], true) ? $t : 'auto';
-    }
-
-    private function theme(): void
-    {
-        $t = (string)($_GET['t'] ?? 'auto');
-        $t = in_array($t, ['auto', 'light', 'dark'], true) ? $t : 'auto';
-        setcookie('tgw_theme', $t, ['expires' => time() + 31536000, 'path' => '/', 'secure' => $this->https(), 'httponly' => true, 'samesite' => 'Lax']);
-        $back = (string)($_GET['back'] ?? 'dash');
-        $this->redirect(in_array($back, ['dash', 'jobs', 'channels', 'dict', 'bank', 'ai', 'logs', 'health'], true) ? $back : 'dash');
-    }
-
     private function pending(): int
     {
         return (int)$this->db->one("SELECT COUNT(*) c FROM jobs WHERE status IN ('new','awaiting','editing','failed')")['c'];
@@ -196,7 +182,6 @@ final class Admin
         if ($nav && isset($this->db)) {
             $o += ['pending' => $this->pending(), 'cron' => $this->cronState()];
         }
-        $o['theme'] = $this->themeName();
         $o['flash'] = $this->flash;
         echo $this->ui->page($title, $body, $o);
     }
@@ -205,8 +190,8 @@ final class Admin
 
     private function bare(string $title, string $sub, string $inner): void
     {
-        $this->render($title, '<div class="login-card"><div class="flag" aria-hidden="true"><i></i><i></i><i></i></div>'
-            . '<div class="body"><div><h1>' . Ui::e($title) . '</h1><p class="sub">' . $sub . '</p></div>' . $inner . '</div></div>', ['nav' => false]);
+        $this->render($title, '<div class="login-card"><div class="body"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>'
+            . '<div><h1>' . Ui::e($title) . '</h1><p class="sub">' . $sub . '</p></div>' . $inner . '</div></div>', ['nav' => false]);
     }
 
     private function setup(): void
@@ -298,7 +283,7 @@ final class Admin
     }
 
     /** İş satırlarını kart olarak gösterir (kuyrukta). */
-    private function queueCard(array $job, int $show = 4, bool $quick = true): string
+    private function queueCard(array $job, int $show = 4, bool $quick = true, string $back = 'queue'): string
     {
         $id = (int)$job['id'];
         $items = $job['items'];
@@ -309,7 +294,7 @@ final class Admin
         $actions = '';
         if ($quick) {
             if (in_array($job['status'], self::OPEN, true)) {
-                $actions .= $this->ui->action('job_do', 'Onayla', ['id' => $id, 'do' => 'approve', 'back' => 'dash'], 'primary sm', 'check');
+                $actions .= $this->ui->action('job_do', 'Onayla', ['id' => $id, 'do' => 'approve', 'back' => $back], 'primary sm', 'check');
             }
             $actions .= Ui::link('?p=job&id=' . $id, 'İncele', 'quiet sm', 'edit');
         }
@@ -363,43 +348,163 @@ final class Admin
 
     // ---------------------------------------------------------------- sayfalar
 
+    /** Genel bakış: karar bekleyenler, eğilimler, kanal ve sistem sağlığı, son etkinlik. */
     private function dash(): void
     {
-        $open = $this->loadJobs("WHERE status IN ('new','awaiting','editing','failed')", [], "ORDER BY CASE status WHEN 'failed' THEN 0 ELSE 1 END, id ASC LIMIT 20");
-        $approved = (int)$this->db->one("SELECT COUNT(*) c FROM jobs WHERE status = 'approved'")['c'];
-        $ch = $this->db->one('SELECT COUNT(*) total, SUM(enabled = 1 AND last_error IS NULL AND last_ok_at IS NOT NULL) ok, SUM(enabled = 1 AND last_error IS NOT NULL) bad FROM channels');
+        $today = strtotime('today');
+        $start = $today - 13 * 86400;
+        $since30 = $today - 29 * 86400;
+        $rows = $this->db->all('SELECT id, status, created_at, updated_at, items_json FROM jobs WHERE created_at >= ? ORDER BY id', [$since30]);
+
+        $days = [];
+        $itemsPerDay = [];
+        $approvedPerDay = [];
+        $bankPerDay = [];
+        for ($i = 0; $i < 14; $i++) {
+            $ts = $start + $i * 86400;
+            $days[date('Y-m-d', $ts)] = ['ts' => $ts, 'values' => [0, 0, 0]];
+            $itemsPerDay[date('Y-m-d', $ts)] = 0;
+            $approvedPerDay[date('Y-m-d', $ts)] = 0;
+            $bankPerDay[date('Y-m-d', $ts)] = [0, 0];
+        }
+        $via = ['bank' => 0, 'mixed' => 0, 'rules' => 0, 'claude' => 0, 'manual' => 0];
+        $itemsToday = 0;
+        foreach ($rows as $r) {
+            $items = json_decode($r['items_json'], true) ?: [];
+            foreach ($items as $it) {
+                $v = $it['via'] ?? (!empty($it['edited']) ? 'manual' : 'rules');
+                if (isset($via[$v])) {
+                    $via[$v]++;
+                }
+            }
+            $k = date('Y-m-d', (int)$r['created_at']);
+            if (!isset($days[$k])) {
+                continue;
+            }
+            $bucket = in_array($r['status'], ['approved', 'published'], true) ? 0 : ($r['status'] === 'rejected' ? 2 : 1);
+            $days[$k]['values'][$bucket]++;
+            $itemsPerDay[$k] += count($items);
+            if ($bucket === 0) {
+                $approvedPerDay[$k]++;
+            }
+            foreach ($items as $it) {
+                $bankPerDay[$k][1]++;
+                if (($it['via'] ?? '') === 'bank') {
+                    $bankPerDay[$k][0]++;
+                }
+            }
+            if ((int)$r['created_at'] >= $today) {
+                $itemsToday += count($items);
+            }
+        }
+        $c = [];
+        foreach ($this->db->all('SELECT status, COUNT(*) n FROM jobs GROUP BY status') as $x) {
+            $c[$x['status']] = (int)$x['n'];
+        }
+        $deciding = ($c['new'] ?? 0) + ($c['awaiting'] ?? 0) + ($c['editing'] ?? 0);
+        $failed = $c['failed'] ?? 0;
+        $approved = $c['approved'] ?? 0;
+        $totalItems = array_sum($via);
+        $bankPct = $totalItems ? (int)round($via['bank'] * 100 / $totalItems) : 0;
+        $bankSpark = array_map(static fn($p) => $p[1] ? $p[0] / $p[1] : 0, array_values($bankPerDay));
         $cron = $this->cronState();
         $res = $this->db->getJson('cron_last_result');
+        $ai = new \TgWatch\Ai($this->db, $this->config);
+        $usage = $ai->usage();
+        $limit = $ai->monthlyLimit();
+        $mem = (new \TgWatch\Memory($this->db))->stats();
 
-        $chText = (int)$ch['total'] === 0 ? '<a href="?p=channels">Kanal ekleyin</a>'
-            : (int)$ch['ok'] . ' çalışıyor' . ((int)$ch['bad'] ? ', <span class="lvl-error">' . (int)$ch['bad'] . ' hatalı</span>' : '');
-        $h = '<section class="strip" aria-label="Sistem durumu">'
-            . '<div><div class="k">' . Ui::dot($open ? 'warn' : 'ok') . 'Onay bekleyen</div><div class="v">' . count($open) . ' iş</div></div>'
-            . '<div><div class="k">' . Ui::dot($approved ? 'warn' : 'ok') . 'Sitede yayın bekleyen</div><div class="v"><a href="?p=jobs&amp;status=approved">' . $approved . ' iş</a></div></div>'
-            . '<div><div class="k">' . Ui::dot((int)$ch['bad'] ? 'bad' : ((int)$ch['total'] ? 'ok' : 'warn')) . 'Kanallar</div><div class="v">' . $chText . '</div></div>'
-            . '<div><div class="k">' . Ui::dot($cron['state']) . 'Son kanal okuma</div><div class="v">' . $cron['text']
-            . (is_array($res) && $res['errors'] ? ' <span class="lvl-error">(' . (int)$res['errors'] . ' hata)</span>' : '') . '</div></div>'
-            . '</section>';
+        // --- 1. satır: karar bekleyen (tek büyük rakam) + dört kutucuk
+        $hero = '<section class="card hero-card c-4" aria-labelledby="hero-l"><div><div class="tile-label" id="hero-l">' . Ui::icon('queue', 16) . 'Kararını bekleyen</div>'
+            . '<div class="hero-num">' . $deciding . '</div><div class="hero-label">' . ($deciding ? 'iş onay ya da düzeltme bekliyor' : 'Bekleyen iş yok, her şey güncel')
+            . ($failed ? ', <a href="?p=jobs&amp;status=failed">' . $failed . ' yayın hatası</a>' : '') . '</div></div>'
+            . '<div class="row">' . ($deciding ? Ui::link('?p=queue', 'Kuyruğu aç', 'primary', 'arrow') : '') . $this->ui->action('run_cron', 'Kanalları şimdi oku', ['back' => 'dash'], 'quiet', 'refresh') . '</div></section>';
 
+        $tile = static function (string $icon, string $label, string $value, string $foot, string $extra = ''): string {
+            return '<section class="card"><div class="tile-label">' . Ui::icon($icon, 16) . Ui::e($label) . '</div><div class="tile-value">' . $value . '</div><div class="tile-foot">' . $foot . '</div>' . $extra . '</section>';
+        };
+        $meterCls = $limit && $usage['requests'] >= $limit ? 'bad' : ($limit && $usage['requests'] >= $limit * 0.8 ? 'warn' : '');
+        $tiles = '<div class="c-8 tiles">'
+            . $tile('jobs', 'Bugün gelen servis', (string)$itemsToday, 'Son 14 günde ' . array_sum($itemsPerDay), Charts::sparkline(array_values($itemsPerDay), 'Son 14 gün günlük servis sayısı'))
+            . $tile('globe', 'Sitede yayın bekleyen', '<a href="?p=jobs&amp;status=approved">' . $approved . '</a>', 'Son 14 günde ' . array_sum($approvedPerDay) . ' iş onaylandı', Charts::sparkline(array_values($approvedPerDay), 'Son 14 gün günlük onay'))
+            . $tile('bank', 'Bankadan çevrilen', '%' . $bankPct, 'Son 30 gün, ' . $totalItems . ' ad', Charts::sparkline($bankSpark, 'Son 14 gün bankadan çevrilme oranı'))
+            . $tile('spark', 'Claude bu ay', $usage['requests'] . ($limit ? ' <span class="muted">/ ' . $limit . '</span>' : ''), $ai->configured() ? 'Tahmini $' . number_format((float)$usage['cost'], 2) . ', ' . Ui::e(\TgWatch\Ai::MODES[$ai->mode()]) : 'API bağlı değil, banka + kurallar',
+                $limit ? Charts::meter(min(100, (int)round($usage['requests'] * 100 / max(1, $limit))), $meterCls, 'Aylık Claude istek sınırının kullanılan kısmı') : '')
+            . '</div>';
+
+        // --- 2. satır: 14 günlük grafik + kanallar
+        $chart = '<section class="card c-8"><div class="card-h"><h3>Son 14 gün</h3><a href="?p=jobs">Tüm işler</a></div>'
+            . '<div class="chart-scroll">' . Charts::stackedColumns(array_values($days), ['Onaylanan', 'Bekleyen', 'Reddedilen'], 'iş', 'Son 14 günde gelen işlerin günlük dağılımı') . '</div></section>';
+        $chRows = $this->db->all('SELECT c.*, (SELECT COUNT(*) FROM jobs j WHERE j.channel = c.username) jobs FROM channels c ORDER BY c.enabled DESC, (c.last_error IS NOT NULL) DESC, c.username LIMIT 8');
+        $chList = '';
+        foreach ($chRows as $ch) {
+            [$st, $txt] = !$ch['enabled'] ? ['', 'Duraklatıldı'] : ($ch['last_error'] ? ['bad', $ch['last_error']] : ($ch['last_ok_at'] ? ['ok', 'Çalışıyor'] : ['warn', 'Henüz okunmadı']));
+            $chList .= '<li>' . Ui::dot($st ?: 'warn', $txt) . '<div class="grow"><div class="t">@' . Ui::e($ch['username']) . '</div><div class="s">' . Ui::e($txt) . '</div></div>'
+                . '<span class="r">' . Ui::ago($ch['last_checked_at'] ? (int)$ch['last_checked_at'] : null) . '</span></li>';
+        }
+        $channels = '<section class="card c-4"><div class="card-h"><h3>Kanallar</h3><a href="?p=channels">Yönet</a></div>'
+            . ($chList ? '<ul class="list-rows">' . $chList . '</ul>' : '<p class="muted">Henüz kanal yok. <a href="?p=channels">Kanal ekleyin</a>.</p>') . '</section>';
+
+        // --- 3. satır: kuyruk önizleme + sistem
+        $open = $this->loadJobs("WHERE status IN ('new','awaiting','editing','failed')", [], "ORDER BY CASE status WHEN 'failed' THEN 0 ELSE 1 END, id ASC LIMIT 3");
+        $queue = '<section class="c-8"><div class="card-h"><h3>Sıradaki işler</h3>' . ($deciding + $failed > 3 ? '<a href="?p=queue">Tümü (' . ($deciding + $failed) . ')</a>' : '') . '</div>';
         if ($open) {
-            $h .= '<div class="queue">';
+            $queue .= '<div class="queue">';
+            foreach ($open as $job) {
+                $queue .= $this->queueCard($job, 2, true, 'dash');
+            }
+            $queue .= '</div>';
+        } else {
+            $queue .= Ui::empty('Onay bekleyen iş yok', 'Kanallarda yeni bir servis duyurusu çıkınca burada ve Telegram botunda görünür.');
+        }
+        $queue .= '</section>';
+
+        $webhookErr = (int)$this->db->get('webhook_last_error_at', '0');
+        $sys = '<section class="card c-4"><div class="card-h"><h3>Sistem</h3><a href="?p=health">Sağlık</a></div><ul class="list-rows">'
+            . '<li>' . Ui::dot($cron['state']) . '<div class="grow"><div class="t">Kanal okuma</div><div class="s">' . (is_array($res) && $res['errors'] ? (int)$res['errors'] . ' hata, ayrıntı Kayıtlar’da' : 'Sorunsuz') . '</div></div><span class="r">' . $cron['text'] . '</span></li>'
+            . '<li>' . Ui::dot($webhookErr > time() - 3600 ? 'warn' : 'ok') . '<div class="grow"><div class="t">Telegram botu</div><div class="s">' . Ui::e($this->config['bot_mode'] === 'webhook' ? 'Webhook' : 'Polling') . ($webhookErr > time() - 3600 ? ', son 1 saatte iletim hatası' : '') . '</div></div></li>'
+            . '<li>' . Ui::dot(($mem['service']['ok'] ?? 0) ? 'ok' : 'warn') . '<div class="grow"><div class="t">Çeviri bankası</div><div class="s">' . (int)($mem['service']['ok'] ?? 0) . ' ad, ' . (int)$mem['segments'] . ' parça' . (($mem['service']['review'] ?? 0) ? ', ' . (int)$mem['service']['review'] . ' kontrol bekliyor' : '') . '</div></div></li>'
+            . '<li>' . Ui::dot('ok') . '<div class="grow"><div class="t">Yayın</div><div class="s">' . (($this->config['publisher'] ?? 'manual') === 'manual' ? 'Elle (Perfect Panel API bekleniyor)' : 'Perfect Panel API') . '</div></div></li>'
+            . '</ul><div class="quick gap-top">' . Ui::link('?p=channels', 'Kanal ekle', 'quiet', 'plus') . Ui::link('?p=bank', 'Bankayı aç', 'quiet', 'bank') . Ui::link('?p=dict', 'Sözlük', 'quiet', 'dict') . Ui::link('?p=ai', 'Çeviri ayarları', 'quiet', 'sliders') . '</div></section>';
+
+        // --- 4. satır: çevirinin kaynağı + son etkinlik
+        $mix = '<section class="card c-6"><div class="card-h"><h3>Çevirinin kaynağı</h3><span class="muted">Son 30 gün</span></div>'
+            . Charts::mix([['Bankadan', $via['bank']], ['Kısmen bankadan', $via['mixed']], ['Kurallarla', $via['rules']], ['Claude', $via['claude']], ['Elle', $via['manual']]], 'Son 30 günde çevrilen adların kaynağa göre dağılımı')
+            . '<p class="muted gap-top">Banka büyüdükçe "Bankadan" payı artar: onayladığınız her iş bankaya eklenir.</p></section>';
+        $logs = $this->db->all('SELECT * FROM logs ORDER BY id DESC LIMIT 7');
+        $tl = '';
+        foreach ($logs as $l) {
+            $tl .= '<li>' . Ui::dot(['error' => 'bad', 'warn' => 'warn'][$l['level']] ?? 'ok', ['error' => 'hata', 'warn' => 'uyarı'][$l['level']] ?? 'bilgi')
+                . '<div>' . Ui::e(mb_strimwidth($l['message'], 0, 110, '…')) . '</div><div class="src">' . Ui::ago((int)$l['ts']) . ', ' . Ui::e($l['source']) . '</div></li>';
+        }
+        $activity = '<section class="card c-6"><div class="card-h"><h3>Son etkinlik</h3><a href="?p=logs">Kayıtlar</a></div>'
+            . ($tl ? '<ul class="timeline">' . $tl . '</ul>' : '<p class="muted">Henüz kayıt yok.</p>') . '</section>';
+
+        $h = '<div class="dash">' . $hero . $tiles . $chart . $channels . $queue . $sys . $mix . $activity . '</div>';
+        $hour = (int)date('G');
+        $greet = $hour < 6 ? 'İyi geceler' : ($hour < 12 ? 'Günaydın' : ($hour < 18 ? 'İyi günler' : 'İyi akşamlar'));
+        $state = $cron['state'] === 'ok' && !$failed && !(is_array($res) && $res['errors']) ? 'Sistem sorunsuz çalışıyor.' : 'Dikkat isteyen bir şey var, aşağıya bakın.';
+        $this->render($greet, $h, ['active' => 'dash', 'hero' => true, 'sub' => $state . ' Son kanal okuma ' . $cron['text'] . '.']);
+    }
+
+    /** Onay kuyruğu: karar bekleyen tüm işler. */
+    private function queue(): void
+    {
+        $open = $this->loadJobs("WHERE status IN ('new','awaiting','editing','failed')", [], "ORDER BY CASE status WHEN 'failed' THEN 0 ELSE 1 END, id ASC LIMIT 50");
+        if ($open) {
+            $h = '<div class="queue">';
             foreach ($open as $job) {
                 $h .= $this->queueCard($job);
             }
             $h .= '</div>';
         } else {
-            $h .= Ui::empty('Onay bekleyen iş yok', 'Kanallarda yeni bir servis duyurusu çıkınca burada ve Telegram botunda görünür.',
-                $this->ui->action('run_cron', 'Kanalları şimdi oku', [], 'primary', 'refresh'));
-        }
-
-        $errors = $this->db->all("SELECT * FROM logs WHERE level = 'error' AND ts > ? ORDER BY id DESC LIMIT 5", [time() - 86400]);
-        if ($errors) {
-            $h .= '<h2>Son 24 saatteki hatalar</h2>' . $this->logTable($errors) . '<p><a href="?p=logs&amp;level=error">Tüm hatalar</a></p>';
+            $h = Ui::empty('Onay bekleyen iş yok', 'Kanallarda yeni bir servis duyurusu çıkınca burada ve Telegram botunda görünür.',
+                $this->ui->action('run_cron', 'Kanalları şimdi oku', ['back' => 'queue'], 'primary', 'refresh'));
         }
         $this->render('Onay kuyruğu', $h, [
-            'active' => 'dash',
-            'sub' => 'Onaylanan servisler sitede yayın için hazırlanır.',
-            'actions' => $open ? $this->ui->action('run_cron', 'Kanalları şimdi oku', [], 'quiet', 'refresh') : '',
+            'active' => 'queue',
+            'sub' => count($open) ? count($open) . ' iş kararınızı bekliyor. Onaylanan servisler sitede yayın için hazırlanır.' : 'Her şey güncel.',
+            'actions' => $open ? $this->ui->action('run_cron', 'Kanalları şimdi oku', ['back' => 'queue'], 'quiet', 'refresh') : '',
         ]);
     }
 
@@ -561,21 +666,23 @@ final class Admin
             }
         } else {
             $h .= '<div class="queue">' . $this->queueCard($job, 1000, false) . '</div>';
-            $h .= '<div class="actionbar">';
+            $left = '';
+            $right = '';
             if ($st === 'approved') {
-                $h .= $this->ui->action('job_do', 'Sitede yayınlandı olarak işaretle', ['id' => $id, 'do' => 'mark'], 'success', 'globe');
+                $left .= $this->ui->action('job_do', 'Sitede yayınlandı olarak işaretle', ['id' => $id, 'do' => 'mark'], 'success', 'globe');
                 if (($this->config['publisher'] ?? 'manual') !== 'manual') {
-                    $h .= $this->ui->action('job_do', 'API ile yayınla', ['id' => $id, 'do' => 'approve'], 'primary', 'send');
+                    $left .= $this->ui->action('job_do', 'API ile yayınla', ['id' => $id, 'do' => 'approve'], 'primary', 'send');
                 }
             }
             if ($st === 'failed') {
-                $h .= $this->ui->action('job_do', 'Tekrar yayınla', ['id' => $id, 'do' => 'approve'], 'primary', 'refresh');
+                $left .= $this->ui->action('job_do', 'Tekrar yayınla', ['id' => $id, 'do' => 'approve'], 'primary', 'refresh');
             }
-            $h .= '<span class="spacer"></span>';
             if (in_array($st, ['approved', 'failed'], true)) {
-                $h .= $this->ui->action('job_do', 'Reddet', ['id' => $id, 'do' => 'reject'], 'danger', 'x', 'Bu iş reddedilsin mi?');
+                $right .= $this->ui->action('job_do', 'Reddet', ['id' => $id, 'do' => 'reject'], 'danger', 'x', 'Bu iş reddedilsin mi?');
             }
-            $h .= '</div>';
+            if ($left . $right !== '') { // yapılacak işlem yoksa boş çubuk gösterme
+                $h .= '<div class="actionbar">' . $left . '<span class="spacer"></span>' . $right . '</div>';
+            }
         }
 
         if (in_array($st, ['approved', 'published'], true)) {
@@ -864,7 +971,7 @@ final class Admin
                         $flow->sendPreview($id);
                     }
                     $this->say(str_contains($msg, 'hata') ? 'bad' : 'ok', ($changed && $do === 'approve' ? "$changed ad kaydedildi. " : '') . $msg);
-                    $do === 'approve' && !str_contains($msg, 'hata') ? $this->redirect('dash') : $this->redirect('job', ['id' => $id]);
+                    $do === 'approve' && !str_contains($msg, 'hata') ? $this->redirect('queue') : $this->redirect('job', ['id' => $id]);
                     return;
 
                 case 'job_do':
@@ -879,7 +986,8 @@ final class Admin
                         default => 'Bilinmeyen işlem.',
                     };
                     $this->say(str_contains($msg, 'hata') || str_contains($msg, 'gönderilemedi') || str_contains($msg, 'zaten') ? 'bad' : 'ok', "İş $id: $msg");
-                    ($_POST['back'] ?? '') === 'dash' ? $this->redirect('dash') : $this->redirect('job', ['id' => $id]);
+                    $back = (string)($_POST['back'] ?? '');
+                    in_array($back, ['dash', 'queue'], true) ? $this->redirect($back) : $this->redirect('job', ['id' => $id]);
                     return;
 
                 case 'bulk':
@@ -916,7 +1024,8 @@ final class Admin
                     $new = (int)$this->db->one("SELECT COUNT(*) c FROM jobs WHERE created_at >= ?", [time() - $limit - 10])['c'];
                     $this->say($errors ? 'bad' : 'ok', $errors === null ? 'Okuma zaten çalışıyor, biraz sonra tekrar deneyin.'
                         : ($errors ? "Kanallar okundu, $errors hata var. Ayrıntı Kayıtlar sayfasında." : 'Kanallar okundu' . ($new ? ", $new yeni iş." : ', yeni duyuru yok.')));
-                    $this->redirect(($_POST['back'] ?? '') === 'channels' ? 'channels' : 'dash');
+                    $back = (string)($_POST['back'] ?? '');
+                    $this->redirect(in_array($back, ['channels', 'queue'], true) ? $back : 'dash');
                     return;
 
                 case 'channel_add':

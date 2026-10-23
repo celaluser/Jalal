@@ -99,13 +99,24 @@ Normal çalışmada kanal ilk kez okunduğunda **eski gönderiler işlenmez**, s
 
 ## Web panel
 
-- **Onay kuyruğu:** onay bekleyen işler. Her servis için Azerice ad büyük, kaynak ad altında küçük gösterilir. Sözlükte olmayan kelimeler işaretlenir. Onayla butonu ve sistem durumu (kanallar, son okuma, sitede yayın bekleyenler) da burada. **Kanalları şimdi oku** butonu cron'u beklemeden kanalları okur.
-- **İşler:** arama (servis ID, iş numarası, kelime), durum ve kanal filtresi, sayfalama, toplu onaylama, reddetme ve "sitede yayınlandı say".
-- **İş sayfası:** her servisin adı ayrı bir kutuda düzenlenir. **Kaydet ve onayla** ile tek adımda kaydedip onaylarsın. Sözlükte olmayan kelimeyi orada çevirip sözlüğe eklersin; açık işler hemen güncellenir (elle düzenlenen adlar korunur). Onaylanan işte ID listesi ve adlar kopyalanabilir, `.txt` olarak indirilebilir.
-- **Sözlük:** açık işlerdeki eksik kelimeler (kaç serviste geçtiği ile birlikte), hızlı ekleme, "çevirme" (marka adı), arama, tahmini çeviriyi doğrulama, silme, ad kalıbı ve toplu düzenleme (kurallar, önizleme).
-- **Kayıtlar:** tür ve kaynak filtresi, 7 günden eski kayıtları silme.
-- **Sağlık:** kontroller, ağ testleri, kopyalanabilir webhook ve cron-job.org adresleri, webhook kur/durum/kaldır.
-- Açık, koyu ve sistem teması (menünün altından). Mobil uyumlu. JavaScript yalnızca kopyalama, onay sorusu ve "tümünü seç" için kullanılır; kapalıyken de panel çalışır.
+Tasarım Apple'ın arayüz ilkelerini (HIG) izler. Sistem yazı tipi kullanılır (Apple cihazlarda SF Pro, Windows'ta Segoe UI), dış yazı tipi ya da kütüphane yüklenmez. Buzlu cam efekti yalnızca kenar menü, üst çubuk, mobil sekme çubuğu, komut paleti ve alttaki işlem çubuğunda kullanılır; içerik opaktır. Görünüm sistemin açık/koyu ayarını izler. Azaltılmış saydamlık, yüksek kontrast ve azaltılmış hareket tercihleri desteklenir.
+
+- **Genel bakış:**
+  - Kararını bekleyen iş sayısı ve dört kutucuk, her birinde 14 günlük eğilim çizgisi: bugün gelen servis, sitede yayın bekleyen, bankadan çevrilme oranı, Claude kullanımı.
+  - Son 14 gün grafiği: üzerine gelince ya da klavyeyle odaklanınca ayrıntı gösterir, tablo görünümü vardır.
+  - Kanal sağlığı, sıradaki işler ve hızlı onay.
+  - Sistem durumu: kanal okuma, bot, banka, yayın.
+  - Çevirinin kaynağı dağılımı ve son etkinlikler.
+- **Onay kuyruğu:** Karar bekleyen tüm işler. Her serviste Azerice ad büyük, kaynak ad altında küçük yazılır, çevirinin nereden geldiği gösterilir.
+- **İşler:** Arama (servis ID, iş numarası, kelime), durum ve kanal filtresi, sayfalama, toplu onaylama, reddetme ve "sitede yayınlandı say".
+- **İş sayfası:** Her ad ayrı bir kutuda düzenlenir, "Kaydet ve onayla" tek adımdır. Eksik kelimeler oradan sözlüğe eklenir. Onaylanan işte ID'ler ve adlar kopyalanabilir ya da `.txt` olarak indirilebilir. "claude.ai için hazırla" butonu da buradadır.
+- **Sözlük, Çeviri bankası, Çeviri ayarları, Kanallar, Kayıtlar, Sağlık:** Önceki bölümlerde anlatıldığı gibi.
+- **Kısayollar:**
+  - **⌘K / Ctrl K:** Komut paleti; sayfaya git ya da iş ara, ok tuşları ve Enter ile.
+  - **/:** Aramaya odaklanır.
+  - Kenar menü üst çubuktaki düğmeyle gizlenebilir, tercih tarayıcıda hatırlanır.
+- **Mobil:** Altta sekme çubuğu (Genel, Kuyruk, İşler, Kanallar, Menü).
+- **JavaScript'siz de çalışır:** Kopyalama, onay sorusu, komut paleti, ipucu ve menü gizleme JavaScript ile gelir. Formlar, arama ve gezinme JavaScript kapalıyken de çalışır.
 
 ## Çeviri bankası ve çeviri yöntemi
 
