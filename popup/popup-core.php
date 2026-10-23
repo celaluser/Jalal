@@ -948,7 +948,7 @@ function popup_assemble(array $c): array {
 
     $activeAutos = [];
     foreach ((array) $c['autos'] as $a) {
-        if (is_array($a) && !empty($a['enabled']) && ($a['id'] ?? '') !== '') $activeAutos[] = $a;
+        if (is_array($a) && !empty($a['enabled']) && empty($a['archived']) && ($a['id'] ?? '') !== '') $activeAutos[] = $a;
     }
 
     if ($activeAutos) {
@@ -1000,7 +1000,7 @@ function popup_assemble(array $c): array {
     // --- manuel popuplar ---
     $mc = 0;
     foreach ((array) $c['popups'] as $m) {
-        if (!is_array($m) || empty($m['enabled'])) continue;
+        if (!is_array($m) || empty($m['enabled']) || !empty($m['archived'])) continue;
         $p = popup_build_manual($m, $c);
         if ($p === null || $p['pid'] === '') continue;
         $popups[] = $p; $mc++;

@@ -491,6 +491,7 @@ if ($action === 'lowbal_save') {
     $base = $idx !== null ? $pops[$idx] : array_merge(popup_manual_default(), [
         'id' => 'lowbal', 'name' => 'Düşük bakiye uyarısı', 'priority' => 5, 'theme' => 'telegram',
     ]);
+    unset($base['archived'], $base['archived_at']);   // Düşük bakiye sekmesinden kaydedilince arşivden çıkar
     $fields = popup_manual_fields_from($_POST);
     $fields['countdown'] = ''; $fields['coupon'] = $fields['coupon'] ?? '';
     $entry = array_merge($base, $fields, [
@@ -520,6 +521,30 @@ if ($action === 'lowbal_save') {
     }
 }
 
+/* --- ARŞİVLE / ARŞİVDEN ÇIKAR --- */
+if ($action === 'archive' || $action === 'unarchive') {
+    $tab = 'popuplar';
+    $pid  = preg_replace('/[^0-9A-Za-z_-]/', '', (string) pv('pid'));
+    $key  = pv('kind') === 'auto' ? 'autos' : 'popups';
+    $list = $cfg[$key]; $found = false; $pubNow = pbool('publish');
+    foreach ($list as $i => $x) {
+        if (($x['id'] ?? '') !== $pid) continue;
+        $found = true;
+        if ($action === 'archive') { $list[$i]['archived'] = true; $list[$i]['archived_at'] = time(); $list[$i]['enabled'] = false; }
+        else { unset($list[$i]['archived'], $list[$i]['archived_at']); $list[$i]['enabled'] = $pubNow; }
+        $nm = (string) ($x['name'] ?? $pid);
+        break;
+    }
+    if (!$found) { $msg = 'Popup bulunamadı.'; $msgType = 'err'; }
+    else {
+        popup_settings_save([$key => array_values($list)], ($action === 'archive' ? 'arşivle: ' : 'arşivden çıkar: ') . $nm);
+        $res = popup_run();
+        $msg = '"' . $nm . '" ' . ($action === 'archive' ? 'arşive taşındı, yayından kalktı.' : ($pubNow ? 'arşivden çıkarıldı ve yayına alındı.' : 'arşivden çıkarıldı (kapalı).')) . ' ' . ($res['ok'] ? 'embed.js yenilendi.' : $res['msg']);
+        $msgType = $res['ok'] ? 'ok' : 'err';
+        $cfg = popup_config();
+    }
+}
+
 /* --- KOPYALA / ŞABLONLARIM / KUPON SAYAÇ SIFIRLA --- */
 if ($action === 'popup_dup' || $action === 'auto_dup') {
     $tab = 'popuplar';
@@ -534,6 +559,7 @@ if ($action === 'popup_dup' || $action === 'auto_dup') {
     else {
         $src['id'] = popup_new_id();
         $src['name'] = trim((string) ($src['name'] ?? $pid)) . ' (kopya)';
+        unset($src['archived'], $src['archived_at']);
         $src['enabled'] = false;                      // kopya kapalı gelir, hazır olunca başlatılır
         $src['priority'] = min(999, $maxPri + 10);
         $list[] = $src;
@@ -694,8 +720,8 @@ if ($stPid !== '') {
 
 /* popup id -> ad eşlemesi */
 $popupNames = ['bilinmiyor' => 'Bilinmeyen'];
-foreach ($cfg['autos']  as $a) { if (!empty($a['id'])) $popupNames[$a['id']] = ($a['name'] ?? $a['id']) . ' (oto)'; }
-foreach ($cfg['popups'] as $p) { if (!empty($p['id'])) $popupNames[$p['id']] = $p['name'] ?? $p['id']; }
+foreach ($cfg['autos']  as $a) { if (!empty($a['id'])) $popupNames[$a['id']] = ($a['name'] ?? $a['id']) . ' (oto)' . (!empty($a['archived']) ? ' (arşiv)' : ''); }
+foreach ($cfg['popups'] as $p) { if (!empty($p['id'])) $popupNames[$p['id']] = ($p['name'] ?? $p['id']) . (!empty($p['archived']) ? ' (arşiv)' : ''); }
 
 /* modal formları için veri */
 $formAutos = [];
@@ -756,5 +782,16 @@ $liveCount = 0; foreach ($activeList as $r) { if ($r['status'] === 'live') $live
 /* JS'in açacağı sekme */
 $forceTab = (string) ($_SESSION['igfp_tabforce'] ?? '');
 unset($_SESSION['igfp_tabforce']);
+
+/* ARŞİV: arşivdekiler listelerden çıkar (kayıt işlemleri bitti; bundan sonrası sadece görüntü) */
+$archList = [];
+foreach (['auto' => 'autos', 'manual' => 'popups'] as $kind => $key) {
+    $keep = [];
+    foreach ((array) $cfg[$key] as $x) {
+        if (!empty($x['archived'])) $archList[] = ['kind' => $kind, 'p' => $x]; else $keep[] = $x;
+    }
+    $cfg[$key] = $keep;
+}
+usort($archList, function ($a, $b) { return ((int) ($b['p']['archived_at'] ?? 0)) <=> ((int) ($a['p']['archived_at'] ?? 0)); });
 
 include __DIR__ . '/view-panel.php';

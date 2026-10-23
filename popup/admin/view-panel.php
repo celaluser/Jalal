@@ -369,6 +369,11 @@ $nav = [
                 <input type="hidden" name="pid" value="<?= h($a['id']) ?>">
                 <button class="btn sec sm" type="submit" title="Kopyala"><?= ico('layers') ?><span>Kopyala</span></button>
               </form>
+              <form method="post" style="display:inline" onsubmit="return confirm('Bu popup arşive taşınsın mı? Yayından kalkar, Arşiv bölümünden geri alabilirsin.')">
+                <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="archive">
+                <input type="hidden" name="kind" value="auto"><input type="hidden" name="pid" value="<?= h($a['id']) ?>">
+                <button class="btn sec sm" type="submit" title="Arşivle"><?= ico('folder') ?><span>Arşivle</span></button>
+              </form>
               <form method="post" style="display:inline" onsubmit="return confirm('Bu otomatik popup silinsin mi?')">
                 <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="auto_del">
                 <input type="hidden" name="pid" value="<?= h($a['id']) ?>">
@@ -419,6 +424,11 @@ $nav = [
                 <button class="btn sec sm" type="submit" title="Kopyala"><?= ico('layers') ?><span>Kopyala</span></button>
               </form>
               <button class="btn sec sm" type="button" data-mytpl-save="<?= h($p['id']) ?>" title="Şablonlarıma kaydet"><?= ico('save') ?><span>Şablon</span></button>
+              <form method="post" style="display:inline" onsubmit="return confirm('Bu popup arşive taşınsın mı? Yayından kalkar, Arşiv bölümünden geri alabilirsin.')">
+                <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="archive">
+                <input type="hidden" name="kind" value="manual"><input type="hidden" name="pid" value="<?= h($p['id']) ?>">
+                <button class="btn sec sm" type="submit" title="Arşivle"><?= ico('folder') ?><span>Arşivle</span></button>
+              </form>
               <form method="post" style="display:inline" onsubmit="return confirm('Bu popup silinsin mi?')">
                 <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="popup_del">
                 <input type="hidden" name="pid" value="<?= h($p['id']) ?>">
@@ -429,6 +439,39 @@ $nav = [
           <div style="margin-top:14px">
             <button class="btn" type="button" data-edit="manual" data-id=""><?= ico('plus') ?><span>Yeni manuel popup</span></button>
           </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><?= ico('folder') ?> Arşiv <span class="ptheme" style="margin-left:6px"><?= count($archList) ?></span></h2>
+        <p class="hint">Arşivdeki popuplar <b>yayında değildir</b> ve diğer listelerde görünmez. İstediğin zaman geri alabilirsin.</p>
+        <div class="body">
+          <?php if (!$archList): ?>
+            <p class="hint" style="margin:0">Arşivde popup yok. Bir popup'ın yanındaki "Arşivle" butonu onu buraya taşır.</p>
+          <?php else: foreach ($archList as $r): $x = $r['p']; $isA = $r['kind'] === 'auto'; ?>
+            <div class="poprow">
+              <div class="poprow-main">
+                <div class="poprow-name"><?= h($x['name'] ?? $x['id']) ?>
+                  <span class="ptheme"><?= $isA ? 'Otomatik' : 'Manuel' ?></span></div>
+                <div class="poprow-sub"><?= ico('clock') ?>Arşive alındı: <?= !empty($x['archived_at']) ? h(date('d.m.Y H:i', (int) $x['archived_at'])) : '—' ?></div>
+              </div>
+              <button class="btn sec sm" type="button" data-pstats="<?= h($x['id']) ?>" data-pname="<?= h($x['name'] ?? $x['id']) ?>"><?= ico('chart') ?><span>İstatistik</span></button>
+              <form method="post" style="display:inline">
+                <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="unarchive">
+                <input type="hidden" name="kind" value="<?= $isA ? 'auto' : 'manual' ?>"><input type="hidden" name="pid" value="<?= h($x['id']) ?>"><input type="hidden" name="publish" value="1">
+                <button class="btn sm" type="submit">Geri al ve yayınla</button>
+              </form>
+              <form method="post" style="display:inline">
+                <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="unarchive">
+                <input type="hidden" name="kind" value="<?= $isA ? 'auto' : 'manual' ?>"><input type="hidden" name="pid" value="<?= h($x['id']) ?>"><input type="hidden" name="publish" value="0">
+                <button class="btn sec sm" type="submit">Geri al (kapalı)</button>
+              </form>
+              <form method="post" style="display:inline" onsubmit="return confirm('Bu popup kalıcı olarak silinsin mi?')">
+                <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="<?= $isA ? 'auto_del' : 'popup_del' ?>"><input type="hidden" name="pid" value="<?= h($x['id']) ?>">
+                <button class="btn sec sm" type="submit" title="Kalıcı sil"><?= ico('trash') ?></button>
+              </form>
+            </div>
+          <?php endforeach; endif; ?>
         </div>
       </div>
 
@@ -528,6 +571,11 @@ $nav = [
                 <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="<?= $isA ? 'auto_toggle' : 'popup_toggle' ?>"><input type="hidden" name="ret_tab" value="aktif">
                 <input type="hidden" name="pid" value="<?= h($x['id']) ?>">
                 <button class="btn sec sm" type="submit">Durdur</button>
+              </form>
+              <form method="post" style="display:inline" onsubmit="return confirm('Bu popup arşive taşınsın mı? Yayından kalkar, Arşiv bölümünden geri alabilirsin.')">
+                <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="archive">
+                <input type="hidden" name="kind" value="<?= $isA ? 'auto' : 'manual' ?>"><input type="hidden" name="pid" value="<?= h($x['id']) ?>"><input type="hidden" name="ret_tab" value="aktif">
+                <button class="btn sec sm" type="submit" title="Arşivle"><?= ico('folder') ?><span>Arşivle</span></button>
               </form>
             </div>
           <?php endforeach; endif; ?>

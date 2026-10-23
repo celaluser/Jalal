@@ -169,3 +169,11 @@ Eski `?tab=` bağlantıları da çalışır, sade adrese yönlenir.
 Soldaki menüde **Aktif popuplar (N)**: sadece açık olan popuplar, sitede gösterim sırasıyla. Her satırda
 "Yayında / Zaman dışı / Süresi doldu" durumu, son 7 günün gösterim-tıklama sayısı, İstatistik, Düzenle ve Durdur
 butonları vardır. Durdurunca popup listeden çıkar. Ana şalter ya da acil durdurma açıksa üstte uyarı görünür.
+
+---
+
+## Arşiv
+
+Popuplar sekmesinde her popup'ın yanındaki **Arşivle** butonu popup'ı yayından kaldırır ve **Arşiv** bölümüne taşır.
+Arşivdeki popuplar Popuplar, Aktif popuplar ve Katman sırası listelerinde görünmez, sitede gösterilmez; istatistiği
+yine açılabilir. Arşiv bölümünden **Geri al ve yayınla**, **Geri al (kapalı)** ya da kalıcı **Sil** yapılır.
