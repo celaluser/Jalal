@@ -161,3 +161,11 @@ Güncelleme sonrası panelde **"Şimdi güncelle"** butonuna bas.
 Panel adresi her zaman `.../popup/admin/` olarak kalır. İşlem sonrası ve istatistik filtrelerinde adreste
 `?tab=...&range=...` gibi ayrıntılar görünmez; seçimler oturumda tutulur. Son açık sekme F5'te korunur.
 Eski `?tab=` bağlantıları da çalışır, sade adrese yönlenir.
+
+---
+
+## Aktif popuplar sekmesi
+
+Soldaki menüde **Aktif popuplar (N)**: sadece açık olan popuplar, sitede gösterim sırasıyla. Her satırda
+"Yayında / Zaman dışı / Süresi doldu" durumu, son 7 günün gösterim-tıklama sayısı, İstatistik, Düzenle ve Durdur
+butonları vardır. Durdurunca popup listeden çıkar. Ana şalter ya da acil durdurma açıksa üstte uyarı görünür.

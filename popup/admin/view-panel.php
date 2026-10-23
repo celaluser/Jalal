@@ -220,6 +220,7 @@ function f_common_head(array $themes, bool $isAuto): void { ?>
 $nav = [
   'durum'      => ['gauge',  'Durum'],
   'popuplar'   => ['layers', 'Popuplar'],
+  'aktif'      => ['ok',     'Aktif popuplar' . (isset($activeCount) ? ' (' . (int) $activeCount . ')' : '')],
   'dusukbakiye' => ['zap',   'Düşük bakiye'],
   'sablonlar'  => ['eye',    'Şablonlar'],
   'gorunum'    => ['eye',    'Gösterim kuralları'],
@@ -488,6 +489,50 @@ $nav = [
       })();
       </script>
       <?php endif; ?>
+    </div>
+
+    <!-- ═════════ AKTİF POPUPLAR ═════════ -->
+    <div class="pane" data-p="aktif" hidden>
+      <?php if (empty($cfg['enabled']) || !empty($kill['off'])): ?>
+        <div class="flash err"><?= ico('warn') ?><span><?= empty($cfg['enabled']) ? 'Ana şalter kapalı' : 'Acil durdurma açık' ?> — aşağıdaki popuplar sitede <b>gösterilmiyor</b>.</span></div>
+      <?php endif; ?>
+      <div class="tiles">
+        <div class="tile"><div class="t-lbl">Açık popup</div><div class="t-val"><?= (int) $activeCount ?></div><div class="t-sub">kapalı olanlar listelenmez</div></div>
+        <div class="tile"><div class="t-lbl">Şu an yayında</div><div class="t-val"><?= (int) $liveCount ?></div><div class="t-sub">zamanlaması uygun olanlar</div></div>
+      </div>
+      <div class="card">
+        <h2><?= ico('ok') ?> Aktif popuplar</h2>
+        <p class="hint">Sadece <b>açık</b> popuplar, sitede gösterim sırasıyla (öncelik küçük olan önce). Sırayı Popuplar sekmesindeki "Katman sırası"ndan değiştirebilirsin.</p>
+        <div class="body">
+          <?php if (!$activeList): ?>
+            <p class="hint" style="margin:0">Şu an açık popup yok.</p>
+          <?php else: foreach ($activeList as $i => $r): $x = $r['p']; $isA = $r['kind'] === 'auto'; ?>
+            <div class="poprow">
+              <span class="pill on" style="min-width:28px;justify-content:center"><b></b><?= $i + 1 ?></span>
+              <div class="poprow-main">
+                <div class="poprow-name"><?= h($x['name'] ?? $x['id']) ?>
+                  <span class="ptheme"><?= $isA ? 'Otomatik' : 'Manuel' ?><?= !$isA && !empty($x['layout']) ? ' · ' . h(popup_layouts()[$x['layout']] ?? '') : '' ?></span></div>
+                <div class="poprow-sub"><?= ico('clock') ?><?= h(sched_summary((array) ($x['schedule'] ?? []))) ?>
+                  · <?= h(trig_summary((array) ($x['trigger'] ?? []))) ?>
+                  · öncelik <?= (int) ($x['priority'] ?? 0) ?>
+                  · son 7 gün: <b><?= $r['v7'] ?></b> gösterim, <b><?= $r['c7'] ?></b> tıklama
+                  <?php $ss = seg_summary($x['segment'] ?? null); if ($ss): ?>· <span class="segtag"><?= ico('user') ?><?= h($ss) ?></span><?php endif; ?>
+                </div>
+              </div>
+              <?php if ($r['status'] === 'live'): ?><span class="pill on"><b></b>Yayında</span>
+              <?php elseif ($r['status'] === 'sched'): ?><span class="pill off" title="Zamanlama şu an dışında"><b></b>Zaman dışı</span>
+              <?php else: ?><span class="pill off" title="Geri sayım bitti"><b></b>Süresi doldu</span><?php endif; ?>
+              <button class="btn sec sm" type="button" data-pstats="<?= h($x['id']) ?>" data-pname="<?= h($x['name'] ?? $x['id']) ?>"><?= ico('chart') ?><span>İstatistik</span></button>
+              <button class="btn sec sm" type="button" data-edit="<?= $isA ? 'auto' : 'manual' ?>" data-id="<?= h($x['id']) ?>"><?= ico('edit') ?><span>Düzenle</span></button>
+              <form method="post" style="display:inline">
+                <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="<?= $isA ? 'auto_toggle' : 'popup_toggle' ?>"><input type="hidden" name="ret_tab" value="aktif">
+                <input type="hidden" name="pid" value="<?= h($x['id']) ?>">
+                <button class="btn sec sm" type="submit">Durdur</button>
+              </form>
+            </div>
+          <?php endforeach; endif; ?>
+        </div>
+      </div>
     </div>
 
     <!-- ═════════ DÜŞÜK BAKİYE UYARISI ═════════ -->

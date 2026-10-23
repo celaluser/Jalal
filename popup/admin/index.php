@@ -61,6 +61,24 @@ function plines($k) {
     }
     return $out;
 }
+/** Zamanlama şu an (işletme saatine göre) açık mı? popup-template.js'teki scheduleActive ile aynı mantık. */
+function sched_live_now(array $sc, int $tzOffMin): bool {
+    $t = time() + $tzOffMin * 60;
+    $ymd = gmdate('Y-m-d', $t);
+    if (!empty($sc['dateFrom']) && $ymd < $sc['dateFrom']) return false;
+    if (!empty($sc['dateTo'])   && $ymd > $sc['dateTo'])   return false;
+    $days = (array) ($sc['days'] ?? []);
+    if ($days && !in_array((int) gmdate('w', $t), array_map('intval', $days), true)) return false;
+    $f = (string) ($sc['hours']['from'] ?? ''); $to = (string) ($sc['hours']['to'] ?? '');
+    if ($f !== '' && $to !== '' && preg_match('/^(\d{1,2}):(\d{2})$/', $f, $a) && preg_match('/^(\d{1,2}):(\d{2})$/', $to, $b)) {
+        $fm = $a[1] * 60 + $a[2]; $tm = $b[1] * 60 + $b[2];
+        $cur = (int) gmdate('G', $t) * 60 + (int) gmdate('i', $t);
+        if ($fm <= $tm) { if ($cur < $fm || $cur > $tm) return false; }
+        else            { if ($cur < $fm && $cur > $tm) return false; }
+    }
+    return true;
+}
+
 function h($s) { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); }
 
 /** Zamanlama (alan öneki: sc_ / auto_) */
@@ -615,6 +633,8 @@ if ($action === 'popup_del' || $action === 'popup_toggle') {
 /* ---------------- POST → YÖNLENDİR (F5'te "formu yeniden gönder" sorunu olmasın) ---------------- */
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $_SESSION['igfp_flash'] = ['msg' => $msg, 'type' => $msgType, 'newHash' => $newHash, 'cats' => $runCats];
+    $rt = preg_replace('/[^a-z]/', '', (string) pv('ret_tab'));
+    if ($rt !== '') $tab = $rt;
     if ($tab !== '') $_SESSION['igfp_tabforce'] = $tab;
     header('Location: ' . $cleanUrl, true, 303);
     exit;
@@ -713,6 +733,25 @@ foreach ((array) $cdb as $cpid => $cv) {
 }
 $myTpls = [];
 foreach ((array) ($cfg['mytpls'] ?? []) as $t) { if (is_array($t) && !empty($t['id'])) $myTpls[$t['id']] = $t; }
+
+/* AKTİF POPUPLAR sekmesi: sadece açık olanlar, gösterim sırasıyla */
+$activeList = [];
+$tzOff = (int) ($cfg['client']['tzOffset'] ?? 240);
+$nowLocal = gmdate('Y-m-d\TH:i', time() + $tzOff * 60);
+$st7 = st_popups($stats, date('Y-m-d', strtotime('-6 days')), date('Y-m-d'));
+foreach (['auto' => $cfg['autos'], 'manual' => $cfg['popups']] as $kind => $lst) {
+    foreach ((array) $lst as $x) {
+        if (empty($x['enabled']) || empty($x['id'])) continue;
+        $status = 'live';
+        if (!sched_live_now((array) ($x['schedule'] ?? []), $tzOff)) $status = 'sched';
+        if ($kind === 'manual' && !empty($x['countdown']) && $x['countdown'] <= $nowLocal) $status = 'expired';
+        $activeList[] = ['kind' => $kind, 'p' => $x, 'status' => $status,
+                         'v7' => (int) ($st7[$x['id']]['view'] ?? 0), 'c7' => (int) ($st7[$x['id']]['click'] ?? 0)];
+    }
+}
+usort($activeList, function ($a, $b) { return ((int) ($a['p']['priority'] ?? 0)) <=> ((int) ($b['p']['priority'] ?? 0)); });
+$activeCount = count($activeList);
+$liveCount = 0; foreach ($activeList as $r) { if ($r['status'] === 'live') $liveCount++; }
 
 /* JS'in açacağı sekme */
 $forceTab = (string) ($_SESSION['igfp_tabforce'] ?? '');
