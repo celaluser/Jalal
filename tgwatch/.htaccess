@@ -1,0 +1,2 @@
+# tgwatch klasörü public_html dışında olmalı; yanlışlıkla web'e açılırsa her şeyi engelle.
+Require all denied

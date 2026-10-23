@@ -1,0 +1,2 @@
+# Bu klasör public_html dışında olmalı; yine de yanlışlıkla web'e açılırsa erişimi engelle.
+Require all denied
