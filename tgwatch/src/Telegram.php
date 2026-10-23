@@ -8,20 +8,52 @@ class Telegram
 {
     public const MAX_TEXT = 4096;
 
-    public function __construct(private string $token)
+    private string $token;
+
+    public function __construct(string $token)
     {
+        $this->token = self::cleanToken($token);
+    }
+
+    /** Kopyala-yapıştırda karışan boşlukları, satır sonlarını ve görünmez karakterleri temizler. */
+    public static function cleanToken(string $token): string
+    {
+        return preg_replace('/[\s\x{200B}-\x{200D}\x{2060}\x{FEFF}]+/u', '', $token) ?? trim($token);
     }
 
     public function configured(): bool
     {
-        return preg_match('/^\d+:[A-Za-z0-9_-]{20,}$/', $this->token) === 1;
+        return preg_match('/^\d+:[A-Za-z0-9_-]{30,}$/', $this->token) === 1;
+    }
+
+    /** Token'ı göstermeden ne olduğunu açıklar. */
+    public static function describeToken(string $token): string
+    {
+        $t = self::cleanToken($token);
+        if ($t === '') {
+            return 'bot_token boş (config.php içinde doldurun)';
+        }
+        if (preg_match('/^\d+:[A-Za-z0-9_-]{30,}$/', $t)) {
+            return 'biçim uygun (' . strlen($t) . ' karakter)';
+        }
+        if (!str_contains($t, ':')) {
+            return 'biçim yanlış: ":" yok (' . strlen($t) . ' karakter) — BotFather token\'ı "1234567890:AA..." biçimindedir';
+        }
+        [$id, $rest] = explode(':', $t, 2);
+        if (!ctype_digit($id)) {
+            return 'biçim yanlış: ":" öncesi sadece rakam olmalı';
+        }
+        if (preg_match('/[^A-Za-z0-9_-]/', $rest)) {
+            return 'biçim yanlış: ":" sonrası geçersiz karakter içeriyor (tırnak, nokta vb. karışmış olabilir)';
+        }
+        return 'biçim yanlış: ":" sonrası ' . strlen($rest) . ' karakter (normalde 35) — eksik kopyalanmış olabilir';
     }
 
     /** @return mixed Telegram'ın "result" alanı */
     public function call(string $method, array $params = [], int $timeout = 20)
     {
         if (!$this->configured()) {
-            throw new \RuntimeException('bot_token ayarlı değil ya da biçimi yanlış');
+            throw new \RuntimeException('bot_token: ' . self::describeToken($this->token));
         }
         $url = 'https://api.telegram.org/bot' . $this->token . '/' . $method;
         $r = Http::postJson($url, $params, [], $timeout);
@@ -79,7 +111,7 @@ class Telegram
     public function sendDocument(int|string $chatId, string $filename, string $content, string $caption = ''): void
     {
         if (!$this->configured()) {
-            throw new \RuntimeException('bot_token ayarlı değil');
+            throw new \RuntimeException('bot_token: ' . self::describeToken($this->token));
         }
         $tmp = tempnam(sys_get_temp_dir(), 'tgw');
         file_put_contents($tmp, $content);

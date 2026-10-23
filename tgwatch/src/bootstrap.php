@@ -36,7 +36,12 @@ final class App
             if (!is_array($user)) {
                 throw new \RuntimeException('config.php bir dizi döndürmeli: return [ ... ];');
             }
-            self::$config = array_merge($defaults, is_array($user) ? $user : []);
+            self::$config = array_merge($defaults, $user);
+            // Yanlış yazılmış anahtarlar (ör. token'ı 'bot_token' yerine anahtar olarak yazmak) Sağlık'ta gösterilir.
+            self::$config['_unknown_keys'] = array_values(array_map(static function ($k): string {
+                $k = (string)$k;
+                return mb_strlen($k) > 8 ? mb_substr($k, 0, 4) . '…' : $k;
+            }, array_diff(array_keys($user), array_keys($defaults))));
             self::$config['_has_config_file'] = is_file($file);
             date_default_timezone_set((string)self::$config['timezone']);
         }

@@ -18,8 +18,13 @@ final class Health
         foreach (['curl', 'mbstring', 'dom', 'pdo_sqlite', 'json'] as $ext) {
             $r[] = ["Eklenti: $ext", extension_loaded($ext) ? self::OK : self::FAIL, extension_loaded($ext) ? 'yüklü' : 'YOK — PHP seçicisinden açın'];
         }
-        $r[] = ['config.php', !empty($c['_has_config_file']) ? self::OK : self::FAIL, !empty($c['_has_config_file']) ? 'var' : 'yok — config.sample.php dosyasını config.php olarak kopyalayın'];
-        $r[] = ['bot_token', preg_match('/^\d+:[A-Za-z0-9_-]{20,}$/', (string)$c['bot_token']) ? self::OK : self::FAIL, $c['bot_token'] === '' ? 'boş' : 'biçim ' . (preg_match('/^\d+:/', (string)$c['bot_token']) ? 'uygun' : 'yanlış')];
+        $r[] = ['config.php', !empty($c['_has_config_file']) ? self::OK : self::FAIL, (!empty($c['_has_config_file']) ? 'okunan dosya: ' : 'yok — config.sample.php dosyasını şu adla kopyalayın: ') . TGWATCH_ROOT . '/config.php'];
+        if (!empty($c['_unknown_keys'])) {
+            $r[] = ['config.php anahtarları', self::FAIL, 'tanınmayan: ' . implode(', ', $c['_unknown_keys'])
+                . " — değerler sağ tarafa yazılmalı, ör. 'bot_token' => '123:AA...', 'owner_id' => 123"];
+        }
+        $tokOk = (new Telegram((string)$c['bot_token']))->configured();
+        $r[] = ['bot_token', $tokOk ? self::OK : self::FAIL, Telegram::describeToken((string)$c['bot_token'])];
         $r[] = ['owner_id', (int)$c['owner_id'] > 0 ? self::OK : self::FAIL, (int)$c['owner_id'] > 0 ? 'ayarlı' : 'boş — bota /start yazın, gelen ID\'yi girin'];
         $r[] = ['admin_password_hash', str_starts_with((string)$c['admin_password_hash'], '$') ? self::OK : self::FAIL, $c['admin_password_hash'] === '' ? 'boş — php tools/make_hash.php' : 'ayarlı'];
         if ($c['bot_mode'] === 'webhook') {
@@ -85,7 +90,7 @@ final class Health
 
         $tg = new Telegram((string)$c['bot_token']);
         if (!$tg->configured()) {
-            $r[] = ['Bot API', self::FAIL, 'bot_token ayarlı değil'];
+            $r[] = ['Bot API', self::FAIL, 'bot_token: ' . Telegram::describeToken((string)$c['bot_token'])];
             return $r;
         }
         try {

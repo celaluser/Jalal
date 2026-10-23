@@ -31,7 +31,7 @@ class FakeTelegram extends Telegram
 
     public function __construct()
     {
-        parent::__construct('123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+        parent::__construct('123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi');
     }
 
     public function call(string $method, array $params = [], int $timeout = 20)
@@ -114,7 +114,7 @@ function env(): array
     static $n = 0;
     $dir = $tmp . '/' . (++$n);
     mkdir($dir);
-    App::setConfig(['data_dir' => $dir, 'owner_id' => OWNER, 'bot_token' => '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'claude_api_key' => '']);
+    App::setConfig(['data_dir' => $dir, 'owner_id' => OWNER, 'bot_token' => '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi', 'claude_api_key' => '']);
     $db = App::db();
     $tg = new FakeTelegram();
     $flow = new Flow($db, $tg, App::config());
@@ -495,6 +495,22 @@ test('geçersiz kanal adı reddedilir', function () {
 });
 
 echo "Kurulum\n";
+test('token: boşluk/satır sonu temizlenir, hata mesajı token\'ı göstermez', function () {
+    $good = '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi';
+    ok((new Telegram(" $good\n"))->configured());
+    ok((new Telegram("123456: ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi"))->configured());
+    ok(str_contains(Telegram::describeToken(''), 'boş'));
+    ok(str_contains(Telegram::describeToken('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi'), '":" yok'));
+    ok(str_contains(Telegram::describeToken('123456:ABCDEF'), '6 karakter'));
+    ok(str_contains(Telegram::describeToken("123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi'"), 'geçersiz karakter'));
+    ok(!str_contains(Telegram::describeToken('123456:ABCDEF'), 'ABCDEF'));
+    try {
+        (new Telegram(''))->call('getMe');
+        ok(false);
+    } catch (RuntimeException $e) {
+        eq('bot_token: bot_token boş (config.php içinde doldurun)', $e->getMessage());
+    }
+});
 test('veritabanı adı rastgele, secret.php bir kez oluşur, eski dosya taşınır', function () {
     global $tmp;
     $dir = $tmp . '/dbp';
@@ -506,6 +522,19 @@ test('veritabanı adı rastgele, secret.php bir kez oluşur, eski dosya taşın�
     eq('eski', file_get_contents($a));
     ok(!is_file($dir . '/tgwatch.sqlite'));
     ok(str_starts_with(file_get_contents($dir . '/secret.php'), '<?php'));
+});
+
+test('config.php: token anahtar olarak yazılırsa Sağlık uyarır (token görünmez)', function () {
+    global $tmp;
+    $dir = $tmp . '/cfg';
+    mkdir($dir);
+    App::setConfig(['data_dir' => $dir]);
+    $c = App::config();
+    $c['_unknown_keys'] = ['7304…', '7073923993'];
+    $rows = TgWatch\Health::local($c);
+    $row = array_values(array_filter($rows, static fn($r) => $r[0] === 'config.php anahtarları'))[0] ?? null;
+    ok($row !== null && $row[1] === 'fail');
+    ok(str_contains($row[2], '7304…') && !str_contains($row[2], 'AAGS'));
 });
 
 echo "Dictionary\n";
