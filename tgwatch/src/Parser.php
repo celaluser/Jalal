@@ -17,6 +17,8 @@ final class Parser
 {
     private const ID_FIRST = '/^[^\p{L}\p{N}]*?(?:(?<mark>🆔|\bID\b|\bService\s*ID\b)\s*[:#№.\-]?\s*)?(?<id>\d{2,7})\s*(?<sep>[-–—:|•»>)\].]+)?\s*(?<name>.*)$/iu';
     private const ID_LAST = '/^(?<name>.+?)\s*[-–—|:•(\[]*\s*(?:🆔|\bID\b)\s*[:#№]?\s*(?<id>\d{2,7})\s*[)\]]?\s*$/iu';
+    /** Satır sonunda "-- 8.50", "— 12,75 AZN", "- 3.20₼" gibi fiyat ("--" ile her sayı, tek tire ile ondalıklı sayı). */
+    private const TRAILING_PRICE = '/\s+(?:--+\s*(?<a>\d+(?:[.,]\d+)?)|[-–—=]\s*(?<b>\d+[.,]\d+))\s*(?:\$|usd|azn|₼|manat|man\.?)?\s*$/iu';
     private const PRICE = '/(?:(?:price|rate|cost|qiymət)\s*[:=\-]?\s*)?(?:\$\s*(?<a>\d+(?:[.,]\d+)?)|(?<b>\d+(?:[.,]\d+)?)\s*(?:\$|usd\b))/iu';
 
     /**
@@ -44,7 +46,10 @@ final class Parser
                 }
                 [$id, $name] = $hit;
                 $price = '';
-                if (preg_match(self::PRICE, $name, $pm)) {
+                if (preg_match(self::TRAILING_PRICE, $name, $pm)) {
+                    $price = self::priceOf($pm);
+                    $name = (string)preg_replace(self::TRAILING_PRICE, '', $name);
+                } elseif (preg_match(self::PRICE, $name, $pm)) {
                     $price = self::priceOf($pm);
                     $name = str_replace($pm[0], '', $name);
                     $name = preg_replace('/\s*\|\s*(?=\||$)/u', '', $name) ?? $name; // boş kalan "| " parçası

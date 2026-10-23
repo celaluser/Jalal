@@ -10,6 +10,8 @@ final class Translator
     private array $phrases;
     private array $keep;
     private array $options;
+    /** Sözlüğün Azerice tarafındaki kelimeler (küçük harf). */
+    private array $azWords = [];
     private ?string $phraseRegex = null;
 
     public function __construct(array $dict)
@@ -18,6 +20,18 @@ final class Translator
         $this->phrases = [];
         foreach ($dict['phrases'] ?? [] as $en => $az) {
             $this->phrases[mb_strtolower((string)$en)] = (string)$az;
+            foreach (preg_split('/[^\p{L}]+/u', mb_strtolower((string)$az)) ?: [] as $w) {
+                if ($w !== '') {
+                    $this->azWords[$w] = true;
+                }
+            }
+        }
+        foreach ($dict['rules'] ?? [] as $rule) {
+            foreach (preg_split('/[^\p{L}]+/u', mb_strtolower((string)($rule[1] ?? ''))) ?: [] as $w) {
+                if ($w !== '') {
+                    $this->azWords[$w] = true;
+                }
+            }
         }
         $this->keep = [];
         foreach ($dict['keep'] ?? [] as $w) {
@@ -84,13 +98,16 @@ final class Translator
             }, $s) ?? $s;
         }
 
-        // Çevrilmemiş Latin kelimeleri uyarı olarak topla (sayıya yapışık 50K gibi birimler hariç).
+        // Çevrilmemiş kelimeleri uyarı olarak topla. Tam kelimeye bakılır (ə, ü, ş… harf sayılır).
+        // Azerice/Türkçe harf içeren ya da sözlüğün Azerice tarafında geçen kelimeler zaten çevrilmiş sayılır.
         $unknown = [];
-        if (preg_match_all('/(?<![\p{L}\p{N}\x{E000}])[A-Za-z][A-Za-z\'’-]*[A-Za-z]/u', $s, $mm)) {
+        if (preg_match_all('/(?<![\p{L}\p{N}\x{E000}])\p{L}[\p{L}\'’-]*\p{L}/u', $s, $mm)) {
             foreach ($mm[0] as $w) {
-                if (!isset($this->keep[mb_strtolower($w)])) {
-                    $unknown[] = $w;
+                $lw = mb_strtolower($w);
+                if (isset($this->keep[$lw]) || isset($this->azWords[$lw]) || preg_match('/[^A-Za-z\'’-]/u', $w)) {
+                    continue;
                 }
+                $unknown[] = $w;
             }
         }
 

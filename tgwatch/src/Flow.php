@@ -129,7 +129,7 @@ final class Flow
         $shown = 0;
         foreach ($job['items'] as $it) {
             $block = '<b>' . $it['id'] . '</b>' . ($it['price'] !== '' ? ' · $' . $e($it['price']) : '') . ($it['edited'] ? ' ✏️' : '') . "\n"
-                . '🇬🇧 ' . $e($it['name']) . "\n"
+                . '📝 ' . $e($it['name']) . "\n"
                 . '🇦🇿 <b>' . $e($it['az']) . "</b>\n"
                 . ($it['unknown'] ? '⚠️ Sözlükte yok: ' . $e(implode(', ', $it['unknown'])) . "\n" : '')
                 . "\n";

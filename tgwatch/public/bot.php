@@ -10,14 +10,28 @@ use TgWatch\App;
 header('Content-Type: text/plain; charset=utf-8');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-    http_response_code(405);
-    exit('POST only');
+    // Tarayıcıdan açılınca: dosyaya erişilebildiğini gösterir (Telegram yalnızca POST gönderir).
+    exit("tgwatch webhook ucu erişilebilir. Telegram bu adrese POST gönderir.\n");
 }
 
 $config = App::config();
 $secret = (string)$config['webhook_secret'];
 $given = (string)($_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? '');
+if ($given === '' && function_exists('getallheaders')) { // bazı FastCGI kurulumlarında başlık $_SERVER'a düşmez
+    foreach ((array)getallheaders() as $k => $v) {
+        if (strcasecmp((string)$k, 'X-Telegram-Bot-Api-Secret-Token') === 0) {
+            $given = (string)$v;
+        }
+    }
+}
 if ($secret === '' || !hash_equals($secret, $given)) {
+    try {
+        App::db()->log('warn', 'webhook', 'İstek reddedildi: ' . ($secret === '' ? 'config.php içinde webhook_secret boş'
+            : ($given === '' ? 'gizli anahtar başlığı gelmedi (sunucu X-Telegram-Bot-Api-Secret-Token başlığını iletmiyor olabilir)'
+            : 'gizli anahtar uyuşmuyor — webhook_secret değişti mi? Panelde Webhook\'u kur ile yeniden kurun'))
+            . ' · IP ' . ($_SERVER['REMOTE_ADDR'] ?? '?'));
+    } catch (Throwable) {
+    }
     http_response_code(403);
     exit('forbidden');
 }

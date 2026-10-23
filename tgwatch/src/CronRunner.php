@@ -54,6 +54,10 @@ final class CronRunner
                 $flow->retryUnsent();
             }
 
+            if (!$test && $this->config['bot_mode'] === 'webhook') {
+                $this->checkWebhook($db);
+            }
+
             $reports = $watcher->runAll($backfill, $test, $only, $deadline);
             if (!$reports) {
                 $say('Etkin kanal yok. Web panelden kanal ekleyin.');
@@ -91,5 +95,32 @@ final class CronRunner
         }
         $say(sprintf('Bitti: %.1f sn, %d hata.', microtime(true) - $started, $errors));
         return $errors;
+    }
+
+    /** 10 dakikada bir Telegram'a webhook durumunu sorar; yeni bir hata varsa loglar (butonlar çalışmıyorsa sebebi burada görünür). */
+    private function checkWebhook(Db $db): void
+    {
+        if (time() - (int)$db->get('webhook_checked_at', '0') < 600) {
+            return;
+        }
+        $db->set('webhook_checked_at', (string)time());
+        try {
+            $i = App::telegram()->call('getWebhookInfo', [], 10);
+        } catch (\Throwable $e) {
+            $db->log('error', 'webhook', 'getWebhookInfo: ' . $e->getMessage());
+            return;
+        }
+        $url = (string)($i['url'] ?? '');
+        if ($url === '') {
+            $db->log('error', 'webhook', "Webhook kurulu değil: butonlar çalışmaz. Panel → Sağlık → Webhook'u kur (ya da bot_mode => polling).");
+        } elseif ($url !== (string)$this->config['webhook_url']) {
+            $db->log('error', 'webhook', "Telegram'daki webhook adresi config.php'dekinden farklı: $url — Panel → Sağlık → Webhook'u kur.");
+        }
+        $errAt = (int)($i['last_error_date'] ?? 0);
+        if ($errAt > (int)$db->get('webhook_last_error_at', '0')) {
+            $db->set('webhook_last_error_at', (string)$errAt);
+            $db->log('error', 'webhook', 'Telegram webhook\'a ulaşamadı (' . date('H:i', $errAt) . '): ' . ($i['last_error_message'] ?? '?')
+                . ' · bekleyen güncelleme: ' . ($i['pending_update_count'] ?? 0));
+        }
     }
 }

@@ -176,6 +176,12 @@ test('bilinmeyen kelimeler uyarı olur, markalar olmaz', function () use ($tr) {
     eq('Instagram İzləyici | Arab Targeted', $r['text']);
     eq(['Arab', 'Targeted'], $r['unknown']);
 });
+test('zaten Azerice olan ad uyarı vermez, yarım kelime çıkmaz', function () use ($tr) {
+    $r = $tr->translate('YouTube Abunə [ Yüksək Keyfiyyətli | 7 Gün Qarantili ♻️ | Sürətli');
+    eq('YouTube Abunə [ Yüksək Keyfiyyətli | 7 Gün Qarantili ♻️ | Sürətli', $r['text']);
+    eq([], $r['unknown']);
+    eq(['Targeted'], $tr->translate('Instagram Followers | Targeted')['unknown']);
+});
 test('kelime içinde eşleşme yok (Likes ≠ Likeship)', function () use ($tr) {
     eq('Likeship', $tr->translate('Likeship')['text']);
 });
@@ -213,6 +219,13 @@ test('satır içi fiyat addan temizlenir', function () {
     $items = Parser::parse('🆔 777 Instagram Likes | Fast | $0.50');
     eq('Instagram Likes | Fast', $items[0]['name']);
     eq('0.50', $items[0]['price']);
+});
+test('satır sonu fiyatı: "-- 8.50", "- 1.20 AZN"; tek tireli tam sayı fiyat sayılmaz', function () {
+    $items = Parser::parse("🆔 3309 YouTube Abunə [ Yüksək Keyfiyyətli | Sürətli -- 8.50\n🆔 3310 Instagram Likes - 1,20 AZN\n🆔 3311 TikTok Views | Speed - 5000");
+    eq(['8.50', '1.20', ''], array_column($items, 'price'));
+    eq('YouTube Abunə [ Yüksək Keyfiyyətli | Sürətli', $items[0]['name']);
+    eq('Instagram Likes', $items[1]['name']);
+    eq('TikTok Views | Speed - 5000', $items[2]['name']);
 });
 test('ID tek başına satırda, ad altında', function () {
     $items = Parser::parse("🆔 3131\nInstagram Story Views");
