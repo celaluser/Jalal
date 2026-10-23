@@ -57,6 +57,7 @@ final class Admin
         match ($p) {
             'jobs' => $this->jobs(),
             'job' => $this->job((int)($_GET['id'] ?? 0)),
+            'job_txt' => $this->jobTxt((int)($_GET['id'] ?? 0)),
             'channels' => $this->channels(),
             'dict' => $this->dict(),
             'logs' => $this->logs(),
@@ -302,7 +303,7 @@ CSS;
 
     private function statusTag(string $s): string
     {
-        $cls = ['published' => 'ok', 'failed' => 'bad', 'rejected' => 'mut', 'awaiting' => 'warn', 'editing' => 'warn', 'new' => 'warn'][$s] ?? '';
+        $cls = ['published' => 'ok', 'approved' => 'ok', 'failed' => 'bad', 'rejected' => 'mut', 'awaiting' => 'warn', 'editing' => 'warn', 'new' => 'warn'][$s] ?? '';
         return '<span class="tag ' . $cls . '">' . $this->e(Flow::LABELS[$s] ?? $s) . '</span>';
     }
 
@@ -380,10 +381,25 @@ CSS;
         if ($open) {
             $h .= $this->button('job_do', '🔄 Yeniden oluştur', ['id' => $id, 'do' => 'regen'], 'sec');
         }
-        if ($open || $job['status'] === 'failed') {
+        $approved = $job['status'] === 'approved';
+        if ($approved) {
+            $h .= $this->button('job_do', '🌐 Sitede yayınlandı olarak işaretle', ['id' => $id, 'do' => 'mark']);
+            if (($this->config['publisher'] ?? 'manual') !== 'manual') {
+                $h .= $this->button('job_do', '🚀 API ile yayınla', ['id' => $id, 'do' => 'approve'], 'sec');
+            }
+        }
+        if ($open || $approved || $job['status'] === 'failed') {
             $h .= $this->button('job_do', '❌ Reddet', ['id' => $id, 'do' => 'reject'], 'danger');
         }
         $h .= $this->button('job_do', 'Bota tekrar gönder', ['id' => $id, 'do' => 'resend'], 'sec') . '</div>';
+
+        if ($approved || $job['status'] === 'published') {
+            $ids = implode(',', array_map(static fn($i) => (string)$i['id'], $job['items']));
+            $lines = implode("\n", array_map(static fn($i) => $i['id'] . ' → ' . $i['az'], $job['items']));
+            $h .= '<h2>Import paketi</h2><div class="card"><p class="mut">Panel → Services → Import services → sağlayıcıyı seç → bu ID\'leri işaretle:</p>'
+                . '<pre>' . $this->e($ids) . '</pre><hr><pre>' . $this->e($lines) . '</pre>'
+                . '<p><a href="?p=job_txt&amp;id=' . $id . '">📥 .txt indir</a></p></div>';
+        }
 
         $h .= '<h2>Servisler</h2><div class="wrap"><table><tr><th>ID</th><th>Orijinal</th><th>Azerice</th><th>Fiyat</th></tr>';
         foreach ($job['items'] as $it) {
@@ -402,6 +418,19 @@ CSS;
         }
         $h .= '<h2>Kaynak metin</h2><div class="card"><pre>' . $this->e($job['source_text']) . '</pre></div>';
         $this->page('İş #' . $id, $h);
+    }
+
+    private function jobTxt(int $id): void
+    {
+        $job = $this->db->job($id);
+        if ($job === null) {
+            http_response_code(404);
+            $this->page('İş bulunamadı', '');
+            return;
+        }
+        header('Content-Type: text/plain; charset=utf-8');
+        header('Content-Disposition: attachment; filename="import_' . $id . '.txt"');
+        echo \TgWatch\Publisher\ManualPublisher::package($job);
     }
 
     private function channels(): void
@@ -537,10 +566,11 @@ CSS;
                     $flow = App::flow();
                     $do = (string)($_POST['do'] ?? '');
                     $msg = match ($do) {
-                        'approve' => $flow->approve($id),
+                        'approve' => $flow->approve($id, true),
                         'reject' => $flow->reject($id),
                         'regen' => $flow->regenerate($id),
                         'resend' => $flow->sendPreview($id) ? 'Bota gönderildi.' : 'Bota gönderilemedi, loglara bakın.',
+                        'mark' => $flow->markPublished($id),
                         default => 'Bilinmeyen işlem',
                     };
                     $this->say(str_contains($msg, 'hata') || str_contains($msg, 'gönderilemedi') ? 'bad' : 'ok', $msg);

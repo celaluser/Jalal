@@ -18,6 +18,7 @@ final class Flow
         'awaiting' => 'Onay bekliyor',
         'editing' => 'Düzenleniyor',
         'publishing' => 'Yayınlanıyor',
+        'approved' => 'Onaylandı (yayın bekliyor)',
         'published' => 'Yayınlandı',
         'failed' => 'Yayın hatası',
         'rejected' => 'Reddedildi',
@@ -49,7 +50,7 @@ final class Flow
         if ($this->publisher === null) {
             $this->publisher = ($this->config['publisher'] ?? 'manual') === 'admin_api'
                 ? new AdminApiPublisher((string)$this->config['panel_api_url'], (string)$this->config['panel_api_key'])
-                : new ManualPublisher($this->tg, $this->owner());
+                : new ManualPublisher();
         }
         return $this->publisher;
     }
@@ -155,7 +156,7 @@ final class Flow
             $foot = '⛔ Yayın hatası: ' . $e($job['note']);
             $kb = [[['text' => '🔁 Tekrar yayınla', 'callback_data' => "ok:$id"], ['text' => '❌ Reddet', 'callback_data' => "rj:$id"]]];
         } else {
-            $icon = ['publishing' => '⏳', 'published' => '✅', 'rejected' => '❌'][$status] ?? '•';
+            $icon = ['publishing' => '⏳', 'approved' => '✅', 'published' => '🌐', 'rejected' => '❌'][$status] ?? '•';
             $foot = $icon . ' ' . (self::LABELS[$status] ?? $status) . ($job['note'] !== '' ? ': ' . $e($job['note']) : '');
         }
         return [$head . $body . $foot, $kb];
@@ -163,9 +164,14 @@ final class Flow
 
     // --- eylemler (bot ve web panel ortak) ---
 
-    public function approve(int $id): string
+    /**
+     * @param bool $allowApproved true: "Onaylandı (yayın bekliyor)" işi de yayınla (yalnızca web panelden, bilinçli olarak).
+     *                            Bot butonu false geçer: çift basış aynı servisleri iki kez yayınlamasın.
+     */
+    public function approve(int $id, bool $allowApproved = false): string
     {
-        if (!$this->db->transition($id, ['new', 'awaiting', 'editing', 'failed'], 'publishing')) {
+        $from = $allowApproved ? ['new', 'awaiting', 'editing', 'failed', 'approved'] : ['new', 'awaiting', 'editing', 'failed'];
+        if (!$this->db->transition($id, $from, 'publishing')) {
             return 'Bu iş zaten işlendi.';
         }
         $this->clearEditing($id);
@@ -175,15 +181,39 @@ final class Flow
         } catch (\Throwable $ex) {
             $r = ['ok' => false, 'message' => $ex->getMessage()];
         }
-        $this->db->setStatus($id, $r['ok'] ? 'published' : 'failed', $r['message']);
+        $status = $r['ok'] ? (($r['status'] ?? 'published') === 'approved' ? 'approved' : 'published') : 'failed';
+        $this->db->setStatus($id, $status, $r['message']);
         $this->db->log($r['ok'] ? 'info' : 'error', 'publish', "İş #$id: " . $r['message']);
         $this->sendPreview($id);
+        if ($status === 'published') {
+            $this->notifyPublished($job);
+        }
         return $r['ok'] ? 'Onaylandı: ' . $r['message'] : 'Yayın hatası: ' . $r['message'];
+    }
+
+    /** Yalnızca servisler sitede gerçekten yayınlanınca gönderilen kısa bildirim. */
+    private function notifyPublished(array $job): void
+    {
+        $ids = array_map(static fn($i) => (string)$i['id'], $job['items']);
+        $list = implode(', ', array_slice($ids, 0, 30)) . (count($ids) > 30 ? ' …' : '');
+        $this->safe(fn() => $this->tg->sendMessage($this->owner(),
+            "✅ <b>Sitede yayınlandı</b> — iş #{$job['id']} · " . count($ids) . " servis\n<code>" . Telegram::esc($list) . '</code>'));
+    }
+
+    /** API yokken: servisler panelde elle eklendiyse "yayınlandı" olarak işaretler (bildirim gönderilmez). */
+    public function markPublished(int $id): string
+    {
+        if (!$this->db->transition($id, ['approved', 'failed'], 'published', 'Elle yayınlandı olarak işaretlendi')) {
+            return 'Yalnızca onaylanmış işler işaretlenebilir.';
+        }
+        $this->db->log('info', 'publish', "İş #$id elle yayınlandı olarak işaretlendi");
+        $this->sendPreview($id);
+        return 'Yayınlandı olarak işaretlendi.';
     }
 
     public function reject(int $id): string
     {
-        if (!$this->db->transition($id, ['new', 'awaiting', 'editing', 'failed'], 'rejected')) {
+        if (!$this->db->transition($id, ['new', 'awaiting', 'editing', 'failed', 'approved'], 'rejected')) {
             return 'Bu iş zaten işlendi.';
         }
         $this->clearEditing($id);

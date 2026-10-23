@@ -311,32 +311,55 @@ test('yabancı kullanıcı butona basarsa hiçbir şey değişmez', function () 
     eq('Yetkiniz yok.', $tg->last('answerCallbackQuery')['text']);
     eq([], $tg->docs);
 });
-test('Onayla → manual yayın paketi gönderilir, durum published', function () {
+test('Onayla (manual) → "yayın bekliyor", bota yeni mesaj/dosya gitmez, butonlar kalkar', function () {
     [$db, $tg, $flow] = env();
     $id = $flow->createJob('demosmm', 102, SAMPLE);
     $flow->handleUpdate(cb(1, OWNER, "ok:$id"));
-    $job = $db->job($id);
-    eq('published', $job['status']);
-    eq(1, count($tg->docs));
-    ok(str_contains($tg->docs[0][1], "13125\tThreads İzləyici | Azalma olmaz | Maks 50K | Gündə 5K | 30 Gün Qarantili ♻️\t1.20"));
-    $pkg = null;
-    foreach ($tg->calls as [$m, $p]) {
-        if ($m === 'sendMessage' && str_contains($p['text'], 'Import paketi')) {
-            $pkg = $p['text'];
-        }
-    }
-    ok($pkg !== null && str_contains($pkg, '13125,13126'), 'paket mesajı yok');
+    eq('approved', $db->job($id)['status']);
+    eq(1, $tg->count('sendMessage'), 'yalnızca ilk onay mesajı');
+    eq([], $tg->docs);
     $edit = $tg->last('editMessageText');
-    eq([], $edit['reply_markup']['inline_keyboard'], 'butonlar kaldırılmalı');
-    ok(str_contains($edit['text'], 'Yayınlandı'));
+    eq([], $edit['reply_markup']['inline_keyboard']);
+    ok(str_contains($edit['text'], 'Onaylandı (yayın bekliyor)'));
+});
+test('API yayını başarılı → kısa "Sitede yayınlandı" bildirimi', function () {
+    [$db, $tg, $flow] = env();
+    $flow->setPublisher(new class implements TgWatch\Publisher\Publisher {
+        public function publish(array $job): array { return ['ok' => true, 'message' => 'API tamam']; }
+        public static function name(): string { return 'test'; }
+    });
+    $id = $flow->createJob('demosmm', 102, SAMPLE);
+    $flow->handleUpdate(cb(1, OWNER, "ok:$id"));
+    eq('published', $db->job($id)['status']);
+    $m = $tg->last('sendMessage')['text'];
+    ok(str_contains($m, 'Sitede yayınlandı') && str_contains($m, '13125, 13126') && str_contains($m, '2 servis'), $m);
+});
+test('bekleyen iş elle "yayınlandı" işaretlenir, bildirim gitmez', function () {
+    [$db, $tg, $flow] = env();
+    $id = $flow->createJob('demosmm', 102, SAMPLE);
+    $flow->approve($id);
+    $n = $tg->count('sendMessage');
+    eq('Yayınlandı olarak işaretlendi.', $flow->markPublished($id));
+    eq('published', $db->job($id)['status']);
+    eq($n, $tg->count('sendMessage'));
+    eq('Yalnızca onaylanmış işler işaretlenebilir.', $flow->markPublished($id));
+});
+test('onaylanmış iş botla tekrar yayınlanmaz, web panelden (bilinçli) yayınlanabilir', function () {
+    [$db, $tg, $flow] = env();
+    $id = $flow->createJob('demosmm', 102, SAMPLE);
+    $flow->handleUpdate(cb(1, OWNER, "ok:$id"));
+    $flow->handleUpdate(cb(2, OWNER, "ok:$id"));
+    eq('Bu iş zaten işlendi.', $flow->approve($id));
+    eq('approved', $db->job($id)['status']);
+    ok(str_starts_with($flow->approve($id, true), 'Onaylandı'));
 });
 test('Onayla iki kez basılırsa ikinci kez yayınlanmaz', function () {
     [$db, $tg, $flow] = env();
     $id = $flow->createJob('demosmm', 102, SAMPLE);
     $flow->handleUpdate(cb(1, OWNER, "ok:$id"));
     $flow->handleUpdate(cb(2, OWNER, "ok:$id"));
-    eq(1, count($tg->docs));
-    eq('Bu iş zaten işlendi.', $flow->approve($id));
+    eq('approved', $db->job($id)['status']);
+    eq(1, $tg->count('sendMessage'));
 });
 test('aynı update_id tekrar gelirse yok sayılır', function () {
     [$db, $tg, $flow] = env();

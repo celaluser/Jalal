@@ -5,7 +5,7 @@ botun üzerinden **✅ Onayla / ✏️ Düzenle / 🔄 Yeniden oluştur / ❌ Re
 Onaydan sonra yayın yapar. Her şeyi web panelden izleyebilirsin.
 
 > **Yayın şu an "manual":** Perfect Panel Admin API v2'de servis/kategori/sağlayıcı metotları henüz yok.
-> Onaydan sonra bot sana panelde yapacağın **import paketini** (ID listesi + ID → Azerice ad, .txt dosyası) gönderir.
+> Onaydan sonra iş "Onaylandı (yayın bekliyor)" olur; import paketi web panelde durur, bota ayrıca mesaj gitmez.
 > Metotlar yayınlanınca `src/Publisher/AdminApiPublisher.php` doldurulacak.
 
 ## Denenmiş / denenmemiş
@@ -97,7 +97,10 @@ Normal çalışmada kanal ilk kez okunduğunda **eski gönderiler işlenmez**, s
 
 ## Kullanım
 
-- **✅ Onayla** → import paketi bota gelir (mesaj + `.txt`). Aynı iş iki kez yayınlanmaz.
+- **✅ Onayla** → bota yeni mesaj gitmez; onay mesajı "✅ Onaylandı (yayın bekliyor)" olur. Import paketi (ID listesi, ID → ad, `.txt`)
+  web panelde işin sayfasındadır. Elle ekledikten sonra **Sitede yayınlandı olarak işaretle**.
+  Perfect Panel API'si gelince yayın otomatik olur ve bota yalnızca kısa bir **"✅ Sitede yayınlandı"** bildirimi gelir.
+  Botta iki kez basmak aynı işi iki kez yayınlamaz.
 - **✏️ Düzenle** → bot listeyi `ID | ad` biçiminde gönderir. Sadece değiştirdiğin satırları geri yaz. `/iptal` ile vazgeçersin.
 - **🔄 Yeniden oluştur** → güncel sözlükle tekrar çevirir. `claude_api_key` varsa Claude ile çevirir (elle düzenlemeler sıfırlanır).
 - **❌ Reddet** → iş kapanır.

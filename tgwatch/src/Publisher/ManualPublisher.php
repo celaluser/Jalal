@@ -3,23 +3,18 @@ declare(strict_types=1);
 
 namespace TgWatch\Publisher;
 
-use TgWatch\Telegram;
-
 /**
- * Perfect Panel servis API'si olmadığı için: onaydan sonra panelde elle yapılacak
- * "import paketi"ni (ID → Azerice ad) bota mesaj + .txt dosyası olarak gönderir.
+ * Perfect Panel servis API'si gelene kadar: onaylanan iş "Onaylandı (yayın bekliyor)" durumuna geçer.
+ * Bota ayrı mesaj gönderilmez; import paketi (ID → Azerice ad) web panelde işin sayfasındadır.
  */
 final class ManualPublisher implements Publisher
 {
-    public function __construct(private Telegram $tg, private int $ownerId)
-    {
-    }
-
     public static function name(): string
     {
         return 'manual';
     }
 
+    /** Panelde elle ekleme için düz metin paket (ID<TAB>ad<TAB>fiyat). */
     public static function package(array $job): string
     {
         $lines = [];
@@ -42,21 +37,6 @@ final class ManualPublisher implements Publisher
 
     public function publish(array $job): array
     {
-        $ids = implode(',', array_map(static fn($i) => $i['id'], $job['items']));
-        $body = "📦 <b>Import paketi — iş #{$job['id']}</b>\n"
-            . "Panel → Services → Import services → sağlayıcıyı seç → bu ID'leri işaretle:\n"
-            . '<code>' . Telegram::esc($ids) . "</code>\n\n";
-        $list = '';
-        foreach ($job['items'] as $it) {
-            $list .= $it['id'] . ' → ' . $it['az'] . "\n";
-        }
-        $msg = $body . '<pre>' . Telegram::esc($list) . '</pre>';
-        if (mb_strlen($msg) <= 4000) {
-            $this->tg->sendMessage($this->ownerId, $msg);
-        } else {
-            $this->tg->sendMessage($this->ownerId, $body . 'Liste uzun, dosyaya bak.');
-        }
-        $this->tg->sendDocument($this->ownerId, "import_{$job['id']}.txt", self::package($job), "İş #{$job['id']} — ID / ad");
-        return ['ok' => true, 'message' => 'Import paketi bota gönderildi (elle yayın)'];
+        return ['ok' => true, 'status' => 'approved', 'message' => 'Sitede yayın bekliyor (Perfect Panel servis API\'si henüz yok)'];
     }
 }

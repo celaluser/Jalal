@@ -7,7 +7,8 @@ interface Publisher
 {
     /**
      * Onaylanmış işi yayınlar.
-     * @return array{ok:bool, message:string}
+     * status: 'published' (sitede yayınlandı, varsayılan) ya da 'approved' (onaylandı, yayın bekliyor).
+     * @return array{ok:bool, message:string, status?:string}
      */
     public function publish(array $job): array;
 
