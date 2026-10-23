@@ -95,6 +95,16 @@ Hosting'de cron varsa onun yerine: `* * * * * PHP_YOLU /TAM/YOL/tgwatch/cron.php
 
 Normal çalışmada kanal ilk kez okunduğunda **eski gönderiler işlenmez**, sadece sonrakiler işlenir.
 
+## Web panel
+
+- **Onay kuyruğu:** onay bekleyen işler. Her servis için Azerice ad büyük, kaynak ad altında küçük gösterilir. Sözlükte olmayan kelimeler işaretlenir. Onayla butonu ve sistem durumu (kanallar, son okuma, sitede yayın bekleyenler) da burada. **Kanalları şimdi oku** butonu cron'u beklemeden kanalları okur.
+- **İşler:** arama (servis ID, iş numarası, kelime), durum ve kanal filtresi, sayfalama, toplu onaylama, reddetme ve "sitede yayınlandı say".
+- **İş sayfası:** her servisin adı ayrı bir kutuda düzenlenir. **Kaydet ve onayla** ile tek adımda kaydedip onaylarsın. Sözlükte olmayan kelimeyi orada çevirip sözlüğe eklersin; açık işler hemen güncellenir (elle düzenlenen adlar korunur). Onaylanan işte ID listesi ve adlar kopyalanabilir, `.txt` olarak indirilebilir.
+- **Sözlük:** açık işlerdeki eksik kelimeler (kaç serviste geçtiği ile birlikte), hızlı ekleme, "çevirme" (marka adı), arama, tahmini çeviriyi doğrulama, silme, ad kalıbı ve toplu düzenleme (kurallar, önizleme).
+- **Kayıtlar:** tür ve kaynak filtresi, 7 günden eski kayıtları silme.
+- **Sağlık:** kontroller, ağ testleri, kopyalanabilir webhook ve cron-job.org adresleri, webhook kur/durum/kaldır.
+- Açık, koyu ve sistem teması (menünün altından). Mobil uyumlu. JavaScript yalnızca kopyalama, onay sorusu ve "tümünü seç" için kullanılır; kapalıyken de panel çalışır.
+
 ## Kullanım
 
 - **✅ Onayla** → bota yeni mesaj gitmez; onay mesajı "✅ Onaylandı (yayın bekliyor)" olur. Import paketi (ID listesi, ID → ad, `.txt`)

@@ -410,6 +410,23 @@ test('Yeniden oluştur (Claude yok) güncel sözlükle çevirir, elle düzenleme
     eq('Threads Layk | Sürətli', $job['items'][1]['az']);
     ok(!$job['items'][1]['edited']);
 });
+test('sözlük değişince açık iş yenilenir, elle düzenlenen ad korunur, bot mesajı güncellenir', function () {
+    [$db, $tg, $flow] = env();
+    $id = $flow->createJob('demosmm', 102, "🆔 101 Instagram Targeted Likes\n🆔 102 Instagram Targeted Views");
+    eq(['Targeted'], $db->job($id)['items'][0]['unknown']);
+    $flow->applyEdits($id, '102 | Elle yazdım');
+    $d = Dictionary::load($db);
+    $d['phrases']['Targeted'] = 'Hədəfli';
+    Dictionary::save($db, $d);
+    $edits = $tg->count('editMessageText');
+    ok($flow->refreshTranslations($id));
+    $job = $db->job($id);
+    eq('Instagram Hədəfli Bəyəni', $job['items'][0]['az']);
+    eq([], $job['items'][0]['unknown']);
+    eq('Elle yazdım', $job['items'][1]['az']);
+    eq($edits + 1, $tg->count('editMessageText'));
+    ok(!$flow->refreshTranslations($id), 'ikinci kez değişiklik yok');
+});
 test('Reddet → rejected, sonra onaylanamaz', function () {
     [$db, $tg, $flow] = env();
     $id = $flow->createJob('demosmm', 102, SAMPLE);

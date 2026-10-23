@@ -324,6 +324,40 @@ final class Flow
         return "Yeniden oluşturuldu: $how";
     }
 
+    /**
+     * Sözlük değişince açık işin adlarını yeniden çevirir; elle düzenlenen adlara dokunmaz.
+     * Değişiklik varsa bottaki onay mesajını da günceller.
+     */
+    public function refreshTranslations(int $id): bool
+    {
+        $job = $this->db->job($id);
+        if ($job === null || !in_array($job['status'], ['new', 'awaiting', 'editing'], true)) {
+            return false;
+        }
+        $tr = $this->translator();
+        $changed = false;
+        foreach ($job['items'] as &$it) {
+            if (($it['category'] ?? '') !== '') {
+                $it['category_az'] = $tr->translate($it['category'])['text'];
+            }
+            if (!empty($it['edited'])) {
+                continue;
+            }
+            $r = $tr->translate($it['name']);
+            if ($r['text'] !== $it['az'] || $r['unknown'] !== ($it['unknown'] ?? [])) {
+                $it['az'] = $r['text'];
+                $it['unknown'] = $r['unknown'];
+                $changed = true;
+            }
+        }
+        unset($it);
+        if ($changed) {
+            $this->db->saveItems($id, $job['items']);
+            $this->sendPreview($id);
+        }
+        return $changed;
+    }
+
     private function clearEditing(int $id): void
     {
         if ($this->db->get('editing_job') === (string)$id) {
