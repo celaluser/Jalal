@@ -374,8 +374,18 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!tgFeed) return;
         if (tgReload) tgReload.classList.add('spinning');
         try {
-            const res = await fetch('preview.php' + (force ? '?refresh=1' : ''), { cache: 'no-store' });
-            const data = await res.json();
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 20000);
+            let data;
+            try {
+                const res = await fetch('preview.php' + (force ? '?refresh=1' : ''), { cache: 'no-store', signal: ctrl.signal });
+                const raw = await res.text();
+                try { data = JSON.parse(raw); } catch (e) { throw new Error('preview.php düzgün cavab vermir (HTTP ' + res.status + ')'); }
+            } catch (e) {
+                throw new Error(e.name === 'AbortError' ? 'Telegram cavab vermir (vaxt bitdi)' : e.message);
+            } finally {
+                clearTimeout(timer);
+            }
             if (!data.ok) throw new Error(data.error || 'Naməlum xəta');
 
             tgTitle.textContent = data.title || data.username;
