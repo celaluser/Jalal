@@ -47,7 +47,8 @@ foreach ($historyItems as $h) {
 <html lang="az">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#6366f1">
 <title>PanelBaku.com | Servis Paylaşımı</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -141,7 +142,7 @@ foreach ($historyItems as $h) {
                 </div>
 
                 <div class="card">
-                    <div class="field-label">Mesaj <span class="field-hint">— istəsən dəyiş, paylaşılan versiya budur</span></div>
+                    <div class="field-label"><span>Mesaj <span class="field-hint">— istəsən dəyiş, paylaşılan versiya budur</span></span><span class="char-count" id="charCount">0 / 4096</span></div>
                     <textarea
                         class="message-textarea"
                         id="messageBox"

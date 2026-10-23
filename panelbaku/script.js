@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const dataEl = document.getElementById('categoriesData');
+    // Servis xətası olanda (error-box) interfeys elementləri render olunmur
+    if (!dataEl || !document.getElementById('categoryTrigger')) return;
     let categories = JSON.parse(dataEl.textContent || '[]');
 
     const selectTrigger = document.getElementById('categoryTrigger');
@@ -128,6 +130,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Kateqoriya DƏYİŞƏNDƏ mesaj yenidən avtomatik yaradılır
         // (istifadəçinin əvvəlki redaktəsi üstündən silinir - bu, yeni seçimdir)
         messageBox.value = buildTemplate(cat);
+        updateCharCount();
         shareBtn.disabled = false;
         copyBtn.disabled = false;
         setStatus('', null);
@@ -151,6 +154,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // AMMA dropdown-un öz daxili siyahısını skroll etməyə mane olmuruq.
     window.addEventListener('scroll', (e) => {
         if (!dropdown.classList.contains('open')) return;
+        if (document.activeElement === searchInput) return; // mobil klaviatura səbəbli skrollda bağlama
         if (dropdown.contains(e.target)) return;
         closeDropdown();
     }, true);
@@ -301,6 +305,15 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    const charCount = document.getElementById('charCount');
+    function updateCharCount() {
+        if (!charCount) return;
+        const n = messageBox.value.length;
+        charCount.textContent = n + ' / 4096';
+        charCount.classList.toggle('over', n > 4096);
+    }
+    messageBox.addEventListener('input', updateCharCount);
+
     function setStatus(text, type) {
         statusBox.textContent = text;
         statusBox.className = 'status-box' + (type ? ' ' + type : '');
@@ -331,6 +344,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (fresh) {
                     if (messageBox.value === buildTemplate(selectedCategory)) {
                         messageBox.value = buildTemplate(fresh);
+                        updateCharCount();
                     }
                     selectedCategory = fresh;
                 }
