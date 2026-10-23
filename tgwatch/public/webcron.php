@@ -29,10 +29,18 @@ if (strlen($key) < 16 || !hash_equals($key, $given)) {
     exit("forbidden\n");
 }
 
-// cron-job.org varsayılan olarak 30 sn bekler: ondan önce bitir.
-$limit = max(10, min((int)$config['web_cron_time_limit'], (int)$config['cron_time_limit']));
-@set_time_limit($limit + 15);
 ignore_user_abort(true);
+$background = function_exists('fastcgi_finish_request') || function_exists('litespeed_finish_request');
+if ($background) {
+    // cron-job.org'a hemen cevap ver, turu arkada tam süreyle çalıştır (Claude kuyruğu için yeterli zaman kalır).
+    echo "ok: arka planda çalışıyor\n";
+    function_exists('fastcgi_finish_request') ? fastcgi_finish_request() : litespeed_finish_request();
+    $limit = (int)$config['cron_time_limit'];
+} else {
+    // cron-job.org varsayılan olarak 30 sn bekler: ondan önce bitir.
+    $limit = max(10, min((int)$config['web_cron_time_limit'], (int)$config['cron_time_limit']));
+}
+@set_time_limit($limit + 120);
 
 $lines = [];
 try {
@@ -44,6 +52,8 @@ try {
     $lines[] = 'Hata: ' . $e->getMessage();
 }
 
-echo $errors === null ? "busy\n" : ($errors === 0 ? "ok\n" : "errors: $errors\n");
-// Kanal adları ve özet; gizli bilgi içermez.
-echo implode("\n", array_map(static fn($l) => preg_replace('~bot\d+:[A-Za-z0-9_-]+~', 'bot***', $l), $lines)), "\n";
+if (!$background) {
+    echo $errors === null ? "busy\n" : ($errors === 0 ? "ok\n" : "errors: $errors\n");
+    // Kanal adları ve özet; gizli bilgi içermez.
+    echo implode("\n", array_map(static fn($l) => preg_replace('~bot\d+:[A-Za-z0-9_-]+~', 'bot***', $l), $lines)), "\n";
+}

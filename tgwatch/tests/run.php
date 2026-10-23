@@ -590,6 +590,211 @@ test('config.php: token anahtar olarak yazılırsa Sağlık uyarır (token gör�
     ok(str_contains($row[2], '1234…') && !str_contains($row[2], 'AAxx'));
 });
 
+echo "Çeviri bankası (Memory)\n";
+test('sayı şablonu: "30 Days Refill" öğrenilince "60 Days Refill" de çevrilir', function () {
+    [$db] = env();
+    $m = new TgWatch\Memory($db);
+    $m->learn('service', 'Threads Followers | No Drop | Max 50K | 5K/Day | 30 Days Refill ♻️', 'Threads İzləyici | Azalma olmaz | Maks 50K | Gündə 5K | 30 Gün Qarantili ♻️', 'approved');
+    eq('60 Gün Qarantili ♻️', $m->lookupSegment('60 Days Refill ♻️'));
+    eq('Maks 100K', $m->lookupSegment('Max 100K'));
+    eq('Gündə 10K', $m->lookupSegment('10K/Day'));
+    eq(null, $m->lookupSegment('Arab Targeted'));
+});
+test('marka çekirdeği: "Threads Followers" öğrenilince "Instagram Followers" de çevrilir', function () {
+    [$db] = env();
+    $m = new TgWatch\Memory($db);
+    $m->learn('service', 'Threads Followers | Fast', 'Threads İzləyici | Sürətli', 'approved');
+    eq('Instagram İzləyici', $m->lookupSegment('Instagram Followers', ['instagram' => true, 'threads' => true]));
+});
+test('AZ tarafında kaynakta olmayan sayı varsa şablon yapılmaz', function () {
+    eq(['#0 days refill', '#0 Gün Qarantili'], TgWatch\Memory::templatePair('30 Days Refill', '30 Gün Qarantili'));
+    eq(['30 days refill', '31 Gün Qarantili'], TgWatch\Memory::templatePair('30 Days Refill', '31 Gün Qarantili'));
+});
+test('öncelik: elle > onaylanan > otomatik; reddedilen kullanılmaz', function () {
+    [$db] = env();
+    $m = new TgWatch\Memory($db);
+    $m->learn('service', 'TikTok Likes', 'TikTok Bəyəni A', 'import');
+    eq('TikTok Bəyəni A', $m->lookup('service', 'tiktok likes'));
+    $m->learn('service', 'TikTok Likes', 'TikTok Bəyəni B', 'approved');
+    eq('TikTok Bəyəni B', $m->lookup('service', 'TikTok Likes'));
+    $m->learn('service', 'TikTok Likes', 'TikTok Bəyəni C', 'manual');
+    eq('TikTok Bəyəni C', $m->lookup('service', 'TikTok Likes'));
+    $db->run("UPDATE tm SET status = 'rejected' WHERE az = 'TikTok Bəyəni C'");
+    $m->learn('service', 'TikTok Likes', 'TikTok Bəyəni C', 'manual');
+    eq('TikTok Bəyəni B', $m->lookup('service', 'TikTok Likes'), 'reddedilen geri gelmemeli');
+});
+test('benzer örnekler ortak kelimeye göre sıralanır', function () {
+    [$db] = env();
+    $m = new TgWatch\Memory($db);
+    $m->learn('service', 'Instagram Followers | No Drop', 'Instagram İzləyici | Azalma olmaz', 'approved');
+    $m->learn('service', 'YouTube Views | Fast', 'YouTube Baxış | Sürətli', 'approved');
+    $s = $m->similar('Instagram Followers | Real', 3);
+    eq('Instagram İzləyici | Azalma olmaz', $s[0]['az']);
+});
+
+echo "Motor (Engine)\n";
+test('tam ad bankada → "bank"; parçalı → "mixed"; hiç → "rules"', function () {
+    [$db] = env();
+    $e = new TgWatch\Engine($db, Dictionary::defaults());
+    $e->memory()->learn('service', 'Threads Followers | No Drop | 30 Days Refill', 'Threads İzləyici | Azalma olmaz | 30 Gün Qarantili', 'approved');
+    $r = $e->translate('𝐓𝐡𝐫𝐞𝐚𝐝𝐬 Followers | No Drop | 30 Days Refill');
+    eq(['Threads İzləyici | Azalma olmaz | 30 Gün Qarantili', 'bank'], [$r['text'], $r['via']]);
+    $r = $e->translate('Threads Followers | Arab Targeted | 90 Days Refill');
+    eq('mixed', $r['via']);
+    eq('Threads İzləyici | Arab Targeted | 90 Gün Qarantili', $r['text']);
+    eq(['Arab', 'Targeted'], $r['unknown']);
+    eq('rules', $e->translate('Spotify Plays')['via']);
+});
+test('bankada kendi yazımı kurala üstün gelir (ör. "Cancel Enabled")', function () {
+    [$db] = env();
+    $e = new TgWatch\Engine($db, Dictionary::defaults());
+    $e->memory()->learn('service', 'TikTok Likes | Cancel Enabled', 'TikTok Bəyəni | Ləğv Butonu Aktif', 'manual');
+    eq('Ləğv Butonu Aktif', explode(' | ', $e->translate('Instagram Views | Cancel Enabled')['text'])[1]);
+});
+test('silinecek ifadeler ve ad kalıbı seçenekleri bankadan gelen ada da uygulanır', function () {
+    [$db] = env();
+    $d = Dictionary::defaults();
+    $d['remove'] = ['🔥 BEST', '/\[ ?OWNER ?\]/i'];
+    $d['options'] = ['keep_max' => false, 'keep_speed' => true];
+    $e = new TgWatch\Engine($db, $d);
+    eq('Instagram Bəyəni | Sürətli', $e->translate('🔥 BEST Instagram Likes | [owner] | Fast')['text']);
+    $e->memory()->learn('service', 'Threads Likes | Max 10K', 'Threads Bəyəni | Maks 10K', 'manual');
+    eq('Threads Bəyəni', $e->translate('Threads Likes | Max 10K')['text']);
+});
+
+echo "Eşleştirme (Matcher)\n";
+test('fiyat formülü: satış = 1.5 × sağlayıcı + 0.2 bulunur, aykırı değer atılır', function () {
+    $pts = [];
+    foreach ([1, 2, 3, 4, 5, 6, 7, 8] as $x) {
+        $pts[] = [(float)$x, 1.5 * $x + 0.2];
+    }
+    $pts[] = [3.0, 40.0];
+    $f = TgWatch\Matcher::fit($pts);
+    eq('linear', $f['mode']);
+    ok(abs($f['a'] - 1.5) < 0.01 && abs($f['b'] - 0.2) < 0.01, json_encode($f));
+    eq(8, $f['points']);
+});
+test('eşleştirme: min/max + platform + sayı + fiyat ile doğru sağlayıcı servisi bulunur', function () {
+    [$db] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('own','panel','https://x','k',1),('provider','prov','https://y','k',1)");
+    $prov = [
+        [1, 'Instagram Followers | No Drop | 30 Days Refill', 'Instagram Followers', 1.00, 10, 50000],
+        [2, 'Instagram Followers | Max 10K', 'Instagram Followers', 0.50, 10, 50000],
+        [3, 'TikTok Likes | Fast', 'TikTok Likes', 0.20, 10, 100000],
+        [4, 'YouTube Views', 'YouTube', 2.00, 100, 1000000],
+        [5, 'Telegram Members', 'Telegram', 3.00, 50, 20000],
+        [6, 'Spotify Plays', 'Spotify', 0.40, 1000, 1000000],
+        [7, 'Twitch Followers', 'Twitch', 4.00, 20, 9000],
+        [8, 'Threads Likes', 'Threads', 0.60, 10, 5000],
+    ];
+    foreach ($prov as [$id, $n, $c, $r, $mi, $ma]) {
+        $db->run('INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max) VALUES(2,?,?,?,?,?,?)', [$id, $n, $c, $r, $mi, $ma]);
+    }
+    $own = [
+        [101, 'Instagram İzləyici | Azalma olmaz | 30 Gün Qarantili', 'Instagram İzləyici', 1.00 * 1.7 + 0.1, 10, 50000],
+        [102, 'Instagram İzləyici | Maks 10K', 'Instagram İzləyici', 0.50 * 1.7 + 0.1, 10, 50000],
+        [103, 'TikTok Bəyəni | Sürətli', 'TikTok Bəyəni', 0.20 * 1.7 + 0.1, 10, 100000],
+        [104, 'YouTube Baxış', 'YouTube', 2.00 * 1.7 + 0.1, 100, 1000000],
+        [105, 'Telegram Üzv', 'Telegram', 3.00 * 1.7 + 0.1, 50, 20000],
+        [106, 'Spotify Dinləmə', 'Spotify', 0.40 * 1.7 + 0.1, 1000, 1000000],
+        [107, 'Twitch İzləyici', 'Twitch', 4.00 * 1.7 + 0.1, 20, 9000],
+        [108, 'Threads Bəyəni', 'Threads', 0.60 * 1.7 + 0.1, 10, 5000],
+        [109, 'Facebook Bəyəni', 'Facebook', 9.0, 1, 7],
+    ];
+    foreach ($own as [$id, $n, $c, $r, $mi, $ma]) {
+        $db->run('INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max) VALUES(1,?,?,?,?,?,?)', [$id, $n, $c, $r, $mi, $ma]);
+    }
+    $r = (new TgWatch\Matcher($db))->run();
+    eq(8, $r['high']);
+    eq(1, $r['none']);
+    eq('linear', $r['model']['mode']);
+    $m = new TgWatch\Memory($db);
+    eq('Instagram İzləyici | Maks 10K', $m->lookup('service', 'Instagram Followers | Max 10K'));
+    eq('Instagram İzləyici | Azalma olmaz | 30 Gün Qarantili', $m->lookup('service', 'Instagram Followers | No Drop | 30 Days Refill'));
+    eq('TikTok Bəyəni', $m->lookup('category', 'TikTok Likes'));
+    eq('Instagram İzləyici', $m->lookup('category', 'Instagram Followers'));
+    // yeni bir duyuru artık bankadan çevrilir
+    $e = new TgWatch\Engine($db, Dictionary::defaults());
+    $t = $e->translate('Instagram Followers | No Drop | 60 Days Refill');
+    eq(['Instagram İzləyici | Azalma olmaz | 60 Gün Qarantili', 'bank'], [$t['text'], $t['via']]);
+    // reddedilen eşleşme tekrar önerilmez
+    $db->run("UPDATE tm SET status = 'rejected' WHERE own_service = 108");
+    (new TgWatch\Matcher($db))->run();
+    eq(null, $m->lookup('service', 'Threads Likes'));
+});
+test('SMM API cevabı okunur; hata mesajı yakalanır', function () {
+    $l = TgWatch\SmmApi::parse('[{"service":1,"name":"IG Likes","type":"Default","category":"Instagram","rate":"0.90","min":"50","max":"10000","refill":true,"cancel":"0"}]');
+    eq([1, 'IG Likes', 0.9, 50, 1, 0], [$l[0]['service_id'], $l[0]['name'], $l[0]['rate'], $l[0]['min'], $l[0]['refill'], $l[0]['cancel']]);
+    try {
+        TgWatch\SmmApi::parse('{"error":"Incorrect request"}');
+        ok(false);
+    } catch (RuntimeException $e) {
+        ok(str_contains($e->getMessage(), 'Incorrect request'));
+    }
+});
+
+echo "Claude çevirisi (Ai)\n";
+test('kontrol: sayı/emoji/parça/zorunlu terim değişirse öneri kullanılmaz', function () {
+    $d = Dictionary::defaults();
+    $src = 'Instagram Likes | No Drop | 30 Days Refill ♻️';
+    $draft = 'Instagram Bəyəni | Azalma olmaz | 30 Gün Qarantili ♻️';
+    eq([], TgWatch\Ai::validate($src, $draft, 'Instagram Bəyəni | Azalma olmaz | 30 Gün Qarantili ♻️', $d));
+    ok((bool)TgWatch\Ai::validate($src, $draft, 'Instagram Bəyəni | Azalma olmaz | 60 Gün Qarantili ♻️', $d), 'sayı');
+    ok((bool)TgWatch\Ai::validate($src, $draft, 'Instagram Bəyəni | Azalma olmaz | 30 Gün Qarantili', $d), 'emoji');
+    ok((bool)TgWatch\Ai::validate($src, $draft, 'Instagram Bəyəni, Azalma olmaz | 30 Gün Qarantili ♻️', $d), 'parça');
+    ok((bool)TgWatch\Ai::validate($src, $draft, 'Instagram Layk | Azalma olmaz | 30 Gün Qarantili ♻️', $d), 'zorunlu terim');
+    eq([], TgWatch\Ai::validate('TikTok Random Comments', 'TikTok Təsadüfi Rəy', 'TikTok Təsadüfi Rəy', $d), 'uzun ifade kısa terimi kapsar');
+    eq([], TgWatch\Ai::validate('Telegram Members | Cancel Enabled', 'Telegram Üzv | Ləğv Butonu Aktif', 'Telegram Üzv | Ləğv Butonu Aktif', $d), 'bankadaki kendi yazım sözlüğe üstün');
+});
+test('claude.ai cevabı satırlardan okunur', function () {
+    eq([13125 => 'Threads İzləyici | Maks 50K', 13126 => 'Threads Bəyəni'], TgWatch\Ai::parseLines("İşte çeviriler:\n13125 | Threads İzləyici | Maks 50K\n- 13126 → Threads Bəyəni\n`x`"));
+});
+test('karma mod: yalnızca bankadan tam çevrilemeyen ya da eksik kelimeli adlar Claude\'a gider', function () {
+    [$db] = env();
+    $ai = new TgWatch\Ai($db, App::config());
+    $db->set('translate_mode', 'hybrid');
+    ok(!$ai->needs(['via' => 'bank', 'unknown' => []]));
+    ok($ai->needs(['via' => 'mixed', 'unknown' => []]));
+    ok($ai->needs(['via' => 'bank', 'unknown' => ['X']]));
+    ok(!$ai->needs(['via' => 'rules', 'unknown' => [], 'edited' => true]), 'elle düzenlenen gönderilmez');
+    ok(!$ai->active(), 'anahtar yokken otomatik çalışmaz');
+    $db->set('translate_mode', 'claude');
+    ok($ai->needs(['via' => 'bank', 'unknown' => []]));
+});
+test('istem: kurallar, sözlük, taslak ve bankadan örnekler içerir', function () {
+    [$db] = env();
+    $d = Dictionary::defaults();
+    $e = new TgWatch\Engine($db, $d);
+    $e->memory()->learn('service', 'Instagram Followers | No Drop', 'Instagram İzləyici | Azalma olmaz', 'approved');
+    $items = $e->translateItems([['id' => 77, 'name' => 'Instagram Followers | Arab Targeted', 'price' => '', 'category' => '']]);
+    $p = (new TgWatch\Ai($db, App::config()))->manualPrompt($items, $e, $d);
+    ok(str_contains($p, 'Likes → Bəyəni'));
+    ok(str_contains($p, '### ID 77'));
+    ok(str_contains($p, 'Taslak: Instagram İzləyici | Arab Targeted'));
+    ok(str_contains($p, 'Instagram Followers | No Drop → Instagram İzləyici | Azalma olmaz'));
+    ok(str_contains($p, 'ID | Azerice ad'));
+});
+test('yapıştırılan cevap uygulanır, kontrolden geçmeyen ad taslakta kalır', function () {
+    [$db, $tg, $flow] = env();
+    $id = $flow->createJob('demosmm', 102, SAMPLE);
+    $r = $flow->applyPaste($id, "13125 | Threads İzləyici | Azalma olmaz | Maks 50K | Gündə 5K | 30 Gün Qarantili ♻️\n13126 | Threads Bəyəni | Sürətli | 99K");
+    eq(1, $r['applied']);
+    eq(1, count($r['rejected']));
+    $job = $db->job($id);
+    eq('Threads İzləyici | Azalma olmaz | Maks 50K | Gündə 5K | 30 Gün Qarantili ♻️', $job['items'][0]['az']);
+    eq('Threads Bəyəni | Sürətli', $job['items'][1]['az']);
+    ok(str_contains($job['items'][1]['ai_note'], 'parça sayısı'));
+});
+test('onaylanan iş bankaya öğrenilir; bir sonraki duyuru bankadan çevrilir', function () {
+    [$db, $tg, $flow] = env();
+    $id = $flow->createJob('demosmm', 102, SAMPLE);
+    $flow->applyEdits($id, '13126 | Threads Bəyəni | Çox Sürətli');
+    $flow->approve($id);
+    $id2 = $flow->createJob('demosmm', 103, "🆔 20001 Threads Likes | Fast");
+    $it = $db->job($id2)['items'][0];
+    eq(['Threads Bəyəni | Çox Sürətli', 'bank'], [$it['az'], $it['via']]);
+});
+
 echo "Dictionary\n";
 test('metin kutusu ↔ sözlük', function () {
     $p = Dictionary::phrasesFromText("Likes = Bəyəni\n# yorum\n\nCustom Comments = Özəl Rəy\nbozuk satır");

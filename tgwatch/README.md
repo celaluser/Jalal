@@ -16,7 +16,9 @@ Onaydan sonra yayın yapar. Her şeyi web panelden izleyebilirsin.
 | `public_html/system/tgwatch` düzeni, `.htaccess` koruması, web kurulum ekranı, webhook ucu (gizli anahtar) | Apache 2.4 + mod_php ile denendi. LiteSpeed'de **denenmedi** |
 | Gerçek `t.me/s` sayfası | **Denenmedi** (geliştirme ortamından Telegram kapalıydı). Test sayfası Telegram'ın bilinen yapısına göre yazıldı |
 | Telegram Bot API'ye gerçek istek | **Denenmedi** |
-| Claude API (Yeniden oluştur) | **Denenmedi**, isteğe bağlı |
+| Claude API çevirisi | Anthropic API'ye erişim var (sahte anahtar 401 döndü); gerçek anahtarla **denenmedi** |
+| Çeviri bankası, eşleştirme, motor, kontrol | Otomatik testler + yerel panel |
+| Sağlayıcı/panel API'sinden gerçek senkron | **Denenmedi** (bu ortamdan erişim yok) |
 
 ## Dosyalar
 
@@ -104,6 +106,37 @@ Normal çalışmada kanal ilk kez okunduğunda **eski gönderiler işlenmez**, s
 - **Kayıtlar:** tür ve kaynak filtresi, 7 günden eski kayıtları silme.
 - **Sağlık:** kontroller, ağ testleri, kopyalanabilir webhook ve cron-job.org adresleri, webhook kur/durum/kaldır.
 - Açık, koyu ve sistem teması (menünün altından). Mobil uyumlu. JavaScript yalnızca kopyalama, onay sorusu ve "tümünü seç" için kullanılır; kapalıyken de panel çalışır.
+
+## Çeviri bankası ve çeviri yöntemi
+
+**Çeviri bankası** (panel → Çeviri bankası) önceki çevirilerini tutar. Yeni bir ad gelince şu sırayla çevrilir:
+
+1. Ad bankada birebir varsa bankadaki karşılık kullanılır ("Bankadan").
+2. Yoksa ad ` | ` ile parçalara bölünür. Her parça bankadaki parçalarda aranır. Sayılar şablona çevrildiği için "30 Days Refill" bir kez öğrenilince "60 Days Refill" de çevrilir. "Threads Followers" öğrenilince "Kick Followers" da çevrilir ("Kısmen bankadan").
+3. Bankada olmayan parçalar kurallar ve sözlükle çevrilir ("Kurallarla").
+
+Bankayı doldurmak için:
+- **Kaynaklar:** Kendi panelini (Azerice adlar) ve sağlayıcıları (İngilizce adlar) API adresi ve anahtarıyla ekle. Standart SMM API kullanılır (`action=services`, ör. `https://panel.com/api/v2`).
+- **Eşleştirme:** Kendi servislerini sağlayıcı servisleriyle eşleştirir. Kullandığı sinyaller: aynı min/max, aynı platform, addaki sayılar, iade/iptal özellikleri ve fiyat. Fiyat formülünü (kâr yüzdesi, sabit kâr, kur) kesin eşleşmelerden kendisi bulur ve sayfada gösterir. Emin olamadığı eşleşmeleri "kontrol bekleyen" listesine koyar; Doğru/Yanlış ile karar verirsin, reddettiğin bir daha önerilmez.
+- **Kendi kendine öğrenme:** Onayladığın her iş bankaya eklenir. Elle düzelttiğin adlar en yüksek öncelikle eklenir.
+- Bankadaki her çifti arayabilir, düzeltebilir, silebilir ya da elle ekleyebilirsin.
+
+**Çeviri yöntemi** (panel → Çeviri ayarları):
+
+| Yöntem | Ne yapar | Maliyet |
+|---|---|---|
+| Kurallar + banka (varsayılan) | Yukarıdaki sıra | Ücretsiz |
+| Karma | Bankadan tam çevrilemeyen ya da eksik kelimeli adlar Claude'a gider | Claude API, sadece gerektiğinde |
+| Tüm adlar Claude ile | Hepsi Claude'a gider, bankadan örneklerle | Claude API |
+| claude.ai için hazırla (her zaman) | İş sayfasında hazır metin oluşur. Bunu claude.ai'ye (Pro aboneliğin) yapıştırır, cevabı geri yapıştırırsın | Pro planın, ek ücret yok |
+
+- **Claude API, Pro aboneliğinden ayrıdır:** console.anthropic.com'da hesap açılır, kredi yüklenir. Anahtar panelden girilir, sadece sunucudaki veritabanında saklanır.
+- **Model seçimi:** Claude Opus 5.5 (varsayılan, en kaliteli), Sonnet 5.5 ya da Haiku 5.5 (en ucuz). Aylık istek sınırı ve tahmini harcama panelde görünür.
+- **Claude'a her istekte giden:** senin kuralların (panelden düzenlenir), sözlük, kalıplar, her ad için bankadan benzer örnekler ve kural tabanlı taslak.
+- **Kontrol:** Claude'un önerisi kullanılmadan önce denetlenir: sayılar, emojiler ve parça sayısı değişmemiş olmalı, onaylı sözlük terimleri korunmuş olmalı. Geçmeyen öneri kullanılmaz, nedeni iş sayfasında ve botta görünür.
+- **Zamanlama:** Karma ya da Claude modunda yeni iş önce banka ve kurallarla anında bota gider. Claude iyileştirmesi bir sonraki kanal okumada yapılır ve bottaki mesaj güncellenir.
+- **Silinecek ifadeler:** Reklam etiketleri gibi ifadeler çeviriden önce addan çıkarılır (Çeviri ayarları).
+- **Denenmedi:** Gerçek bir anahtarla Claude çağrısı. Bu ortamdan Anthropic API'ye ulaşılabildi (sahte anahtar 401 döndü), ama başarılı bir çeviri isteği denenmedi. Ayarlar sayfasındaki **Kaydet ve Claude'u dene** butonu bunu iki örnek adla test eder.
 
 ## Kullanım
 

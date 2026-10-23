@@ -45,6 +45,17 @@ final class Flow
         return new Translator(Dictionary::load($this->db));
     }
 
+    /** Çeviri motoru: banka + kurallar. */
+    public function engine(): Engine
+    {
+        return new Engine($this->db, Dictionary::load($this->db));
+    }
+
+    public function ai(): Ai
+    {
+        return new Ai($this->db, $this->config);
+    }
+
     public function publisher(): Publisher
     {
         if ($this->publisher === null) {
@@ -68,11 +79,13 @@ final class Flow
         if ($this->db->one('SELECT id FROM jobs WHERE (channel = ? AND msg_id = ?) OR (channel = ? AND text_hash = ?)', [$channel, $msgId, $channel, $hash])) {
             return null; // aynı gönderi ya da aynı metin daha önce işlendi
         }
-        $items = $this->translator()->translateItems($items);
+        $items = $this->engine()->translateItems($items);
+        $ai = $this->ai();
+        $aiState = $ai->active() && array_filter($items, [$ai, 'needs']) ? 'pending' : '';
         $now = time();
         $this->db->run(
-            'INSERT INTO jobs(channel, msg_id, text_hash, source_text, items_json, status, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?)',
-            [$channel, $msgId, $hash, $text, json_encode($items, JSON_UNESCAPED_UNICODE), 'new', $now, $now]
+            'INSERT INTO jobs(channel, msg_id, text_hash, source_text, items_json, status, created_at, updated_at, ai_state) VALUES(?,?,?,?,?,?,?,?,?)',
+            [$channel, $msgId, $hash, $text, json_encode($items, JSON_UNESCAPED_UNICODE), 'new', $now, $now, $aiState]
         );
         $id = (int)$this->db->pdo->lastInsertId();
         $this->db->log('info', 'flow', "İş #$id oluşturuldu: @$channel/$msgId, " . count($items) . ' servis');
@@ -133,6 +146,7 @@ final class Flow
                 . '📝 ' . $e($it['name']) . "\n"
                 . '🇦🇿 <b>' . $e($it['az']) . "</b>\n"
                 . ($it['unknown'] ? '⚠️ Sözlükte yok: ' . $e(implode(', ', $it['unknown'])) . "\n" : '')
+                . (!empty($it['ai_note']) ? '🤖 ' . $e(mb_strimwidth($it['ai_note'], 0, 160, '…')) . "\n" : '')
                 . "\n";
             if (mb_strlen($head . $body . $block) > 3500) {
                 break;
@@ -184,6 +198,9 @@ final class Flow
         $status = $r['ok'] ? (($r['status'] ?? 'published') === 'approved' ? 'approved' : 'published') : 'failed';
         $this->db->setStatus($id, $status, $r['message']);
         $this->db->log($r['ok'] ? 'info' : 'error', 'publish', "İş #$id: " . $r['message']);
+        if ($r['ok']) {
+            $this->learnFromJob($job);
+        }
         $this->sendPreview($id);
         if ($status === 'published') {
             $this->notifyPublished($job);
@@ -275,6 +292,8 @@ final class Flow
             if ($new !== $job['items'][$k]['az']) {
                 $job['items'][$k]['az'] = $new;
                 $job['items'][$k]['edited'] = true;
+                $job['items'][$k]['via'] = 'manual';
+                unset($job['items'][$k]['ai_note']);
                 $job['items'][$k]['unknown'] = [];
                 $changed++;
             }
@@ -295,33 +314,109 @@ final class Flow
             return 'Bu iş artık değiştirilemez.';
         }
         $dict = Dictionary::load($this->db);
-        $items = (new Translator($dict))->translateItems(array_map(static fn($i) => [
+        $engine = new Engine($this->db, $dict);
+        $items = $engine->translateItems(array_map(static fn($i) => [
             'id' => $i['id'], 'name' => $i['name'], 'price' => $i['price'], 'category' => $i['category'] ?? '',
         ], $job['items']));
-        $how = 'kurallarla (güncel sözlük)';
-        $claude = new Claude((string)$this->config['claude_api_key'], (string)$this->config['claude_model']);
-        if ($claude->configured()) {
+        $how = 'banka ve kurallarla';
+        $ai = $this->ai();
+        if ($ai->active()) {
             try {
-                $map = $claude->translate($items, $dict);
-                foreach ($items as &$it) {
-                    if (isset($map[(int)$it['id']])) {
-                        $it['az'] = $map[(int)$it['id']];
-                        $it['unknown'] = [];
-                    }
-                }
-                unset($it);
-                $how = 'Claude ile';
+                $r = $ai->improve($items, $engine, $dict);
+                $items = $r['items'];
+                $how = $r['sent'] ? "Claude ile ({$r['applied']}/{$r['sent']} ad" . ($r['rejected'] ? ', ' . count($r['rejected']) . ' öneri kontrolden geçmedi' : '') . ')' : 'bankadan (Claude gerekmedi)';
             } catch (\Throwable $e) {
                 $this->db->log('error', 'claude', "İş #$id: " . $e->getMessage());
-                $how = 'kurallarla (Claude hatası: ' . mb_substr($e->getMessage(), 0, 100) . ')';
+                $how = 'banka ve kurallarla (Claude hatası: ' . mb_substr($e->getMessage(), 0, 120) . ')';
             }
         }
         $this->db->saveItems($id, $items);
+        $this->db->run("UPDATE jobs SET ai_state = '' WHERE id = ?", [$id]);
         $this->db->transition($id, ['editing'], 'awaiting');
         $this->clearEditing($id);
         $this->db->log('info', 'flow', "İş #$id yeniden oluşturuldu: $how");
         $this->sendPreview($id);
         return "Yeniden oluşturuldu: $how";
+    }
+
+    /**
+     * Claude kuyruğu: karma/claude modunda yeni işlerin adlarını Claude ile iyileştirir (cron çağırır, tur başına bir iş).
+     * @return int|null işlenen iş id'si
+     */
+    public function processAiQueue(int $deadline): ?int
+    {
+        $ai = $this->ai();
+        if (!$ai->active() || $deadline - time() < 20) {
+            return null;
+        }
+        $row = $this->db->one("SELECT id FROM jobs WHERE ai_state = 'pending' AND status IN ('new','awaiting','editing') ORDER BY id LIMIT 1");
+        if ($row === null) {
+            return null;
+        }
+        $id = (int)$row['id'];
+        $this->db->run("UPDATE jobs SET ai_state = 'running' WHERE id = ?", [$id]);
+        $job = $this->db->job($id);
+        $dict = Dictionary::load($this->db);
+        try {
+            $r = $ai->improve($job['items'], new Engine($this->db, $dict), $dict);
+            // Bu sırada elle düzenlenen ad varsa onu koru.
+            $fresh = $this->db->job($id);
+            $edited = [];
+            foreach ($fresh['items'] as $it) {
+                if (!empty($it['edited'])) {
+                    $edited[(int)$it['id']] = $it;
+                }
+            }
+            $items = array_map(static fn($it) => $edited[(int)$it['id']] ?? $it, $r['items']);
+            $this->db->saveItems($id, $items);
+            $this->db->run("UPDATE jobs SET ai_state = 'done' WHERE id = ?", [$id]);
+            $this->db->log('info', 'claude', "İş #$id: {$r['applied']}/{$r['sent']} ad Claude ile çevrildi" . ($r['rejected'] ? '; kontrolden geçmeyen: ' . implode(' | ', $r['rejected']) : ''));
+            $this->sendPreview($id);
+        } catch (\Throwable $e) {
+            $this->db->run("UPDATE jobs SET ai_state = 'failed' WHERE id = ?", [$id]);
+            $this->db->log('error', 'claude', "İş #$id: " . $e->getMessage());
+        }
+        return $id;
+    }
+
+    /**
+     * claude.ai'den yapıştırılan "ID | ad" cevabını uygular (kontrolden geçenler yazılır).
+     * @return array{applied:int, rejected:list<string>, missing:int}
+     */
+    public function applyPaste(int $id, string $text): array
+    {
+        $job = $this->db->job($id);
+        if ($job === null || !in_array($job['status'], ['new', 'awaiting', 'editing'], true)) {
+            throw new \RuntimeException('Bu iş artık değiştirilemez.');
+        }
+        $map = Ai::parseLines($text);
+        if (!$map) {
+            throw new \RuntimeException('Yapıştırılan metinde "ID | ad" satırı bulunamadı.');
+        }
+        $r = Ai::apply($job['items'], $map, Dictionary::load($this->db));
+        $this->db->saveItems($id, $r['items']);
+        $this->db->run("UPDATE jobs SET ai_state = '' WHERE id = ?", [$id]);
+        $this->db->transition($id, ['editing'], 'awaiting');
+        $this->clearEditing($id);
+        $this->sendPreview($id);
+        $ids = array_map(static fn($i) => (int)$i['id'], $job['items']);
+        return ['applied' => $r['applied'], 'rejected' => $r['rejected'], 'missing' => count(array_diff($ids, array_keys($map)))];
+    }
+
+    /** Onaylanan işin adlarını bankaya öğretir (elle düzeltilenler en yüksek öncelikle). */
+    private function learnFromJob(array $job): void
+    {
+        try {
+            $engine = $this->engine();
+            $mem = $engine->memory();
+            foreach ($job['items'] as $it) {
+                if (trim((string)$it['az']) !== '') {
+                    $mem->learn('service', $engine->strip($it['name']), $it['az'], !empty($it['edited']) ? 'manual' : 'approved');
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->db->log('error', 'bank', "İş #{$job['id']} bankaya eklenemedi: " . $e->getMessage());
+        }
     }
 
     /**
@@ -334,19 +429,20 @@ final class Flow
         if ($job === null || !in_array($job['status'], ['new', 'awaiting', 'editing'], true)) {
             return false;
         }
-        $tr = $this->translator();
+        $engine = $this->engine();
         $changed = false;
         foreach ($job['items'] as &$it) {
             if (($it['category'] ?? '') !== '') {
-                $it['category_az'] = $tr->translate($it['category'])['text'];
+                $it['category_az'] = $engine->translateCategory($it['category']);
             }
-            if (!empty($it['edited'])) {
-                continue;
+            if (!empty($it['edited']) || ($it['via'] ?? '') === 'claude') {
+                continue; // elle ya da Claude ile çevrilen adlara dokunma
             }
-            $r = $tr->translate($it['name']);
-            if ($r['text'] !== $it['az'] || $r['unknown'] !== ($it['unknown'] ?? [])) {
+            $r = $engine->translate($it['name']);
+            if ($r['text'] !== $it['az'] || $r['unknown'] !== ($it['unknown'] ?? []) || $r['via'] !== ($it['via'] ?? '')) {
                 $it['az'] = $r['text'];
                 $it['unknown'] = $r['unknown'];
+                $it['via'] = $r['via'];
                 $changed = true;
             }
         }

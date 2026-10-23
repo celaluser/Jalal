@@ -18,6 +18,8 @@ use TgWatch\Watcher;
 /** Web yönetim paneli. JavaScript yalnızca kolaylık içindir (kopyala, onay sorusu, tümünü seç); panel onsuz da çalışır. */
 final class Admin
 {
+    use BankPages;
+
     private const MAX_FAILS = 5;
     private const LOCK_SECONDS = 900;
     private const IDLE_SECONDS = 7200;
@@ -70,6 +72,9 @@ final class Admin
             'job_txt' => $this->jobTxt((int)($_GET['id'] ?? 0)),
             'channels' => $this->channels(),
             'dict' => $this->dict(),
+            'bank' => $this->bank(),
+            'ai' => $this->aiSettings(),
+            'job_prompt' => $this->jobPrompt((int)($_GET['id'] ?? 0)),
             'logs' => $this->logs(),
             'health' => $this->health(false),
             default => $this->dash(),
@@ -166,7 +171,7 @@ final class Admin
         $t = in_array($t, ['auto', 'light', 'dark'], true) ? $t : 'auto';
         setcookie('tgw_theme', $t, ['expires' => time() + 31536000, 'path' => '/', 'secure' => $this->https(), 'httponly' => true, 'samesite' => 'Lax']);
         $back = (string)($_GET['back'] ?? 'dash');
-        $this->redirect(in_array($back, ['dash', 'jobs', 'channels', 'dict', 'logs', 'health'], true) ? $back : 'dash');
+        $this->redirect(in_array($back, ['dash', 'jobs', 'channels', 'dict', 'bank', 'ai', 'logs', 'health'], true) ? $back : 'dash');
     }
 
     private function pending(): int
@@ -315,9 +320,10 @@ final class Admin
             . '<div class="row">' . $actions . '</div></div>';
         foreach (array_slice($items, 0, $show) as $it) {
             $h .= '<div class="pair"><div class="sid">' . (int)$it['id'] . '</div><div>'
-                . '<div class="az">' . Ui::e($it['az']) . (!empty($it['edited']) ? ' <span class="muted" title="Elle düzenlendi">✎</span>' : '') . '</div>'
+                . '<div class="az">' . Ui::e($it['az']) . Ui::via($it['via'] ?? null) . '</div>'
                 . ($it['name'] !== $it['az'] ? '<div class="src">' . Ui::e($it['name']) . '</div>' : '')
                 . (!empty($it['unknown']) ? '<div class="warn">Sözlükte yok: ' . Ui::e(implode(', ', $it['unknown'])) . '</div>' : '')
+                . (!empty($it['ai_note']) ? '<div class="warn">' . Ui::e($it['ai_note']) . '</div>' : '')
                 . '</div></div>';
         }
         if (count($items) > $show) {
@@ -502,7 +508,12 @@ final class Admin
         $open = in_array($st, self::OPEN, true);
         $sub = Ui::badge($st) . ' <a href="https://t.me/' . Ui::e($job['channel']) . '/' . (int)$job['msg_id'] . '" target="_blank" rel="noopener noreferrer">@' . Ui::e($job['channel']) . ' gönderisi ' . (int)$job['msg_id'] . '</a>'
             . ', ' . Ui::ago((int)$job['created_at']) . ' geldi';
-        $actions = $this->ui->action('job_do', 'Bota tekrar gönder', ['id' => $id, 'do' => 'resend'], 'ghost', 'send');
+        $actions = ($open ? Ui::link('?p=job_prompt&id=' . $id, 'claude.ai için hazırla', 'quiet', 'spark') : '')
+            . $this->ui->action('job_do', 'Bota tekrar gönder', ['id' => $id, 'do' => 'resend'], 'ghost', 'send');
+        $aiState = ['pending' => 'Claude çevirisi sırada (bir sonraki kanal okumada)', 'running' => 'Claude çevirisi yapılıyor', 'failed' => 'Claude çevirisi başarısız, Kayıtlar’a bakın'][$job['ai_state'] ?? ''] ?? '';
+        if ($aiState !== '' && $open) {
+            $sub .= ', <span class="lvl-warn">' . $aiState . '</span>';
+        }
 
         $h = '';
         if ($job['note'] !== '' && in_array($st, ['failed', 'new'], true)) {
@@ -517,7 +528,9 @@ final class Admin
                 $h .= '<tr><td class="tight"><b>' . $sid . '</b></td><td>'
                     . '<input type="text" name="az[' . $sid . ']" value="' . Ui::e($it['az']) . '" aria-label="Servis ' . $sid . ' Azerice adı">'
                     . '<div class="src">' . Ui::e($it['name']) . '</div>'
+                    . '<div class="src">' . Ui::via($it['via'] ?? null) . '</div>'
                     . (!empty($it['unknown']) ? '<div class="src lvl-warn">Sözlükte yok: ' . Ui::e(implode(', ', $it['unknown'])) . '</div>' : '')
+                    . (!empty($it['ai_note']) ? '<div class="src lvl-warn">' . Ui::e($it['ai_note']) . '</div>' : '')
                     . '</td><td class="num tight">' . ($it['price'] !== '' ? '$' . Ui::e($it['price']) : '<span class="muted">—</span>') . '</td></tr>';
             }
             $h .= '</tbody></table></div>'
@@ -525,7 +538,7 @@ final class Admin
                 . '<button class="btn primary" name="do" value="approve">' . Ui::icon('check') . '<span>Kaydet ve onayla</span></button>'
                 . '<button class="btn quiet" name="do" value="save">' . Ui::icon('edit') . '<span>Değişiklikleri kaydet</span></button>'
                 . '<span class="spacer"></span>'
-                . '<button class="btn quiet" name="do" value="regen" data-confirm="Elle yaptığınız değişiklikler silinip ad yeniden oluşturulsun mu?">' . Ui::icon('refresh') . '<span>Yeniden oluştur</span></button>'
+                . '<button class="btn quiet" name="do" value="regen" data-confirm="Elle yaptığınız değişiklikler silinip ad yeniden oluşturulsun mu?">' . Ui::icon('refresh') . '<span>' . ((new \TgWatch\Ai($this->db, $this->config))->active() ? 'Claude ile yeniden çevir' : 'Yeniden oluştur') . '</span></button>'
                 . '<button class="btn danger" name="do" value="reject" data-confirm="Bu iş reddedilsin mi?">' . Ui::icon('x') . '<span>Reddet</span></button>'
                 . '</div></form>';
 
@@ -814,6 +827,9 @@ final class Admin
     {
         $id = (int)($_POST['id'] ?? 0);
         try {
+            if ($this->postBank($p)) {
+                return;
+            }
             switch ($p) {
                 case 'logout':
                     $_SESSION = [];
@@ -925,7 +941,7 @@ final class Admin
                     if ($c) {
                         $w = new Watcher($this->db, App::flow(), new ChannelReader((int)$this->config['fetch_timeout']));
                         $r = $w->checkChannel($c, 5, true);
-                        $tr = App::flow()->translator();
+                        $tr = App::flow()->engine();
                         $out = $r['ok'] ? "@{$c['username']} okundu" . ($r['title'] !== '' ? " ({$r['title']})" : '') . ". Son {$r['posts']} gönderide " . count($r['found']) . " servis duyurusu var. Hiçbir şey kaydedilmedi.\n" : "@{$c['username']} okunamadı: {$r['error']}\n";
                         foreach ($r['found'] as $f) {
                             $out .= "\nGönderi {$f['id']}\n";
@@ -1050,6 +1066,12 @@ final class Admin
                 $this->backTo((string)($_POST['back'] ?? 'dict'));
             } elseif ($p === 'webhook' || $p === 'health_net') {
                 $this->redirect('health');
+            } elseif ($p === 'job_paste' && $id) {
+                $this->redirect('job_prompt', ['id' => $id]);
+            } elseif (str_starts_with($p, 'source') || str_starts_with($p, 'tm_') || $p === 'match_run') {
+                $this->redirect('bank');
+            } elseif ($p === 'ai_save') {
+                $this->redirect('ai');
             } else {
                 $this->redirect('dash');
             }
@@ -1074,6 +1096,7 @@ final class Admin
             'keep' => Dictionary::listFromText((string)($_POST['keep'] ?? '')),
             'guesses' => array_values(array_filter(array_map('trim', explode(',', (string)($_POST['guesses'] ?? ''))))),
             'options' => ['keep_max' => !empty($_POST['keep_max']), 'keep_speed' => !empty($_POST['keep_speed'])],
+            'remove' => Dictionary::load($this->db)['remove'] ?? [], // Çeviri ayarları sayfasında düzenlenir
         ];
         foreach ($errors as $err) {
             $this->flash[] = ['bad', $err];

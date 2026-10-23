@@ -72,6 +72,14 @@ final class Ui
         return '<div class="empty"><p class="empty-title">' . self::e($title) . '</p><p class="muted">' . $text . '</p>' . ($action !== '' ? '<div class="row">' . $action . '</div>' : '') . '</div>';
     }
 
+    public static function via(?string $via): string
+    {
+        if ($via === null || $via === '') {
+            return '';
+        }
+        return '<span class="via via-' . self::e($via) . '">' . self::e(\TgWatch\Engine::VIA_LABELS[$via] ?? $via) . '</span>';
+    }
+
     public static function dot(string $state): string
     {
         return '<span class="dot ' . self::e($state) . '" aria-hidden="true"></span>';
@@ -105,6 +113,9 @@ final class Ui
             'moon' => '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>',
             'link' => '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
             'pause' => '<path d="M9 5v14M15 5v14"/>',
+            'bank' => '<path d="M4 7h16v3H4zM5 10v8h14v-8"/><path d="M10 13h4"/>',
+            'sliders' => '<path d="M5 6h9M18 6h1M5 12h3M12 12h7M5 18h11M20 18h-1"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+            'spark' => '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
         ][$name] ?? '';
         return '<svg class="ic" width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $p . '</svg>';
     }
@@ -125,7 +136,8 @@ final class Ui
         if ($nav) {
             $items = [
                 'dash' => ['Onay kuyruğu', 'queue'], 'jobs' => ['İşler', 'jobs'], 'channels' => ['Kanallar', 'channels'],
-                'dict' => ['Sözlük', 'dict'], 'logs' => ['Kayıtlar', 'logs'], 'health' => ['Sağlık', 'health'],
+                'dict' => ['Sözlük', 'dict'], 'bank' => ['Çeviri bankası', 'bank'], 'ai' => ['Çeviri ayarları', 'sliders'],
+                'logs' => ['Kayıtlar', 'logs'], 'health' => ['Sağlık', 'health'],
             ];
             $links = '';
             foreach ($items as $k => [$label, $ic]) {
@@ -140,7 +152,7 @@ final class Ui
                 . '<div class="brand">tgwatch<small>servis çeviri masası</small></div>'
                 . '<nav class="nav">' . $links . '</nav>'
                 . '<div class="side-foot">' . $cronLine
-                . '<a class="side-link" href="?p=theme&amp;t=' . $next . '">' . self::icon($theme === 'dark' ? 'moon' : 'sun', 16) . '<span>' . $themeLabel . '</span></a>'
+                . '<a class="side-link" href="?p=theme&amp;t=' . $next . '&amp;back=' . self::e($o['active'] ?? 'dash') . '">' . self::icon($theme === 'dark' ? 'moon' : 'sun', 16) . '<span>' . $themeLabel . '</span></a>'
                 . '<form method="post" action="?p=logout">' . $this->csrfField() . '<button class="side-link">' . self::icon('logout', 16) . '<span>Çıkış</span></button></form>'
                 . '</div></aside>';
         }
@@ -273,6 +285,9 @@ td .src+.src{margin-top:2px}.edit-table .src{margin-top:4px}
 .s-approved{background:var(--amber-soft);color:var(--amber)}
 .s-published{background:var(--green-soft);color:var(--green)}
 .s-failed{background:var(--red-soft);color:var(--red)}
+.via{display:inline-block;font-size:11.5px;font-weight:500;padding:0 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted);vertical-align:2px;margin-left:6px}
+.via-bank{color:var(--green);border-color:color-mix(in srgb,var(--green) 40%,var(--line))}.via-claude{color:var(--blue);border-color:color-mix(in srgb,var(--blue) 40%,var(--line))}.via-manual{color:var(--amber);border-color:color-mix(in srgb,var(--amber) 40%,var(--line))}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 18px;margin:0}.kv dt{color:var(--muted)}.kv dd{margin:0;font-weight:500}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;display:inline-block}
 .dot.ok{background:var(--green)}.dot.warn{background:var(--amber)}.dot.bad{background:var(--red)}
 

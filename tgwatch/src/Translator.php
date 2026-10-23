@@ -45,6 +45,21 @@ final class Translator
         $this->options = $dict['options'] ?? [];
     }
 
+    /** Ad kalıbı seçeneklerine göre parça adda kalsın mı ("Maks 50K", "Gündə 5K"). */
+    public static function keepSegment(string $t, array $options): bool
+    {
+        if ($t === '') {
+            return false;
+        }
+        if (empty($options['keep_max']) && preg_match('/^Maks\b/u', $t)) {
+            return false;
+        }
+        if (empty($options['keep_speed']) && preg_match('/^(Gündə|Saatda)\b/u', $t)) {
+            return false;
+        }
+        return true;
+    }
+
     public static function ruleRegex(string $pattern): string
     {
         return '~(?<![\p{L}\p{N}])(?:' . str_replace('~', '\~', $pattern) . ')(?![\p{L}])~iu';
@@ -65,10 +80,7 @@ final class Translator
             }
             [$t, $u] = $this->segment($seg);
             $unknown = array_merge($unknown, $u);
-            if (empty($this->options['keep_max']) && preg_match('/^Maks\b/u', $t)) {
-                continue;
-            }
-            if (empty($this->options['keep_speed']) && preg_match('/^(Gündə|Saatda)\b/u', $t)) {
+            if (!self::keepSegment($t, $this->options)) {
                 continue;
             }
             $out[] = $t;

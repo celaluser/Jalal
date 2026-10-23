@@ -42,8 +42,18 @@ if (!is_array($update)) {
     exit('bad request');
 }
 
+// Telegram'a hemen cevap ver (sunucu destekliyorsa), işi arkada sürdür: Claude çağrısı gibi uzun işler
+// Telegram'ın zaman aşımına düşüp aynı güncellemeyi tekrar göndermesine yol açmasın.
+@set_time_limit(150);
+ignore_user_abort(true);
+echo 'ok';
+if (function_exists('fastcgi_finish_request')) {
+    fastcgi_finish_request();
+} elseif (function_exists('litespeed_finish_request')) {
+    litespeed_finish_request();
+}
+
 try {
-    @set_time_limit(60);
     App::flow()->handleUpdate($update);
 } catch (Throwable $e) {
     try {
@@ -51,5 +61,3 @@ try {
     } catch (Throwable) {
     }
 }
-// Hata olsa bile 200 dön: aksi halde Telegram aynı güncellemeyi tekrar tekrar gönderir.
-echo 'ok';

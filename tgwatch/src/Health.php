@@ -37,7 +37,12 @@ final class Health
         $r[] = ['cron_key', preg_match('/^[A-Za-z0-9_-]{16,256}$/', (string)$c['cron_key']) ? self::OK : self::WARN,
             $c['cron_key'] === '' ? 'boş — cron-job.org kullanacaksanız gerekli' : 'ayarlı'];
         $r[] = ['publisher', $c['publisher'] === 'manual' ? self::OK : self::WARN, $c['publisher'] === 'manual' ? 'manual (onaydan sonra panelde elle eklenir; API gelince otomatik)' : 'admin_api henüz desteklenmiyor'];
-        $r[] = ['Claude API', $c['claude_api_key'] !== '' ? self::OK : self::WARN, $c['claude_api_key'] !== '' ? 'ayarlı (denenmedi)' : 'yok — Yeniden oluştur kural tabanlı çalışır'];
+        try {
+            $ai = new Ai(App::db(), $c);
+            $r[] = ['Çeviri yöntemi', $ai->mode() !== 'bank' && !$ai->configured() ? self::WARN : self::OK,
+                Ai::MODES[$ai->mode()] . ($ai->mode() !== 'bank' && !$ai->configured() ? ' — Claude API anahtarı yok, banka+kurallar kullanılıyor' : '')];
+        } catch (\Throwable) {
+        }
 
         $dir = (string)$c['data_dir'];
         $r[] = ['data_dir yazılabilir', is_dir($dir) && is_writable($dir) ? self::OK : self::FAIL, $dir];
@@ -120,9 +125,10 @@ final class Health
         } catch (\Throwable $e) {
             $r[] = ['Webhook', self::FAIL, $e->getMessage()];
         }
-        if ($c['claude_api_key'] !== '') {
-            $a = Http::request('GET', 'https://api.anthropic.com/v1/models', ['x-api-key: ' . $c['claude_api_key'], 'anthropic-version: 2023-06-01'], null, 15);
-            $r[] = ['Claude API', $a['status'] === 200 ? self::OK : self::FAIL, $a['error'] ?: 'HTTP ' . $a['status']];
+        $ai = new Ai(App::db(), $c);
+        if ($ai->configured()) {
+            $a = Http::request('GET', 'https://api.anthropic.com/v1/models/' . $ai->model(), ['x-api-key: ' . $ai->apiKey(), 'anthropic-version: ' . Ai::API_VERSION], null, 15);
+            $r[] = ['Claude API', $a['status'] === 200 ? self::OK : self::FAIL, $a['error'] ?: ($a['status'] === 200 ? $ai->model() . ' erişilebilir' : 'HTTP ' . $a['status'] . ($a['status'] === 401 ? ' (anahtar geçersiz)' : ''))];
         }
         return $r;
     }

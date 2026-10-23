@@ -73,11 +73,17 @@ final class CronRunner
                     foreach ($r['found'] as $f) {
                         $say("   gönderi {$f['id']}:");
                         foreach ($f['items'] as $it) {
-                            $az = $flow->translator()->translate($it['name']);
+                            $az = $flow->engine()->translate($it['name']);
                             $say("     {$it['id']}  {$it['name']}" . ($it['price'] !== '' ? "  (\${$it['price']})" : ''));
                             $say("       → {$az['text']}" . ($az['unknown'] ? '   ⚠ sözlükte yok: ' . implode(', ', $az['unknown']) : ''));
                         }
                     }
+                }
+            }
+            if (!$test) {
+                $aiJob = $flow->processAiQueue($deadline);
+                if ($aiJob !== null) {
+                    $say("Claude: iş #$aiJob işlendi");
                 }
             }
         } catch (\Throwable $e) {

@@ -10,11 +10,22 @@ namespace TgWatch;
  * - phrases: İngilizce => Azerice (büyük/küçük harf duyarsız, tam kelime, en uzun ifade önce).
  * - keep:    çevrilmeyen ve uyarı verilmeyen kelimeler (marka adları vb.).
  * - guesses: kullanıcının henüz onaylamadığı tahmini çeviriler (panelde işaretlenir).
+ * - remove:  çeviriden önce addan silinecek ifadeler (düz metin ya da /regex/).
  * - options: ad kalıbı seçenekleri.
  */
 final class Dictionary
 {
+    /** Kullanıcının onayladığı terimler; diğerleri tahmin sayılır. */
+    public const CONFIRMED = ['Likes', 'Like', 'Comments', 'Comment', 'Refill', 'Guarantee', 'Guaranteed', 'Fast'];
+
     public static function defaults(): array
+    {
+        $d = self::rawDefaults();
+        $d['guesses'] = array_values(array_diff(array_keys($d['phrases']), self::CONFIRMED));
+        return $d;
+    }
+
+    private static function rawDefaults(): array
     {
         return [
             'rules' => [
@@ -65,10 +76,10 @@ final class Dictionary
                 'Reddit', 'Quora', 'Google', 'WhatsApp', 'Reels', 'Reel', 'IGTV', 'Shorts', 'Post', 'Posts',
                 'Video', 'Videos', 'Real', 'Premium', 'Bot', 'Emoji', 'VIP', 'HQ', 'USA', 'UK', 'Tweet', 'Tweets',
             ],
-            'guesses' => [
-                'Followers', 'Follower', 'Views', 'View', 'Saves', 'Save', 'Shares', 'Share',
-                'Random Comments', 'Random Comment', 'Custom Comments', 'Custom Comment',
-            ],
+            // Onaylı terimler dışındaki tüm sözlük girdileri tahmindir (Claude için zorunlu değil, panelde "tahmin" görünür).
+            'guesses' => [], // defaults() doldurur
+            // Çeviriden önce addan silinecek ifadeler (reklam etiketleri vb.). Düz metin ya da /regex/.
+            'remove' => [],
             'options' => [
                 'keep_max' => true,   // "Maks 50K" kısmını ada koy
                 'keep_speed' => true, // "Gündə 5K" kısmını ada koy

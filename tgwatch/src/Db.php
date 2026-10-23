@@ -69,7 +69,72 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     locked_until INTEGER NOT NULL DEFAULT 0,
     last_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS sources (
+    id INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL,
+    name TEXT NOT NULL,
+    api_url TEXT NOT NULL,
+    api_key TEXT NOT NULL,
+    services INTEGER NOT NULL DEFAULT 0,
+    last_sync_at INTEGER,
+    last_error TEXT,
+    created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS remote_services (
+    source_id INTEGER NOT NULL,
+    service_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT '',
+    rate REAL,
+    min INTEGER,
+    max INTEGER,
+    refill INTEGER,
+    cancel INTEGER,
+    type TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY(source_id, service_id)
+);
+CREATE TABLE IF NOT EXISTS tm (
+    id INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL,
+    en_norm TEXT NOT NULL,
+    en TEXT NOT NULL,
+    az TEXT NOT NULL,
+    origin TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ok',
+    score REAL NOT NULL DEFAULT 1,
+    provider_source INTEGER,
+    provider_service INTEGER,
+    own_service INTEGER,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(kind, en_norm, az)
+);
+CREATE INDEX IF NOT EXISTS tm_lookup ON tm(kind, en_norm, status);
+CREATE TABLE IF NOT EXISTS tm_segments (
+    en_norm TEXT NOT NULL,
+    az TEXT NOT NULL,
+    n REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY(en_norm, az)
+);
 SQL);
+        // Sonradan eklenen sütunlar (eski veritabanları için).
+        $cols = array_column($this->pdo->query('PRAGMA table_info(jobs)')->fetchAll(), 'name');
+        if (!in_array('ai_state', $cols, true)) {
+            $this->pdo->exec("ALTER TABLE jobs ADD COLUMN ai_state TEXT NOT NULL DEFAULT ''");
+        }
+    }
+
+    /** İşlemi tek seferde yazar (toplu ekleme için hızlı ve tutarlı). */
+    public function tx(callable $fn)
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $r = $fn();
+            $this->pdo->commit();
+            return $r;
+        } catch (\Throwable $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
     }
 
     public function all(string $sql, array $args = []): array
