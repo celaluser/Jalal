@@ -530,11 +530,11 @@ test('config.php: token anahtar olarak yazılırsa Sağlık uyarır (token gör�
     mkdir($dir);
     App::setConfig(['data_dir' => $dir]);
     $c = App::config();
-    $c['_unknown_keys'] = ['7304…', '7073923993'];
+    $c['_unknown_keys'] = ['1234…', '5555555555'];
     $rows = TgWatch\Health::local($c);
     $row = array_values(array_filter($rows, static fn($r) => $r[0] === 'config.php anahtarları'))[0] ?? null;
     ok($row !== null && $row[1] === 'fail');
-    ok(str_contains($row[2], '7304…') && !str_contains($row[2], 'AAGS'));
+    ok(str_contains($row[2], '1234…') && !str_contains($row[2], 'AAxx'));
 });
 
 echo "Dictionary\n";
