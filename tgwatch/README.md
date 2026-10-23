@@ -24,7 +24,8 @@ Onaydan sonra yayın yapar. Her şeyi web panelden izleyebilirsin.
 tgwatch/                 → zip'i İSTEDİĞİN klasöre aç (public_html içi ya da dışı)
   public/                → web panel (index.php) ve Telegram webhook (bot.php)
   config.sample.php      → config.php olarak kopyala ve doldur
-  cron.php               → her dakika cron
+  cron.php               → komut satırı cron'u (SSH varsa)
+  public/webcron.php     → web cron ucu (cron-job.org)
   src/ tools/ tests/     → kod ve araçlar (web'den erişilemez)
   data/                  → veritabanı (otomatik oluşur, adı rastgele, web'den erişilemez)
 ```
@@ -55,7 +56,7 @@ BotFather → `/newbot` → token'ı al.
 ### 3. config.php ve panel şifresi
 1. `config.sample.php` dosyasını aynı klasörde **Copy** ile `config.php` adıyla kopyala, izinlerini **600** (ya da 640) yap.
 2. Tarayıcıda paneli aç (`…/tgwatch/public/`). Şifre henüz ayarlı olmadığı için **Kurulum** ekranı gelir:
-   şifreyi iki kez yaz → `admin_password_hash`, `webhook_secret` ve `webhook_url` satırları üretilir.
+   şifreyi iki kez yaz → `admin_password_hash`, `webhook_secret`, `webhook_url` ve `cron_key` satırları üretilir.
    Bu satırları File Manager → `config.php` → **Edit** ile aynı satırların yerine yapıştır. Bu ekran hiçbir dosyaya yazmaz.
 3. `bot_token` yaz. `owner_id` için şimdilik 0 bırak (adım 4'te öğreneceksin).
 4. Sayfayı yenile → giriş ekranı gelir → giriş yap.
@@ -78,14 +79,19 @@ Panel → **Sağlık** → **Ağ testlerini çalıştır**. ✗ olan satırları
 2. Aynı sayfada **"son 3 gönderiyi gerçekten işle"** → servis duyurusu varsa bota onay mesajı gelir.
    (SSH varsa: `php cron.php --test`, `php cron.php --backfill=3`.)
 
-### 7. Cron
-DirectAdmin → **Cron Jobs** → her dakika. Komut **Sağlık → Kurulum bilgileri**'nde tam yoluyla yazar:
-```
-* * * * * PHP_YOLU /TAM/YOL/tgwatch/cron.php >/dev/null 2>&1
-```
-PHP_YOLU hosting'e göre değişir: `/usr/local/bin/php`, `/usr/local/php81/bin/php`, `/opt/alt/php81/usr/bin/php`…
-Cron'un kullandığı PHP sürümü web'dekinden farklı olabilir, 8.1+ olduğundan emin ol.
-Doğru çalıştığını **Özet** sayfasındaki "Cron son çalışma" satırından görürsün. Dakikalık izin yoksa `*/5 * * * *`.
+### 7. Cron (cron-job.org — SSH gerekmez)
+1. Panel → **Sağlık → Kurulum bilgileri** → **cron-job.org adresi**ni kopyala:
+   `https://ALANADIN/…/tgwatch/public/webcron.php?key=CRON_KEY` (`cron_key` config.php'de olmalı, Kurulum ekranı üretir).
+2. cron-job.org → **Create cronjob** → URL'yi yapıştır → **Every minute** → kaydet.
+   İstersen anahtarı URL yerine **Advanced → Headers** kısmında `X-Cron-Key: CRON_KEY` olarak gönder, URL'den `?key=` kısmını sil.
+3. **Özet** sayfasında "Cron son çalışma" 1 dakika içinde güncellenmeli.
+
+Uç her zaman HTTP 200 döner (cron-job.org art arda hata alınca işi kapatıyor). Gövdede `ok` ya da `errors: N` ve kanal özeti yazar,
+ayrıntılar paneldeki **Loglar**'dadır. Bir tur en fazla `web_cron_time_limit` (20 sn) sürer, cron-job.org 30 sn bekler.
+Anahtar yanlışsa 403 döner. Bu adres anahtar içerdiği için gizli tutulmalı.
+
+Hosting'de cron varsa onun yerine: `* * * * * PHP_YOLU /TAM/YOL/tgwatch/cron.php >/dev/null 2>&1`
+(PHP_YOLU: `/usr/local/bin/php`, `/usr/local/php81/bin/php`, `/opt/alt/php81/usr/bin/php`…).
 
 Normal çalışmada kanal ilk kez okunduğunda **eski gönderiler işlenmez**, sadece sonrakiler işlenir.
 

@@ -29,6 +29,8 @@ final class Health
         } else {
             $r[] = ['bot_mode', self::OK, 'polling (butonlar cron aralığında işlenir)'];
         }
+        $r[] = ['cron_key', preg_match('/^[A-Za-z0-9_-]{16,256}$/', (string)$c['cron_key']) ? self::OK : self::WARN,
+            $c['cron_key'] === '' ? 'boş — cron-job.org kullanacaksanız gerekli' : 'ayarlı'];
         $r[] = ['publisher', $c['publisher'] === 'manual' ? self::OK : self::WARN, $c['publisher'] === 'manual' ? 'manual (import paketi)' : 'admin_api henüz desteklenmiyor'];
         $r[] = ['Claude API', $c['claude_api_key'] !== '' ? self::OK : self::WARN, $c['claude_api_key'] !== '' ? 'ayarlı (denenmedi)' : 'yok — Yeniden oluştur kural tabanlı çalışır'];
 

@@ -38,7 +38,11 @@ return [
     'panel_api_url' => 'https://panelbaku.com/adminapi/v2',
     'panel_api_key' => '',
 
+    // Web cron (cron-job.org) anahtarı: public/webcron.php?key=... Panelin Kurulum ekranı üretir (yalnızca A-Z a-z 0-9 _ -).
+    'cron_key' => '',
+
     // Kanal okuma ayarları
     'fetch_timeout' => 20,
-    'cron_time_limit' => 50,
+    'cron_time_limit' => 50,      // komut satırı cron'u için saniye
+    'web_cron_time_limit' => 20,  // web cron için saniye (cron-job.org 30 sn bekler)
 ];

@@ -109,6 +109,17 @@ final class Admin
         return (string)($_SERVER['REMOTE_ADDR'] ?? '0');
     }
 
+    public static function randomKey(): string
+    {
+        return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+    }
+
+    /** Bu panelin yanındaki bir dosyanın tam adresi. */
+    private function siblingUrl(string $file): string
+    {
+        return substr($this->suggestedWebhook(), 0, -strlen('bot.php')) . $file;
+    }
+
     /** Önerilen webhook adresi: bu panelin yanındaki bot.php. */
     private function suggestedWebhook(): string
     {
@@ -137,10 +148,13 @@ final class Admin
                 $algo = defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT;
                 $out = "    'admin_password_hash' => '" . password_hash($pw, $algo) . "',\n";
                 if ((string)$this->config['webhook_secret'] === '') {
-                    $out .= "    'webhook_secret' => '" . rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=') . "',\n";
+                    $out .= "    'webhook_secret' => '" . self::randomKey() . "',\n";
                 }
                 if ((string)$this->config['webhook_url'] === '') {
                     $out .= "    'webhook_url' => '" . $this->suggestedWebhook() . "',\n";
+                }
+                if ((string)$this->config['cron_key'] === '') {
+                    $out .= "    'cron_key' => '" . self::randomKey() . "',\n";
                 }
             }
         }
@@ -486,7 +500,12 @@ CSS;
             . '<tr><td>tgwatch klasörü</td><td><code>' . $this->e($root) . '</code></td></tr>'
             . '<tr><td>Önerilen webhook_url</td><td><code>' . $this->e($this->suggestedWebhook()) . '</code>'
             . ((string)$this->config['webhook_url'] === $this->suggestedWebhook() ? ' <span class="ok">✓ config ile aynı</span>' : ' <span class="warn">config.php\'dekinden farklı</span>') . '</td></tr>'
-            . '<tr><td>Cron komutu (her dakika)</td><td><code>PHP_YOLU ' . $this->e($root) . '/cron.php &gt;/dev/null 2&gt;&amp;1</code>'
+            . '<tr><td>cron-job.org adresi (her dakika)</td><td>'
+            . ((string)$this->config['cron_key'] !== ''
+                ? '<code>' . $this->e($this->siblingUrl('webcron.php') . '?key=' . $this->config['cron_key']) . '</code><div class="mut">Bu adres gizlidir (anahtar içerir), paylaşmayın.</div>'
+                : '<span class="bad">config.php içinde cron_key yok</span>')
+            . '</td></tr>'
+            . '<tr><td>Hosting cron komutu (SSH/cron varsa)</td><td><code>PHP_YOLU ' . $this->e($root) . '/cron.php &gt;/dev/null 2&gt;&amp;1</code>'
             . '<div class="mut">PHP_YOLU hosting\'e göre değişir: /usr/local/bin/php, /usr/local/php81/bin/php, /opt/alt/php81/usr/bin/php…</div></td></tr>'
             . '</table></div>';
         if ($this->config['bot_mode'] === 'webhook') {
