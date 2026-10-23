@@ -755,7 +755,7 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
     <div class="pane" data-p="istatistik" hidden>
       <div class="chips">
         <?php foreach (st_ranges() as $rk => $rv): ?>
-          <a href="?tab=istatistik&range=<?= $rk ?>" class="chip <?= (string) $rk === $range ? 'on' : '' ?>"><?= h($rv) ?></a>
+          <a href="?tab=istatistik&range=<?= $rk ?>&popup=<?= h($stPid) ?>" class="chip <?= (string) $rk === $range ? 'on' : '' ?>"><?= h($rv) ?></a>
         <?php endforeach; ?>
       </div>
 

@@ -12,10 +12,11 @@ require __DIR__ . '/stats-lib.php';
 require __DIR__ . '/view-pstats.php';
 
 $paths = popup_paths();
+$cleanUrl = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/popup/admin/index.php'))), '/') . '/';
 $msg = ''; $msgType = 'ok';
 
 /* ---------------- ÇIKIŞ ---------------- */
-if (isset($_GET['logout'])) { adm_logout(); header('Location: index.php'); exit; }
+if (isset($_GET['logout'])) { adm_logout(); header('Location: ' . $cleanUrl); exit; }
 
 /* ---------------- İLK KURULUM ---------------- */
 $hash = adm_hash();
@@ -38,7 +39,7 @@ if (!adm_logged_in()) {
             $msg = 'Çok fazla hatalı deneme. ' . ceil($wait / 60) . ' dakika sonra tekrar deneyin.';
             $msgType = 'err';
         } elseif (adm_login((string) ($_POST['pass'] ?? ''))) {
-            header('Location: index.php'); exit;
+            header('Location: ' . $cleanUrl, true, 303); exit;
         } else {
             $wait = adm_blocked_for();
             $msg = 'Şifre yanlış.'; $msgType = 'err';
@@ -278,7 +279,19 @@ function form_data(array $p, bool $isAuto): array {
 }
 
 $cfg = popup_config();
-$tab = preg_replace('/[^a-z]/', '', (string) ($_GET['tab'] ?? 'durum'));
+$tab = '';   // işlem sonrası açılacak sekme (boşsa tarayıcının hatırladığı sekme kalır)
+
+/* ---------------- ADRES TEMİZLİĞİ: ?tab=&range=&popup= → oturuma al, sade adrese yönlendir ---------------- */
+adm_start();
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && (isset($_GET['tab']) || isset($_GET['range']) || isset($_GET['popup']))) {
+    $v = (array) ($_SESSION['igfp_view'] ?? []);
+    if (isset($_GET['range'])) $v['range'] = preg_replace('/[^0-9a-z]/', '', (string) $_GET['range']);
+    if (isset($_GET['popup']) || isset($_GET['tab'])) $v['popup'] = preg_replace('/[^0-9A-Za-z_-]/', '', (string) ($_GET['popup'] ?? ''));
+    $_SESSION['igfp_view'] = $v;
+    if (isset($_GET['tab'])) $_SESSION['igfp_tabforce'] = preg_replace('/[^a-z]/', '', (string) $_GET['tab']);
+    header('Location: ' . $cleanUrl, true, 303);
+    exit;
+}
 
 /* ---------------- İŞLEMLER ---------------- */
 $action = (string) ($_POST['action'] ?? '');
@@ -600,11 +613,10 @@ if ($action === 'popup_del' || $action === 'popup_toggle') {
 }
 
 /* ---------------- POST → YÖNLENDİR (F5'te "formu yeniden gönder" sorunu olmasın) ---------------- */
-adm_start();
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $_SESSION['igfp_flash'] = ['msg' => $msg, 'type' => $msgType, 'newHash' => $newHash, 'cats' => $runCats];
-    $to = 'index.php?tab=' . rawurlencode($tab !== '' ? $tab : 'durum');
-    header('Location: ' . $to, true, 303);
+    if ($tab !== '') $_SESSION['igfp_tabforce'] = $tab;
+    header('Location: ' . $cleanUrl, true, 303);
     exit;
 }
 if (!empty($_SESSION['igfp_flash']) && is_array($_SESSION['igfp_flash'])) {
@@ -633,7 +645,7 @@ $backups = popup_backup_list();
 $audit   = popup_audit_list(40);
 
 /* --- istatistik aralığı --- */
-$range = (string) ($_GET['range'] ?? '30');
+$range = (string) (($_SESSION['igfp_view']['range'] ?? '') !== '' ? $_SESSION['igfp_view']['range'] : '30');
 if (!array_key_exists($range, st_ranges())) $range = '30';
 $stTo   = date('Y-m-d');
 $stFrom = st_start_date($stats, $range);
@@ -652,7 +664,7 @@ $stBest = 0;
 foreach ($stBuckets as $b) { if ($b['view'] > $stBest) $stBest = $b['view']; }
 $stBest = max(1, $stBest);
 $stCurrent = $payload['v'] ?? '';
-$stPid = preg_replace('/[^0-9A-Za-z_-]/', '', (string) ($_GET['popup'] ?? ''));
+$stPid = preg_replace('/[^0-9A-Za-z_-]/', '', (string) ($_SESSION['igfp_view']['popup'] ?? ''));
 $stD = null; $stDBuckets = []; $stDBest = 1;
 if ($stPid !== '') {
     $stD = st_popup_detail($stats, $stFrom, $stTo, $stPid);
@@ -703,9 +715,7 @@ $myTpls = [];
 foreach ((array) ($cfg['mytpls'] ?? []) as $t) { if (is_array($t) && !empty($t['id'])) $myTpls[$t['id']] = $t; }
 
 /* JS'in açacağı sekme */
-$forceTab = '';
-if (isset($_GET['tab']) || in_array($action, ['save','auto_save','auto_del','auto_toggle','order_save','popup_dup','auto_dup','lowbal_save','mytpl_save','mytpl_del','coupon_reset','popup_save','popup_del','popup_toggle','restore','newpass'], true)) {
-    $forceTab = $tab;
-}
+$forceTab = (string) ($_SESSION['igfp_tabforce'] ?? '');
+unset($_SESSION['igfp_tabforce']);
 
 include __DIR__ . '/view-panel.php';

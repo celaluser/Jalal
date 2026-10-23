@@ -153,3 +153,11 @@ Güncelleme sonrası panelde **"Şimdi güncelle"** butonuna bas.
   işlem tekrarlanmaz. Sonuç mesajı bir kez gösterilir.
 - Popuplar listesinde her popup'ın yanındaki **İstatistik** butonu (ve Düşük bakiye sekmesindeki buton) o popup'ın
   istatistiğini pencerede açar. Pencerenin üstünden 7 gün / 30 gün / 3 ay / 6 ay / 1 yıl / tümü seçilir.
+
+---
+
+## Sabit adres
+
+Panel adresi her zaman `.../popup/admin/` olarak kalır. İşlem sonrası ve istatistik filtrelerinde adreste
+`?tab=...&range=...` gibi ayrıntılar görünmez; seçimler oturumda tutulur. Son açık sekme F5'te korunur.
+Eski `?tab=` bağlantıları da çalışır, sade adrese yönlenir.
