@@ -210,6 +210,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (data.ok) {
                 setStatus('Telegram kanalına göndərildi ✅', 'ok');
+                setTimeout(() => loadTgPreview(true), 2500);
                 if (data.entry) {
                     prependHistoryItem(data.entry);
                 }
@@ -361,6 +362,55 @@ document.addEventListener('DOMContentLoaded', function () {
     if (refreshBtn) refreshBtn.addEventListener('click', () => refreshServices(true));
     setInterval(() => { if (!document.hidden) refreshServices(false); }, AUTO_REFRESH_MS);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshServices(false); });
+
+    // --- Telegram kanal önizləməsi ---
+    const tgFeed = document.getElementById('tgFeed');
+    const tgTitle = document.getElementById('tgTitle');
+    const tgSub = document.getElementById('tgSub');
+    const tgJoin = document.getElementById('tgJoin');
+    const tgReload = document.getElementById('tgReload');
+
+    async function loadTgPreview(force) {
+        if (!tgFeed) return;
+        if (tgReload) tgReload.classList.add('spinning');
+        try {
+            const res = await fetch('preview.php' + (force ? '?refresh=1' : ''), { cache: 'no-store' });
+            const data = await res.json();
+            if (!data.ok) throw new Error(data.error || 'Naməlum xəta');
+
+            tgTitle.textContent = data.title || data.username;
+            tgSub.textContent = '@' + data.username;
+            tgJoin.href = 'https://t.me/' + encodeURIComponent(data.username);
+            tgJoin.hidden = false;
+
+            const nearBottom = tgFeed.scrollHeight - tgFeed.scrollTop - tgFeed.clientHeight < 80;
+            tgFeed.innerHTML = '';
+            if (!data.posts.length) {
+                tgFeed.innerHTML = '<div class="tg-empty">Kanalda hələ post yoxdur</div>';
+                return;
+            }
+            data.posts.forEach(p => {
+                const el = document.createElement('div');
+                el.className = 'tg-msg';
+                // p.html server tərəfdə sanitize olunub (yalnız icazəli teqlər)
+                el.innerHTML =
+                    (p.photo ? `<img class="tg-photo" src="${escapeHtml(p.photo)}" alt="" loading="lazy">` : '') +
+                    (p.html ? `<div class="tg-text">${p.html}</div>` : '') +
+                    `<div class="tg-meta">${p.views ? '👁 ' + escapeHtml(p.views) + ' · ' : ''}${escapeHtml(p.time)}</div>`;
+                tgFeed.appendChild(el);
+            });
+            if (nearBottom || force) tgFeed.scrollTop = tgFeed.scrollHeight;
+        } catch (e) {
+            tgSub.textContent = '';
+            tgFeed.innerHTML = '<div class="tg-empty">' + escapeHtml(e.message) + '</div>';
+        } finally {
+            if (tgReload) tgReload.classList.remove('spinning');
+        }
+    }
+
+    if (tgReload) tgReload.addEventListener('click', () => loadTgPreview(true));
+    loadTgPreview(true);
+    setInterval(() => { if (!document.hidden) loadTgPreview(false); }, 60 * 1000);
 
     renderOptions('');
 });

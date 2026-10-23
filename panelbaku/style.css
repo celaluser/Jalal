@@ -400,3 +400,60 @@ button { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Telegram önizləmə ---------- */
+.tg-card { padding: 0; overflow: hidden; }
+.tg-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+}
+.tg-avatar {
+    width: 38px; height: 38px; flex-shrink: 0;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    background: #229ed9; color: #fff; font-size: 17px;
+}
+.tg-title-wrap { flex: 1; min-width: 0; }
+.tg-title { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tg-sub { font-size: 12px; color: var(--text-faint); }
+.tg-join {
+    flex-shrink: 0; padding: 7px 12px;
+    border-radius: 9px; background: #229ed9; color: #fff;
+    font-size: 12px; font-weight: 700; text-decoration: none;
+}
+.tg-join[hidden] { display: none; }
+.tg-join:hover { filter: brightness(1.08); }
+.tg-reload {
+    width: 34px; height: 34px; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: transparent; border: 0; border-radius: 9px;
+    font-size: 14px; cursor: pointer;
+}
+.tg-reload:hover { background: var(--accent-soft); }
+.tg-reload.spinning { animation: pb-spin .8s linear infinite; }
+
+.tg-feed {
+    display: flex; flex-direction: column; gap: 10px;
+    max-height: 460px; overflow-y: auto; overscroll-behavior: contain;
+    padding: 14px;
+    background: var(--card-2);
+}
+.tg-msg {
+    align-self: flex-start;
+    max-width: 100%;
+    padding: 8px 12px 6px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 4px 14px 14px 14px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.tg-text { font-size: 13px; line-height: 1.5; word-break: break-word; overflow-wrap: anywhere; }
+.tg-text a { color: #229ed9; text-decoration: none; }
+.tg-text a:hover { text-decoration: underline; }
+.tg-text code, .tg-text pre { font-family: ui-monospace, Menlo, monospace; font-size: 12px; background: var(--card-2); border-radius: 4px; padding: 1px 4px; }
+.tg-photo { display: block; width: 100%; border-radius: 10px; margin-bottom: 6px; }
+.tg-meta { margin-top: 4px; text-align: right; font-size: 11px; color: var(--text-faint); }
+.tg-empty { padding: 28px 10px; text-align: center; color: var(--text-faint); font-size: 13px; }
+
+@media (max-width: 900px) { .tg-feed { max-height: 380px; } }

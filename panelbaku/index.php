@@ -158,6 +158,21 @@ foreach ($historyItems as $h) {
             </div>
 
             <div class="side-col">
+                <div class="card tg-card" id="tgCard">
+                    <div class="tg-head">
+                        <div class="tg-avatar">✈️</div>
+                        <div class="tg-title-wrap">
+                            <div class="tg-title" id="tgTitle">Telegram kanalı</div>
+                            <div class="tg-sub" id="tgSub">Önizləmə yüklənir...</div>
+                        </div>
+                        <a class="tg-join" id="tgJoin" href="#" target="_blank" rel="noopener noreferrer" hidden>JOIN ↗</a>
+                        <button type="button" class="tg-reload" id="tgReload" title="Önizləməni yenilə">🔄</button>
+                    </div>
+                    <div class="tg-feed" id="tgFeed">
+                        <div class="tg-empty">Yüklənir...</div>
+                    </div>
+                </div>
+
                 <div class="card history-card">
                     <div class="history-card-head">
                         <div class="field-label" style="margin:0;">Tarixçə</div>
