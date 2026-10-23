@@ -167,6 +167,46 @@ function popup_manual_fields_from(array $in): array {
     ];
 }
 
+/**
+ * Düşük bakiye uyarısı için hazır tasarımlar (panel "Düşük bakiye" sekmesi).
+ * Anahtarlar panel form alanlarıyla aynıdır; st_* = özel tasarım (renk/ölçü).
+ * Metinlerde {ad}, {bakiye}, {ad|Dostum} kullanılabilir.
+ */
+function popup_lowbal_tpls(): array {
+    $mk = function ($name, $layout, $icon, $badge, $title, $sub, $btn, $st, $extra = []) {
+        return array_merge([
+            'name' => $name, 'layout' => $layout, 'skin' => 'sk01', 'icon' => $icon, 'badge' => $badge, 'title' => $title,
+            'subtitle' => $sub, 'btn_text' => $btn, 'items' => '', 'st_on' => 1,
+            'st_bg' => $st[0], 'st_fg' => $st[1], 'st_btn' => $st[2], 'st_btnf' => $st[3], 'st_bb' => $st[4], 'st_bf' => $st[5], 'st_r' => $st[6] ?? '',
+        ], $extra);
+    };
+    return [
+        'serit_kirmizi' => $mk('Qırmızı üst şerit', 'topbar', '⚠️', '', 'Balansınız azdır', 'Sifarişlərin dayanmaması üçün balansı artırın.', 'Balans artır',
+            ['#b3001b', '#ffffff', '#ffffff', '#b3001b', '#ffffff33', '#ffffff']),
+        'serit_sari' => $mk('Sarı xəbərdarlıq şeridi', 'topbar', '💡', '', 'Balansınız {bakiye} ₼', 'Davam etmək üçün balansı artırın.', 'Balans artır',
+            ['#fff3c4', '#5a3d00', '#f59e0b', '#ffffff', '#fde7a1', '#8a5a00']),
+        'serit_mavi' => $mk('Mavi bildiriş şeridi', 'topbar', '💳', '', 'Balansınız bitmək üzrədir', '5 AZN yükləyin və dərhal sifariş verin.', 'Yüklə',
+            ['#1d4ed8', '#ffffff', '#ffffff', '#1d4ed8', '#ffffff33', '#ffffff']),
+        'alt_cubuk' => $mk('Alt yapışqan çubuq', 'stickybar', '💳', '', 'Balansınız {bakiye} ₼', 'Sifarişlər üçün balansı artırın.', 'Balans artır',
+            ['#111827', '#ffffff', '#22c55e', '#052e14', '#ffffff22', '#ffffff']),
+        'orta_kart' => $mk('Mərkəzdə xəbərdarlıq kartı', '', '⚠️', 'Xatırlatma', 'Balansınız azdır', 'Sifarişlərin dayanmaması üçün balansı artırın.', 'Balans artır',
+            ['#fff8f0', '#5a2d00', '#f59e0b', '#ffffff', '#fde7c7', '#a55b00', '18']),
+        'dostane' => $mk('Dostane alt panel', 'sheet', '👋', '', '{ad|Dostum}, balansınız bitmək üzrədir', 'Bir neçə saniyəyə balans artırıb sifarişə davam edə bilərsiniz.', 'Balans artır',
+            ['#ffffff', '#14161c', '#4f46e5', '#ffffff', '#eef2ff', '#4f46e5', '24']),
+        'bonus' => $mk('Bonus təklifli', '', '🎁', 'Bonus', 'Yüklə, bonus qazan', '20 AZN və yuxarı yükləmələrdə 5% bonus balansınıza əlavə olunur.', 'Bonusla yüklə',
+            ['#0f7a4c', '#ffffff', '#b9ffd9', '#06382a', '#b9ffd9', '#06382a', '20']),
+        'yuzen_kart' => $mk('Yüzən kiçik kart', 'fab', '💬', 'Balans', 'Balansınız azdır', 'Bir kliklə artırın.', 'Artır',
+            ['#ffffff', '#14161c', '#25d366', '#ffffff', '#dcf8e6', '#128c4a', '18']),
+        'odenis_yan' => $mk('Ödəniş üsulları (yan panel)', 'drawer', '💳', 'Balans artır', 'Balansınız azdır', 'Rahat üsulla yükləyin:', 'Balans artır',
+            ['#0f172a', '#ffffff', '#38bdf8', '#04283c', '#1e293b', '#38bdf8', '0'],
+            ['items' => "Kart2Kart | 0% komissiya\nBirbank | Dərhal\nM10 | Dərhal"]),
+        'tam_ekran' => $mk('Tam ekran xəbərdarlıq', 'full', '🪫', 'Diqqət', 'Balansınız bitdi', 'Sifariş verə bilmək üçün balansı artırın.', 'Balans artır',
+            ['#1e1b4b', '#ffffff', '#fbbf24', '#3b2400', '#ffffff22', '#ffffff', '0']),
+        'neon' => $mk('Neon tünd kart', '', '⚡', 'Balans', 'Enerjiniz bitir!', 'Balansı artırın, sifarişlərə fasiləsiz davam edin.', 'İndi yüklə',
+            ['#0a0420', '#e8d9ff', '#b026ff', '#ffffff', '#b026ff33', '#e08bff', '12']),
+    ];
+}
+
 /** Güvenli CSS değeri (renk / gradyan). Geçersizse ''. */
 function popup_css_val($v): string {
     $v = trim((string) $v);

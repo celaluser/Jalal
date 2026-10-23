@@ -450,31 +450,34 @@ if ($action === 'order_save') {
     $cfg = popup_config();
 }
 
-/* --- DÜŞÜK BAKİYE UYARISI: tek yerden aç/kapa + ayar --- */
+/* --- DÜŞÜK BAKİYE UYARISI: aç/kapa + tasarım + sıklık --- */
 if ($action === 'lowbal_save') {
-    $tab = 'popuplar';
+    $tab = 'dusukbakiye';
     $thr = max(0.01, (float) str_replace(',', '.', (string) pv('lb_thr', '1')));
     $pops = $cfg['popups']; $idx = null;
     foreach ($pops as $i => $x) { if (($x['id'] ?? '') === 'lowbal') { $idx = $i; break; } }
     $base = $idx !== null ? $pops[$idx] : array_merge(popup_manual_default(), [
         'id' => 'lowbal', 'name' => 'Düşük bakiye uyarısı', 'priority' => 5, 'theme' => 'telegram',
-        'layout' => 'topbar', 'skin' => 'sk27', 'icon' => '⚠️',
     ]);
-    $entry = array_merge($base, [
+    $fields = popup_manual_fields_from($_POST);
+    $fields['countdown'] = ''; $fields['coupon'] = $fields['coupon'] ?? '';
+    $entry = array_merge($base, $fields, [
         'enabled'  => pbool('lb_on'),
-        'title'    => trim((string) pv('lb_title')),
-        'subtitle' => trim((string) pv('lb_sub')),
-        'btn_text' => trim((string) pv('lb_btn')),
-        'btn_url'  => trim((string) pv('lb_url')),
         'segment'  => array_merge(popup_segment_default(), ['login' => 'in', 'balanceMax' => (string) round($thr - 0.01, 2)]),
+        'rules'    => [
+            'perDay'            => max(0, min(100, pint('lb_perday', 5))),
+            'perSession'        => max(0, min(50, pint('lb_persess', 2))),
+            'minGapMinutes'     => max(0, min(10080, pint('lb_gap', 30))),
+            'maxTotal'          => 0,
+            'clickCooldownDays' => 0,
+        ],
     ]);
+    if ($entry['btn_text'] !== '' && $entry['btn_url'] === '') $entry['btn_url'] = '/addfunds';
     if ($entry['title'] === '' && $entry['subtitle'] === '' && $entry['btn_text'] === '') {
         $msg = 'Kaydedilmedi: başlık, açıklama ya da buton yazısından en az biri dolu olmalı.'; $msgType = 'err';
     } else {
         if ($idx === null) $pops[] = $entry; else $pops[$idx] = $entry;
-        $sel = trim((string) pv('lb_sel'));
-        $ok = popup_settings_save(['popups' => array_values($pops), 'client' => ['segment' => ['balanceSelector' => $sel]]],
-                                  'düşük bakiye uyarısı ' . ($entry['enabled'] ? 'açık' : 'kapalı'));
+        $ok = popup_settings_save(['popups' => array_values($pops)], 'düşük bakiye uyarısı ' . ($entry['enabled'] ? 'açık' : 'kapalı'));
         if (!$ok) { $msg = 'Kaydedilemedi — settings.json izni?'; $msgType = 'err'; }
         else {
             $res = popup_run();
@@ -634,6 +637,13 @@ $stBest = 0;
 foreach ($stBuckets as $b) { if ($b['view'] > $stBest) $stBest = $b['view']; }
 $stBest = max(1, $stBest);
 $stCurrent = $payload['v'] ?? '';
+$stPid = preg_replace('/[^0-9A-Za-z_-]/', '', (string) ($_GET['popup'] ?? ''));
+$stD = null; $stDBuckets = []; $stDBest = 1;
+if ($stPid !== '') {
+    $stD = st_popup_detail($stats, $stFrom, $stTo, $stPid);
+    $stDBuckets = st_buckets($stD['daily']);
+    foreach ($stDBuckets as $b) { if ($b['view'] > $stDBest) $stDBest = $b['view']; }
+}
 
 /* popup id -> ad eşlemesi */
 $popupNames = ['bilinmiyor' => 'Bilinmeyen'];
@@ -647,6 +657,25 @@ $formPopups = [];
 foreach ($cfg['popups'] as $p) { $formPopups[$p['id']] = form_data($p, false); }
 $formDefAuto   = form_data(popup_auto_default(), true);
 $formDefManual = form_data(array_merge(popup_manual_default(), ['theme' => 'telegram']), false);
+
+/* düşük bakiye sekmesi: mevcut ayar ya da ilk şablon */
+$lbPop = null; foreach ($cfg['popups'] as $x) { if (($x['id'] ?? '') === 'lowbal') { $lbPop = $x; break; } }
+$lbTpls = popup_lowbal_tpls();
+if ($lbPop) {
+    $lbCur = form_data($lbPop, false);
+    $lbMaxV = ($lbPop['segment']['balanceMax'] ?? '') !== '' ? (float) $lbPop['segment']['balanceMax'] : 0.99;
+    $lbRu = (array) ($lbPop['rules'] ?? []);
+    $lbCur['lb_on'] = !empty($lbPop['enabled']) ? 1 : 0;
+} else {
+    $first = reset($lbTpls);
+    $lbCur = array_merge(form_data(array_merge(popup_manual_default(), ['theme' => 'telegram']), false), $first, ['btn_url' => '/addfunds', 'lb_on' => 0]);
+    $lbMaxV = 0.99; $lbRu = [];
+}
+$lbCur['lb_thr']     = rtrim(rtrim(number_format($lbMaxV + 0.01, 2, '.', ''), '0'), '.');
+$lbCur['lb_perday']  = (int) ($lbRu['perDay'] ?? 5);
+$lbCur['lb_persess'] = (int) ($lbRu['perSession'] ?? 2);
+$lbCur['lb_gap']     = (int) ($lbRu['minGapMinutes'] ?? 30);
+$lbOn = !empty($lbCur['lb_on']);
 
 /* kupon kullanım sayaçları (limitli popuplar için) */
 $couponUse = [];

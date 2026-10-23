@@ -80,6 +80,35 @@ if (flock($fp, LOCK_EX)) {
         if ($ms < 3000) $d['quick'] = ((int) ($d['quick'] ?? 0)) + 1;   // 3 sn'den kısa = hemen kapattı
     }
 
+    /* --- popup bazında ayrıntı (popup'a özel istatistik sayfası için) --- */
+    $pkey0 = $pp !== '' ? $pp : 'bilinmiyor';
+    if (!isset($d['p'][$pkey0]) || !is_array($d['p'][$pkey0])) $d['p'][$pkey0] = ['view' => 0, 'click' => 0, 'svc' => []];
+    $pe =& $d['p'][$pkey0];
+    if ($ev === 'close') {
+        $pe['close'] = ((int) ($pe['close'] ?? 0)) + 1;
+        if ($ms !== null) {
+            $pe['msSum'] = ((int) ($pe['msSum'] ?? 0)) + $ms;
+            if ($ms < 3000) $pe['quick'] = ((int) ($pe['quick'] ?? 0)) + 1;
+        }
+    }
+    if ($ev === 'view' && $uq) $pe['uniq'] = ((int) ($pe['uniq'] ?? 0)) + 1;
+    if ($ev === 'view' || $ev === 'click') {
+        foreach ([['dev', $dv, 2], ['src', $sr, 40], ['pg', $pg, 40]] as $bk) {
+            list($bn, $bv, $lim) = $bk;
+            if (!isset($pe[$bn]) || !is_array($pe[$bn])) $pe[$bn] = [];
+            if (isset($pe[$bn][$bv]) || count($pe[$bn]) < $lim) {
+                if (!isset($pe[$bn][$bv])) $pe[$bn][$bv] = ['view' => 0, 'click' => 0];
+                $pe[$bn][$bv][$ev] = ((int) ($pe[$bn][$bv][$ev] ?? 0)) + 1;
+            }
+        }
+        // popup içi eylemler (çark, kazıma, kupon al/kopyala) — servis sayılmaz
+        if ($ev === 'click' && in_array($sv, ['coupon', 'spin', 'scratch', 'claim'], true)) {
+            if (!isset($pe['act']) || !is_array($pe['act'])) $pe['act'] = [];
+            $pe['act'][$sv] = ((int) ($pe['act'][$sv] ?? 0)) + 1;
+        }
+    }
+    unset($pe);
+
     /* --- kırılımlar (view/click sayılır) --- */
     if ($ev === 'view' || $ev === 'click') {
 
@@ -110,7 +139,8 @@ if (flock($fp, LOCK_EX)) {
         }
 
         // servis kırılımı (sadece tıklama)
-        if ($ev === 'click' && $sv !== '') {
+        $isAct = in_array($sv, ['coupon', 'spin', 'scratch', 'claim'], true);
+        if ($ev === 'click' && $sv !== '' && !$isAct) {
             $d['v'][$vkey]['svc'][$sv] = ((int) ($d['v'][$vkey]['svc'][$sv] ?? 0)) + 1;
             $d['p'][$pkey]['svc'][$sv] = ((int) ($d['p'][$pkey]['svc'][$sv] ?? 0)) + 1;
             if (!isset($d['svc']) || !is_array($d['svc'])) $d['svc'] = [];

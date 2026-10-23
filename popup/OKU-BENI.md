@@ -133,3 +133,14 @@ Güncelleme sonrası panelde **"Şimdi güncelle"** butonuna bas.
 - **Kopyala:** Popuplar sekmesinde her popup'ın yanında. Kopya kapalı gelir.
 - **Şablonlarım:** Popuplar → bir manuel popup'ta "Şablon" butonu → Şablonlar sekmesinde "Şablonlarım".
 - **Bot filtresi:** Gösterim kuralları'nda açık/kapalı. Botlara popup gösterilmez ve istatistiğe yazılmaz.
+
+---
+
+## Panel düzeni, Düşük bakiye sekmesi, popup'a özel istatistik
+
+- **Düşük bakiye** artık ayrı sekme: aç/kapa anahtarı, bakiye eşiği, günlük/oturum/aralık sınırı, 11 hazır tasarım,
+  metin ve tüm renk/ölçü ayarları ve üstte canlı önizleme. Bakiye seçicisi **Gösterim kuralları → Segment verisi**'nde.
+- **İstatistik → Popup'a özel istatistik:** bir popup seç; gösterim, tıklama, günlük grafik, cihaz, kaynak, sayfa,
+  kapanma süresi ve popup içi eylemler (çark, kazıma, kupon al) görünür. Cihaz/kaynak/sayfa ayrıntısı
+  güncellemeden sonraki gösterimler için toplanır.
+- **Popuplar** sekmesinde önce otomatik ve manuel liste, sonra katman sırası gelir.

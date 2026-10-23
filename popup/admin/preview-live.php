@@ -27,6 +27,6 @@ $js = popup_embed_js((string) file_get_contents($tplFile), [$p], $client);
 <style>html,body{margin:0;height:100%}body{background:linear-gradient(135deg,#2c3045,#14151c);font-family:system-ui}
 .l{height:10px;background:#ffffff14;border-radius:5px;margin:14px 18px}</style></head><body>
 <div class="l" style="width:40%"></div><div class="l"></div><div class="l" style="width:70%"></div><div class="l" style="width:55%"></div>
-<script>window.__IGFP_PREVIEW = 1; window.__IGFP_PREVIEW_PID = "live";</script>
+<script>window.PANEL_USER = {name: "Əli", balance: 0.5, loggedIn: true}; window.__IGFP_PREVIEW = 1; window.__IGFP_PREVIEW_PID = "live";</script>
 <script><?= str_replace('</script', '<\/script', $js) ?></script>
 </body></html>

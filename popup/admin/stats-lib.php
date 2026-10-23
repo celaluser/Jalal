@@ -202,3 +202,45 @@ function st_engagement(array $stats, string $from, string $to): array {
 function st_device_name(string $k): string {
     return $k === 'm' ? 'Mobil' : ($k === 'd' ? 'Masaüstü' : $k);
 }
+
+/**
+ * Tek bir popup'ın ayrıntılı istatistiği.
+ * Günlük görüntüleme/tıklama eski kayıtlarda da vardır; cihaz/kaynak/sayfa/kapanma ayrıntısı
+ * stat.php'nin bu sürümünden sonra toplanır.
+ */
+function st_popup_detail(array $stats, string $from, string $to, string $pid): array {
+    $o = ['view' => 0, 'click' => 0, 'uniq' => 0, 'close' => 0, 'quick' => 0, 'msSum' => 0,
+          'daily' => [], 'dev' => [], 'src' => [], 'pg' => [], 'act' => [], 'svc' => [], 'hasDetail' => false];
+    $cur = strtotime($from); $end = strtotime($to); $guard = 0;
+    while ($cur <= $end && $guard++ < 800) { $o['daily'][date('Y-m-d', $cur)] = ['view' => 0, 'click' => 0]; $cur = strtotime('+1 day', $cur); }
+    foreach ($stats as $day => $row) {
+        if ($day < $from || $day > $to) continue;
+        $p = $row['p'][$pid] ?? null;
+        if (!is_array($p)) continue;
+        $v = (int) ($p['view'] ?? 0); $c = (int) ($p['click'] ?? 0);
+        $o['view'] += $v; $o['click'] += $c;
+        if (isset($o['daily'][$day])) { $o['daily'][$day]['view'] += $v; $o['daily'][$day]['click'] += $c; }
+        foreach (['uniq', 'close', 'quick', 'msSum'] as $k) $o[$k] += (int) ($p[$k] ?? 0);
+        foreach (['dev', 'src', 'pg'] as $bk) {
+            foreach ((array) ($p[$bk] ?? []) as $k => $x) {
+                if (!is_array($x)) continue;
+                $o['hasDetail'] = true;
+                if (!isset($o[$bk][$k])) $o[$bk][$k] = ['view' => 0, 'click' => 0];
+                $o[$bk][$k]['view'] += (int) ($x['view'] ?? 0); $o[$bk][$k]['click'] += (int) ($x['click'] ?? 0);
+            }
+        }
+        foreach ((array) ($p['act'] ?? []) as $k => $n) $o['act'][$k] = ((int) ($o['act'][$k] ?? 0)) + (int) $n;
+        foreach ((array) ($p['svc'] ?? []) as $k => $n) $o['svc'][$k] = ((int) ($o['svc'][$k] ?? 0)) + (int) $n;
+    }
+    foreach (['dev', 'src', 'pg'] as $bk) uasort($o[$bk], function ($a, $b) { return $b['view'] <=> $a['view']; });
+    arsort($o['act']); arsort($o['svc']);
+    $o['avgSec']   = $o['close'] > 0 ? round($o['msSum'] / $o['close'] / 1000, 1) : 0;
+    $o['quickPct'] = $o['close'] > 0 ? round($o['quick'] / $o['close'] * 100, 1) : 0;
+    return $o;
+}
+
+/** Eylem kodunu okunabilir yap */
+function st_action_name(string $k): string {
+    $m = ['spin' => 'Çark çevrildi', 'scratch' => 'Kart kazındı', 'claim' => 'Kupon alındı', 'coupon' => 'Kupon kopyalandı'];
+    return $m[$k] ?? $k;
+}

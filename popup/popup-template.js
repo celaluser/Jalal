@@ -907,12 +907,14 @@
     var lay = p.layout || "";
     if (lay === "wheel")   { inner = renderWheel(p); }
     if (lay === "scratch") { inner = renderScratch(p); }
+    var useBadge = p.badge || !(SKINS && (p.skin || lay || p.style));   // sablonlu popup'ta bos rozet cizilmez
+    var bdg = useBadge ? '<div class="igfp-badge"><span class="igfp-dot"></span>' + esc(p.badge || "") + "</div>" : "";
     var main =
-        '<div class="igfp-badge"><span class="igfp-dot"></span>' + esc(p.badge || "") + "</div>"
+        bdg
       + '<h2 class="igfp-h">' + esc(p.title || "") + "</h2>"
       + '<p class="igfp-sub">' + esc(p.subtitle || "") + "</p>" + inner;
     if (lay === "steps" && p.steps && p.steps.length) {
-      main = '<div class="igfp-badge"><span class="igfp-dot"></span>' + esc(p.badge || "") + "</div>"
+      main = bdg
            + renderSteps(p, '<h2 class="igfp-h">' + esc(p.title || "") + '</h2><p class="igfp-sub">' + esc(p.subtitle || "") + "</p>" + inner);
     }
 

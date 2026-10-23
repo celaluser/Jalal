@@ -23,6 +23,58 @@ $activePopups = 0;
 foreach ($cfg['autos'] as $a)  { if (!empty($a['enabled'])) $activePopups++; }
 foreach ($cfg['popups'] as $p) { if (!empty($p['enabled'])) $activePopups++; }
 
+/** "Stil" alanları: yerleşim, renk şablonu, özel tasarım. Manuel popup penceresi ve Düşük bakiye sekmesi ortak kullanır. */
+function f_stil_rows(bool $interactive = true): void {
+  $lays = popup_layouts();
+  if (!$interactive) { foreach (['wheel', 'steps', 'scratch'] as $k) unset($lays[$k]); }
+?>
+          <div class="row"><div class="lbl">Yerleşim<small>Popup'ın ekrandaki biçimi</small></div>
+            <select name="layout" data-lay-sel><option value="">Klasik pencere (ortada)</option>
+              <?php foreach ($lays as $lk => $ln): ?><option value="<?= h($lk) ?>"><?= h($ln) ?></option><?php endforeach; ?></select></div>
+          <div class="row"><div class="lbl">Renk şablonu<small>Hazır renk ve köşe düzeni</small></div>
+            <select name="skin" data-skin-sel><option value="">Klasik (koyu, çerçeveli)</option>
+              <?php foreach (popup_skins() as $sk => $v): ?><option value="<?= h($sk) ?>"><?= h($v['n']) ?></option><?php endforeach; ?></select></div>
+          <?php if ($interactive): ?><div class="row" data-lay="wheel"><div class="lbl">Çark ödülleri<small>Her satıra: <code>Etiket | KUPON | stok</code> (2–8 satır). Kuponsuz satır = boş dilim, stok boş/0 = sınırsız. Stok için İçerik'te "Kupon limiti"ni aç</small></div>
+            <textarea name="prizes" placeholder="5% | CARX5&#10;10% | CARX10&#10;Heç nə |"></textarea></div><?php endif; ?>
+          <?php if ($interactive): ?><div class="row" data-lay="steps"><div class="lbl">Adımlar<small>Her satıra: <code>Soru :: Seçenek1, Seçenek2</code> (en çok 4 adım). Son ekranda İçerik sekmesindeki metin ve buton gelir.</small></div>
+            <textarea name="steps" placeholder="Hansı platforma lazımdır? :: Instagram, TikTok, YouTube"></textarea></div><?php endif; ?>
+          <div class="row"><div class="lbl">Özel tasarım<small>Kapalıysa seçili şablonun hazır ayarları kullanılır. Açınca aşağıdakilerin hepsini istediğin gibi değiştirebilirsin.</small></div>
+            <label class="sw"><input type="checkbox" name="st_on" data-toggle="stil"><i></i></label></div>
+          <div data-box="stil" hidden>
+          <div class="row"><div class="lbl">Arka plan<small>Renk ya da gradyan</small></div>
+            <div class="colr"><input type="color" data-cp aria-label="Arka plan"><input type="text" name="st_bg" placeholder="Şablon rengi"></div></div>
+          <div class="row"><div class="lbl">Yazı rengi</div>
+            <div class="colr"><input type="color" data-cp aria-label="Yazı rengi"><input type="text" name="st_fg" placeholder="Şablon rengi"></div></div>
+          <div class="row"><div class="lbl">Buton rengi<small>Renk ya da gradyan</small></div>
+            <div class="colr"><input type="color" data-cp aria-label="Buton rengi"><input type="text" name="st_btn" placeholder="Şablon rengi"></div></div>
+          <div class="row"><div class="lbl">Buton yazısı</div>
+            <div class="colr"><input type="color" data-cp aria-label="Buton yazısı"><input type="text" name="st_btnf" placeholder="Şablon rengi"></div></div>
+          <div class="row"><div class="lbl">Rozet arka planı</div>
+            <div class="colr"><input type="color" data-cp aria-label="Rozet arka planı"><input type="text" name="st_bb" placeholder="Şablon rengi"></div></div>
+          <div class="row"><div class="lbl">Rozet yazısı</div>
+            <div class="colr"><input type="color" data-cp aria-label="Rozet yazısı"><input type="text" name="st_bf" placeholder="Şablon rengi"></div></div>
+            <div class="row"><div class="lbl">Köşe yuvarlaklığı<small>px · 0–60</small></div><input type="number" name="st_r" min="0" max="60" placeholder="20"></div>
+            <div class="grp">Ölçüler</div>
+            <div class="row"><div class="lbl">Genişlik<small>px · 200–1000</small></div><input type="number" name="st_w" min="200" max="1000" placeholder="380"></div>
+            <div class="row"><div class="lbl">İç boşluk<small>px · 0–80</small></div><input type="number" name="st_pad" min="0" max="80" placeholder="28"></div>
+            <div class="row"><div class="lbl">Başlık boyutu<small>px</small></div><input type="number" name="st_tsz" min="10" max="64" placeholder="23"></div>
+            <div class="row"><div class="lbl">Açıklama boyutu<small>px</small></div><input type="number" name="st_ssz" min="9" max="32" placeholder="14"></div>
+            <div class="row"><div class="lbl">Buton yazı boyutu<small>px</small></div><input type="number" name="st_bsz" min="10" max="28" placeholder="14"></div>
+            <div class="row"><div class="lbl">Buton köşesi<small>px · 0–60</small></div><input type="number" name="st_br" min="0" max="60" placeholder="12"></div>
+            <div class="grp">Kenarlık, gölge, hizalama</div>
+            <div class="row"><div class="lbl">Kenarlık kalınlığı<small>px · 0–12</small></div><input type="number" name="st_bw" min="0" max="12" placeholder="0"></div>
+            <div class="row"><div class="lbl">Kenarlık rengi</div><div class="colr"><input type="color" data-cp aria-label="Kenarlık rengi"><input type="text" name="st_bc" placeholder="Şablon rengi"></div></div>
+            <div class="row"><div class="lbl">Gölge</div><select name="st_sh"><option value="">Şablondaki</option><option value="none">Yok</option><option value="soft">Hafif</option><option value="strong">Güçlü</option></select></div>
+            <div class="row"><div class="lbl">Yazı hizası</div><select name="st_al"><option value="">Şablondaki</option><option value="left">Sol</option><option value="center">Orta</option><option value="right">Sağ</option></select></div>
+            <div class="grp">Efekt</div>
+            <div class="row"><div class="lbl">Arka plan karartma<small>% · 0–95 (şerit ve yüzen düğmede yok)</small></div><input type="number" name="st_ov" min="0" max="95" placeholder="62"></div>
+            <div class="row"><div class="lbl">Açılış animasyonu</div><select name="st_anim"><option value="">Varsayılan</option><option value="fade">Solarak</option><option value="slide">Aşağıdan kayarak</option><option value="zoom">Büyüyerek</option><option value="bounce">Zıplayarak</option></select></div>
+            <div class="grp">Gelişmiş</div>
+            <div class="row"><div class="lbl">Özel CSS<small>İstersen kendi kodun. Sınıflar: <code>.igfp-box</code> <code>.igfp-h</code> <code>.igfp-sub</code> <code>.igfp-btn</code> <code>.igfp-badge</code> <code>.igfp-x</code></small></div>
+              <textarea name="st_css" spellcheck="false" placeholder=".igfp-h{text-shadow:0 2px 8px #0008}"></textarea></div>
+          </div>
+<?php }
+
 function layout_svg(string $k): string {
   $bg = '<rect width="160" height="100" fill="#20233a"/><rect x="8" y="8" width="60" height="6" rx="3" fill="#3a3f5e"/><rect x="8" y="20" width="110" height="5" rx="2.5" fill="#323653"/><rect x="8" y="30" width="90" height="5" rx="2.5" fill="#323653"/><rect x="8" y="46" width="44" height="24" rx="4" fill="#2b2f4a"/><rect x="58" y="46" width="44" height="24" rx="4" fill="#2b2f4a"/><rect x="108" y="46" width="44" height="24" rx="4" fill="#2b2f4a"/>';
   $dim = '<rect width="160" height="100" fill="#000" opacity=".5"/>';
@@ -168,6 +220,7 @@ function f_common_head(array $themes, bool $isAuto): void { ?>
 $nav = [
   'durum'      => ['gauge',  'Durum'],
   'popuplar'   => ['layers', 'Popuplar'],
+  'dusukbakiye' => ['zap',   'Düşük bakiye'],
   'sablonlar'  => ['eye',    'Şablonlar'],
   'gorunum'    => ['eye',    'Gösterim kuralları'],
   'sayfalar'   => ['route',  'Sayfa kuralları'],
@@ -283,99 +336,6 @@ $nav = [
     <!-- ═════════ POPUPLAR (kısa liste — düzenleme modalda) ═════════ -->
     <div class="pane" data-p="popuplar" hidden>
 
-      <?php
-        $lb = null; foreach ($cfg['popups'] as $x) { if (($x['id'] ?? '') === 'lowbal') { $lb = $x; break; } }
-        $lbOn  = $lb && !empty($lb['enabled']);
-        $lbMax = ($lb && ($lb['segment']['balanceMax'] ?? '') !== '') ? (float) $lb['segment']['balanceMax'] : 0.99;
-        $lbThr = rtrim(rtrim(number_format($lbMax + 0.01, 2, '.', ''), '0'), '.');
-      ?>
-      <div class="card">
-        <h2><?= ico('zap') ?> Düşük bakiye uyarısı
-          <span class="pill <?= $lbOn ? 'on' : 'off' ?>" style="margin-left:8px"><b></b><?= $lbOn ? 'Açık' : 'Kapalı' ?></span></h2>
-        <p class="hint">Giriş yapmış ve bakiyesi <b>eşiğin altında</b> olanlara "Bakiye ekle" şeridi gösterir.
-           Bakiye, sitede görünen bakiye yazısından okunur. Anahtarla istediğin an açıp kapatabilirsin.</p>
-        <div class="body">
-          <form method="post">
-            <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="lowbal_save">
-            <div class="rows">
-              <div class="row"><div class="lbl">Uyarı açık<small>Kapatınca hemen kaydedilir, popup gösterilmez</small></div>
-                <label class="sw"><input type="checkbox" name="lb_on" <?= $lbOn ? 'checked' : '' ?> onchange="this.form.submit()"><i></i></label></div>
-              <div class="row"><div class="lbl">Bakiye eşiği (₼)<small>Bakiye bu değerin <b>altındaysa</b> gösterilir</small></div>
-                <input type="text" name="lb_thr" value="<?= h($lbThr) ?>" placeholder="1"></div>
-              <div class="row"><div class="lbl">Başlık</div>
-                <input type="text" name="lb_title" value="<?= h($lb['title'] ?? 'Balansınız azdır') ?>"></div>
-              <div class="row"><div class="lbl">Açıklama</div>
-                <input type="text" name="lb_sub" value="<?= h($lb['subtitle'] ?? 'Sifarişlərin dayanmaması üçün balansı artırın.') ?>"></div>
-              <div class="row"><div class="lbl">Buton yazısı</div>
-                <input type="text" name="lb_btn" value="<?= h($lb['btn_text'] ?? 'Balans artır') ?>"></div>
-              <div class="row"><div class="lbl">Buton linki<small>Panelinin bakiye yükleme sayfası</small></div>
-                <input type="text" name="lb_url" value="<?= h($lb['btn_url'] ?? '/addfunds') ?>"></div>
-              <div class="row"><div class="lbl">Bakiye seçicisi (CSS)<small>Sayfada bakiye yazan kutu. Genelde değiştirmen gerekmez.</small></div>
-                <input type="text" name="lb_sel" value="<?= h($cl['segment']['balanceSelector'] ?? '.default-dropdown__toggle') ?>"></div>
-            </div>
-            <div style="margin-top:14px"><button class="btn" type="submit"><?= ico('save') ?><span>Kaydet</span></button>
-              <?php if ($lb): ?><button class="btn sec" type="button" data-edit="manual" data-id="lowbal"><?= ico('edit') ?><span>Gelişmiş düzenle</span></button><?php endif; ?></div>
-          </form>
-        </div>
-      </div>
-
-      <?php
-        $layers = [];
-        foreach ($cfg['autos'] as $a)   { $layers[] = ['k' => 'a:' . $a['id'], 'n' => $a['name'] ?? $a['id'], 't' => 'Otomatik', 'pr' => (int) ($a['priority'] ?? 10), 'on' => !empty($a['enabled'])]; }
-        foreach ($cfg['popups'] as $m)  { $layers[] = ['k' => 'm:' . $m['id'], 'n' => $m['name'] ?? $m['id'], 't' => 'Manuel',   'pr' => (int) ($m['priority'] ?? 20), 'on' => !empty($m['enabled'])]; }
-        usort($layers, function ($x, $y) { return $x['pr'] <=> $y['pr']; });
-      ?>
-      <?php if (count($layers) > 1): ?>
-      <div class="card">
-        <h2><?= ico('layers') ?> Katman sırası</h2>
-        <p class="hint">Popupların <b>hangisi önce çıkacağını</b> belirler. Üstteki önce gösterilir, alttakiler
-           sırayla gelir (aynı anda en fazla <i>Sayfa başına en fazla</i> (Global ayarlar) kadar). Sürükle ya da ▲▼ ile değiştir, sonra kaydet.</p>
-        <div class="body">
-          <form method="post" id="orderform">
-            <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="order_save">
-            <input type="hidden" name="order" id="orderval">
-            <ol id="layerlist" style="list-style:none;margin:0;padding:0">
-              <?php foreach ($layers as $i => $l): ?>
-              <li class="poprow" draggable="true" data-k="<?= h($l['k']) ?>" style="cursor:grab">
-                <span class="pill on" style="min-width:28px;justify-content:center"><b></b><span class="lnum"><?= $i + 1 ?></span></span>
-                <div class="poprow-main">
-                  <div class="poprow-name"><?= h($l['n']) ?> <span class="ptheme"><?= $l['t'] ?><?= $l['on'] ? '' : ' · kapalı' ?></span></div>
-                </div>
-                <button class="btn sec sm" type="button" data-mv="-1" title="Yukarı">▲</button>
-                <button class="btn sec sm" type="button" data-mv="1" title="Aşağı">▼</button>
-              </li>
-              <?php endforeach; ?>
-            </ol>
-            <div style="margin-top:14px"><button class="btn" type="submit"><span>Sırayı kaydet</span></button></div>
-          </form>
-        </div>
-      </div>
-      <script>
-      (function () {
-        var ol = document.getElementById('layerlist'); if (!ol) return;
-        var drag = null;
-        function renum() { var n = ol.children; for (var i = 0; i < n.length; i++) n[i].querySelector('.lnum').textContent = i + 1; }
-        ol.addEventListener('click', function (e) {
-          var b = e.target.closest('[data-mv]'); if (!b) return;
-          var li = b.closest('li'), d = parseInt(b.getAttribute('data-mv'), 10);
-          if (d < 0 && li.previousElementSibling) ol.insertBefore(li, li.previousElementSibling);
-          else if (d > 0 && li.nextElementSibling) ol.insertBefore(li.nextElementSibling, li);
-          renum();
-        });
-        ol.addEventListener('dragstart', function (e) { drag = e.target.closest('li'); if (e.dataTransfer) e.dataTransfer.setData('text/plain', ''); });
-        ol.addEventListener('dragover', function (e) {
-          e.preventDefault(); var t = e.target.closest('li'); if (!t || !drag || t === drag) return;
-          var r = t.getBoundingClientRect();
-          ol.insertBefore(drag, (e.clientY - r.top) < r.height / 2 ? t : t.nextSibling);
-        });
-        ol.addEventListener('dragend', function () { drag = null; renum(); });
-        document.getElementById('orderform').addEventListener('submit', function () {
-          var k = []; for (var i = 0; i < ol.children.length; i++) k.push(ol.children[i].getAttribute('data-k'));
-          document.getElementById('orderval').value = k.join(',');
-        });
-      })();
-      </script>
-      <?php endif; ?>
 
       <div class="card">
         <h2><?= ico('refresh') ?> Otomatik servis popupları</h2>
@@ -468,6 +428,138 @@ $nav = [
           </div>
         </div>
       </div>
+
+      <?php
+        $layers = [];
+        foreach ($cfg['autos'] as $a)   { $layers[] = ['k' => 'a:' . $a['id'], 'n' => $a['name'] ?? $a['id'], 't' => 'Otomatik', 'pr' => (int) ($a['priority'] ?? 10), 'on' => !empty($a['enabled'])]; }
+        foreach ($cfg['popups'] as $m)  { $layers[] = ['k' => 'm:' . $m['id'], 'n' => $m['name'] ?? $m['id'], 't' => 'Manuel',   'pr' => (int) ($m['priority'] ?? 20), 'on' => !empty($m['enabled'])]; }
+        usort($layers, function ($x, $y) { return $x['pr'] <=> $y['pr']; });
+      ?>
+      <?php if (count($layers) > 1): ?>
+      <div class="card">
+        <h2><?= ico('layers') ?> Katman sırası</h2>
+        <p class="hint">Popupların <b>hangisi önce çıkacağını</b> belirler. Üstteki önce gösterilir, alttakiler
+           sırayla gelir (aynı anda en fazla <i>Sayfa başına en fazla</i> (Global ayarlar) kadar). Sürükle ya da ▲▼ ile değiştir, sonra kaydet.</p>
+        <div class="body">
+          <form method="post" id="orderform">
+            <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="order_save">
+            <input type="hidden" name="order" id="orderval">
+            <ol id="layerlist" style="list-style:none;margin:0;padding:0">
+              <?php foreach ($layers as $i => $l): ?>
+              <li class="poprow" draggable="true" data-k="<?= h($l['k']) ?>" style="cursor:grab">
+                <span class="pill on" style="min-width:28px;justify-content:center"><b></b><span class="lnum"><?= $i + 1 ?></span></span>
+                <div class="poprow-main">
+                  <div class="poprow-name"><?= h($l['n']) ?> <span class="ptheme"><?= $l['t'] ?><?= $l['on'] ? '' : ' · kapalı' ?></span></div>
+                </div>
+                <button class="btn sec sm" type="button" data-mv="-1" title="Yukarı">▲</button>
+                <button class="btn sec sm" type="button" data-mv="1" title="Aşağı">▼</button>
+              </li>
+              <?php endforeach; ?>
+            </ol>
+            <div style="margin-top:14px"><button class="btn" type="submit"><span>Sırayı kaydet</span></button></div>
+          </form>
+        </div>
+      </div>
+      <script>
+      (function () {
+        var ol = document.getElementById('layerlist'); if (!ol) return;
+        var drag = null;
+        function renum() { var n = ol.children; for (var i = 0; i < n.length; i++) n[i].querySelector('.lnum').textContent = i + 1; }
+        ol.addEventListener('click', function (e) {
+          var b = e.target.closest('[data-mv]'); if (!b) return;
+          var li = b.closest('li'), d = parseInt(b.getAttribute('data-mv'), 10);
+          if (d < 0 && li.previousElementSibling) ol.insertBefore(li, li.previousElementSibling);
+          else if (d > 0 && li.nextElementSibling) ol.insertBefore(li.nextElementSibling, li);
+          renum();
+        });
+        ol.addEventListener('dragstart', function (e) { drag = e.target.closest('li'); if (e.dataTransfer) e.dataTransfer.setData('text/plain', ''); });
+        ol.addEventListener('dragover', function (e) {
+          e.preventDefault(); var t = e.target.closest('li'); if (!t || !drag || t === drag) return;
+          var r = t.getBoundingClientRect();
+          ol.insertBefore(drag, (e.clientY - r.top) < r.height / 2 ? t : t.nextSibling);
+        });
+        ol.addEventListener('dragend', function () { drag = null; renum(); });
+        document.getElementById('orderform').addEventListener('submit', function () {
+          var k = []; for (var i = 0; i < ol.children.length; i++) k.push(ol.children[i].getAttribute('data-k'));
+          document.getElementById('orderval').value = k.join(',');
+        });
+      })();
+      </script>
+      <?php endif; ?>
+    </div>
+
+    <!-- ═════════ DÜŞÜK BAKİYE UYARISI ═════════ -->
+    <div class="pane" data-p="dusukbakiye" hidden>
+      <form method="post" id="lbform" data-styleform>
+        <input type="hidden" name="_t" value="<?= $tok ?>"><input type="hidden" name="action" value="lowbal_save">
+
+        <div class="card">
+          <h2><?= ico('zap') ?> Düşük bakiye uyarısı
+            <span class="pill <?= $lbOn ? 'on' : 'off' ?>" style="margin-left:8px"><b></b><?= $lbOn ? 'Açık' : 'Kapalı' ?></span></h2>
+          <p class="hint">Giriş yapmış ve bakiyesi <b>eşiğin altında</b> olanlara "Bakiye ekle" uyarısı gösterir.
+             Bakiye, sitede görünen bakiye yazısından okunur
+             (seçici: <b>Gösterim kuralları → Segment verisi</b>). Anahtarla istediğin an açıp kapatabilirsin.</p>
+          <div class="body"><div class="rows">
+            <div class="row"><div class="lbl">Uyarı açık<small>Anahtara basınca hemen kaydedilir</small></div>
+              <label class="sw"><input type="checkbox" name="lb_on" onchange="this.form.submit()"><i></i></label></div>
+            <div class="row"><div class="lbl">Bakiye eşiği (₼)<small>Bakiye bu değerin <b>altındaysa</b> gösterilir</small></div>
+              <input type="text" name="lb_thr" placeholder="1"></div>
+            <div class="row"><div class="lbl">Günde en çok<small>Aynı kişiye bir günde kaç kez</small></div>
+              <input type="number" name="lb_perday" min="0" max="100"></div>
+            <div class="row"><div class="lbl">Oturumda en çok<small>Tek ziyarette kaç kez</small></div>
+              <input type="number" name="lb_persess" min="0" max="50"></div>
+            <div class="row"><div class="lbl">İki gösterim arası (dk)</div>
+              <input type="number" name="lb_gap" min="0" max="10080"></div>
+          </div></div>
+        </div>
+
+        <div class="card" style="position:sticky;top:8px;z-index:6">
+          <div class="body" style="padding-top:14px">
+            <div class="livepv" style="position:static;box-shadow:none;border:0;padding:0;margin:0">
+              <div class="livepv-bar"><b>Canlı önizleme</b><span class="hint" style="margin:0">Seçtiğin tasarım ve yazdığın metin anında görünür</span>
+                <span class="livepv-sw"><button type="button" class="btn sec sm on" data-pvw="100%">Masaüstü</button><button type="button" class="btn sec sm" data-pvw="375px">Telefon</button></span></div>
+              <div class="livepv-box"><iframe id="lbpv" title="Canlı önizleme" sandbox="allow-scripts" style="height:230px"></iframe></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2><?= ico('eye') ?> Hazır tasarımlar</h2>
+          <p class="hint">Birini seç, aşağıdaki alanlar o tasarımla dolar ve önizlemede görünür. Beğenmediğin yeri değiştirip <b>Kaydet</b>'e bas.</p>
+          <div class="body">
+            <div class="tplgrid">
+            <?php foreach ($lbTpls as $tk => $t): ?>
+              <div class="tplc">
+                <div class="tplp"><div class="tplm" style="background:<?= h($t['st_bg']) ?>;color:<?= h($t['st_fg']) ?>;border-radius:<?= h(($t['st_r'] !== '' ? (int) $t['st_r'] : 12) . 'px') ?>">
+                  <b><?= h(($t['icon'] ? $t['icon'] . ' ' : '') . preg_replace(['/\{ad\|([^}]*)\}/u', '/\{ad\}/u', '/\{bakiye\}/u'], ['$1', 'Əli', '0,50'], $t['title'])) ?></b>
+                  <i style="background:<?= h($t['st_btn']) ?>;color:<?= h($t['st_btnf']) ?>"><?= h($t['btn_text']) ?></i></div></div>
+                <div class="tplf"><span><?= h($t['name']) ?><small style="display:block;opacity:.6"><?= h(popup_layouts()[$t['layout']] ?? 'Klasik pencere') ?></small></span>
+                  <button class="btn sm" type="button" data-lbtpl="<?= h($tk) ?>">Uygula</button></div>
+              </div>
+            <?php endforeach; ?>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2><?= ico('text') ?> Metin ve tasarım</h2>
+          <p class="hint">Metinde <code>{ad}</code>, <code>{bakiye}</code> ve yedekli <code>{ad|Dostum}</code> kullanabilirsin.</p>
+          <div class="body">
+            <div class="rows">
+              <div class="row"><div class="lbl">İkon<small>Emoji</small></div><input type="text" name="icon" placeholder="⚠️"></div>
+              <div class="row"><div class="lbl">Rozet<small>Opsiyonel küçük etiket</small></div><input type="text" name="badge"></div>
+              <div class="row"><div class="lbl">Başlık</div><input type="text" name="title" placeholder="Balansınız azdır"></div>
+              <div class="row"><div class="lbl">Açıklama</div><input type="text" name="subtitle" placeholder="Sifarişlərin dayanmaması üçün balansı artırın."></div>
+              <div class="row"><div class="lbl">Buton yazısı</div><input type="text" name="btn_text" placeholder="Balans artır"></div>
+              <div class="row"><div class="lbl">Buton linki<small>Panelinin bakiye yükleme sayfası</small></div><input type="text" name="btn_url" placeholder="/addfunds"></div>
+              <div class="row"><div class="lbl">Liste satırları<small>Opsiyonel · her satıra <code>Ad | Değer</code> (ödeme üsulları gibi)</small></div>
+                <textarea name="items" placeholder="Kart2Kart | 0% komissiya&#10;Birbank | Dərhal"></textarea></div>
+              <?php f_stil_rows(false); ?>
+            </div>
+            <div style="margin-top:16px"><button class="btn" type="submit"><?= ico('save') ?><span>Kaydet</span></button></div>
+          </div>
+        </div>
+      </form>
     </div>
 
     <!-- ═════════ ŞABLONLAR (hazır görünümler) ═════════ -->
@@ -663,6 +755,100 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
         <?php endforeach; ?>
       </div>
 
+      <div class="card">
+        <h2><?= ico('layers') ?> Popup'a özel istatistik</h2>
+        <p class="hint">Bir popup seç; yalnızca onun gösterim, tıklama, cihaz, kaynak ve sayfa verilerini gör.</p>
+        <div class="body">
+          <form method="get" class="inline-form" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <input type="hidden" name="tab" value="istatistik"><input type="hidden" name="range" value="<?= h($range) ?>">
+            <select name="popup" onchange="this.form.submit()" style="min-width:240px;flex:1">
+              <option value="">Tüm popuplar (genel görünüm)</option>
+              <?php foreach ($popupNames as $pid => $pn): if ($pid === 'bilinmiyor') continue; ?>
+                <option value="<?= h($pid) ?>" <?= $pid === $stPid ? 'selected' : '' ?>><?= h($pn) ?></option>
+              <?php endforeach; ?>
+              <?php if ($stPid !== '' && !isset($popupNames[$stPid])): ?><option value="<?= h($stPid) ?>" selected><?= h($stPid) ?> (silinmiş)</option><?php endif; ?>
+            </select>
+            <?php if ($stPid !== ''): ?><a class="btn sec sm" href="?tab=istatistik&range=<?= h($range) ?>">Genele dön</a><?php endif; ?>
+          </form>
+        </div>
+      </div>
+
+      <?php if ($stD !== null): ?>
+      <div class="tiles">
+        <div class="tile"><div class="t-lbl">Gösterim</div><div class="t-val"><?= number_format($stD['view'], 0, ',', '.') ?></div>
+          <div class="t-sub"><?= h($popupNames[$stPid] ?? $stPid) ?></div></div>
+        <div class="tile"><div class="t-lbl">Tıklama</div><div class="t-val"><?= number_format($stD['click'], 0, ',', '.') ?></div>
+          <div class="t-sub">oran %<?= st_ctr($stD['view'], $stD['click']) ?></div></div>
+        <div class="tile"><div class="t-lbl">Tekil ziyaretçi</div><div class="t-val"><?= $stD['hasDetail'] || $stD['uniq'] ? number_format($stD['uniq'], 0, ',', '.') : '—' ?></div>
+          <div class="t-sub">günlük tekil toplamı</div></div>
+        <div class="tile"><div class="t-lbl">Ort. açık kalma</div><div class="t-val"><?= $stD['close'] ? $stD['avgSec'] . 'sn' : '—' ?></div>
+          <div class="t-sub"><?= $stD['close'] ? '%' . $stD['quickPct'] . ' hemen kapattı' : 'veri yok' ?></div></div>
+      </div>
+
+      <div class="card">
+        <h2><?= ico('chart') ?> Günlük gösterim</h2>
+        <div class="body">
+          <?php if ($stD['view'] + $stD['click'] === 0): ?>
+            <p class="hint" style="margin:0">Bu popup için seçili aralıkta veri yok.</p>
+          <?php else: ?>
+            <div class="chart">
+              <?php foreach ($stDBuckets as $b): $hh = round($b['view'] / $stDBest * 100); ?>
+                <div class="bar" style="height:<?= max(3, $hh) ?>%" title="<?= h($b['full']) ?> — <?= (int) $b['view'] ?> gösterim, <?= (int) $b['click'] ?> tıklama">
+                  <?php if ($b['view'] > 0 && count($stDBuckets) <= 20): ?><span><?= (int) $b['view'] ?></span><?php endif; ?>
+                </div>
+              <?php endforeach; ?>
+            </div>
+            <div class="chart-x"><?php foreach ($stDBuckets as $b): ?><div><?= h($b['label']) ?></div><?php endforeach; ?></div>
+          <?php endif; ?>
+        </div>
+      </div>
+
+      <?php if (!$stD['hasDetail'] && $stD['view'] > 0): ?>
+        <p class="hint" style="margin:0 4px 14px">Cihaz, kaynak ve sayfa ayrıntısı bu güncellemeden sonraki gösterimler için toplanır; eski kayıtlarda yalnızca günlük toplam vardır.</p>
+      <?php endif; ?>
+
+      <?php if ($stD['act']): ?>
+      <div class="card">
+        <h2><?= ico('zap') ?> Popup içi eylemler</h2>
+        <div class="body tbl-wrap"><table><tr><th>Eylem</th><th class="num">Adet</th></tr>
+          <?php foreach ($stD['act'] as $k => $n): ?><tr><td><?= h(st_action_name((string) $k)) ?></td><td class="num"><b><?= (int) $n ?></b></td></tr><?php endforeach; ?>
+        </table></div>
+      </div>
+      <?php endif; ?>
+
+      <div class="grid2" style="grid-template-columns:1fr">
+        <?php if ($stD['dev']): ?>
+        <div class="card"><h2><?= ico('phone') ?> Cihaz</h2><div class="body tbl-wrap">
+          <table><tr><th>Cihaz</th><th class="num">Gösterim</th><th class="num">Tıklama</th><th class="num">Oran</th></tr>
+            <?php foreach ($stD['dev'] as $k => $v): ?><tr><td><?= h(st_device_name((string) $k)) ?></td><td class="num"><b><?= (int) $v['view'] ?></b></td><td class="num"><?= (int) $v['click'] ?></td><td class="num">%<?= st_ctr($v['view'], $v['click']) ?></td></tr><?php endforeach; ?>
+          </table></div></div>
+        <?php endif; ?>
+        <?php if ($stD['src']): ?>
+        <div class="card"><h2><?= ico('route') ?> Trafik kaynağı</h2><div class="body tbl-wrap">
+          <table><tr><th>Kaynak</th><th class="num">Gösterim</th><th class="num">Tıklama</th><th class="num">Oran</th></tr>
+            <?php foreach (array_slice($stD['src'], 0, 12, true) as $k => $v): ?><tr><td><?= h($k) ?></td><td class="num"><b><?= (int) $v['view'] ?></b></td><td class="num"><?= (int) $v['click'] ?></td><td class="num">%<?= st_ctr($v['view'], $v['click']) ?></td></tr><?php endforeach; ?>
+          </table></div></div>
+        <?php endif; ?>
+      </div>
+
+      <?php if ($stD['pg']): ?>
+      <div class="card"><h2><?= ico('folder') ?> Sayfa bazında</h2><div class="body tbl-wrap">
+        <table><tr><th>Sayfa</th><th class="num">Gösterim</th><th class="num">Tıklama</th><th class="num">Oran</th></tr>
+          <?php foreach (array_slice($stD['pg'], 0, 15, true) as $k => $v): ?><tr><td><code><?= h($k) ?></code></td><td class="num"><b><?= (int) $v['view'] ?></b></td><td class="num"><?= (int) $v['click'] ?></td><td class="num">%<?= st_ctr($v['view'], $v['click']) ?></td></tr><?php endforeach; ?>
+        </table></div></div>
+      <?php endif; ?>
+
+      <?php if ($stD['svc']): ?>
+      <div class="card"><h2><?= ico('text') ?> Tıklanan servisler</h2><div class="body tbl-wrap">
+        <table><tr><th>ID</th><th>Servis</th><th class="num">Tıklama</th></tr>
+          <?php foreach (array_slice($stD['svc'], 0, 15, true) as $sid => $n): $nm = st_service_name($vhist, (string) $sid); ?>
+            <tr><td><?= h($sid) ?></td><td><?= $nm ? h($nm) : '<span class="dim">—</span>' ?></td><td class="num"><b><?= (int) $n ?></b></td></tr>
+          <?php endforeach; ?>
+        </table></div></div>
+      <?php endif; ?>
+      <?php endif; /* popup detayı */ ?>
+
+      <?php if ($stD === null): ?>
       <div class="tiles">
         <div class="tile"><div class="t-lbl">Gösterim</div><div class="t-val"><?= number_format($stSumV, 0, ',', '.') ?></div>
           <div class="t-sub"><?= h(date('d.m.Y', strtotime($stFrom))) ?> — <?= h(date('d.m.Y', strtotime($stTo))) ?></div></div>
@@ -700,7 +886,7 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
         <div class="body tbl-wrap">
           <table><tr><th>Popup</th><th class="num">Gösterim</th><th class="num">Tıklama</th><th class="num">Oran</th></tr>
             <?php foreach ($stPopups as $pid => $ps): ?>
-              <tr><td><?= h($popupNames[$pid] ?? $pid) ?> <span class="dim">(<?= h($pid) ?>)</span></td>
+              <tr><td><a href="?tab=istatistik&range=<?= h($range) ?>&popup=<?= h($pid) ?>"><?= h($popupNames[$pid] ?? $pid) ?></a> <span class="dim">(<?= h($pid) ?>)</span></td>
                   <td class="num"><b><?= number_format($ps['view'], 0, ',', '.') ?></b></td>
                   <td class="num"><?= number_format($ps['click'], 0, ',', '.') ?></td>
                   <td class="num">%<?= st_ctr($ps['view'], $ps['click']) ?></td></tr>
@@ -811,6 +997,7 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
         </div>
       </div>
       <?php endif; ?>
+      <?php endif; /* genel görünüm */ ?>
     </div>
 
     <!-- ═════════ YEDEK & GÜNLÜK ═════════ -->
@@ -1043,51 +1230,7 @@ window.<?= h(($cl['segment']['varName'] ?? 'PANEL_USER')) ?> = {
             <div class="livepv-box"><iframe id="livepv" title="Canlı önizleme" sandbox="allow-scripts"></iframe></div>
           </div>
           <div class="rows">
-          <div class="row"><div class="lbl">Yerleşim<small>Popup'ın ekrandaki biçimi</small></div>
-            <select name="layout" data-lay-sel><option value="">Klasik pencere (ortada)</option>
-              <?php foreach (popup_layouts() as $lk => $ln): ?><option value="<?= h($lk) ?>"><?= h($ln) ?></option><?php endforeach; ?></select></div>
-          <div class="row"><div class="lbl">Renk şablonu<small>Hazır renk ve köşe düzeni</small></div>
-            <select name="skin" data-skin-sel><option value="">Klasik (koyu, çerçeveli)</option>
-              <?php foreach (popup_skins() as $sk => $v): ?><option value="<?= h($sk) ?>"><?= h($v['n']) ?></option><?php endforeach; ?></select></div>
-          <div class="row" data-lay="wheel"><div class="lbl">Çark ödülleri<small>Her satıra: <code>Etiket | KUPON | stok</code> (2–8 satır). Kuponsuz satır = boş dilim, stok boş/0 = sınırsız. Stok için İçerik'te "Kupon limiti"ni aç</small></div>
-            <textarea name="prizes" placeholder="5% | CARX5&#10;10% | CARX10&#10;Heç nə |"></textarea></div>
-          <div class="row" data-lay="steps"><div class="lbl">Adımlar<small>Her satıra: <code>Soru :: Seçenek1, Seçenek2</code> (en çok 4 adım). Son ekranda İçerik sekmesindeki metin ve buton gelir.</small></div>
-            <textarea name="steps" placeholder="Hansı platforma lazımdır? :: Instagram, TikTok, YouTube"></textarea></div>
-          <div class="row"><div class="lbl">Özel tasarım<small>Kapalıysa seçili şablonun hazır ayarları kullanılır. Açınca aşağıdakilerin hepsini istediğin gibi değiştirebilirsin.</small></div>
-            <label class="sw"><input type="checkbox" name="st_on" data-toggle="stil"><i></i></label></div>
-          <div data-box="stil" hidden>
-          <div class="row"><div class="lbl">Arka plan<small>Renk ya da gradyan</small></div>
-            <div class="colr"><input type="color" data-cp aria-label="Arka plan"><input type="text" name="st_bg" placeholder="Şablon rengi"></div></div>
-          <div class="row"><div class="lbl">Yazı rengi</div>
-            <div class="colr"><input type="color" data-cp aria-label="Yazı rengi"><input type="text" name="st_fg" placeholder="Şablon rengi"></div></div>
-          <div class="row"><div class="lbl">Buton rengi<small>Renk ya da gradyan</small></div>
-            <div class="colr"><input type="color" data-cp aria-label="Buton rengi"><input type="text" name="st_btn" placeholder="Şablon rengi"></div></div>
-          <div class="row"><div class="lbl">Buton yazısı</div>
-            <div class="colr"><input type="color" data-cp aria-label="Buton yazısı"><input type="text" name="st_btnf" placeholder="Şablon rengi"></div></div>
-          <div class="row"><div class="lbl">Rozet arka planı</div>
-            <div class="colr"><input type="color" data-cp aria-label="Rozet arka planı"><input type="text" name="st_bb" placeholder="Şablon rengi"></div></div>
-          <div class="row"><div class="lbl">Rozet yazısı</div>
-            <div class="colr"><input type="color" data-cp aria-label="Rozet yazısı"><input type="text" name="st_bf" placeholder="Şablon rengi"></div></div>
-            <div class="row"><div class="lbl">Köşe yuvarlaklığı<small>px · 0–60</small></div><input type="number" name="st_r" min="0" max="60" placeholder="20"></div>
-            <div class="grp">Ölçüler</div>
-            <div class="row"><div class="lbl">Genişlik<small>px · 200–1000</small></div><input type="number" name="st_w" min="200" max="1000" placeholder="380"></div>
-            <div class="row"><div class="lbl">İç boşluk<small>px · 0–80</small></div><input type="number" name="st_pad" min="0" max="80" placeholder="28"></div>
-            <div class="row"><div class="lbl">Başlık boyutu<small>px</small></div><input type="number" name="st_tsz" min="10" max="64" placeholder="23"></div>
-            <div class="row"><div class="lbl">Açıklama boyutu<small>px</small></div><input type="number" name="st_ssz" min="9" max="32" placeholder="14"></div>
-            <div class="row"><div class="lbl">Buton yazı boyutu<small>px</small></div><input type="number" name="st_bsz" min="10" max="28" placeholder="14"></div>
-            <div class="row"><div class="lbl">Buton köşesi<small>px · 0–60</small></div><input type="number" name="st_br" min="0" max="60" placeholder="12"></div>
-            <div class="grp">Kenarlık, gölge, hizalama</div>
-            <div class="row"><div class="lbl">Kenarlık kalınlığı<small>px · 0–12</small></div><input type="number" name="st_bw" min="0" max="12" placeholder="0"></div>
-            <div class="row"><div class="lbl">Kenarlık rengi</div><div class="colr"><input type="color" data-cp aria-label="Kenarlık rengi"><input type="text" name="st_bc" placeholder="Şablon rengi"></div></div>
-            <div class="row"><div class="lbl">Gölge</div><select name="st_sh"><option value="">Şablondaki</option><option value="none">Yok</option><option value="soft">Hafif</option><option value="strong">Güçlü</option></select></div>
-            <div class="row"><div class="lbl">Yazı hizası</div><select name="st_al"><option value="">Şablondaki</option><option value="left">Sol</option><option value="center">Orta</option><option value="right">Sağ</option></select></div>
-            <div class="grp">Efekt</div>
-            <div class="row"><div class="lbl">Arka plan karartma<small>% · 0–95 (şerit ve yüzen düğmede yok)</small></div><input type="number" name="st_ov" min="0" max="95" placeholder="62"></div>
-            <div class="row"><div class="lbl">Açılış animasyonu</div><select name="st_anim"><option value="">Varsayılan</option><option value="fade">Solarak</option><option value="slide">Aşağıdan kayarak</option><option value="zoom">Büyüyerek</option><option value="bounce">Zıplayarak</option></select></div>
-            <div class="grp">Gelişmiş</div>
-            <div class="row"><div class="lbl">Özel CSS<small>İstersen kendi kodun. Sınıflar: <code>.igfp-box</code> <code>.igfp-h</code> <code>.igfp-sub</code> <code>.igfp-btn</code> <code>.igfp-badge</code> <code>.igfp-x</code></small></div>
-              <textarea name="st_css" spellcheck="false" placeholder=".igfp-h{text-shadow:0 2px 8px #0008}"></textarea></div>
-          </div>
+          <?php f_stil_rows(true); ?>
         </div></div>
 
         <div data-sec="zaman" hidden><div class="rows"><?php f_schedule(); f_trigger(); ?></div></div>
@@ -1112,6 +1255,8 @@ var PDATA = {
   tpls:       <?= json_encode(array_map(function ($v) { return $v['t']; }, popup_skins()), JSON_UNESCAPED_UNICODE) ?>,
   skins:      <?= json_encode(array_map(function ($v) { return array_intersect_key($v, array_flip(['bg','fg','btn','btnf','bb','bf','r'])); }, popup_skins()), JSON_UNESCAPED_UNICODE) ?>,
   laytpls:    <?= json_encode(popup_layout_tpls(), JSON_UNESCAPED_UNICODE) ?>,
+  lbtpls:     <?= json_encode($lbTpls, JSON_UNESCAPED_UNICODE) ?>,
+  lbcur:      <?= json_encode($lbCur, JSON_UNESCAPED_UNICODE) ?>,
   mytpls:     <?= json_encode(array_map(function ($t) { return $t['data'] ?? []; }, $myTpls), JSON_UNESCAPED_UNICODE) ?>
 };
 
@@ -1236,47 +1381,60 @@ var PDATA = {
     else syncCp(t.parentNode.querySelector('[data-cp]'));
   });
 
-  /* ---------- canlı önizleme (Stil sekmesi) ---------- */
-  var pvT = null, pvFrame = document.getElementById('livepv');
-  function livePreview() {
-    var mdl = document.getElementById('m-manual');
-    if (!pvFrame || !mdl || mdl.hidden) return;
-    var sec = mdl.querySelector('[data-sec="stil"]'); if (!sec || sec.hidden) return;
-    var fd = new FormData(mdl.querySelector('form'));
-    fetch('preview-live.php', { method: 'POST', body: fd, credentials: 'same-origin' })
-      .then(function (r) { return r.text(); })
-      .then(function (h) { pvFrame.srcdoc = h; })
-      .catch(function () {});
+  /* ---------- canlı önizleme (manuel popup "Stil" sekmesi + Düşük bakiye sekmesi) ---------- */
+  function bindLive(form, frame, visible) {
+    if (!form || !frame) return function () {};
+    var t = null;
+    function run() {
+      if (!visible()) return;
+      fetch('preview-live.php', { method: 'POST', body: new FormData(form), credentials: 'same-origin' })
+        .then(function (r) { return r.text(); })
+        .then(function (h) { frame.srcdoc = h; })
+        .catch(function () {});
+    }
+    function soon() { clearTimeout(t); t = setTimeout(run, 350); }
+    form.addEventListener('input', soon);
+    form.addEventListener('change', soon);
+    return soon;
   }
-  function livePreviewSoon() { clearTimeout(pvT); pvT = setTimeout(livePreview, 350); }
-  var mm = document.getElementById('m-manual');
-  if (mm) {
-    mm.addEventListener('input', livePreviewSoon);
-    mm.addEventListener('change', livePreviewSoon);
-    mm.querySelectorAll('.mdl-tabs button').forEach(function (b) { b.addEventListener('click', function () { if (b.dataset.s === 'stil') livePreviewSoon(); }); });
-    mm.querySelectorAll('[data-pvw]').forEach(function (b) {
+  function bindDevice(root, frame) {
+    root.querySelectorAll('[data-pvw]').forEach(function (b) {
       b.addEventListener('click', function () {
-        mm.querySelectorAll('[data-pvw]').forEach(function (x) { x.classList.toggle('on', x === b); });
-        pvFrame.style.width = b.dataset.pvw; pvFrame.style.margin = '0 auto';
+        root.querySelectorAll('[data-pvw]').forEach(function (x) { x.classList.toggle('on', x === b); });
+        frame.style.width = b.dataset.pvw; frame.style.margin = '0 auto';
       });
     });
   }
-  document.querySelectorAll('[data-mytpl-use]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var d = PDATA.mytpls[b.dataset.mytplUse]; if (!d) return;
-      var o = Object.assign({}, d); o.name = ''; openModal('manual', '', o);
+  var mm = document.getElementById('m-manual'), pvFrame = document.getElementById('livepv');
+  if (mm && pvFrame) {
+    var soonM = bindLive(mm.querySelector('form'), pvFrame, function () {
+      var sec = mm.querySelector('[data-sec="stil"]'); return !mm.hidden && sec && !sec.hidden;
     });
-  });
-  document.querySelectorAll('[data-mytpl-save]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var nm = prompt('Şablon adı:'); if (!nm || !nm.trim()) return;
-      var f = document.createElement('form'); f.method = 'post';
-      [['_t', <?= json_encode($tok) ?>], ['action', 'mytpl_save'], ['pid', b.dataset.mytplSave], ['tpl_name', nm.trim()]].forEach(function (kv) {
-        var i = document.createElement('input'); i.type = 'hidden'; i.name = kv[0]; i.value = kv[1]; f.appendChild(i);
+    mm.querySelectorAll('.mdl-tabs button').forEach(function (b) { b.addEventListener('click', function () { if (b.dataset.s === 'stil') soonM(); }); });
+    bindDevice(mm, pvFrame);
+  }
+
+  /* Düşük bakiye sekmesi */
+  var lbf = document.getElementById('lbform'), lbFrame = document.getElementById('lbpv');
+  if (lbf && lbFrame) {
+    var lbPane = lbf.closest('.pane');
+    fillForm(lbf, PDATA.lbcur); syncConditionals(lbf);
+    var soonL = bindLive(lbf, lbFrame, function () { return !lbPane.hidden; });
+    bindDevice(lbf, lbFrame);
+    document.querySelectorAll('#nav a').forEach(function (a) { a.addEventListener('click', function () { setTimeout(soonL, 120); }); });
+    var CLR = ['st_w', 'st_pad', 'st_tsz', 'st_ssz', 'st_bsz', 'st_br', 'st_bw', 'st_bc', 'st_sh', 'st_al', 'st_ov', 'st_anim', 'st_css', 'items', 'skin'];
+    document.querySelectorAll('[data-lbtpl]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var d = PDATA.lbtpls[b.dataset.lbtpl]; if (!d) return;
+        var o = {}; CLR.forEach(function (k) { o[k] = ''; });
+        Object.keys(d).forEach(function (k) { if (k !== 'name') o[k] = d[k]; });
+        fillForm(lbf, o); syncConditionals(lbf); soonL();
+        var pv = document.getElementById('lbpv'); if (pv && pv.scrollIntoView) pv.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
-      document.body.appendChild(f); f.submit();
     });
-  });
+    soonL();
+  }
+
   document.querySelectorAll('[data-lay-use]').forEach(function (b) {
     b.addEventListener('click', function () {
       var k = b.dataset.layUse, t = PDATA.laytpls[k]; if (!t) return;
@@ -1311,7 +1469,7 @@ var PDATA = {
   });
   document.addEventListener('change', function (e) {
     var t = e.target;
-    if (!t.closest || !t.closest('.mdl')) return;
+    if (!t.closest || !(t.closest('.mdl') || t.closest('[data-styleform]'))) return;
     if (t.matches('select[data-trig]') || t.matches('[data-toggle]') || t.matches('[data-lay-sel]')) syncConditionals(t.closest('form'));
     if (t.matches('[data-toggle="stil"]') && t.checked) fillStyle(t.closest('form'), false);
     if (t.matches('[data-skin-sel]')) { var fm = t.closest('form'), on = fm.querySelector('[data-toggle="stil"]'); if (on && on.checked) fillStyle(fm, true); }
