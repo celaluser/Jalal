@@ -79,6 +79,7 @@ final class Admin
             'live' => $this->live(),
             'job_new' => $this->jobNewPage(),
             'unparsed' => $this->unparsedPage(),
+            'botcmds' => $this->botCommandsPage(),
             'catalog' => $this->catalogPage(),
             'audit' => $this->auditPage(),
             'reports' => $this->reportsPage(),

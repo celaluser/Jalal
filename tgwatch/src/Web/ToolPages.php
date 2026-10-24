@@ -240,6 +240,55 @@ trait ToolPages
         $this->render('Okunamayanlar', $h, ['active' => 'unparsed', 'actions' => $this->ui->action('unparsed_dismiss', 'Hepsini yoksay', ['id' => 'all'], 'quiet', 'x', 'Listedeki tüm gönderiler yoksayılsın mı?')]);
     }
 
+    // ---------------------------------------------------------------- bot komutları
+
+    private function botCommandsPage(): void
+    {
+        $list = \TgWatch\BotRegistry::load($this->db);
+        $master = \TgWatch\BotRegistry::masterOn($this->db);
+        $actions = \TgWatch\BotRegistry::ACTIONS;
+        if (isset($_SESSION['botcmds_draft'])) { // hatalı kayıttan sonra yazdıkların kaybolmasın
+            $d = $_SESSION['botcmds_draft'];
+            unset($_SESSION['botcmds_draft']);
+            $master = $d['master'];
+            $list = array_map(static fn($r) => ['name' => (string)($r['name'] ?? ''), 'action' => (string)($r['action'] ?? 'text'), 'enabled' => !empty($r['enabled']),
+                'desc' => (string)($r['desc'] ?? ''), 'text' => (string)($r['text'] ?? ''), 'new' => !empty($r['new'])], $d['rows']);
+        } else {
+            for ($i = 0; $i < 3; $i++) { // yeni komut için boş satırlar
+                $list[] = ['name' => '', 'action' => 'text', 'enabled' => true, 'desc' => '', 'text' => '', 'new' => true];
+            }
+        }
+        $h = '<p class="muted lead">Telegram botuna yazılan komutların hangi işi yapacağını burada belirlersin. Komut adını değiştirebilir, aynı işe ikinci bir ad (takma ad) verebilir, istemediğini kapatabilir ve sabit cevaplı kendi komutunu ekleyebilirsin. Komutları yalnızca sen (owner) kullanabilirsin.</p>'
+            . '<form method="post" action="?p=botcmds_save" class="stack">' . $this->ui->csrfField()
+            . '<label class="check"><input type="checkbox" name="master" value="1"' . ($master ? ' checked' : '') . '><span><b>Bot komutları açık</b><br><span class="muted">Kapalıysa hiçbir komut çalışmaz (düğmeler ve /start, /id, /iptal etkilenmez)</span></span></label>'
+            . '<div class="table-wrap edit-table"><table><thead><tr><th>Açık</th><th>Komut</th><th>Ne yapsın</th><th>Menüde görünen açıklama</th><th>Sabit cevap metni</th><th>Sil</th></tr></thead><tbody>';
+        foreach ($list as $i => $c) {
+            $opts = '';
+            foreach ($actions as $k => [$label]) {
+                $opts .= '<option value="' . $k . '"' . ($c['action'] === $k ? ' selected' : '') . '>' . Ui::e($label) . '</option>';
+            }
+            $h .= '<tr><td class="tight"><input type="checkbox" name="c[' . $i . '][enabled]" value="1"' . ($c['enabled'] ? ' checked' : '') . ' aria-label="Komut açık"></td>'
+                . '<td class="tight"><div class="row nowrap"><span class="muted">/</span><input type="text" name="c[' . $i . '][name]" value="' . Ui::e($c['name']) . '" placeholder="yeni_komut" maxlength="32" class="cmd-name" aria-label="Komut adı" autocapitalize="off"></div></td>'
+                . '<td><select name="c[' . $i . '][action]" aria-label="Eylem">' . $opts . '</select></td>'
+                . '<td><input type="text" name="c[' . $i . '][desc]" value="' . Ui::e($c['desc']) . '" maxlength="120" aria-label="Açıklama"></td>'
+                . '<td><input type="text" name="c[' . $i . '][text]" value="' . Ui::e($c['text']) . '" maxlength="1500" placeholder="yalnızca “Sabit cevap” için" aria-label="Sabit cevap"></td>'
+                . '<td class="tight">' . (empty($c['new']) ? '<input type="checkbox" name="c[' . $i . '][del]" value="1" aria-label="Sil">' : '<span class="muted">yeni</span><input type="hidden" name="c[' . $i . '][new]" value="1">') . '</td></tr>';
+        }
+        $h .= '</tbody></table></div>'
+            . '<div class="row"><button class="btn primary">' . Ui::icon('check') . '<span>Kaydet ve menüyü güncelle</span></button></div>'
+            . '<p class="muted">En alttaki boş satırlara yeni komut yazabilirsin. Komut adı küçük harf (a-z), rakam ve _ olmalı (Telegram kuralı); “özet” gibi Türkçe harfle yazarsan “ozet” komutuna denk gelir.</p></form>';
+
+        $h .= '<div class="row">' . $this->ui->action('botcmds_menu', 'Yalnızca Telegram menüsünü güncelle', [], 'quiet', 'send')
+            . $this->ui->action('botcmds_reset', 'Varsayılana döndür', [], 'ghost', 'refresh', 'Tüm komutlar varsayılana dönsün mü? Eklediğin komutlar silinir.') . '</div>';
+
+        $h .= '<h2>Eylemler ne yapar</h2><div class="table-wrap"><table><thead><tr><th>Eylem</th><th>Yazım</th><th>Açıklama</th></tr></thead><tbody>';
+        foreach ($actions as [$label, $hint, $what]) {
+            $h .= '<tr><td class="tight"><b>' . Ui::e($label) . '</b></td><td class="tight">' . ($hint !== '' ? '<code>/komut ' . Ui::e($hint) . '</code>' : '<span class="muted">—</span>') . '</td><td>' . Ui::e($what) . '</td></tr>';
+        }
+        $h .= '</tbody></table></div><p class="muted">Sabit komutlar: <code>/start</code> (ID’ni gösterir), <code>/id</code>, <code>/iptal</code> (düzenlemeyi bırakır). Bunlar değiştirilemez.</p>';
+        $this->render('Bot komutları', $h, ['active' => 'botcmds', 'sub' => 'Hangi komut hangi işi yapsın, panelden belirle.']);
+    }
+
     // ---------------------------------------------------------------- dikkat gerekenler (Genel bakış)
 
     /** @return list<array{0:string,1:string,2:string,3:string}> [önem, metin, bağlantı, düğme] */
@@ -327,6 +376,46 @@ trait ToolPages
                     $this->say('ok', "İş $id oluşturuldu ve bota gönderildi.");
                     $this->redirect('job', ['id' => $id]);
                 }
+                return true;
+            case 'botcmds_save':
+                $rows = [];
+                foreach ((array)($_POST['c'] ?? []) as $r) {
+                    if (is_array($r) && empty($r['del'])) {
+                        $rows[] = $r;
+                    }
+                }
+                $draft = ['master' => !empty($_POST['master']), 'rows' => $rows];
+                $errors = \TgWatch\BotRegistry::save($this->db, $rows, !empty($_POST['master']));
+                if ($errors) {
+                    foreach ($errors as $e) {
+                        $this->say('bad', $e);
+                    }
+                    $this->say('bad', 'Hata olduğu için kaydedilmedi. Yazdıkların aşağıda duruyor, düzeltip tekrar kaydet.');
+                    $_SESSION['botcmds_draft'] = $draft;
+                } else {
+                    $this->db->log('info', 'web', 'Bot komutları kaydedildi');
+                    try {
+                        App::telegram()->setCommands(\TgWatch\BotRegistry::menu($this->db));
+                        $this->say('ok', 'Komutlar kaydedildi ve Telegram menüsü güncellendi.');
+                    } catch (\Throwable $e) {
+                        $this->say('ok', 'Komutlar kaydedildi. Telegram menüsü güncellenemedi (bot ayarlarını kontrol edin); komutlar yine de çalışır.');
+                    }
+                }
+                $this->redirect('botcmds');
+                return true;
+            case 'botcmds_menu':
+                try {
+                    App::telegram()->setCommands(\TgWatch\BotRegistry::menu($this->db));
+                    $this->say('ok', 'Telegram menüsü güncellendi.');
+                } catch (\Throwable $e) {
+                    $this->say('bad', 'Güncellenemedi: ' . preg_replace('~bot\\d+:[A-Za-z0-9_-]+~', 'bot***', $e->getMessage()));
+                }
+                $this->redirect('botcmds');
+                return true;
+            case 'botcmds_reset':
+                \TgWatch\BotRegistry::reset($this->db);
+                $this->say('ok', 'Komutlar varsayılana döndü.');
+                $this->redirect('botcmds');
                 return true;
             case 'unparsed_fix':
                 $r = $this->db->one('SELECT * FROM unparsed WHERE id = ?', [(int)($_POST['id'] ?? 0)]);

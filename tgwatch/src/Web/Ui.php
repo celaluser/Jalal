@@ -18,7 +18,7 @@ final class Ui
         'Kaynaklar' => ['channels' => ['Kanallar', 'channels']],
         'Çeviri' => ['dict' => ['Sözlük', 'dict'], 'bank' => ['Çeviri bankası', 'bank'], 'ai' => ['Çeviri ayarları', 'sliders']],
         'Araçlar' => ['catalog' => ['Servisler', 'search'], 'audit' => ['Fiyat denetimi', 'gauge'], 'reports' => ['Raporlar', 'logs']],
-        'Sistem' => ['alerts' => ['Uyarılar ve güvenlik', 'bell'], 'logs' => ['Kayıtlar', 'logs'], 'health' => ['Sağlık', 'health'], 'settings' => ['Ayarlar', 'gear']],
+        'Sistem' => ['alerts' => ['Uyarılar ve güvenlik', 'bell'], 'logs' => ['Kayıtlar', 'logs'], 'health' => ['Sağlık', 'health'], 'botcmds' => ['Bot komutları', 'send'], 'settings' => ['Ayarlar', 'gear']],
     ];
     /** Mobil sekme çubuğu: en sık kullanılan dört bölüm + menü */
     private const TABS = ['dash' => ['Genel', 'gauge'], 'queue' => ['Kuyruk', 'queue'], 'jobs' => ['İşler', 'jobs'], 'channels' => ['Kanallar', 'channels']];
@@ -922,6 +922,9 @@ tbody tr{transition:background-color .12s}
 tbody tr:hover>td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
 .edit-table tbody tr:hover>td{background:transparent}
 .foot kbd{margin-left:4px}
+
+.cmd-name{width:160px;min-width:130px;flex:none}
+.edit-table td select{min-width:170px}
 
 CSS;
 }

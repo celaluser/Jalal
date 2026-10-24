@@ -259,7 +259,7 @@ trait SettingsPages
                 return true;
             case 'tg_commands':
                 try {
-                    App::telegram()->setCommands();
+                    App::telegram()->setCommands(\TgWatch\BotRegistry::menu($this->db));
                     $this->say('ok', 'Bot komut menüsü güncellendi (Telegram’da / yazınca komutlar çıkar).');
                 } catch (\Throwable $e) {
                     $this->say('bad', 'Güncellenemedi: ' . preg_replace('~bot\d+:[A-Za-z0-9_-]+~', 'bot***', $e->getMessage()));

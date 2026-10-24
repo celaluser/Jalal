@@ -902,16 +902,6 @@ final class Flow
         if ($from !== $this->owner() || $this->owner() === 0) {
             return;
         }
-        if ($text === '/durum') {
-            $rows = $this->db->all('SELECT status, COUNT(*) c FROM jobs GROUP BY status');
-            $s = "📊 <b>Durum</b>\n";
-            foreach ($rows as $r) {
-                $s .= (self::LABELS[$r['status']] ?? $r['status']) . ': ' . $r['c'] . "\n";
-            }
-            $s .= 'Son cron: ' . date('Y-m-d H:i:s', (int)$this->db->get('cron_last_run', '0'));
-            $this->safe(fn() => $this->tg->sendMessage($chat, $s));
-            return;
-        }
         if ($text !== '' && $text[0] === '/' && $text !== '/iptal' && (new BotCommands($this->db, $this->tg, $this, $this->config))->handle($chat, $text)) {
             return;
         }

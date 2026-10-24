@@ -1478,6 +1478,58 @@ test('Otomatik yedek: e-posta eki, hata durumunda uyarı ve 30 dk bekleme', func
     ok(str_contains(json_encode($tg2->calls, JSON_UNESCAPED_UNICODE), 'Otomatik yedek gönderilemedi'), 'uyarı gitti');
 });
 
+echo "Bot komutları paneli (kayıt defteri)\n";
+test('Kayıt defteri: varsayılanlar, doğrulama, takma ad, kapatma, sabit cevap', function () {
+    [$db, $tg, $flow] = env();
+    ok(count(TgWatch\BotRegistry::load($db)) >= 12, 'varsayılan liste');
+    $bad = TgWatch\BotRegistry::save($db, [['name' => 'Geçersiz Ad', 'action' => 'pending', 'enabled' => '1'], ['name' => 'start', 'action' => 'help'], ['name' => 'a', 'action' => 'yok'],
+        ['name' => 'x', 'action' => 'text'], ['name' => 'b', 'action' => 'pending'], ['name' => 'b', 'action' => 'help']], true);
+    eq(5, count($bad), json_encode($bad, JSON_UNESCAPED_UNICODE));
+    eq([], $db->getJson('bot_commands', []), 'hata varken kaydedilmez');
+    $rows = [
+        ['name' => 'Bekle', 'action' => 'pending', 'enabled' => '1', 'desc' => 'Beklenenler'],
+        ['name' => 'oz', 'action' => 'summary', 'enabled' => '1'],
+        ['name' => 'merhaba', 'action' => 'text', 'enabled' => '1', 'text' => 'Selam <b>patron</b>'],
+        ['name' => 'kapali', 'action' => 'channels'],
+        ['name' => '', 'action' => 'text', 'text' => ''],
+    ];
+    eq([], TgWatch\BotRegistry::save($db, $rows, true));
+    eq(['bekle', 'oz', 'merhaba', 'kapali'], array_column(TgWatch\BotRegistry::load($db), 'name'));
+    $flow->createJob('kanala', 1, "🆔 7001 Instagram Likes");
+    $flow->handleUpdate(msg(1, OWNER, '/Bekle'));
+    ok(str_contains(lastText($tg), '1 iş karar bekliyor'), 'yeniden adlandırılmış komut çalışır');
+    $flow->handleUpdate(msg(2, OWNER, '/oz'));
+    ok(str_contains(lastText($tg), 'Özet'), 'takma ad');
+    $flow->handleUpdate(msg(3, OWNER, '/merhaba'));
+    ok(str_contains(lastText($tg), 'Selam &lt;b&gt;patron'), 'sabit cevap kaçışlı gider');
+    $n = count($tg->calls);
+    $flow->handleUpdate(msg(4, OWNER, '/kapali'));
+    $flow->handleUpdate(msg(5, OWNER, '/bekleyen'));
+    eq($n, count($tg->calls), 'kapalı ve silinmiş komut cevap vermez');
+    $flow->handleUpdate(msg(6, OWNER, '/start'));
+    ok(str_contains(lastText($tg), 'Telegram ID'), 'sabit komut hep çalışır');
+    $menu = TgWatch\BotRegistry::menu($db);
+    eq(['bekle', 'oz', 'merhaba'], array_column($menu, 'command'));
+    eq('Beklenenler', $menu[0]['description']);
+    eq('Sabit cevap', $menu[2]['description']);
+});
+test('Ana anahtar kapalıyken hiçbir komut çalışmaz; /yardim yalnızca açık olanları sayar; varsayılana dönülür', function () {
+    [$db, $tg, $flow] = env();
+    TgWatch\BotRegistry::save($db, [['name' => 'yardim', 'action' => 'help', 'enabled' => '1'], ['name' => 'oz', 'action' => 'summary']], true);
+    $flow->handleUpdate(msg(1, OWNER, '/yardim'));
+    $t = lastText($tg);
+    ok(!str_contains($t, '/oz') && str_contains($t, '/yardim'));
+    TgWatch\BotRegistry::save($db, [['name' => 'yardim', 'action' => 'help', 'enabled' => '1']], false);
+    $n = count($tg->calls);
+    $flow->handleUpdate(msg(2, OWNER, '/yardim'));
+    eq($n, count($tg->calls));
+    eq([], TgWatch\BotRegistry::menu($db));
+    TgWatch\BotRegistry::reset($db);
+    $flow->handleUpdate(msg(3, OWNER, '/durum'));
+    ok(str_contains(lastText($tg), 'Durum'), 'varsayılanda /durum');
+    ok(TgWatch\BotRegistry::find($db, 'ÖZET') !== null, 'Türkçe harfli yazım');
+});
+
 // temizlik
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmp, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($it as $f) {

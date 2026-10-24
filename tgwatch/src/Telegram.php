@@ -105,22 +105,10 @@ class Telegram
         }
     }
 
-    /** Telegram'daki "/" komut menüsünü ayarlar (BotCommands ile aynı liste). */
-    public function setCommands(): void
+    /** Telegram'daki "/" komut menüsünü ayarlar. @param list<array{command:string,description:string}> $commands */
+    public function setCommands(array $commands): void
     {
-        $this->call('setMyCommands', ['commands' => [
-            ['command' => 'bekleyen', 'description' => 'Karar bekleyen işler, hepsini onayla'],
-            ['command' => 'ozet', 'description' => 'Bugünün ve genel durumun özeti'],
-            ['command' => 'ara', 'description' => 'Servis ID ya da kelimeyle işlerde ara'],
-            ['command' => 'is', 'description' => 'İş numarasını onay butonlarıyla göster'],
-            ['command' => 'onayla', 'description' => 'İşi onayla (/onayla 5)'],
-            ['command' => 'reddet', 'description' => 'İşi reddet (/reddet 5)'],
-            ['command' => 'fiyat', 'description' => 'Önerilen satış fiyatı (/fiyat 0.44)'],
-            ['command' => 'kanallar', 'description' => 'Kanalların durumu'],
-            ['command' => 'degisiklik', 'description' => 'Fiyat/kapanma bildirimleri'],
-            ['command' => 'yedek', 'description' => 'Yedeği şimdi gönder'],
-            ['command' => 'yardim', 'description' => 'Komut listesi'],
-        ]]);
+        $this->call('setMyCommands', ['commands' => $commands]);
     }
 
     public function answerCallback(string $callbackId, string $text = ''): void

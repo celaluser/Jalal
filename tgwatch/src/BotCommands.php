@@ -6,21 +6,6 @@ namespace TgWatch;
 /** Bot komutları (yalnızca sahip): panele girmeden telefondan sorgu ve toplu işlem. */
 final class BotCommands
 {
-    private const HELP = [
-        '/bekleyen' => 'Karar bekleyen işler ve "hepsini onayla"',
-        '/is 5' => 'İş numarasını onay butonlarıyla yeniden göster',
-        '/onayla 5' => 'İşi onayla',
-        '/reddet 5' => 'İşi reddet',
-        '/ara 13125' => 'Servis ID ya da kelimeyle işlerde ara',
-        '/fiyat 0.44' => 'Sağlayıcı fiyatından önerilen satış fiyatı',
-        '/ozet' => 'Bugünün ve genel durumun özeti',
-        '/kanallar' => 'Kanalların durumu',
-        '/degisiklik' => 'Bekleyen fiyat/kapanma bildirimleri',
-        '/yedek' => 'Yedeği şimdi dosya olarak gönder',
-        '/durum' => 'İş sayıları ve son cron',
-        '/iptal' => 'Düzenlemeyi iptal et',
-    ];
-
     public function __construct(private Db $db, private Telegram $tg, private Flow $flow, private array $config)
     {
     }
@@ -37,62 +22,107 @@ final class BotCommands
     /** @return bool komut işlendi mi */
     public function handle(int|string $chat, string $text): bool
     {
-        if (!preg_match('~^/([a-zçğıöşü_]+)(?:@\w+)?(?:\s+(.*))?$~iu', $text, $m)) {
+        if (!preg_match('~^/([^\s@/]+)(?:@\w+)?(?:\s+(.*))?$~su', $text, $m)) {
             return false;
         }
-        $cmd = mb_strtolower($m[1]);
+        $def = BotRegistry::find($this->db, $m[1]);
+        if ($def === null) {
+            return false;
+        }
         $arg = trim($m[2] ?? '');
-        switch ($cmd) {
-            case 'yardim':
-            case 'yardım':
-            case 'komutlar':
+        switch ($def['action']) {
             case 'help':
-                $s = "🤖 <b>Komutlar</b>\n";
-                foreach (self::HELP as $c => $d) {
-                    $s .= "<code>$c</code> — " . Telegram::esc($d) . "\n";
-                }
-                $this->say($chat, $s);
+                $this->help($chat);
                 return true;
-            case 'bekleyen':
+            case 'pending':
                 $this->pending($chat);
                 return true;
-            case 'is':
-            case 'iş':
+            case 'job_show':
                 $this->show($chat, (int)$arg);
                 return true;
-            case 'onayla':
-            case 'reddet':
+            case 'approve':
+            case 'reject':
                 $id = (int)$arg;
                 if ($id <= 0) {
-                    $this->say($chat, "Kullanım: <code>/$cmd 5</code> (iş numarası)");
+                    $this->say($chat, 'Kullanım: <code>/' . Telegram::esc($def['name']) . ' 5</code> (iş numarası)');
                     return true;
                 }
-                $r = $cmd === 'onayla' ? $this->flow->approve($id) : $this->flow->reject($id);
+                $r = $def['action'] === 'approve' ? $this->flow->approve($id) : $this->flow->reject($id);
                 $this->say($chat, "İş #$id: " . Telegram::esc($r));
                 return true;
-            case 'ara':
+            case 'search':
                 $this->search($chat, $arg);
                 return true;
-            case 'fiyat':
+            case 'price':
                 $this->price($chat, $arg);
                 return true;
-            case 'ozet':
-            case 'özet':
+            case 'summary':
                 $this->summary($chat);
                 return true;
-            case 'kanallar':
+            case 'status':
+                $this->status($chat);
+                return true;
+            case 'channels':
                 $this->channels($chat);
                 return true;
-            case 'degisiklik':
-            case 'değişiklik':
+            case 'notices':
                 $this->notices($chat);
                 return true;
-            case 'yedek':
+            case 'backup':
                 $r = (new AutoBackup($this->db, $this->config, $this->tg))->run();
                 $this->say($chat, ($r['ok'] ? '💾 ' : '⚠️ ') . Telegram::esc($r['message']));
                 return true;
+            case 'read_now':
+                $this->readNow($chat);
+                return true;
+            case 'text':
+                $this->say($chat, Telegram::esc($def['text']));
+                return true;
         }
         return false;
+    }
+
+    private function help(int|string $chat): void
+    {
+        $s = "🤖 <b>Komutlar</b>\n";
+        foreach (BotRegistry::load($this->db) as $c) {
+            if (!$c['enabled']) {
+                continue;
+            }
+            $hint = BotRegistry::ACTIONS[$c['action']][1];
+            $s .= '<code>/' . Telegram::esc($c['name']) . ($hint !== '' ? ' ' . Telegram::esc($hint) : '') . '</code> — ' . Telegram::esc($c['desc']) . "\n";
+        }
+        $this->say($chat, $s . '<code>/iptal</code> — düzenlemeyi iptal et');
+    }
+
+    private function status(int|string $chat): void
+    {
+        $s = "📊 <b>Durum</b>\n";
+        foreach ($this->db->all('SELECT status, COUNT(*) c FROM jobs GROUP BY status') as $r) {
+            $s .= Telegram::esc(Flow::LABELS[$r['status']] ?? $r['status']) . ': ' . $r['c'] . "\n";
+        }
+        $this->say($chat, $s . 'Son cron: ' . date('Y-m-d H:i:s', (int)$this->db->get('cron_last_run', '0')));
+    }
+
+    private function readNow(int|string $chat): void
+    {
+        $this->say($chat, '🔄 Kanallar okunuyor…');
+        $lines = [];
+        $before = (int)$this->db->one('SELECT COALESCE(MAX(id),0) m FROM jobs')['m'];
+        try {
+            $errors = (new CronRunner($this->config, static function (string $l) use (&$lines): void {
+                $lines[] = $l;
+            }))->run(false, 0, null, 20);
+        } catch (\Throwable $e) {
+            $this->say($chat, '⚠️ Okuma hatası: ' . Telegram::esc($e->getMessage()));
+            return;
+        }
+        if ($errors === null) {
+            $this->say($chat, 'ℹ️ Başka bir okuma zaten sürüyor, birazdan tekrar deneyin.');
+            return;
+        }
+        $new = (int)$this->db->one('SELECT COUNT(*) c FROM jobs WHERE id > ?', [$before])['c'];
+        $this->say($chat, ($errors ? "⚠️ $errors hata. " : '✅ ') . ($new > 0 ? "$new yeni iş oluştu: /bekleyen" : 'Yeni servis duyurusu yok.'));
     }
 
     private function jobLine(array $j): string
