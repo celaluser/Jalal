@@ -133,7 +133,8 @@ SQL);
         // Sonradan eklenen sütunlar (eski veritabanları için).
         $cols = array_column($this->pdo->query('PRAGMA table_info(jobs)')->fetchAll(), 'name');
         $chCols = array_column($this->pdo->query('PRAGMA table_info(channels)')->fetchAll(), 'name');
-        foreach (['skip_words' => "TEXT NOT NULL DEFAULT ''", 'note' => "TEXT NOT NULL DEFAULT ''"] as $col => $def) {
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS cron_runs (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, seconds REAL NOT NULL, errors INTEGER NOT NULL, jobs INTEGER NOT NULL DEFAULT 0, notices INTEGER NOT NULL DEFAULT 0)');
+        foreach (['auto_approve' => 'INTEGER NOT NULL DEFAULT 0', 'skip_words' => "TEXT NOT NULL DEFAULT ''", 'note' => "TEXT NOT NULL DEFAULT ''"] as $col => $def) {
             if (!in_array($col, $chCols, true)) {
                 $this->pdo->exec("ALTER TABLE channels ADD COLUMN $col $def");
             }

@@ -226,7 +226,7 @@ trait SettingsPages
                 return true;
             case 'channel_filter':
                 $words = implode("\n", array_filter(array_map('trim', preg_split('/[,\n]+/u', mb_substr((string)($_POST['skip_words'] ?? ''), 0, 400)))));
-                $this->db->run('UPDATE channels SET skip_words = ?, note = ? WHERE id = ?', [$words, mb_substr(trim((string)($_POST['note'] ?? '')), 0, 120), (int)($_POST['id'] ?? 0)]);
+                $this->db->run('UPDATE channels SET skip_words = ?, auto_approve = ?, note = ? WHERE id = ?', [$words, empty($_POST['auto_approve']) ? 0 : 1, mb_substr(trim((string)($_POST['note'] ?? '')), 0, 120), (int)($_POST['id'] ?? 0)]);
                 $this->say('ok', 'Kanal filtresi kaydedildi.');
                 $this->redirect('channels');
                 return true;

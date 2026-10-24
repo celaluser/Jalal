@@ -22,6 +22,7 @@ final class Admin
     use SecurityPages;
     use ChangePages;
     use SettingsPages;
+    use ToolPages;
 
     private const PER_PAGE = 30;
     private const OPEN = ['new', 'awaiting', 'editing'];
@@ -76,6 +77,10 @@ final class Admin
             'alerts' => $this->alertsPage(),
             'backup' => $this->backupDownload(),
             'live' => $this->live(),
+            'job_new' => $this->jobNewPage(),
+            'catalog' => $this->catalogPage(),
+            'audit' => $this->auditPage(),
+            'reports' => $this->reportsPage(),
             'settings' => $this->settingsPage(),
             'export' => $this->exportCsv(),
             'jobs' => $this->jobs(),
@@ -628,7 +633,7 @@ final class Admin
             $h .= '<div class="gap-top">' . Ui::empty($q !== '' || $status !== '' || $channel !== '' ? 'Bu filtreyle iş bulunamadı' : 'Henüz iş yok',
                 $q !== '' || $status !== '' || $channel !== '' ? 'Filtreyi değiştirin ya da temizleyin.' : 'Kanal okununca servis duyuruları burada iş olarak görünür.',
                 $q !== '' || $status !== '' || $channel !== '' ? Ui::link('?p=jobs', 'Filtreyi temizle') : Ui::link('?p=channels', 'Kanal ekle', 'primary')) . '</div>';
-            $this->render('İşler', $h, ['active' => 'jobs']);
+            $this->render('İşler', $h, ['active' => 'jobs', 'actions' => Ui::link('?p=job_new', 'Yeni iş', 'primary', 'plus')]);
             return;
         }
 
@@ -647,6 +652,7 @@ final class Admin
             . '<button class="btn primary sm" name="do" value="approve">' . Ui::icon('check', 16) . '<span>Onayla</span></button>'
             . '<button class="btn quiet sm" name="do" value="mark">' . Ui::icon('globe', 16) . '<span>Sitede yayınlandı say</span></button>'
             . '<button class="btn danger sm" name="do" value="reject" data-confirm="Seçilen işler reddedilsin mi?">' . Ui::icon('x', 16) . '<span>Reddet</span></button>'
+            . '<button class="btn ghost sm" name="do" value="delete" data-confirm="Seçilen işler kalıcı olarak silinsin mi? (Bota giden mesajlar kalır.)">' . Ui::icon('trash', 16) . '<span>Sil</span></button>'
             . '</div></div></form>';
 
         if ($pages > 1) {
@@ -656,7 +662,7 @@ final class Admin
                 . ($page < $pages ? Ui::link('?' . http_build_query($base + ['status' => $status, 'page' => $page + 1]), 'Sonraki', 'quiet sm') : '')
                 . '</nav>';
         }
-        $this->render('İşler', $h, ['active' => 'jobs']);
+        $this->render('İşler', $h, ['active' => 'jobs', 'actions' => Ui::link('?p=job_new', 'Yeni iş', 'primary', 'plus')]);
     }
 
     private function job(int $id): void
@@ -668,10 +674,11 @@ final class Admin
         }
         $st = $job['status'];
         $open = in_array($st, self::OPEN, true);
-        $sub = Ui::badge($st) . ' <a href="https://t.me/' . Ui::e($job['channel']) . '/' . (int)$job['msg_id'] . '" target="_blank" rel="noopener noreferrer">@' . Ui::e($job['channel']) . ' gönderisi ' . (int)$job['msg_id'] . '</a>'
+        $sub = Ui::badge($st) . ($job['channel'] === 'elle' ? ' elle eklendi' : ' <a href="https://t.me/' . Ui::e($job['channel']) . '/' . (int)$job['msg_id'] . '" target="_blank" rel="noopener noreferrer">@' . Ui::e($job['channel']) . ' gönderisi ' . (int)$job['msg_id'] . '</a>')
             . ', ' . Ui::ago((int)$job['created_at']) . ' geldi';
         $actions = ($open ? Ui::link('?p=job_prompt&id=' . $id, 'claude.ai için hazırla', 'quiet', 'spark') : '')
-            . $this->ui->action('job_do', 'Bota tekrar gönder', ['id' => $id, 'do' => 'resend'], 'ghost', 'send');
+            . $this->ui->action('job_do', 'Bota tekrar gönder', ['id' => $id, 'do' => 'resend'], 'ghost', 'send')
+            . $this->ui->action('job_delete', 'Sil', ['id' => $id], 'ghost', 'trash', 'Bu iş kalıcı olarak silinsin mi?');
         $aiState = ['pending' => 'Claude çevirisi sırada (bir sonraki kanal okumada)', 'running' => 'Claude çevirisi yapılıyor', 'failed' => 'Claude çevirisi başarısız, Kayıtlar’a bakın'][$job['ai_state'] ?? ''] ?? '';
         if ($aiState !== '' && $open) {
             $sub .= ', <span class="lvl-warn">' . $aiState . '</span>';
@@ -753,6 +760,11 @@ final class Admin
                 . '<div class="panel panel-pad stack"><div class="row"><b>Azerice adlar</b>' . Ui::copy('pkg-lines') . Ui::link('?p=job_txt&id=' . $id, '.txt indir', 'ghost sm', 'download') . '</div><div class="code"><pre id="pkg-lines">' . Ui::e($lines) . '</pre></div></div></div>';
         }
 
+        if ($st !== 'failed') {
+            $h .= '<h2>Not</h2><form method="post" action="?p=job_note" class="panel panel-pad field-row">' . $this->ui->csrfField() . '<input type="hidden" name="id" value="' . $id . '">'
+                . '<label class="grow">Bu işle ilgili not<input type="text" name="note" value="' . Ui::e((string)$job['note']) . '" maxlength="300"></label>'
+                . '<button class="btn quiet">' . Ui::icon('check') . '<span>Kaydet</span></button></form>';
+        }
         $h .= '<h2>Kaynak duyuru</h2><details class="panel panel-pad"><summary>Telegram\'daki orijinal metni göster</summary><pre>' . Ui::e($job['source_text']) . '</pre></details>';
         $this->render('İş ' . $id, $h, ['active' => 'jobs', 'sub' => $sub, 'actions' => $actions]);
     }
@@ -798,6 +810,7 @@ final class Admin
                 . '<form method="post" action="?p=channel_filter">' . $this->ui->csrfField() . '<input type="hidden" name="id" value="' . (int)$c['id'] . '">'
                 . '<label>Bu kelimeler geçen gönderileri yoksay<input type="text" name="skip_words" value="' . Ui::e(str_replace("\n", ', ', (string)$c['skip_words'])) . '" placeholder="reklam, kampanya, giveaway"></label>'
                 . '<label>Not<input type="text" name="note" value="' . Ui::e((string)$c['note']) . '" maxlength="120"></label>'
+                . '<label class="check sm"><input type="checkbox" name="auto_approve" value="1"' . ((int)$c['auto_approve'] ? ' checked' : '') . '><span>Bütün adlar bankadan gelirse otomatik onayla</span></label>'
                 . '<button class="btn quiet sm">' . Ui::icon('check') . '<span>Kaydet</span></button></form></details>'
                 . ($c['note'] !== '' ? '<div class="src">' . Ui::e($c['note']) . '</div>' : '') . '</td>'
                 . '<td class="tight">' . $this->providerSelect($c, $provs) . '</td>'
@@ -967,6 +980,15 @@ final class Admin
             $h .= '<p class="muted">Telegram, bot ve webhook bağlantısı için ağ testlerini çalıştırın.</p>';
         }
 
+        $runs = $this->db->all('SELECT * FROM cron_runs ORDER BY id DESC LIMIT 12');
+        if ($runs) {
+            $h .= '<h2>Cron geçmişi</h2><div class="table-wrap"><table><thead><tr><th>Zaman</th><th class="num">Süre</th><th class="num">Yeni iş</th><th class="num">Bildirim</th><th>Sonuç</th></tr></thead><tbody>';
+            foreach ($runs as $r) {
+                $h .= '<tr><td class="tight">' . Ui::e(date('d.m H:i:s', (int)$r['at'])) . ' <span class="muted">(' . Ui::ago((int)$r['at']) . ')</span></td><td class="num">' . Ui::e((string)$r['seconds']) . ' sn</td><td class="num">' . (int)$r['jobs'] . '</td><td class="num">' . (int)$r['notices']
+                    . '</td><td>' . ((int)$r['errors'] ? '<span class="lvl-error">' . (int)$r['errors'] . ' hata</span>' : 'Sorunsuz') . '</td></tr>';
+            }
+            $h .= '</tbody></table></div>';
+        }
         $cronUrl = (string)$this->config['cron_key'] !== '' ? $this->siblingUrl('webcron.php') . '?key=' . $this->config['cron_key'] : '';
         $h .= '<h2>Kurulum bilgileri</h2><div class="table-wrap"><table><tbody>'
             . '<tr><td class="tight">tgwatch klasörü</td><td><code>' . Ui::e(TGWATCH_ROOT) . '</code></td></tr>'
@@ -1017,7 +1039,7 @@ final class Admin
     {
         $id = (int)($_POST['id'] ?? 0);
         try {
-            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p)) {
+            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p) || $this->postTools($p)) {
                 return;
             }
             switch ($p) {
@@ -1088,11 +1110,12 @@ final class Admin
                             'approve' => $flow->approve($jid),
                             'reject' => $flow->reject($jid),
                             'mark' => $flow->markPublished($jid),
+                            'delete' => $this->deleteJob($jid),
                             default => 'x',
                         };
-                        $okCount += (str_starts_with($msg, 'Onaylandı') || str_starts_with($msg, 'Reddedildi') || str_starts_with($msg, 'Yayınlandı')) ? 1 : 0;
+                        $okCount += (str_starts_with($msg, 'Onaylandı') || str_starts_with($msg, 'Reddedildi') || str_starts_with($msg, 'Yayınlandı') || $msg === 'Silindi.') ? 1 : 0;
                     }
-                    $verb = ['approve' => 'onaylandı', 'reject' => 'reddedildi', 'mark' => 'yayınlandı olarak işaretlendi'][$do] ?? 'işlendi';
+                    $verb = ['approve' => 'onaylandı', 'reject' => 'reddedildi', 'mark' => 'yayınlandı olarak işaretlendi', 'delete' => 'silindi'][$do] ?? 'işlendi';
                     $skipped = count($ids) - $okCount;
                     $this->say($okCount ? 'ok' : 'bad', "$okCount iş $verb." . ($skipped ? " $skipped iş bu duruma uygun olmadığı için atlandı." : ''));
                     $this->redirect('jobs');

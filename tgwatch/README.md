@@ -122,6 +122,13 @@ Tasarım Apple'ın arayüz ilkelerini (HIG) izler. Sistem yazı tipi kullanılı
   - **Güvenlik:** şifre değiştirme (açık oturumlar kapanır), "tüm oturumları kapat", son girişler ve hatalı denemeler, oturum süresi ve kilit ayarı. Kilitlenirsen `config.php`'ye `'panel_settings' => false` yaz: yalnızca `config.php` geçerli olur.
   - **Görünüm:** açık/koyu/sistem teması, 5 vurgu rengi, rahat/sıkı yoğunluk.
   - **Veri ve bakım:** eski kayıtları ve (istenirse) bitmiş işleri otomatik silme, veritabanını sıkıştırma, tüm servisleri CSV indirme, yedek, sistem bilgisi.
+- **Yeni iş (İşler → Yeni iş):** Telegram'dan okunamayan duyuruları elle yapıştır; kanaldan gelmiş gibi çevrilir ve bota gider.
+- **Servisler (Araçlar):** Sağlayıcı ve kendi panelindeki servisleri ID/ad/kategori ile ara; önerilen satış fiyatını gör; fiyat hesaplayıcı.
+- **Fiyat denetimi:** Eşleşen servis çiftlerinde senin fiyatın ile sağlayıcı fiyatı/formül karşılaştırılır: zarar, düşük, yüksek, uygun; tolerans ayarlı; CSV.
+- **Raporlar:** 7/30/90/365 gün için kanal başına iş, onay oranı, ortalama karar süresi, çeviri kaynağı dağılımı, servis değişiklikleri; CSV.
+- **İş silme ve not:** İş sayfasından ve İşler listesinde toplu silme; her işe not.
+- **Otomatik onay:** Kanallar → Filtre ve not → "Bütün adlar bankadan gelirse otomatik onayla". Varsayılan kapalı; yalnızca eksik kelime olmayan, tamamı bankadan gelen işler onaylanır.
+- **Cron geçmişi:** Sağlık sayfasında son çalışmalar (süre, yeni iş, hata).
 - **Kanal filtresi ve not:** Kanallar sayfasında her kanal için "şu kelimeler geçen gönderileri yoksay" ve kısa not.
 - **Kısayollar:**
   - **⌘K / Ctrl K:** Komut paleti; sayfaya git ya da iş ara, ok tuşları ve Enter ile.

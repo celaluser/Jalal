@@ -23,6 +23,7 @@ final class Cleaner
             $out['jobs'] = $this->db->run("DELETE FROM jobs WHERE status IN ('approved','published','rejected') AND updated_at < ?", [$cut]);
             $out['notices'] = $this->db->run("DELETE FROM notices WHERE status != 'open' AND updated_at < ?", [$cut]);
         }
+        $this->db->run('DELETE FROM cron_runs WHERE id NOT IN (SELECT id FROM cron_runs ORDER BY id DESC LIMIT 500)');
         $this->db->set('cleaned_at', (string)time());
         $n = array_sum($out);
         if ($n > 0) {

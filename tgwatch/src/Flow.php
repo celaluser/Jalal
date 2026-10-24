@@ -99,10 +99,30 @@ final class Flow
         );
         $id = (int)$this->db->pdo->lastInsertId();
         $this->db->log('info', 'flow', "İş #$id oluşturuldu: @$channel/$msgId, " . count($items) . ' servis');
+        if ($this->autoApprovable($channel, $items, $aiState)) { // kanal "banka %100 ise otomatik onayla" modunda
+            $this->db->log('info', 'flow', "İş #$id otomatik onaylandı (tüm adlar bankadan)");
+            $this->approve($id);
+            return $id;
+        }
         if ($notify) {
             $this->sendPreview($id);
         }
         return $id;
+    }
+
+    /** Kanalda otomatik onay açıksa ve her ad bankadan (eksik kelime yok, Claude gerekmiyor) geldiyse true. */
+    private function autoApprovable(string $channel, array $items, string $aiState): bool
+    {
+        $ch = $this->db->one('SELECT auto_approve FROM channels WHERE username = ?', [$channel]);
+        if (!$ch || !(int)$ch['auto_approve'] || $aiState !== '' || !$items) {
+            return false;
+        }
+        foreach ($items as $it) {
+            if (($it['via'] ?? '') !== 'bank' || !empty($it['unknown'])) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Bota gönderilememiş işleri tekrar dener (cron çağırır). */

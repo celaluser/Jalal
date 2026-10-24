@@ -17,6 +17,7 @@ final class Ui
         'Masa' => ['dash' => ['Genel bakış', 'gauge'], 'queue' => ['Onay kuyruğu', 'queue'], 'jobs' => ['İşler', 'jobs'], 'changes' => ['Servis değişiklikleri', 'change']],
         'Kaynaklar' => ['channels' => ['Kanallar', 'channels']],
         'Çeviri' => ['dict' => ['Sözlük', 'dict'], 'bank' => ['Çeviri bankası', 'bank'], 'ai' => ['Çeviri ayarları', 'sliders']],
+        'Araçlar' => ['catalog' => ['Servisler', 'search'], 'audit' => ['Fiyat denetimi', 'gauge'], 'reports' => ['Raporlar', 'logs']],
         'Sistem' => ['alerts' => ['Uyarılar ve güvenlik', 'bell'], 'logs' => ['Kayıtlar', 'logs'], 'health' => ['Sağlık', 'health'], 'settings' => ['Ayarlar', 'gear']],
     ];
     /** Mobil sekme çubuğu: en sık kullanılan dört bölüm + menü */

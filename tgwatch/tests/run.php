@@ -1098,6 +1098,61 @@ test('Kanal filtresi: yoksay kelimesi geçen gönderi iş olmaz', function () {
     eq(1, count($r['demosmm']['jobs']));
 });
 
+echo "Araçlar: rapor, denetim, katalog, otomatik onay\n";
+test('Raporlar: kanal başına sayılar, onay oranı ve ortalama süre', function () {
+    [$db] = env();
+    $now = time();
+    $ins = fn($ch, $id, $st, $age, $dur, $via) => $db->run('INSERT INTO jobs(channel,msg_id,text_hash,source_text,items_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)',
+        [$ch, $id, "h$id", 'x', json_encode([['id' => 1, 'via' => $via]]), $st, $now - $age, $now - $age + $dur]);
+    $ins('a', 1, 'approved', 3600, 60, 'bank');
+    $ins('a', 2, 'rejected', 3600, 180, 'rules');
+    $ins('a', 3, 'awaiting', 3600, 0, 'bank');
+    $ins('b', 4, 'published', 3600, 120, 'bank');
+    $ins('old', 5, 'approved', 90 * 86400, 10, 'bank');
+    $r = (new TgWatch\Reports($db))->channels(30);
+    eq(4, $r['total']['jobs'], 'eski iş sayılmaz');
+    eq(2, $r['total']['approved']);
+    eq(67, (int)$r['total']['rate']);
+    eq('a', $r['channels'][0]['channel']);
+    eq(120, $r['channels'][0]['avg_seconds'], '(60+180)/2');
+    eq(['bank' => 3, 'rules' => 1], $r['via']);
+});
+test('Fiyat denetimi: zarar, düşük, yüksek, uygun', function () {
+    [$db] = env();
+    $db->setJson('match_report', ['model' => ['a' => 2.0, 'b' => 0.0, 'mode' => 'fit']]);
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('provider','P','u','k',1),('own','Ben','u','k',1)");
+    $svc = fn($src, $id, $rate) => $db->run('INSERT INTO remote_services(source_id,service_id,name,rate) VALUES(?,?,?,?)', [$src, $id, "S$id", $rate]);
+    foreach ([[1, 11, 1.0], [1, 12, 1.0], [1, 13, 1.0], [1, 14, 1.0]] as $a) {
+        $svc(...$a);
+    }
+    foreach ([[2, 21, 0.9], [2, 22, 1.5], [2, 23, 2.0], [2, 24, 3.0]] as $a) {
+        $svc(...$a);
+    }
+    foreach ([[11, 21], [12, 22], [13, 23], [14, 24]] as [$p, $o]) {
+        $db->run("INSERT INTO tm(kind,en_norm,en,az,origin,status,provider_source,provider_service,own_service,updated_at) VALUES('service',?,?,?,'auto','ok',1,?,?,1)", ["e$p", "e$p", "a$p", $p, $o]);
+    }
+    $rows = (new TgWatch\Reports($db))->audit(0.10);
+    eq(['loss', 'low', 'high', 'ok'], array_column($rows, 'flag'));
+    eq(2.0, $rows[3]['want']);
+    $c = (new TgWatch\Reports($db))->catalog('S2', 'own', 1);
+    eq(4, $c['total']);
+    eq(1, (new TgWatch\Reports($db))->catalog('13', 'all', 1)['total']);
+});
+test('Otomatik onay: yalnızca açık kanalda ve tüm adlar bankadansa', function () {
+    [$db, $tg, $flow] = env();
+    $mem = new TgWatch\Memory($db);
+    $mem->learn('service', 'Instagram Likes | Fast', 'Instagram Bəyəni | Sürətli', 'manual');
+    $db->run("INSERT INTO channels(username, created_at, auto_approve) VALUES('oto', 1, 1), ('kapali', 1, 0)");
+    $flow = new Flow($db, $tg, App::config());
+    $text = "🆔 701 Instagram Likes | Fast";
+    $flow->createJob('kapali', 1, $text);
+    eq('awaiting', $db->one('SELECT status FROM jobs WHERE channel = ?', ['kapali'])['status']);
+    $flow->createJob('oto', 1, $text);
+    ok(in_array($db->one('SELECT status FROM jobs WHERE channel = ?', ['oto'])['status'], ['approved', 'published']), 'otomatik onaylandı');
+    $flow->createJob('oto', 2, "🆔 702 Totally Unknownword Service");
+    eq('awaiting', $db->one('SELECT status FROM jobs WHERE msg_id = 2')['status'], 'bankada olmayan onaylanmaz');
+});
+
 // temizlik
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmp, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($it as $f) {

@@ -30,6 +30,8 @@ final class CronRunner
         $deadline = time() + $timeLimit;
         $started = microtime(true);
         $errors = 0;
+        $newJobs = 0;
+        $newNotices = 0;
         $flow = App::flow();
         $watcher = new Watcher($db, $flow, new ChannelReader(min((int)$this->config['fetch_timeout'], max(5, $timeLimit - 5))));
 
@@ -68,6 +70,8 @@ final class CronRunner
                     $say("@$u  ✗ {$r['error']}");
                     continue;
                 }
+                $newJobs += count($r['jobs']);
+                $newNotices += count($r['notices']);
                 $say("@$u  ✓ {$r['posts']} gönderi okundu, {$r['new']} yeni, " . count($r['found']) . ' servis duyurusu, ' . count($r['notices']) . ' değişiklik bildirimi' . ($test ? '' : ', iş: ' . (implode(',', $r['jobs']) ?: '-')));
                 foreach ($r['notices'] as $nt) {
                     $say("   gönderi {$nt['post']}: " . (Notices::KINDS[$nt['kind']] ?? $nt['kind']) . ', servisler: ' . implode(', ', $nt['ids']));
@@ -100,6 +104,7 @@ final class CronRunner
 
         if (!$test) {
             $db->set('cron_last_run', (string)time());
+            $db->run('INSERT INTO cron_runs(at, seconds, errors, jobs, notices) VALUES(?,?,?,?,?)', [time(), round(microtime(true) - $started, 2), $errors, $newJobs, $newNotices]);
             $db->setJson('cron_last_result', ['errors' => $errors, 'seconds' => round(microtime(true) - $started, 2), 'at' => time()]);
             (new Alerts($db))->check(true);
             (new Cleaner($db, $this->config))->daily();
