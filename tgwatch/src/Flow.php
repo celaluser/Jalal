@@ -101,15 +101,46 @@ final class Flow
                 return null;
             }
         }
+        // Öncelikli sağlayıcı modu: aynı servisi farklı sağlayıcıların kanalları paylaşıyorsa öncelikliyi tercih et.
+        $prio = new Priority($this->db, $this->config);
+        $supersede = [];
+        $elsewhere = [];
+        if ($prio->enabled() && $channel !== 'elle') {
+            [$skip, $supersede, $elsewhere] = $this->priorityPlan($prio, $channel, $items);
+            if ($skip) {
+                foreach (array_unique($skip) as $jid) {
+                    $this->addJobSource($jid, $channel, $msgId);
+                }
+                $dups += $skip;
+                $items = array_values(array_filter($items, static fn($i) => !isset($skip[(int)$i['id']])));
+                if (!$items) {
+                    $this->db->log('info', 'flow', "@$channel/$msgId: tüm servisler öncelikli sağlayıcıda/başka işte var, yeni iş açılmadı");
+                    return null;
+                }
+            }
+        }
         $items = $this->engine()->translateItems($items);
+        if ($prio->enabled() && $this->sourceId($channel) !== $prio->sourceId()) { // öncelikli sağlayıcıda benzeri varsa göster
+            foreach ($items as &$it) {
+                $hit = $prio->inCatalog((string)$it['name']);
+                if ($hit) {
+                    $it['prio'] = $hit;
+                }
+            }
+            unset($it);
+        }
         $ai = $this->ai();
         $aiState = $ai->active() && array_filter($items, [$ai, 'needs']) ? 'pending' : '';
         $now = time();
         $this->db->run(
             'INSERT INTO jobs(channel, msg_id, text_hash, source_text, items_json, status, created_at, updated_at, ai_state, also_json) VALUES(?,?,?,?,?,?,?,?,?,?)',
-            [$channel, $msgId, $hash, $text, json_encode($items, JSON_UNESCAPED_UNICODE), 'new', $now, $now, $aiState, $dups ? json_encode(['skipped' => $dups]) : '{}']
+            [$channel, $msgId, $hash, $text, json_encode($items, JSON_UNESCAPED_UNICODE), 'new', $now, $now, $aiState,
+                json_encode(array_filter(['skipped' => $dups, 'supersedes' => $supersede, 'elsewhere' => $elsewhere])) ?: '{}']
         );
         $id = (int)$this->db->pdo->lastInsertId();
+        foreach ($supersede as $oldId => $sids) {
+            $this->supersedeItems((int)$oldId, $sids, $id);
+        }
         $this->db->log('info', 'flow', "İş #$id oluşturuldu: @$channel/$msgId, " . count($items) . ' servis');
         if ($this->autoApprovable($channel, $items, $aiState)) { // kanal "banka %100 ise otomatik onayla" modunda
             $this->db->log('info', 'flow', "İş #$id otomatik onaylandı (tüm adlar bankadan)");
@@ -161,6 +192,71 @@ final class Flow
             }
         }
         return $out;
+    }
+
+    /**
+     * Öncelikli sağlayıcı kuralı. Yalnızca iki tarafın sağlayıcısı da biliniyorsa çalışır.
+     * @return array{0:array<int,int>,1:array<int,list<int>>,2:array<int,int>} [atlanacak servis => iş, öncelik nedeniyle düşecek: eski iş => servisler, başka sağlayıcıda zaten eklenmiş: servis => iş]
+     */
+    private function priorityPlan(Priority $prio, string $channel, array $items): array
+    {
+        $mine = $this->sourceId($channel);
+        $days = max(1, $this->dedupeDays());
+        $skip = [];
+        $supersede = [];
+        $elsewhere = [];
+        if ($mine <= 0) {
+            return [$skip, $supersede, $elsewhere];
+        }
+        $cache = [];
+        foreach ($this->db->all("SELECT id, channel, status, items_json FROM jobs WHERE created_at >= ? AND status != 'failed' ORDER BY id", [time() - $days * 86400]) as $j) {
+            $cache[$j['channel']] ??= $this->sourceId($j['channel']);
+            $theirs = $cache[$j['channel']];
+            if ($theirs <= 0 || $theirs === $mine) {
+                continue;
+            }
+            foreach ((array)json_decode((string)$j['items_json'], true) as $old) {
+                foreach ($items as $it) {
+                    $sid = (int)$it['id'];
+                    if (isset($skip[$sid]) || !Priority::twin((string)$it['name'], (string)($old['name'] ?? ''))) {
+                        continue;
+                    }
+                    if ($mine === $prio->sourceId()) {
+                        if (in_array($j['status'], ['new', 'awaiting'], true)) {
+                            $supersede[(int)$j['id']][] = (int)$old['id'];
+                        } else {
+                            $elsewhere[$sid] = (int)$j['id'];
+                        }
+                    } else {
+                        $skip[$sid] = (int)$j['id']; // öncelikli (ya da önce gelen) sağlayıcının işi var
+                    }
+                }
+            }
+        }
+        return [$skip, $supersede, $elsewhere];
+    }
+
+    /** Öncelikli sağlayıcıdan gelen iş, karar bekleyen eski işteki aynı servislerin yerine geçer. */
+    private function supersedeItems(int $oldId, array $sids, int $newId): void
+    {
+        $old = $this->db->job($oldId);
+        if ($old === null || !in_array($old['status'], ['new', 'awaiting'], true)) {
+            return;
+        }
+        $left = array_values(array_filter($old['items'], static fn($i) => !in_array((int)$i['id'], $sids, true)));
+        $also = json_decode((string)($old['also_json'] ?? '{}'), true) ?: [];
+        foreach ($sids as $s) {
+            $also['superseded'][(string)$s] = $newId;
+        }
+        $this->db->run('UPDATE jobs SET also_json = ? WHERE id = ?', [json_encode($also), $oldId]);
+        if (!$left) {
+            $this->db->setStatus($oldId, 'rejected', "Öncelikli sağlayıcıdan geldi (iş #$newId)");
+            $this->db->log('info', 'flow', "İş #$oldId, öncelikli sağlayıcının #$newId işi geldiği için kapatıldı");
+        } else {
+            $this->db->saveItems($oldId, $left);
+            $this->db->log('info', 'flow', "İş #$oldId: " . count($sids) . " servis öncelikli sağlayıcının #$newId işine taşındı");
+        }
+        $this->sendPreview($oldId);
     }
 
     /** Mevcut işe "bu kanal da paylaştı" bilgisini ekler; karar bekliyorsa bot mesajını günceller. */
@@ -252,6 +348,15 @@ final class Flow
         if (!empty($also['skipped'])) {
             $head .= 'ℹ️ ' . count($also['skipped']) . ' servis başka işte zaten var (#' . implode(', #', array_unique(array_values($also['skipped']))) . ") — burada tekrar yok\n";
         }
+        if (!empty($also['supersedes'])) {
+            $head .= '⭐ Öncelikli sağlayıcı: ' . array_sum(array_map('count', $also['supersedes'])) . ' servis #' . implode(', #', array_keys($also['supersedes'])) . " işindekilerin yerine geçti\n";
+        }
+        if (!empty($also['elsewhere'])) {
+            $head .= 'ℹ️ ' . count($also['elsewhere']) . ' servis başka sağlayıcıdan #' . implode(', #', array_unique(array_values($also['elsewhere']))) . " işinde zaten eklenmiş\n";
+        }
+        if (!empty($also['superseded'])) {
+            $head .= '🔁 ' . count($also['superseded']) . ' servis öncelikli sağlayıcının #' . implode(', #', array_unique(array_values($also['superseded']))) . " işine taşındı\n";
+        }
         $info = null;
         if (in_array($job['status'], ['new', 'awaiting', 'editing'], true)) {
             try {
@@ -280,6 +385,9 @@ final class Flow
             }
             if ($x && $x['own']) {
                 $extra .= '⚠️ Panelinde var: #' . (int)$x['own']['service_id'] . "\n";
+            }
+            if (!empty($it['prio'])) {
+                $extra .= '⭐ Öncelikli sağlayıcıda benzeri: #' . (int)$it['prio']['id'] . ($it['prio']['rate'] !== null ? ' · $' . number_format((float)$it['prio']['rate'], 2) : '') . "\n";
             }
             $block = '<b>' . $it['id'] . '</b>' . ($it['price'] !== '' && !$x ? ' · $' . $e($it['price']) : '') . ($it['edited'] ? ' ✏️' : '') . "\n"
                 . '📝 ' . $e($it['name']) . "\n"

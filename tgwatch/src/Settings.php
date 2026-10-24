@@ -43,6 +43,7 @@ final class Settings
             'panel_api_key' => ['g' => 'publish', 'label' => 'Panel API anahtarı', 'type' => 'secret', 'help' => 'Boş bırakırsan mevcut değer korunur.'],
 
             'cron_key' => ['g' => 'reading', 'label' => 'Cron anahtarı', 'type' => 'key', 'help' => 'cron-job.org adresindeki key=… değeri. Değişirse cron-job.org adresini de güncelle.'],
+            'priority_source' => ['g' => 'reading', 'label' => 'Öncelikli sağlayıcı', 'type' => 'source', 'help' => 'Seçersen aynı servisi farklı sağlayıcıların kanalları duyurunca bu sağlayıcı tercih edilir: onun işi diğerlerinin yerine geçer, diğerlerinden gelen aynı servis için yeni iş açılmaz. Boş: ilk gelen kazanır. Kanalların sağlayıcısı Kanallar sayfasından seçilmiş olmalı.'],
             'dedupe_days' => ['g' => 'reading', 'label' => 'Aynı servisi tekrar sayma (gün)', 'type' => 'int', 'min' => 0, 'max' => 90, 'help' => 'Aynı sağlayıcıdaki aynı servis ID\'si birden çok kanalda paylaşılırsa tek iş açılır, diğer kanallar "ayrıca paylaşan" olarak eklenir. 0: kapalı.'],
             'fetch_timeout' => ['g' => 'reading', 'label' => 'Kanal bekleme süresi (sn)', 'type' => 'int', 'min' => 5, 'max' => 60, 'help' => 'Bir kanal bu sürede cevap vermezse atlanır.'],
             'cron_time_limit' => ['g' => 'reading', 'label' => 'Cron en uzun süre (sn)', 'type' => 'int', 'min' => 20, 'max' => 600, 'help' => 'Bir cron turunun üst sınırı.'],
@@ -97,6 +98,8 @@ final class Settings
                     return [false, $f['label'] . ': ' . ($f['min'] ?? 0) . ' ile ' . ($f['max'] ?? '∞') . ' arasında olmalı'];
                 }
                 return [true, $v];
+            case 'source':
+                return $raw === '' || ctype_digit((string)$raw) ? [true, (string)$raw] : [false, $f['label'] . ': geçersiz sağlayıcı'];
             case 'select':
                 return isset($f['options'][$raw]) ? [true, (string)$raw] : [false, $f['label'] . ': geçersiz seçim'];
             case 'url':

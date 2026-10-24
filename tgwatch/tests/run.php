@@ -23,6 +23,7 @@ use TgWatch\Telegram;
 use TgWatch\Translator;
 use TgWatch\Watcher;
 use TgWatch\Settings;
+use TgWatch\Priority;
 
 class FakeTelegram extends Telegram
 {
@@ -1202,6 +1203,68 @@ test('aynı fiyat değişikliğini 2 kanal duyurunca tek bildirim', function () 
     eq(1, (int)$db->one('SELECT COUNT(*) c FROM notices')['c']);
     eq('kanalb', json_decode($db->one('SELECT also_json FROM notices')['also_json'], true)['sources'][0]['channel']);
     ok($flow->createNotice('kanalb', 10, "Service 4102 price changed from \$1 to \$2", 'price') !== null, 'farklı servis');
+});
+
+echo "Öncelikli sağlayıcı modu\n";
+function prioEnv(bool $on): array
+{
+    [$db, $tg] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('provider','Pri','u','k',1),('provider','Diger','u','k',1)");
+    $db->run("INSERT INTO channels(username, created_at, source_id) VALUES('prich',1,1),('digerch',1,2),('diger2',1,2)");
+    $cfg = App::config();
+    $cfg['priority_source'] = $on ? '1' : '';
+    return [$db, $tg, new Flow($db, $tg, $cfg)];
+}
+test('Priority::twin: aynı platform, sayılar ve benzer kelimeler', function () {
+    ok(Priority::twin('Instagram Followers | No Drop | Max 50K', 'Instagram Followers - No Drop - Max 50K'));
+    ok(!Priority::twin('Instagram Followers | Max 50K', 'Instagram Followers | Max 100K'), 'sayı farklı');
+    ok(!Priority::twin('Instagram Followers', 'TikTok Followers'), 'platform farklı');
+    ok(!Priority::twin('Instagram Likes Fast Real Cheap Best', 'Instagram Views'), 'kelimeler farklı');
+});
+test('öncelikli kapalıyken farklı sağlayıcılar birbirinden etkilenmez', function () {
+    [$db, $tg, $flow] = prioEnv(false);
+    ok($flow->createJob('digerch', 1, "🆔 11 Instagram Followers | No Drop | Max 50K") !== null);
+    ok($flow->createJob('prich', 1, "🆔 900 Instagram Followers | No Drop | Max 50K") !== null);
+    eq(2, (int)$db->one('SELECT COUNT(*) c FROM jobs')['c']);
+});
+test('öncelikli sağlayıcı gelince, karar bekleyen diğer işin aynı servisinin yerine geçer', function () {
+    [$db, $tg, $flow] = prioEnv(true);
+    $old = $flow->createJob('digerch', 1, "🆔 11 Instagram Followers | No Drop | Max 50K\n🆔 12 TikTok Likes | Fast");
+    $new = $flow->createJob('prich', 1, "🆔 900 Instagram Followers | No Drop | Max 50K");
+    ok($new !== null);
+    eq([12], array_map(static fn($i) => (int)$i['id'], $db->job($old)['items']), 'eski işte yalnızca kalan servis');
+    $also = json_decode($db->job($new)['also_json'], true);
+    eq([$old => [11]], $also['supersedes']);
+    eq($new, json_decode($db->job($old)['also_json'], true)['superseded']['11']);
+    // eski iş tamamen taşınırsa kapanır
+    $o2 = $flow->createJob('diger2', 5, "🆔 21 YouTube Views | 1K");
+    $flow->createJob('prich', 2, "🆔 901 YouTube Views | 1K");
+    eq('rejected', $db->job($o2)['status']);
+});
+test('öncelikli sağlayıcı zaten duyurduysa diğer sağlayıcıdan aynı servis için iş açılmaz', function () {
+    [$db, $tg, $flow] = prioEnv(true);
+    $p = $flow->createJob('prich', 1, "🆔 900 Instagram Followers | No Drop | Max 50K");
+    eq(null, $flow->createJob('digerch', 7, "🆔 11 Instagram Followers | No Drop | Max 50K"));
+    $also = json_decode($db->job($p)['also_json'], true);
+    eq('digerch', $also['sources'][0]['channel']);
+    eq(1, (int)$db->one('SELECT COUNT(*) c FROM jobs')['c']);
+});
+test('öncelikli iş onaylıysa yine de yeni iş açılır ve not düşülür', function () {
+    [$db, $tg, $flow] = prioEnv(true);
+    $o = $flow->createJob('digerch', 1, "🆔 11 Instagram Followers | No Drop | Max 50K");
+    $db->setStatus($o, 'approved');
+    $n = $flow->createJob('prich', 1, "🆔 900 Instagram Followers | No Drop | Max 50K");
+    ok($n !== null);
+    eq($o, json_decode($db->job($n)['also_json'], true)['elsewhere']['900'] ?? null);
+    eq('approved', $db->job($o)['status'], 'onaylı iş değişmez');
+});
+test('öncelikli sağlayıcı kataloğunda benzeri varsa mesajda gösterilir', function () {
+    [$db, $tg, $flow] = prioEnv(true);
+    $db->run("INSERT INTO remote_services(source_id,service_id,name,rate) VALUES(1, 900, 'Instagram Followers | No Drop | Max 50K', 1.5)");
+    $id = $flow->createJob('digerch', 1, "🆔 11 Instagram Followers | No Drop | Max 50K");
+    $job = $db->job($id);
+    eq(900, $job['items'][0]['prio']['id']);
+    ok(str_contains(json_encode(end($tg->calls), JSON_UNESCAPED_UNICODE), 'Öncelikli sağlayıcıda benzeri: #900'));
 });
 
 // temizlik

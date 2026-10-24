@@ -25,7 +25,7 @@ final class Matcher
     {
     }
 
-    private static function nums(string $name): array
+    public static function nums(string $name): array
     {
         preg_match_all('/\d+(?:[.,]\d+)?\s?[KkMm]?/u', Normalizer::text($name), $m);
         return array_values(array_unique(array_map(static fn($n) => strtoupper(str_replace([' ', ','], ['', '.'], $n)), $m[0])));

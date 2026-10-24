@@ -64,6 +64,9 @@ return [
     // Aynı servisi birden çok kanal paylaşırsa, bu kadar gün içinde tekrar iş açılmaz (0: kapalı).
     'dedupe_days' => 7,
 
+    // Öncelikli sağlayıcının numarası (Ayarlar'dan seçilir); boş: kapalı.
+    'priority_source' => '',
+
     // Kanal okuma ayarları
     'fetch_timeout' => 20,
     'cron_time_limit' => 50,      // komut satırı cron'u için saniye

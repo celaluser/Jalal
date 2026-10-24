@@ -802,6 +802,17 @@ final class Admin
             unset($_SESSION['test_report']);
         }
 
+        $provs0 = (new \TgWatch\Enrich($this->db))->providers();
+        if (count($provs0) > 1) { // birden çok sağlayıcı varsa öncelikli olanı buradan da seçilebilir
+            $po = '<option value="">Kapalı (ilk gelen kazanır)</option>';
+            foreach ($provs0 as $s) {
+                $po .= '<option value="' . (int)$s['id'] . '"' . ((int)($this->config['priority_source'] ?? 0) === (int)$s['id'] ? ' selected' : '') . '>⭐ ' . Ui::e($s['name']) . '</option>';
+            }
+            $h .= '<form method="post" action="?p=settings_save" class="panel panel-pad field-row">' . $this->ui->csrfField() . '<input type="hidden" name="tab" value="reading"><input type="hidden" name="back" value="channels">'
+                . '<label>Öncelikli sağlayıcı<select name="f[priority_source]">' . $po . '</select></label>'
+                . '<span class="muted note">Aynı servisi farklı sağlayıcıların kanalları duyurunca bu sağlayıcı tercih edilir. Kanalın sağlayıcısını aşağıdaki tablodan seç.</span>'
+                . '<button class="btn quiet">' . Ui::icon('check') . '<span>Kaydet</span></button></form>';
+        }
         if (!$rows) {
             $h .= Ui::empty('Henüz kanal yok', 'Yukarıdan bir sağlayıcı kanalı ekleyin. Test ile kaydetmeden okuyup çeviriyi görebilirsiniz.');
             $this->render('Kanallar', $h, ['active' => 'channels']);
@@ -847,7 +858,7 @@ final class Admin
         }
         $opts = '<option value="">' . (count($provs) === 1 ? Ui::e($provs[0]['name']) . ' (otomatik)' : 'Seçin…') . '</option>';
         foreach ($provs as $s) {
-            $opts .= '<option value="' . (int)$s['id'] . '"' . ((int)$c['source_id'] === (int)$s['id'] ? ' selected' : '') . '>' . Ui::e($s['name']) . '</option>';
+            $opts .= '<option value="' . (int)$s['id'] . '"' . ((int)$c['source_id'] === (int)$s['id'] ? ' selected' : '') . '>' . (((int)($this->config['priority_source'] ?? 0)) === (int)$s['id'] ? '⭐ ' : '') . Ui::e($s['name']) . '</option>';
         }
         return '<form method="post" action="?p=channel_source" class="row nowrap">' . $this->ui->csrfField() . '<input type="hidden" name="id" value="' . (int)$c['id'] . '"><input type="hidden" name="back" value="channels">'
             . '<select name="source_id" aria-label="@' . Ui::e($c['username']) . ' sağlayıcısı">' . $opts . '</select><button class="btn ghost sm">Kaydet</button></form>';

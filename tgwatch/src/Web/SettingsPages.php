@@ -5,6 +5,7 @@ namespace TgWatch\Web;
 
 use TgWatch\App;
 use TgWatch\Cleaner;
+use TgWatch\Enrich;
 use TgWatch\Settings;
 use TgWatch\Telegram;
 
@@ -55,6 +56,7 @@ trait SettingsPages
             $id = 'f_' . $k;
             $input = match ($f['type']) {
                 'select' => $this->selectInput($id, "f[$k]", $f['options'], (string)$cur),
+                'source' => $this->selectInput($id, "f[$k]", ['' => 'Kapalı (ilk gelen kazanır)'] + array_column(array_map(static fn($s) => [(string)$s['id'], '⭐ ' . $s['name']], (new Enrich($this->db))->providers()), 1, 0), (string)$cur),
                 'int' => '<input type="number" id="' . $id . '" name="f[' . $k . ']" value="' . Ui::e((string)$cur) . '"' . (isset($f['min']) ? ' min="' . $f['min'] . '"' : '') . (isset($f['max']) ? ' max="' . $f['max'] . '"' : '') . '>',
                 'secret' => '<input type="password" id="' . $id . '" name="f[' . $k . ']" value="" autocomplete="off" placeholder="' . ((string)$cur !== '' ? '•••••••• (ayarlı, değiştirmek için yaz)' : 'Henüz girilmedi') . '">'
                     . ((string)$cur !== '' ? '<label class="check sm"><input type="checkbox" name="clear[' . $k . ']" value="1"><span>Temizle</span></label>' : ''),
@@ -222,7 +224,7 @@ trait SettingsPages
                 } elseif (!$vals) {
                     $this->say('ok', 'Değişiklik yok.');
                 }
-                $this->redirect('settings', ['tab' => $tab]);
+                ($_POST['back'] ?? '') === 'channels' ? $this->redirect('channels') : $this->redirect('settings', ['tab' => $tab]);
                 return true;
             case 'channel_filter':
                 $words = implode("\n", array_filter(array_map('trim', preg_split('/[,\n]+/u', mb_substr((string)($_POST['skip_words'] ?? ''), 0, 400)))));
