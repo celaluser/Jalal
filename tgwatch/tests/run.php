@@ -22,6 +22,7 @@ use TgWatch\Publisher\ManualPublisher;
 use TgWatch\Telegram;
 use TgWatch\Translator;
 use TgWatch\Watcher;
+use TgWatch\Settings;
 
 class FakeTelegram extends Telegram
 {
@@ -1032,6 +1033,69 @@ test('veritabanına kaydet/yükle, eksik alanlar varsayılanla dolar', function 
     eq(['A' => 'B'], $d['phrases']);
     eq(Dictionary::defaults()['rules'], $d['rules']);
     eq(true, $d['options']['keep_max']);
+});
+
+echo "Ayarlar, temizlik, kanal filtresi\n";
+test('Ayarlar: doğrulama ve config üzerine yazma', function () {
+    [$db] = env();
+    eq([true, 30], Settings::check('fetch_timeout', '30'));
+    eq(false, Settings::check('fetch_timeout', '2')[0], 'alt sınır');
+    eq(false, Settings::check('fetch_timeout', 'abc')[0]);
+    eq(false, Settings::check('webhook_url', 'ftp://x')[0]);
+    eq(false, Settings::check('bot_mode', 'x')[0]);
+    eq(false, Settings::check('cron_key', 'kisa')[0]);
+    eq(false, Settings::check('yok', '1')[0]);
+    $err = Settings::save($db, ['fetch_timeout' => '33', 'panel_name' => 'Masam', 'ui_accent' => 'green', 'cron_time_limit' => '5']);
+    eq(1, count($err), 'yalnızca cron_time_limit hatalı');
+    eq(33, App::config()['fetch_timeout']);
+    eq('Masam', App::config()['panel_name']);
+    eq('green', App::config()['ui_accent']);
+    ok(App::config()['cron_time_limit'] !== 5);
+});
+test('Ayarlar: panel_settings=false iken config.php geçerli', function () {
+    global $tmp;
+    $dir = $tmp . '/off';
+    @mkdir($dir);
+    App::setConfig(['data_dir' => $dir, 'panel_settings' => false]);
+    Settings::save(App::db(), ['panel_name' => 'X']);
+    App::setConfig(['data_dir' => $dir, 'panel_settings' => false]);
+    eq('tgwatch', App::config()['panel_name']);
+});
+test('Ayarlar: panelden değiştirilen şifre hash\'i geçerli olur', function () {
+    [$db] = env();
+    $db->set('admin_hash', password_hash('yeni-sifre-123', PASSWORD_BCRYPT));
+    App::reloadOverrides();
+    ok(password_verify('yeni-sifre-123', App::config()['admin_password_hash']));
+});
+test('Temizlik: eski kayıt ve bitmiş işler silinir, açık işler kalır', function () {
+    [$db, $tg, $flow] = env();
+    $old = time() - 100 * 86400;
+    $db->run("INSERT INTO logs(ts, level, source, message) VALUES(?, 'info', 't', 'eski')", [$old]);
+    $db->run("INSERT INTO logs(ts, level, source, message) VALUES(?, 'info', 't', 'yeni')", [time()]);
+    foreach (['approved' => 1, 'awaiting' => 2, 'rejected' => 3] as $st => $i) {
+        $db->run('INSERT INTO jobs(channel,msg_id,text_hash,source_text,items_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)', ['c', $i, "h$i", 'x', '[]', $st, $old, $old]);
+    }
+    $c = new TgWatch\Cleaner($db, ['retention_logs_days' => 30, 'retention_jobs_days' => 0]);
+    $r = $c->run();
+    eq(1, $r['logs']);
+    eq(0, $r['jobs'], 'süre 0: işler silinmez');
+    $r = (new TgWatch\Cleaner($db, ['retention_logs_days' => 30, 'retention_jobs_days' => 90]))->run();
+    eq(2, $r['jobs']);
+    eq(['awaiting'], array_column($db->all('SELECT status FROM jobs'), 'status'));
+});
+test('Kanal filtresi: yoksay kelimesi geçen gönderi iş olmaz', function () {
+    [$db, $tg, $flow] = env();
+    $reader = new FakeReader();
+    $w = new Watcher($db, $flow, $reader);
+    $w->addChannel('demosmm');
+    $reader->pages['demosmm'] = ['ok' => true, 'error' => '', 'title' => '', 'posts' => [['id' => 1, 'text' => 'x', 'date' => '']]];
+    $w->runAll();
+    $db->run("UPDATE channels SET skip_words = ?", ["reklam\nGiveaway"]);
+    $reader->pages['demosmm']['posts'][] = ['id' => 2, 'text' => "🆔 100 Instagram Likes | giveaway", 'date' => ''];
+    $reader->pages['demosmm']['posts'][] = ['id' => 3, 'text' => "🆔 200 Instagram Views", 'date' => ''];
+    $r = $w->runAll();
+    eq(1, $r['demosmm']['skipped']);
+    eq(1, count($r['demosmm']['jobs']));
 });
 
 // temizlik

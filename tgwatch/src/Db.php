@@ -133,6 +133,11 @@ SQL);
         // Sonradan eklenen sütunlar (eski veritabanları için).
         $cols = array_column($this->pdo->query('PRAGMA table_info(jobs)')->fetchAll(), 'name');
         $chCols = array_column($this->pdo->query('PRAGMA table_info(channels)')->fetchAll(), 'name');
+        foreach (['skip_words' => "TEXT NOT NULL DEFAULT ''", 'note' => "TEXT NOT NULL DEFAULT ''"] as $col => $def) {
+            if (!in_array($col, $chCols, true)) {
+                $this->pdo->exec("ALTER TABLE channels ADD COLUMN $col $def");
+            }
+        }
         if (!in_array('source_id', $chCols, true)) {
             $this->pdo->exec('ALTER TABLE channels ADD COLUMN source_id INTEGER');
         }

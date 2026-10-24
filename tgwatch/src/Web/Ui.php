@@ -17,7 +17,7 @@ final class Ui
         'Masa' => ['dash' => ['Genel bakış', 'gauge'], 'queue' => ['Onay kuyruğu', 'queue'], 'jobs' => ['İşler', 'jobs'], 'changes' => ['Servis değişiklikleri', 'change']],
         'Kaynaklar' => ['channels' => ['Kanallar', 'channels']],
         'Çeviri' => ['dict' => ['Sözlük', 'dict'], 'bank' => ['Çeviri bankası', 'bank'], 'ai' => ['Çeviri ayarları', 'sliders']],
-        'Sistem' => ['alerts' => ['Uyarılar ve güvenlik', 'bell'], 'logs' => ['Kayıtlar', 'logs'], 'health' => ['Sağlık', 'health']],
+        'Sistem' => ['alerts' => ['Uyarılar ve güvenlik', 'bell'], 'logs' => ['Kayıtlar', 'logs'], 'health' => ['Sağlık', 'health'], 'settings' => ['Ayarlar', 'gear']],
     ];
     /** Mobil sekme çubuğu: en sık kullanılan dört bölüm + menü */
     private const TABS = ['dash' => ['Genel', 'gauge'], 'queue' => ['Kuyruk', 'queue'], 'jobs' => ['İşler', 'jobs'], 'channels' => ['Kanallar', 'channels']];
@@ -138,6 +138,7 @@ final class Ui
             'clock' => '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
             'arrow' => '<path d="M5 12h14M13 6l6 6-6 6"/>',
             'change' => '<path d="M7 4v14M3.5 14.5L7 18l3.5-3.5"/><path d="M17 20V6M13.5 9.5L17 6l3.5 3.5"/>',
+            'gear' => '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M4.6 7.5l1.9 1.1M17.5 15.4l1.9 1.1M4.6 16.5l1.9-1.1M17.5 8.6l1.9-1.1"/><circle cx="12" cy="12" r="7.2"/>',
             'bell' => '<path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15z"/><path d="M10 21a2 2 0 0 0 4 0"/>',
         ][$name] ?? '';
         return '<svg class="ic" width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . $p . '</svg>';
@@ -159,12 +160,17 @@ final class Ui
             . (!empty($o['sub']) ? '<p class="sub">' . $o['sub'] . '</p>' : '') . '</div>'
             . (!empty($o['actions']) ? '<div class="row page-actions">' . $o['actions'] . '</div>' : '') . '</header>';
 
-        $doc = '<!doctype html><html lang="tr"><head><meta charset="utf-8">'
+        $pf = $o['prefs'] ?? [];
+        $name = (string)($pf['name'] ?? 'tgwatch');
+        $accent = isset(self::ACCENT_SET[$pf['accent'] ?? '']) ? $pf['accent'] : 'blue';
+        $theme = in_array($pf['theme'] ?? 'auto', ['light', 'dark'], true) ? $pf['theme'] : 'auto';
+        $doc = '<!doctype html><html lang="tr" data-density="' . (($pf['density'] ?? '') === 'compact' ? 'compact' : 'comfortable') . '"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow">'
-            . '<meta name="color-scheme" content="light dark"><meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f5f7"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">'
-            . '<title>' . self::e($title) . ' · tgwatch</title>'
-            . '<link rel="icon" href="data:image/svg+xml,' . rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#0a63ce"/><circle cx="10" cy="16" r="3" fill="#fff"/><circle cx="16" cy="16" r="3" fill="#fff" opacity=".75"/><circle cx="22" cy="16" r="3" fill="#fff" opacity=".5"/></svg>') . '">'
-            . '<style nonce="' . $this->nonce . '">' . self::CSS . '</style></head>';
+            . '<meta name="color-scheme" content="' . ($theme === 'auto' ? 'light dark' : $theme) . '"><meta name="theme-color" content="' . ($theme === 'dark' ? '#000000' : '#f5f5f7') . '"' . ($theme === 'auto' ? ' media="(prefers-color-scheme: light)"' : '') . '>'
+            . ($theme === 'auto' ? '<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">' : '')
+            . '<title>' . self::e($title) . ' · ' . self::e($name) . '</title>'
+            . '<link rel="icon" href="data:image/svg+xml,' . rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="' . self::ACCENT_SET[$accent][0] . '"/><circle cx="10" cy="16" r="3" fill="#fff"/><circle cx="16" cy="16" r="3" fill="#fff" opacity=".75"/><circle cx="22" cy="16" r="3" fill="#fff" opacity=".5"/></svg>') . '">'
+            . '<style nonce="' . $this->nonce . '">' . self::css($theme, $accent) . '</style></head>';
 
         if (!$nav) {
             return $doc . '<body class="bare"><main class="bare-main" id="main">' . $flash . $body . '</main></body></html>';
@@ -184,7 +190,7 @@ final class Ui
         }
         $cron = $o['cron'] ?? null;
         $side = '<aside class="side glass" id="menu" aria-label="Ana menü">'
-            . '<div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span><span>tgwatch<small>servis çeviri masası</small></span>'
+            . '<div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span><span>' . self::e($name) . '<small>servis çeviri masası</small></span>'
             . '<a class="close-menu" href="#" aria-label="Menüyü kapat">' . self::icon('x') . '</a></div>'
             . '<nav class="nav">' . $links . '</nav>'
             . '<div class="side-foot">' . ($cron ? '<a class="side-status" href="?p=health">' . self::dot($cron['state']) . '<span>Kanal okuma ' . $cron['text'] . '</span></a>' : '')
@@ -209,10 +215,32 @@ final class Ui
             . '<ul class="cmd-list" id="cmd-list">' . $palette . '<li data-search><a href="?p=jobs&amp;q=" id="cmd-search">' . self::icon('search', 16) . '<span>İşlerde ara: <b id="cmd-term"></b></span><small>Arama</small></a></li></ul></dialog>';
 
         return $doc . '<body class="app"><a class="skip" href="#main">İçeriğe geç</a>' . $side
-            . '<div class="shell">' . $toolbar . '<main class="main" id="main">' . $head . $flash . $body . '</main></div>'
+            . '<div class="shell">' . $toolbar . '<main class="main" id="main">' . $head . $flash . $body . '<footer class="foot"><span>' . self::e($name) . ' v' . \TgWatch\VERSION . '</span><a href="?p=settings">Ayarlar</a><a href="?p=health">Sağlık</a><a href="?p=logs">Kayıtlar</a></footer></main></div>'
             . '<nav class="tabbar glass" aria-label="Sekmeler">' . $tabs . '</nav>'
             . $cmd . '<div class="tip" id="tip" role="tooltip" hidden></div>'
             . '<script nonce="' . $this->nonce . '">' . self::JS . '</script></body></html>';
+    }
+
+    /** vurgu rengi: [açık/koyu düğme rengi, koyu temada yazı rengi] */
+    private const ACCENT_SET = [
+        'blue' => ['#0a63ce', '#5aa9ff'], 'green' => ['#1b7f3b', '#4cc277'], 'purple' => ['#7b3fd4', '#a779f0'],
+        'orange' => ['#b5500a', '#f08a3c'], 'pink' => ['#c2255f', '#f06a9c'],
+    ];
+
+    /** Seçilen tema ve vurgu rengine göre CSS: tema "koyu/açık" ise sistem ayarı yerine o kullanılır. */
+    private static function css(string $theme, string $accent): string
+    {
+        [$a, $t] = self::ACCENT_SET[$accent];
+        $css = self::CSS
+            . ":root{--accent:$a;--accent-text:$a;--accent-soft:color-mix(in srgb,$a 10%,#fff)}"
+            . "@media (prefers-color-scheme:dark){:root{--accent:$a;--accent-text:$t;--accent-soft:color-mix(in srgb,$a 32%,#000)}}";
+        if ($theme === 'dark') {
+            return str_replace('@media (prefers-color-scheme:dark)', '@media all', $css);
+        }
+        if ($theme === 'light') {
+            return str_replace('@media (prefers-color-scheme:dark)', '@media not all', $css);
+        }
+        return $css;
     }
 
     private const JS = <<<'JS'
@@ -237,6 +265,13 @@ final class Ui
       try { localStorage.setItem('tgw-side', hidden ? 'hidden' : 'shown'); } catch (e2) {}
     }
     if (e.target.closest('[data-open-cmd]')) { e.preventDefault(); openCmd(); }
+  });
+
+  // Bildirimler: kapatma düğmesi, başarılı olanlar 7 sn sonra kaybolur
+  d.querySelectorAll('.flash').forEach(function (f) {
+    var b = d.createElement('button'); b.type = 'button'; b.className = 'flash-x'; b.setAttribute('aria-label', 'Kapat'); b.textContent = '×';
+    b.addEventListener('click', function () { f.remove(); }); f.appendChild(b);
+    if (!f.classList.contains('bad')) setTimeout(function () { f.classList.add('gone'); setTimeout(function () { f.remove(); }, 400); }, 7000);
   });
 
   // Onay sorusu (geri alınamayan işlemler)
@@ -440,7 +475,7 @@ details[open]>summary{margin-bottom:12px}
 form.inline{display:inline}
 
 /* ===== Form ===== */
-input[type=text],input[type=password],input[type=number],input[type=search],select,textarea{
+input[type=text],input[type=password],input[type=number],input[type=search],input[type=url],input[type=email],select,textarea{
   font:inherit;font-size:15px;color:var(--text);background:var(--surface);border:1px solid var(--sep);border-radius:var(--r-s);padding:8px 11px;max-width:100%;min-height:36px;transition:border-color .15s,box-shadow .15s}
 select{appearance:none;-webkit-appearance:none;padding-right:32px;background-image:linear-gradient(45deg,transparent 50%,var(--text-2) 50%),linear-gradient(135deg,var(--text-2) 50%,transparent 50%);
   background-position:calc(100% - 15px) 52%,calc(100% - 10px) 52%;background-size:5px 5px;background-repeat:no-repeat}
@@ -478,7 +513,7 @@ td .lvl-warn{color:var(--warn)}td .lvl-error{color:var(--bad)}
 .empty .row{margin-top:16px}
 
 /* ===== Tablo: gruplanmış liste ===== */
-.table-wrap{overflow-x:auto;background:var(--surface);border-radius:var(--r-l);box-shadow:var(--shadow);border:1px solid var(--sep-2)}
+.table-wrap{position:relative;overflow-x:auto;background:var(--surface);border-radius:var(--r-l);box-shadow:var(--shadow);border:1px solid var(--sep-2)}
 @media (prefers-color-scheme:dark){.table-wrap,.empty{border-color:transparent}}
 table{width:100%;border-collapse:collapse;font-size:14.5px}
 th,td{padding:11px 16px;text-align:left;vertical-align:top}
@@ -645,5 +680,38 @@ form.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:0 0 14p
 @media (max-width:480px){.dash .c-3{grid-column:span 2}.quick{grid-template-columns:1fr}.tile-value{font-size:26px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 @media print{.side,.toolbar,.tabbar,.actionbar{display:none!important}.shell{margin:0}}
+input[type=file]{font:inherit;font-size:14px;color:var(--text-2);max-width:100%}
+input[type=file]::file-selector-button{font:inherit;font-weight:500;background:var(--fill-2);color:var(--text);border:0;border-radius:999px;padding:7px 14px;margin-right:10px;cursor:pointer}
+/* ===== Ayarlar, sekmeler, alt bilgi ===== */
+.tabs{display:flex;gap:4px;overflow-x:auto;padding:4px;margin:0 0 18px;background:var(--fill-2);border-radius:var(--r-m);width:fit-content;max-width:100%;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs a{flex:none;padding:7px 14px;border-radius:9px;color:var(--text-2);font-weight:500;font-size:14px;min-height:34px;display:flex;align-items:center}
+.tabs a:hover{text-decoration:none;color:var(--text)}
+.tabs a[aria-current="page"]{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.settings{padding:0;overflow:hidden}
+.setting{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:12px 28px;padding:16px 20px;border-top:1px solid var(--sep-2);align-items:start}
+.setting:first-child{border-top:0}
+.setting-l label{font-weight:600;color:var(--text)}
+.setting-l p{margin:2px 0 0;font-size:13.5px}
+.setting-l .src{font-size:12px;color:var(--text-3);display:inline-block;margin-top:4px}
+.setting-r{display:flex;flex-direction:column;gap:8px;min-width:0}
+.setting-r input:not([type=checkbox]),.setting-r select{width:100%}
+.check.sm{font-size:13.5px;color:var(--text-2)}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+.foot{display:flex;gap:18px;flex-wrap:wrap;margin-top:44px;padding-top:16px;border-top:1px solid var(--sep-2);font-size:13px;color:var(--text-3)}
+.foot a{color:var(--text-3)}.foot a:hover{color:var(--accent-text)}
+.flash{position:relative;transition:opacity .4s,transform .4s}.flash.gone{opacity:0;transform:translateY(-6px)}
+.flash-x{margin-left:auto;background:none;border:0;color:var(--text-2);font-size:20px;line-height:1;cursor:pointer;padding:0 4px;border-radius:6px}
+.flash-x:hover{color:var(--text)}
+.trunc{display:block;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chan-extra{margin-top:6px}.chan-extra summary{font-size:13px}.chan-extra form{margin-top:8px;display:grid;gap:8px;min-width:240px}
+/* Yoğunluk: sıkı */
+[data-density="compact"] body{font-size:14px}
+[data-density="compact"] th,[data-density="compact"] td{padding:7px 12px}
+[data-density="compact"] .card,[data-density="compact"] .panel-pad{padding:13px 15px}
+[data-density="compact"] h2{margin:26px 0 9px}
+[data-density="compact"] .setting{padding:11px 16px}
+@media (max-width:760px){.setting,.grid-2{grid-template-columns:1fr}.tabs{width:100%}}
+
 CSS;
 }

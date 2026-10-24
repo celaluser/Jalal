@@ -20,6 +20,7 @@ final class App
 {
     private static ?array $config = null;
     private static ?Db $db = null;
+    private static bool $overlaying = false;
 
     /** Ayarları yükler. config.php yoksa config.sample.php varsayılanları kullanılır. */
     public static function config(): array
@@ -44,8 +45,38 @@ final class App
             }, array_diff(array_keys($user), array_keys($defaults))));
             self::$config['_has_config_file'] = is_file($file);
             date_default_timezone_set((string)self::$config['timezone']);
+            self::reloadOverrides();
         }
         return self::$config;
+    }
+
+    /**
+     * Panelden (Ayarlar sayfası) kaydedilen değerleri config.php değerlerinin üstüne yazar.
+     * Kilitlenirseniz config.php'ye 'panel_settings' => false yazın: yalnızca config.php kullanılır.
+     */
+    public static function reloadOverrides(): void
+    {
+        if (self::$overlaying || self::$config === null || (self::$config['panel_settings'] ?? true) === false) {
+            return;
+        }
+        self::$overlaying = true;
+        try {
+            $o = self::db()->getJson('cfg_overrides', []);
+            $hash = self::$db->get('admin_hash', '');
+            if ($hash !== null && $hash !== '') { // panelden değiştirilen şifre
+                self::$config['admin_password_hash'] = $hash;
+            }
+            if (is_array($o)) {
+                foreach (Settings::apply($o) as $k => $v) {
+                    self::$config[$k] = $v;
+                }
+                date_default_timezone_set((string)self::$config['timezone']);
+            }
+        } catch (\Throwable) {
+            // Veritabanı açılamıyorsa config.php değerleriyle devam edilir.
+        } finally {
+            self::$overlaying = false;
+        }
     }
 
     /** Testler için ayarları değiştirir. */

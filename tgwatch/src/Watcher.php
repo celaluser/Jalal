@@ -48,6 +48,10 @@ final class Watcher
                 continue;
             }
             $report['new']++;
+            if ($this->skipped($ch, $p['text'])) { // kanal için tanımlı "yoksay" kelimelerinden biri geçiyor
+                $report['skipped'] = ($report['skipped'] ?? 0) + 1;
+                continue;
+            }
             $kind = Notices::classify($p['text']);
             if ($kind !== null) { // fiyat değişikliği ya da kapatılan servis: yeni servis değildir
                 $nid = $dry ? null : $this->flow->createNotice($u, $p['id'], $p['text'], $kind);
@@ -79,6 +83,18 @@ final class Watcher
             }
         }
         return $report;
+    }
+
+    /** Kanalın "yoksay" kelimelerinden (virgül ya da satırla ayrılmış) biri gönderide geçiyorsa true. */
+    private function skipped(array $ch, string $text): bool
+    {
+        foreach (preg_split('/[,\n]+/u', (string)($ch['skip_words'] ?? '')) as $w) {
+            $w = trim($w);
+            if ($w !== '' && mb_stripos($text, $w) !== false) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** @return list<array> kanal başına rapor */

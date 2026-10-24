@@ -21,10 +21,8 @@ final class Admin
     use BankPages;
     use SecurityPages;
     use ChangePages;
+    use SettingsPages;
 
-    private const MAX_FAILS = 5;
-    private const LOCK_SECONDS = 900;
-    private const IDLE_SECONDS = 7200;
     private const PER_PAGE = 30;
     private const OPEN = ['new', 'awaiting', 'editing'];
 
@@ -77,6 +75,8 @@ final class Admin
             'changes' => $this->changes(),
             'alerts' => $this->alertsPage(),
             'backup' => $this->backupDownload(),
+            'settings' => $this->settingsPage(),
+            'export' => $this->exportCsv(),
             'jobs' => $this->jobs(),
             'job' => $this->job((int)($_GET['id'] ?? 0)),
             'job_txt' => $this->jobTxt((int)($_GET['id'] ?? 0)),
@@ -126,9 +126,15 @@ final class Admin
         if (empty($_SESSION['auth'])) {
             return false;
         }
-        if (time() - (int)($_SESSION['seen'] ?? 0) > self::IDLE_SECONDS) {
+        if (time() - (int)($_SESSION['seen'] ?? 0) > max(5, (int)($this->config['session_minutes'] ?? 120)) * 60) {
             $_SESSION = [];
             session_regenerate_id(true);
+            $_SESSION['csrf'] = bin2hex(random_bytes(32));
+            $this->ui = new Ui($_SESSION['csrf'], $this->nonce);
+            return false;
+        }
+        if (($_SESSION['epoch'] ?? '') !== (string)$this->db->get('session_epoch', '0')) { // "tüm oturumları kapat" sonrası eski oturum
+            $_SESSION = [];
             $_SESSION['csrf'] = bin2hex(random_bytes(32));
             $this->ui = new Ui($_SESSION['csrf'], $this->nonce);
             return false;
@@ -193,6 +199,8 @@ final class Admin
             $o['counts'] = ['queue' => $o['pending'], 'changes' => (new \TgWatch\Notices($this->db))->openCount()];
         }
         $o['flash'] = $this->flash;
+        $o['prefs'] = ['name' => (string)($this->config['panel_name'] ?? 'tgwatch'), 'theme' => (string)($this->config['ui_theme'] ?? 'auto'),
+            'accent' => (string)($this->config['ui_accent'] ?? 'blue'), 'density' => (string)($this->config['ui_density'] ?? 'comfortable')];
         echo $this->ui->page($title, $body, $o);
     }
 
@@ -247,7 +255,7 @@ final class Admin
     private function registerLoginFail(?array $row, string $what = 'şifre'): array
     {
         $fails = ($row && (int)$row['locked_until'] <= time() && (int)$row['locked_until'] > 0) ? 1 : ((int)($row['fails'] ?? 0) + 1);
-        $until = $fails >= self::MAX_FAILS ? time() + self::LOCK_SECONDS : 0;
+        $until = $fails >= max(3, (int)($this->config['max_fails'] ?? 5)) ? time() + max(1, (int)($this->config['lock_minutes'] ?? 15)) * 60 : 0;
         $this->db->run('INSERT INTO login_attempts(ip, fails, locked_until, last_at) VALUES(?,?,?,?) ON CONFLICT(ip) DO UPDATE SET fails = excluded.fails, locked_until = excluded.locked_until, last_at = excluded.last_at',
             [$this->ip(), $fails, $until, time()]);
         $this->db->log('warn', 'web', "Hatalı giriş ($what, $fails): " . $this->ip());
@@ -260,6 +268,7 @@ final class Admin
         $this->db->run('DELETE FROM login_attempts WHERE ip = ?', [$this->ip()]);
         session_regenerate_id(true);
         $_SESSION['auth'] = true;
+        $_SESSION['epoch'] = (string)$this->db->get('session_epoch', '0');
         $_SESSION['seen'] = time();
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
         $this->db->log('info', 'web', 'Panele giriş: ' . $this->ip());
@@ -298,7 +307,7 @@ final class Admin
                 return;
             } else {
                 [, $until] = $this->registerLoginFail($row);
-                $msg = $until ? 'Çok fazla hatalı deneme. Giriş 15 dakika kilitlendi.' : 'Şifre yanlış.';
+                $msg = $until ? 'Çok fazla hatalı deneme. Giriş ' . max(1, (int)($this->config['lock_minutes'] ?? 15)) . ' dakika kilitlendi.' : 'Şifre yanlış.';
             }
         }
         $inner = '<form method="post" action="?p=login" class="stack">' . ($msg !== '' ? '<div class="flash bad">' . Ui::e($msg) . '</div>' : '')
@@ -770,9 +779,15 @@ final class Admin
         foreach ($rows as $c) {
             $u = Ui::e($c['username']);
             [$state, $txt] = !$c['enabled'] ? ['', 'Duraklatıldı'] : ($c['last_error'] ? ['bad', Ui::e($c['last_error'])] : ($c['last_ok_at'] ? ['ok', 'Çalışıyor'] : ['warn', 'Henüz okunmadı']));
-            $h .= '<tr><td><a href="https://t.me/s/' . $u . '" target="_blank" rel="noopener noreferrer"><b>@' . $u . '</b></a>' . ($c['title'] !== '' ? '<div class="src">' . Ui::e($c['title']) . '</div>' : '') . '</td>'
+            $h .= '<tr><td><a href="https://t.me/s/' . $u . '" target="_blank" rel="noopener noreferrer"><b>@' . $u . '</b></a>' . ($c['title'] !== '' ? '<div class="src">' . Ui::e($c['title']) . '</div>' : '')
+                . '<details class="chan-extra"><summary>' . ($c['skip_words'] !== '' ? 'Filtre: ' . Ui::e(mb_strimwidth(str_replace("\n", ', ', $c['skip_words']), 0, 28, '…')) : 'Filtre ve not') . '</summary>'
+                . '<form method="post" action="?p=channel_filter">' . $this->ui->csrfField() . '<input type="hidden" name="id" value="' . (int)$c['id'] . '">'
+                . '<label>Bu kelimeler geçen gönderileri yoksay<input type="text" name="skip_words" value="' . Ui::e(str_replace("\n", ', ', (string)$c['skip_words'])) . '" placeholder="reklam, kampanya, giveaway"></label>'
+                . '<label>Not<input type="text" name="note" value="' . Ui::e((string)$c['note']) . '" maxlength="120"></label>'
+                . '<button class="btn quiet sm">' . Ui::icon('check') . '<span>Kaydet</span></button></form></details>'
+                . ($c['note'] !== '' ? '<div class="src">' . Ui::e($c['note']) . '</div>' : '') . '</td>'
                 . '<td class="tight">' . $this->providerSelect($c, $provs) . '</td>'
-                . '<td><span class="row nowrap">' . Ui::dot($state) . '<span>' . $txt . '</span></span></td>'
+                . '<td><span class="row nowrap">' . Ui::dot($state) . '<span class="trunc" title="' . Ui::e(strip_tags($txt)) . '">' . $txt . '</span></span></td>'
                 . '<td class="tight">' . ($c['last_post_id'] ? '<a href="https://t.me/' . $u . '/' . (int)$c['last_post_id'] . '" target="_blank" rel="noopener noreferrer">' . (int)$c['last_post_id'] . '</a>' : '<span class="muted">—</span>') . '</td>'
                 . '<td class="tight">' . Ui::ago($c['last_checked_at'] ? (int)$c['last_checked_at'] : null) . '</td>'
                 . '<td class="num tight"><a href="?p=jobs&amp;channel=' . $u . '">' . (int)$c['jobs'] . '</a></td>'
@@ -988,7 +1003,7 @@ final class Admin
     {
         $id = (int)($_POST['id'] ?? 0);
         try {
-            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p)) {
+            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p)) {
                 return;
             }
             switch ($p) {

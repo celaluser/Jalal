@@ -47,6 +47,20 @@ return [
     // Telegram API adresi. Boş bırakın; hosting Telegram'a erişemiyorsa kendi ara sunucunuzun adresini yazın.
     'telegram_api_base' => '',
 
+    // Ayarlar sayfasından kaydedilen değerler config.php'nin üstüne yazılır. Kilitlenirseniz false yapın.
+    'panel_settings' => true,
+
+    // Panel ve güvenlik (Ayarlar sayfasından da değiştirilir)
+    'panel_name' => 'tgwatch',
+    'session_minutes' => 120,
+    'max_fails' => 5,
+    'lock_minutes' => 15,
+    'retention_logs_days' => 30,
+    'retention_jobs_days' => 0,   // 0: işleri hiç silme
+    'ui_theme' => 'auto',         // auto | light | dark
+    'ui_accent' => 'blue',
+    'ui_density' => 'comfortable',
+
     // Kanal okuma ayarları
     'fetch_timeout' => 20,
     'cron_time_limit' => 50,      // komut satırı cron'u için saniye

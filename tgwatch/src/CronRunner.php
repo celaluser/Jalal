@@ -102,6 +102,7 @@ final class CronRunner
             $db->set('cron_last_run', (string)time());
             $db->setJson('cron_last_result', ['errors' => $errors, 'seconds' => round(microtime(true) - $started, 2), 'at' => time()]);
             (new Alerts($db))->check(true);
+            (new Cleaner($db, $this->config))->daily();
         }
         $say(sprintf('Bitti: %.1f sn, %d hata.', microtime(true) - $started, $errors));
         return $errors;

@@ -19,6 +19,7 @@ Onaydan sonra yayın yapar. Her şeyi web panelden izleyebilirsin.
 | Claude API çevirisi | Anthropic API'ye erişim var (sahte anahtar 401 döndü); gerçek anahtarla **denenmedi** |
 | Çeviri bankası, eşleştirme, motor, kontrol | Otomatik testler + yerel panel |
 | Sağlayıcı/panel API'sinden gerçek senkron | **Denenmedi** (bu ortamdan erişim yok) |
+| Ayarlar sayfası, şifre değiştirme, oturumlar, tema/vurgu, temizlik, CSV, kanal filtresi | Otomatik testler + tarayıcıda denendi (Chromium) |
 | Ekleme paketi, servis değişikliği duyuruları, uyarılar, Telegram ile giriş, yedek | Otomatik testler + sahte Telegram ile yerel panel. Gerçek Telegram'la **denenmedi** |
 
 ## Dosyalar
@@ -116,6 +117,12 @@ Tasarım Apple'ın arayüz ilkelerini (HIG) izler. Sistem yazı tipi kullanılı
 - **Servis değişiklikleri:** Kanalda "fiyat değişti" ya da "servis kapatıldı" duyurusu gelirse yeni servis sayılmaz. Panelindeki etkilenen servisler bulunur, ne yapman gerektiği yazılır, bota ✅ Yaptım / 🚫 Yoksay butonlu mesaj gider.
 - **Uyarılar ve güvenlik:** Telegram uyarıları (kanal okunamıyor, cron durdu, webhook hatası, Claude limiti, uzun süre servis gelmedi, servis değişikliği, giriş) tür tür açılıp kapatılır; günlük özet saati seçilir. **Telegram ile iki adımlı giriş:** Şifreden sonra bota 6 haneli kod gelir (5 dk, 5 deneme). Açarken önce test kodu doğrulanır, kilitlenme olmaz. Yine de kilitlenirsen `config.php` içine `'login_2fa' => false,` yaz. Hosting Telegram'a doğrudan erişemiyorsa `'telegram_api_base'` ile ara sunucu adresi verilir.
 - **Yedek:** Sağlık sayfasından indir/geri yükle (ayarlar, kanallar, çeviri bankası; API anahtarları yedeğe girmez).
+- **Ayarlar:** `config.php`'deki her şey panelden değişir (Telegram, yayın, kanal okuma, güvenlik, görünüm, veri). Panelden kaydedilen değer `config.php`'nin üstüne yazılır; her satırda değerin nereden geldiği yazar. Token, anahtar gibi gizli değerler ekrana yazılmaz (boş bırakmak = değiştirme). Burada ayrıca:
+  - **Telegram:** botu sına, test mesajı.
+  - **Güvenlik:** şifre değiştirme (açık oturumlar kapanır), "tüm oturumları kapat", son girişler ve hatalı denemeler, oturum süresi ve kilit ayarı. Kilitlenirsen `config.php`'ye `'panel_settings' => false` yaz: yalnızca `config.php` geçerli olur.
+  - **Görünüm:** açık/koyu/sistem teması, 5 vurgu rengi, rahat/sıkı yoğunluk.
+  - **Veri ve bakım:** eski kayıtları ve (istenirse) bitmiş işleri otomatik silme, veritabanını sıkıştırma, tüm servisleri CSV indirme, yedek, sistem bilgisi.
+- **Kanal filtresi ve not:** Kanallar sayfasında her kanal için "şu kelimeler geçen gönderileri yoksay" ve kısa not.
 - **Kısayollar:**
   - **⌘K / Ctrl K:** Komut paleti; sayfaya git ya da iş ara, ok tuşları ve Enter ile.
   - **/:** Aramaya odaklanır.
