@@ -85,6 +85,7 @@ final class Flow
         if (!$items) {
             return null;
         }
+        $items = $this->convertCurrency($items);
         $hash = sha1(trim(preg_replace('/\s+/u', ' ', Normalizer::text($text)) ?? $text));
         if ($this->db->one('SELECT id FROM jobs WHERE (channel = ? AND msg_id = ?) OR (channel = ? AND text_hash = ?)', [$channel, $msgId, $channel, $hash])) {
             return null; // aynı gönderi ya da aynı metin daha önce işlendi
@@ -151,6 +152,39 @@ final class Flow
             $this->sendPreview($id);
         }
         return $id;
+    }
+
+    /** Ayarlar'daki kur tablosu: "RUB=0.011, TRY=0.029" → ['RUB' => 0.011, ...] (1 birim = kaç USD). */
+    public static function fxRates(array $config): array
+    {
+        $out = [];
+        if (preg_match_all('/\b([A-Za-z]{3})\s*=\s*(\d+(?:[.,]\d+)?)/', (string)($config['fx_rates'] ?? ''), $m, PREG_SET_ORDER)) {
+            foreach ($m as $x) {
+                $out[strtoupper($x[1])] = (float)str_replace(',', '.', $x[2]);
+            }
+        }
+        return $out;
+    }
+
+    /** USD dışındaki fiyatları kurla dolara çevirir; kur yoksa fiyatı boş bırakıp asıl tutarı saklar. */
+    private function convertCurrency(array $items): array
+    {
+        $fx = self::fxRates($this->config);
+        foreach ($items as &$it) {
+            $cur = $it['currency'] ?? '';
+            if ($cur === '' || $it['price'] === '') {
+                continue;
+            }
+            $it['price_orig'] = $it['price'] . ' ' . $cur;
+            $rate = $fx[$cur] ?? 0.0;
+            if ($rate > 0) {
+                $it['price'] = rtrim(rtrim(number_format((float)$it['price'] * $rate, 4, '.', ''), '0'), '.');
+            } else {
+                $it['price'] = '';
+                $it['fx_missing'] = true;
+            }
+        }
+        return $items;
     }
 
     private function dedupeDays(): int
@@ -388,6 +422,11 @@ final class Flow
             }
             if (!empty($it['prio'])) {
                 $extra .= '⭐ Öncelikli sağlayıcıda benzeri: #' . (int)$it['prio']['id'] . ($it['prio']['rate'] !== null ? ' · $' . number_format((float)$it['prio']['rate'], 2) : '') . "\n";
+            }
+            if (!empty($it['price_orig'])) {
+                $extra .= !empty($it['fx_missing'])
+                    ? '⚠️ Fiyat ' . $e($it['price_orig']) . ' — kur tanımlı değil (Ayarlar → Kanal okuma → Kurlar)' . "\n"
+                    : '💱 ' . $e($it['price_orig']) . ' ≈ $' . $e($it['price']) . "\n";
             }
             $block = '<b>' . $it['id'] . '</b>' . ($it['price'] !== '' && !$x ? ' · $' . $e($it['price']) : '') . ($it['edited'] ? ' ✏️' : '') . "\n"
                 . '📝 ' . $e($it['name']) . "\n"

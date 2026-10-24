@@ -62,7 +62,7 @@ trait SettingsPages
                     . ((string)$cur !== '' ? '<label class="check sm"><input type="checkbox" name="clear[' . $k . ']" value="1"><span>Temizle</span></label>' : ''),
                 'key' => '<input type="password" id="' . $id . '" name="f[' . $k . ']" value="" autocomplete="off" placeholder="' . ((string)$cur !== '' ? '•••••••• (ayarlı, değiştirmek için yaz)' : 'Henüz girilmedi') . '">'
                     . '<label class="check sm"><input type="checkbox" name="gen[' . $k . ']" value="1"><span>Yeni rastgele anahtar üret</span></label>',
-                default => '<input type="' . ($f['type'] === 'url' ? 'url' : 'text') . '" id="' . $id . '" name="f[' . $k . ']" value="' . Ui::e((string)$cur) . '"' . ($f['type'] === 'url' ? ' placeholder="https://"' : '') . '>',
+                default => '<input type="' . (['url' => 'url', 'email' => 'email'][$f['type']] ?? 'text') . '" id="' . $id . '" name="f[' . $k . ']" value="' . Ui::e((string)$cur) . '"' . ($f['type'] === 'url' ? ' placeholder="https://"' : ($f['type'] === 'email' ? ' placeholder="ornek@mail.com"' : '')) . '>',
             };
             $rows .= '<div class="setting"><div class="setting-l"><label for="' . $id . '">' . Ui::e($f['label']) . '</label>'
                 . ($help !== '' ? '<p class="muted">' . Ui::e($help) . '</p>' : '') . '<span class="src">' . $from . '</span></div><div class="setting-r">' . $input . '</div></div>';
@@ -89,6 +89,7 @@ trait SettingsPages
         return '<h2>Bağlantıyı dene</h2><div class="row">'
             . $this->ui->action('tg_test', 'Botu sına', [], 'quiet', 'check')
             . $this->ui->action('alerts_test', 'Test mesajı gönder', [], 'quiet', 'send')
+            . $this->ui->action('mail_test', 'Test e-postası gönder', [], 'quiet', 'send')
             . Ui::link('?p=health', 'Webhook’u kur (Sağlık)', 'quiet', 'link') . '</div>'
             . '<p class="muted">Token, webhook adresi ya da anahtarı değiştirdiysen Sağlık sayfasından “Webhook’u kur”a bir kez bas.</p>';
     }
@@ -104,7 +105,12 @@ trait SettingsPages
     {
         $key = (string)$this->config['cron_key'];
         $url = $key !== '' ? $this->siblingUrl('webcron.php') . '?key=' . $key : '';
-        return '<h2>cron-job.org adresi</h2><div class="panel panel-pad stack">' . ($url !== ''
+        $mk = (string)$this->config['monitor_key'];
+        $mon = $mk !== '' ? $this->siblingUrl('monitor.php') . '?key=' . $mk : '';
+        $monCard = '<h2>Dış izleme adresi</h2><div class="panel panel-pad stack">' . ($mon !== ''
+            ? '<div class="row"><code id="mon-url">' . Ui::e($mon) . '</code>' . Ui::copy('mon-url') . '</div><p class="muted">UptimeRobot gibi ücretsiz bir servise “HTTP(s) monitor” olarak ekle (5 dk aralık). Cron durursa ya da bir kanal 3 saat okunamazsa adres 503 döner ve o servis sana e-posta atar. Telegram bozulsa da haber alırsın.</p>'
+            : '<p class="muted">Önce yukarıdan “İzleme anahtarı” için “Yeni rastgele anahtar üret”i işaretleyip kaydet.</p>') . '</div>';
+        return $monCard . '<h2>cron-job.org adresi</h2><div class="panel panel-pad stack">' . ($url !== ''
             ? '<div class="row"><code id="cron-url2">' . Ui::e($url) . '</code>' . Ui::copy('cron-url2') . '</div><p class="muted">Her dakika çağrılsın. Anahtar içerir, paylaşma.</p>'
             : '<p class="lvl-error">Önce bir cron anahtarı üret.</p>')
             . '<div class="row">' . $this->ui->action('run_cron', 'Kanalları şimdi oku', ['back' => 'settings'], 'quiet', 'refresh') . '</div></div>';
@@ -199,6 +205,9 @@ trait SettingsPages
                     if (in_array($f['type'], ['secret', 'key'], true) && trim($v) === '') {
                         continue; // boş: mevcut değer korunur
                     }
+                    if (!in_array($f['type'], ['secret', 'key'], true) && trim($v) === trim((string)($this->config[(string)$k] ?? ''))) {
+                        continue; // değişmemiş: kaydetme, "panelden" olarak işaretleme
+                    }
                     $vals[(string)$k] = $v;
                 }
                 foreach ((array)($_POST['gen'] ?? []) as $k => $_) {
@@ -231,6 +240,11 @@ trait SettingsPages
                 $this->db->run('UPDATE channels SET skip_words = ?, auto_approve = ?, note = ? WHERE id = ?', [$words, empty($_POST['auto_approve']) ? 0 : 1, mb_substr(trim((string)($_POST['note'] ?? '')), 0, 120), (int)($_POST['id'] ?? 0)]);
                 $this->say('ok', 'Kanal filtresi kaydedildi.');
                 $this->redirect('channels');
+                return true;
+            case 'mail_test':
+                $ok = (new \TgWatch\Alerts($this->db))->mail('tgwatch test e-postası: uyarılar bu adrese de gelecek.', 'tgwatch test');
+                $this->say($ok ? 'ok' : 'bad', $ok ? 'Test e-postası gönderildi (kutuyu ve spam klasörünü kontrol edin).' : 'E-posta gönderilemedi: adres boş/geçersiz ya da hosting mail() kapalı.');
+                $this->redirect('settings', ['tab' => 'telegram']);
                 return true;
             case 'tg_test':
                 try {

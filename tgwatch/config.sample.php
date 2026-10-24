@@ -67,6 +67,14 @@ return [
     // Öncelikli sağlayıcının numarası (Ayarlar'dan seçilir); boş: kapalı.
     'priority_source' => '',
 
+    // Kanal fiyatı $ dışındaysa kurlar (1 birim = kaç $). Örnek: 'RUB=0.011, TRY=0.029'
+    'fx_rates' => '',
+
+    // Uyarı e-postası (boş: kapalı) ve dış izleme adresi anahtarı (public/monitor.php?key=...)
+    'alert_email' => '',
+    'alert_email_mode' => 'fallback',
+    'monitor_key' => '',
+
     // Kanal okuma ayarları
     'fetch_timeout' => 20,
     'cron_time_limit' => 50,      // komut satırı cron'u için saniye

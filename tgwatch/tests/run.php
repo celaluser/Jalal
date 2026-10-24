@@ -24,6 +24,7 @@ use TgWatch\Translator;
 use TgWatch\Watcher;
 use TgWatch\Settings;
 use TgWatch\Priority;
+use TgWatch\Alerts;
 
 class FakeTelegram extends Telegram
 {
@@ -66,9 +67,13 @@ class FakeTelegram extends Telegram
 final class FakeReader extends ChannelReader
 {
     public array $pages = [];
+    public array $older = [];
 
     public function fetch(string $username, ?int $before = null): array
     {
+        if ($before !== null) {
+            return $this->older[$username][$before] ?? ['ok' => true, 'error' => '', 'title' => '', 'posts' => []];
+        }
         return $this->pages[$username] ?? ['ok' => false, 'error' => 'yok', 'title' => '', 'posts' => []];
     }
 
@@ -1265,6 +1270,124 @@ test('öncelikli sağlayıcı kataloğunda benzeri varsa mesajda gösterilir', f
     $job = $db->job($id);
     eq(900, $job['items'][0]['prio']['id']);
     ok(str_contains(json_encode(end($tg->calls), JSON_UNESCAPED_UNICODE), 'Öncelikli sağlayıcıda benzeri: #900'));
+});
+
+echo "Para birimi, okunamayanlar, kaçırılan gönderi, e-posta, izleme\n";
+test('Parser: ₽ ₺ ₼ € ve satır sonu fiyatları para birimiyle okunur', function () {
+    $i = Parser::parse("🆔 101 Instagram Likes | Fast\nЦена: 88 ₽\n🆔 102 TikTok Views ₺ 12.5\n🆔 103 YouTube Subs -- 8.50 AZN\n🆔 104 Telegram Members 0.5\$");
+    eq(['RUB', 'TRY', 'AZN', null], array_map(static fn($x) => $x['currency'] ?? null, $i));
+    eq(['88', '12.5', '8.50', '0.5'], array_column($i, 'price'));
+});
+test('Kur tanımlıysa dolara çevrilir; yoksa fiyat boş kalır ve işaretlenir', function () {
+    [$db, $tg, $flow] = env();
+    $cfg = App::config();
+    $cfg['fx_rates'] = 'RUB=0.01, TRY=0,029';
+    $f = new Flow($db, $tg, $cfg);
+    $id = $f->createJob('kanal', 1, "🆔 101 Instagram Likes\nЦена: 100 ₽\n🆔 102 TikTok Views 5 AZN");
+    $it = $db->job($id)['items'];
+    eq('1', $it[0]['price']);
+    eq('100 RUB', $it[0]['price_orig']);
+    eq('', $it[1]['price']);
+    ok(!empty($it[1]['fx_missing']));
+    ok(str_contains(json_encode(end($tg->calls), JSON_UNESCAPED_UNICODE), 'kur tanımlı değil'));
+});
+test('Okunamayan ama servis duyurusuna benzeyen gönderi listeye düşer; sohbet düşmez', function () {
+    [$db, $tg, $flow] = env();
+    $reader = new FakeReader();
+    $w = new Watcher($db, $flow, $reader);
+    $w->addChannel('demosmm');
+    $reader->pages['demosmm'] = ['ok' => true, 'error' => '', 'title' => '', 'posts' => [['id' => 1, 'text' => 'x', 'date' => '']]];
+    $w->runAll();
+    $reader->pages['demosmm']['posts'][] = ['id' => 2, 'text' => "New services added!\nInstagram Likes — 4455\nTikTok Views — 4456", 'date' => ''];
+    $reader->pages['demosmm']['posts'][] = ['id' => 3, 'text' => 'Günaydın arkadaşlar, bugün hava çok güzel', 'date' => ''];
+    $r = $w->runAll();
+    eq(1, $r['demosmm']['unparsed'] ?? 0);
+    eq([2], array_map('intval', array_column($db->all('SELECT msg_id FROM unparsed'), 'msg_id')));
+    $w->runAll();
+    eq(1, (int)$db->one('SELECT COUNT(*) c FROM unparsed')['c'], 'tekrar eklenmez');
+});
+test('Kaçırılan gönderiler ?before= ile geriye gidilip telafi edilir', function () {
+    [$db, $tg, $flow] = env();
+    $reader = new FakeReader();
+    $w = new Watcher($db, $flow, $reader);
+    $w->addChannel('demosmm');
+    $reader->pages['demosmm'] = ['ok' => true, 'error' => '', 'title' => '', 'posts' => [['id' => 100, 'text' => 'x', 'date' => '']]];
+    $w->runAll(); // başlangıç noktası 100
+    $mk = static fn($id) => ['id' => $id, 'text' => "🆔 {$id}0 Instagram Likes $id", 'date' => ''];
+    $reader->pages['demosmm']['posts'] = [$mk(120), $mk(121)];                       // sayfa 120'den başlıyor: 101–119 görünmüyor
+    $reader->older['demosmm'][120] = ['ok' => true, 'error' => '', 'title' => '', 'posts' => [$mk(105), $mk(110), $mk(119)]];
+    $r = $w->runAll();
+    eq(5, count($r['demosmm']['jobs']), '3 telafi + 2 yeni');
+    eq(121, (int)$db->one('SELECT last_post_id FROM channels')['last_post_id']);
+});
+test('Telafi edilemeyen büyük boşluk uyarı verir', function () {
+    [$db, $tg, $flow] = env();
+    $reader = new FakeReader();
+    $w = new Watcher($db, $flow, $reader);
+    $w->addChannel('demosmm');
+    $reader->pages['demosmm'] = ['ok' => true, 'error' => '', 'title' => '', 'posts' => [['id' => 100, 'text' => 'x', 'date' => '']]];
+    $w->runAll();
+    $reader->pages['demosmm']['posts'] = [['id' => 150, 'text' => 'y', 'date' => '']];
+    $w->runAll();
+    ok(str_contains(json_encode($tg->calls, JSON_UNESCAPED_UNICODE) . json_encode($db->all('SELECT message FROM logs'), JSON_UNESCAPED_UNICODE), 'atlandı'));
+});
+test('E-posta: Telegram gitmezse yedek yol; açık olduğu için tekrar tekrar gönderilmez', function () {
+    [$db, $tg] = env();
+    $sent = [];
+    $tg2 = new class extends FakeTelegram {
+        public function call(string $method, array $params = [], int $timeout = 20)
+        {
+            throw new RuntimeException('bot kapalı');
+        }
+    };
+    $a = new Alerts($db, $tg2, ['owner_id' => OWNER, 'alert_email' => 'ben@ornek.com', 'alert_email_mode' => 'fallback']);
+    $a->mailer = function ($to, $subj, $text) use (&$sent) {
+        $sent[] = [$to, $text];
+        return true;
+    };
+    ok($a->send('k1', 'cron', '⚠️ <b>Cron durdu</b>'));
+    ok(!$a->send('k1', 'cron', '⚠️ <b>Cron durdu</b>'), 'bekleme süresi');
+    eq(1, count($sent));
+    ok(str_contains($sent[0][1], 'Cron durdu') && !str_contains($sent[0][1], '<b>'));
+    $b = new Alerts($db, $tg2, ['owner_id' => OWNER, 'alert_email' => '']);
+    ok(!$b->send('k2', 'cron', 'x'), 'e-posta yoksa gitmez');
+    [$db2, $tg3] = env();
+    $got = [];
+    $c = new Alerts($db2, $tg3, ['owner_id' => OWNER, 'alert_email' => 'ben@ornek.com', 'alert_email_mode' => 'fallback']);
+    $c->mailer = function () use (&$got) {
+        $got[] = 1;
+        return true;
+    };
+    $c->send('k3', 'cron', 'x');
+    eq(0, count($got), 'Telegram gittiyse fallback modunda e-posta yok');
+    $d = new Alerts($db2, $tg3, ['owner_id' => OWNER, 'alert_email' => 'ben@ornek.com', 'alert_email_mode' => 'all']);
+    $d->mailer = $c->mailer;
+    $d->send('k4', 'cron', 'x');
+    eq(1, count($got));
+});
+test('Onaylı ama eklenmeyen iş günde bir hatırlatılır', function () {
+    [$db, $tg, $flow] = env();
+    $old = time() - 30 * 3600;
+    $db->run("INSERT INTO jobs(channel,msg_id,text_hash,source_text,items_json,status,created_at,updated_at) VALUES('c',1,'h','x','[]','approved',?,?)", [$old, $old]);
+    $a = new Alerts($db, $tg, ['owner_id' => OWNER]);
+    $a->check();
+    ok(str_contains(json_encode($tg->calls, JSON_UNESCAPED_UNICODE), 'panele eklenmeyi bekliyor'));
+});
+test('İzleme: cron ve kanal sorunları listelenir, sağlıklıysa boş', function () {
+    [$db] = env();
+    ok(count(TgWatch\Monitor::problems($db)) >= 1, 'cron hiç çalışmadı');
+    $db->set('cron_last_run', (string)time());
+    eq([], TgWatch\Monitor::problems($db));
+    $db->run("INSERT INTO channels(username, created_at, enabled, last_error, last_ok_at) VALUES('bozuk', 1, 1, 'HTTP 404', ?)", [time() - 5 * 3600]);
+    ok(str_contains(TgWatch\Monitor::problems($db)[0], '@bozuk'));
+    $db->set('cron_last_run', (string)(time() - 3600));
+    eq(2, count(TgWatch\Monitor::problems($db)));
+});
+test('Ayar: e-posta ve izleme anahtarı doğrulanır', function () {
+    eq(false, Settings::check('alert_email', 'bozuk')[0]);
+    eq([true, ''], Settings::check('alert_email', ''));
+    eq([true, 'a@b.co'], Settings::check('alert_email', 'a@b.co'));
+    eq(false, Settings::check('monitor_key', 'kisa')[0]);
 });
 
 // temizlik

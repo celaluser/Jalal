@@ -215,6 +215,77 @@ trait ToolPages
         fclose($out);
     }
 
+    // ---------------------------------------------------------------- okunamayanlar
+
+    private function unparsedCount(): int
+    {
+        return (int)$this->db->one("SELECT COUNT(*) c FROM unparsed WHERE status = 'open'")['c'];
+    }
+
+    private function unparsedPage(): void
+    {
+        $rows = $this->db->all("SELECT * FROM unparsed WHERE status = 'open' ORDER BY id DESC LIMIT 100");
+        $h = '<p class="muted lead">Servis duyurusuna benzeyen ama otomatik ayrıştırılamayan gönderiler: ID satırı yok, biçim farklı ya da liste bölünmüş olabilir. Metni düzeltip iş yap ya da yoksay.</p>';
+        if (!$rows) {
+            $this->render('Okunamayanlar', $h . Ui::empty('Okunamayan gönderi yok', 'Servis duyurusuna benzeyen her gönderi iş oluşturabildi.'), ['active' => 'unparsed']);
+            return;
+        }
+        foreach ($rows as $r) {
+            $h .= '<section class="card gap-top"><div class="card-h"><h3><a href="https://t.me/' . Ui::e($r['channel']) . '/' . (int)$r['msg_id'] . '" target="_blank" rel="noopener noreferrer">@' . Ui::e($r['channel']) . ' · ' . (int)$r['msg_id'] . '</a></h3>'
+                . '<span class="muted">' . Ui::ago((int)$r['created_at']) . '</span></div>'
+                . '<p class="lvl-warn">' . Ui::e($r['reason']) . '</p><div class="code"><pre>' . Ui::e(mb_strimwidth($r['text'], 0, 1200, '…')) . '</pre></div>'
+                . '<div class="row gap-top">' . $this->ui->action('unparsed_fix', 'Düzeltip iş yap', ['id' => $r['id']], 'primary sm', 'edit')
+                . $this->ui->action('unparsed_dismiss', 'Yoksay', ['id' => $r['id']], 'ghost sm', 'x') . '</div></section>';
+        }
+        $this->render('Okunamayanlar', $h, ['active' => 'unparsed', 'actions' => $this->ui->action('unparsed_dismiss', 'Hepsini yoksay', ['id' => 'all'], 'quiet', 'x', 'Listedeki tüm gönderiler yoksayılsın mı?')]);
+    }
+
+    // ---------------------------------------------------------------- dikkat gerekenler (Genel bakış)
+
+    /** @return list<array{0:string,1:string,2:string,3:string}> [önem, metin, bağlantı, düğme] */
+    private function attentionItems(): array
+    {
+        $a = [];
+        $n = $this->unparsedCount();
+        if ($n > 0) {
+            $a[] = ['warn', $n . ' gönderi okunamadı, servis duyurusu olabilir', '?p=unparsed', 'İncele'];
+        }
+        $s = $this->db->one("SELECT COUNT(*) c FROM jobs WHERE status = 'approved' AND updated_at < ?", [time() - 24 * 3600]);
+        if ($s && (int)$s['c'] > 0) {
+            $a[] = ['warn', $s['c'] . ' onaylı iş 24 saatten uzun süredir panele eklenmeyi bekliyor', '?p=jobs&status=approved', 'Aç'];
+        }
+        $old = $this->db->one("SELECT COUNT(*) c FROM jobs WHERE status IN ('new','awaiting','editing') AND created_at < ?", [time() - 12 * 3600]);
+        if ($old && (int)$old['c'] > 0) {
+            $a[] = ['warn', $old['c'] . ' iş 12 saatten uzun süredir karar bekliyor', '?p=queue', 'Kuyruk'];
+        }
+        $gap = $this->db->one("SELECT COUNT(*) c FROM logs WHERE level = 'warn' AND source = 'channel' AND message LIKE '%atlandı%' AND ts > ?", [time() - 86400]);
+        if ($gap && (int)$gap['c'] > 0) {
+            $a[] = ['bad', 'Son 24 saatte kaçırılmış gönderi olabilir (cron durmuş)', '?p=logs&source=channel', 'Kayıtlar'];
+        }
+        $mon = \TgWatch\Monitor::problems($this->db);
+        foreach (array_slice($mon, 0, 3) as $m) {
+            $a[] = ['bad', $m, '?p=health', 'Sağlık'];
+        }
+        $cfg = $this->config;
+        if ((string)($cfg['alert_email'] ?? '') === '' && (string)($cfg['monitor_key'] ?? '') === '') {
+            $a[] = ['info', 'Telegram dışında ikinci bir uyarı yolu yok (e-posta ya da dış izleme)', '?p=settings&tab=telegram', 'Ayarla'];
+        }
+        return $a;
+    }
+
+    private function attentionStrip(): string
+    {
+        $items = $this->attentionItems();
+        if (!$items) {
+            return '';
+        }
+        $h = '<section class="attn" aria-label="Dikkat gerekenler"><h2 class="first">Dikkat gerekenler</h2><div class="attn-grid">';
+        foreach ($items as [$sev, $text, $href, $btn]) {
+            $h .= '<a class="attn-item ' . Ui::e($sev) . '" href="' . Ui::e($href) . '">' . Ui::icon($sev === 'info' ? 'bell' : 'alert', 18) . '<span>' . Ui::e($text) . '</span><b>' . Ui::e($btn) . ' →</b></a>';
+        }
+        return $h . '</div></section>';
+    }
+
     // ---------------------------------------------------------------- POST
 
     private function deleteJob(int $id): string
@@ -256,6 +327,22 @@ trait ToolPages
                     $this->say('ok', "İş $id oluşturuldu ve bota gönderildi.");
                     $this->redirect('job', ['id' => $id]);
                 }
+                return true;
+            case 'unparsed_fix':
+                $r = $this->db->one('SELECT * FROM unparsed WHERE id = ?', [(int)($_POST['id'] ?? 0)]);
+                if ($r) {
+                    $_SESSION['job_new_text'] = $r['text'];
+                    $this->db->run("UPDATE unparsed SET status = 'converted' WHERE id = ?", [(int)$r['id']]);
+                }
+                $this->redirect('job_new');
+                return true;
+            case 'unparsed_dismiss':
+                if (($_POST['id'] ?? '') === 'all') {
+                    $this->db->run("UPDATE unparsed SET status = 'dismissed' WHERE status = 'open'");
+                } else {
+                    $this->db->run("UPDATE unparsed SET status = 'dismissed' WHERE id = ?", [(int)($_POST['id'] ?? 0)]);
+                }
+                $this->redirect('unparsed');
                 return true;
             case 'job_delete':
                 $msg = $this->deleteJob((int)($_POST['id'] ?? 0));

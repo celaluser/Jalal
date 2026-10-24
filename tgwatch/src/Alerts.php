@@ -17,6 +17,8 @@ final class Alerts
         'cron' => ['Kanal okuma durdu', 'Cron 15 dakikadan uzun süredir çalışmadıysa'],
         'webhook' => ['Telegram webhook hatası', 'Telegram bot adresine ulaşamıyorsa'],
         'claude' => ['Claude kullanım sınırı', 'Aylık istek sınırının %80 ve %100\'üne gelince'],
+        'gap' => ['Kaçırılmış gönderi', 'Cron uzun süre durup dönünce kanalın eski gönderileri okunamadıysa'],
+        'unpublished' => ['Onaylandı ama panele eklenmedi', 'Onaylı servisler 24 saatten uzun süredir "yayın bekliyor" durumundaysa (günde bir kez)'],
         'stale' => ['Uzun süredir bekleyen iş', 'Bir iş 12 saatten uzun süredir onay bekliyorsa (günde bir kez)'],
         'change' => ['Servis değişikliği', 'Fiyat değişikliği ya da kapatılan servis duyurusu gelince'],
         'login' => ['Panele giriş', 'Panele her başarılı girişte (kim, nereden)'],
@@ -53,20 +55,58 @@ final class Alerts
         return ['on' => $this->db->get('alerts_daily', '0') === '1', 'hour' => max(0, min(23, (int)$this->db->get('alerts_daily_hour', '21')))];
     }
 
+    /**
+     * Önce Telegram; alert_email tanımlıysa Telegram gitmediğinde (ya da alert_email_mode = all ise her zaman) e-posta da gönderilir.
+     * Telegram çalışmazsa uyarının ulaşabileceği ikinci yol budur.
+     */
     private function deliver(string $html): bool
     {
+        $tgOk = false;
         $owner = (int)($this->config['owner_id'] ?? 0);
-        if ($owner <= 0) {
-            return false;
+        if ($owner > 0) {
+            try {
+                $this->tg->sendMessage($owner, $html);
+                $tgOk = true;
+            } catch (\Throwable $e) {
+                $this->db->log('error', 'alert', 'Uyarı gönderilemedi: ' . $e->getMessage());
+            }
         }
-        try {
-            $this->tg->sendMessage($owner, $html);
-            return true;
-        } catch (\Throwable $e) {
-            $this->db->log('error', 'alert', 'Uyarı gönderilemedi: ' . $e->getMessage());
-            return false;
+        $mailOk = false;
+        if ($this->emailTo() !== '' && (!$tgOk || ($this->config['alert_email_mode'] ?? 'fallback') === 'all')) {
+            $mailOk = $this->mail($html);
         }
+        return $tgOk || $mailOk;
     }
+
+    public function emailTo(): string
+    {
+        $m = trim((string)($this->config['alert_email'] ?? ''));
+        return filter_var($m, FILTER_VALIDATE_EMAIL) ? $m : '';
+    }
+
+    /** E-posta gönderimi (hosting mail()). Gönderim kabul edildi mi bilgisi döner; teslim garanti değildir. */
+    public function mail(string $html, string $subject = 'tgwatch uyarısı'): bool
+    {
+        $to = $this->emailTo();
+        if ($to === '') {
+            return false;
+        }
+        $host = preg_replace('/[^A-Za-z0-9.\-]/', '', (string)($_SERVER['HTTP_HOST'] ?? 'localhost')) ?: 'localhost';
+        $text = html_entity_decode(strip_tags(str_replace(['<br>', '<br/>'], "\n", $html)), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $headers = "From: tgwatch <tgwatch@$host>\r\nContent-Type: text/plain; charset=UTF-8\r\nMIME-Version: 1.0";
+        try {
+            $ok = $this->mailer ? ($this->mailer)($to, $subject, $text) : @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $text, $headers);
+        } catch (\Throwable) {
+            $ok = false;
+        }
+        if (!$ok) {
+            $this->db->log('error', 'alert', 'E-posta gönderilemedi: ' . $to);
+        }
+        return (bool)$ok;
+    }
+
+    /** @var (callable(string,string,string):bool)|null testler için */
+    public $mailer = null;
 
     /** Anahtar için uyarı gönder; bekleme süresi dolmadıysa gönderme. */
     public function send(string $key, string $type, string $html, int $cooldown = 21600): bool
@@ -126,6 +166,7 @@ final class Alerts
             $this->checkCron($now, $fromCron);
             $this->checkClaude($now);
             $this->checkStale($now);
+            $this->checkUnpublished($now);
             $this->checkDaily($now);
         } catch (\Throwable $e) {
             $this->db->log('error', 'alert', 'Uyarı kontrolü: ' . $e->getMessage());
@@ -170,6 +211,20 @@ final class Alerts
             $this->send("claude100:$month", 'claude', "🛑 <b>Claude aylık sınırı doldu</b> ($n / $limit). Yeni adlar banka ve kurallarla çevrilecek. Sınırı Çeviri ayarlarından artırabilirsiniz.", 40 * 86400);
         } elseif ($n >= (int)ceil($limit * 0.8)) {
             $this->send("claude80:$month", 'claude', "⚠️ Claude aylık sınırının %80'ine gelindi ($n / $limit).", 40 * 86400);
+        }
+    }
+
+    private function checkUnpublished(int $now): void
+    {
+        $row = $this->db->one("SELECT COUNT(*) c, MIN(updated_at) first FROM jobs WHERE status = 'approved' AND updated_at < ?", [$now - 24 * 3600]);
+        if ($row && (int)$row['c'] > 0) {
+            $this->send('unpublished', 'unpublished', '📦 <b>' . (int)$row['c'] . ' onaylı iş</b> ' . intdiv($now - (int)$row['first'], 3600) . " saattir panele eklenmeyi bekliyor.\nPanel → İşler → \"Onaylandı\" filtresinden ekleme paketini alıp Perfect Panel'e ekleyin, sonra \"Sitede yayınlandı\" işaretleyin.", 86400);
+        } else {
+            $st = $this->db->getJson('alerts_state', []);
+            if (!empty($st['unpublished']['active'])) {
+                $st['unpublished']['active'] = false;
+                $this->db->setJson('alerts_state', $st);
+            }
         }
     }
 

@@ -14,7 +14,7 @@ final class Ui
 {
     /** Gezinme: grup => [sayfa => [ad, ikon]] (kenar menü en fazla iki seviye: HIG › Sidebars) */
     public const NAV = [
-        'Masa' => ['dash' => ['Genel bakış', 'gauge'], 'queue' => ['Onay kuyruğu', 'queue'], 'jobs' => ['İşler', 'jobs'], 'changes' => ['Servis değişiklikleri', 'change']],
+        'Masa' => ['dash' => ['Genel bakış', 'gauge'], 'queue' => ['Onay kuyruğu', 'queue'], 'jobs' => ['İşler', 'jobs'], 'changes' => ['Servis değişiklikleri', 'change'], 'unparsed' => ['Okunamayanlar', 'alert']],
         'Kaynaklar' => ['channels' => ['Kanallar', 'channels']],
         'Çeviri' => ['dict' => ['Sözlük', 'dict'], 'bank' => ['Çeviri bankası', 'bank'], 'ai' => ['Çeviri ayarları', 'sliders']],
         'Araçlar' => ['catalog' => ['Servisler', 'search'], 'audit' => ['Fiyat denetimi', 'gauge'], 'reports' => ['Raporlar', 'logs']],
@@ -212,14 +212,25 @@ final class Ui
             . '<input type="search" name="q" placeholder="Servis ID, iş ya da kelime ara" aria-label="İşlerde ara" autocomplete="off"><kbd class="js-only" data-open-cmd title="Komut paleti">⌘K</kbd></form>'
             . '</div>';
 
+        $palette .= '<li><a href="?p=job_new" data-cmd="yeni iş duyuru yapıştır ekle">' . self::icon('plus', 16) . '<span>Yeni iş ekle</span><small>İşlem</small></a></li>'
+            . '<li><a href="?p=settings&amp;tab=telegram" data-cmd="ayarlar telegram bot token e-posta">' . self::icon('gear', 16) . '<span>Ayarlar: Telegram ve e-posta</span><small>Ayarlar</small></a></li>'
+            . '<li><a href="?p=settings&amp;tab=security" data-cmd="ayarlar güvenlik şifre oturum">' . self::icon('gear', 16) . '<span>Ayarlar: Güvenlik ve şifre</span><small>Ayarlar</small></a></li>'
+            . '<li><a href="?p=settings&amp;tab=appearance" data-cmd="ayarlar görünüm tema renk koyu">' . self::icon('gear', 16) . '<span>Ayarlar: Görünüm ve tema</span><small>Ayarlar</small></a></li>';
+        $help = '<dialog class="cmd glass help" id="help" aria-label="Klavye kısayolları"><div class="help-in"><h3>Klavye kısayolları</h3><dl>'
+            . '<dt><kbd>⌘K</kbd> / <kbd>Ctrl K</kbd></dt><dd>Komut paleti: sayfa, ayar ya da iş ara</dd>'
+            . '<dt><kbd>/</kbd></dt><dd>Aramaya odaklan</dd>'
+            . '<dt><kbd>g</kbd> <kbd>d</kbd></dt><dd>Genel bakış</dd><dt><kbd>g</kbd> <kbd>q</kbd></dt><dd>Onay kuyruğu</dd>'
+            . '<dt><kbd>g</kbd> <kbd>j</kbd></dt><dd>İşler</dd><dt><kbd>g</kbd> <kbd>c</kbd></dt><dd>Kanallar</dd>'
+            . '<dt><kbd>g</kbd> <kbd>u</kbd></dt><dd>Okunamayanlar</dd><dt><kbd>g</kbd> <kbd>s</kbd></dt><dd>Ayarlar</dd>'
+            . '<dt><kbd>n</kbd></dt><dd>Yeni iş</dd><dt><kbd>?</kbd></dt><dd>Bu pencere</dd></dl><form method="dialog"><button class="btn quiet">Kapat</button></form></div></dialog>';
         $cmd = '<dialog class="cmd glass" id="cmd" aria-label="Komut paleti"><form method="dialog" class="cmd-in">' . self::icon('search')
             . '<input type="text" id="cmd-q" placeholder="Sayfaya git ya da servis ID / iş ara…" autocomplete="off" aria-label="Komut ara"><kbd>esc</kbd></form>'
             . '<ul class="cmd-list" id="cmd-list">' . $palette . '<li data-search><a href="?p=jobs&amp;q=" id="cmd-search">' . self::icon('search', 16) . '<span>İşlerde ara: <b id="cmd-term"></b></span><small>Arama</small></a></li></ul></dialog>';
 
         return $doc . '<body class="app"><a class="skip" href="#main">İçeriğe geç</a>' . $side
-            . '<div class="shell">' . $toolbar . '<main class="main" id="main">' . $head . $flash . $body . '<footer class="foot"><span>' . self::e($name) . ' v' . \TgWatch\VERSION . '</span><a href="?p=settings">Ayarlar</a><a href="?p=health">Sağlık</a><a href="?p=logs">Kayıtlar</a></footer></main></div>'
+            . '<div class="shell">' . $toolbar . '<main class="main" id="main">' . $head . $flash . $body . '<footer class="foot"><span>' . self::e($name) . ' v' . \TgWatch\VERSION . '</span><a href="?p=settings">Ayarlar</a><a href="?p=health">Sağlık</a><a href="?p=logs">Kayıtlar</a><a href="#" data-open-help>Kısayollar <kbd>?</kbd></a></footer></main></div>'
             . '<nav class="tabbar glass" aria-label="Sekmeler">' . $tabs . '</nav>'
-            . $cmd . '<div class="tip" id="tip" role="tooltip" hidden></div><div id="toasts" role="status" aria-live="polite"></div>'
+            . $cmd . $help . '<div class="tip" id="tip" role="tooltip" hidden></div><div id="toasts" role="status" aria-live="polite"></div>'
             . '<script nonce="' . $this->nonce . '">' . self::JS . '</script></body></html>';
     }
 
@@ -326,6 +337,18 @@ final class Ui
     });
     cmd.addEventListener('click', function (e) { if (e.target === cmd) cmd.close(); });
   }
+  // Kısayollar: "g" + harf sayfaya gider, "n" yeni iş, "?" yardım
+  var gPending = false, gTimer = 0, GO = { d: 'dash', q: 'queue', j: 'jobs', c: 'channels', u: 'unparsed', s: 'settings', l: 'logs', h: 'health', r: 'reports' };
+  var help = d.getElementById('help');
+  d.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-open-help]')) { e.preventDefault(); if (help && help.showModal) help.showModal(); } });
+  d.addEventListener('keydown', function (e) {
+    var t = (e.target.tagName || '').toLowerCase();
+    if (e.metaKey || e.ctrlKey || e.altKey || t === 'input' || t === 'textarea' || t === 'select' || d.querySelector('dialog[open]')) return;
+    if (e.key === '?') { e.preventDefault(); if (help && help.showModal) help.showModal(); return; }
+    if (gPending) { gPending = false; clearTimeout(gTimer); var p = GO[e.key.toLowerCase()]; if (p) { e.preventDefault(); load('?p=' + p); } return; }
+    if (e.key === 'g') { gPending = true; gTimer = setTimeout(function () { gPending = false; }, 1200); }
+    else if (e.key === 'n') { e.preventDefault(); load('?p=job_new'); }
+  });
   d.addEventListener('keydown', function (e) {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openCmd(); }
     var tag = (e.target.tagName || '').toLowerCase();
@@ -370,6 +393,11 @@ final class Ui
   }
   toasts(); if (mainEl) countUp(mainEl);
 
+  function titleCount(n) {
+    if (n === undefined) { var q = d.querySelector('.nav a[href="?p=queue"] .count'); n = q ? parseInt(q.textContent, 10) || 0 : 0; }
+    var base = d.title.replace(/^\(\d+\)\s*/, ''); d.title = n > 0 ? '(' + n + ') ' + base : base;
+  }
+  titleCount();
   function setBadge(href, n) {
     d.querySelectorAll('.nav a[href="?p=' + href + '"], .tabbar a[href="?p=' + href + '"]').forEach(function (a) {
       var c = a.querySelector('.count, .tab-badge');
@@ -386,7 +414,7 @@ final class Ui
       mainEl.classList.toggle('quiet', mode === 'live');
       mainEl.innerHTML = nm.innerHTML;
       ['.side .nav', '.side-foot', '.tabbar', '.tb-title'].forEach(function (s) { var a = d.querySelector(s), b = doc.querySelector(s); if (a && b) a.innerHTML = b.innerHTML; });
-      d.title = doc.title;
+      d.title = doc.title; titleCount();
       toasts(); if (mode !== 'live') countUp(mainEl);
     };
     if (d.startViewTransition && !reduce && mode !== 'live') d.startViewTransition(apply); else apply();
@@ -453,7 +481,7 @@ final class Ui
     fetch('?p=live', { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
       .then(function (r) { if (!/json/.test(r.headers.get('content-type') || '')) { location.reload(); throw 0; } return r.json(); })
       .then(function (s) {
-        setBadge('queue', s.queue); setBadge('changes', s.changes);
+        titleCount(s.queue); setBadge('queue', s.queue); setBadge('changes', s.changes); setBadge('unparsed', s.unparsed);
         if (shown === null) { shown = s.sig; newest = s.newest; liveUi('ok'); return; }
         if (s.newest > newest) { toast('Yeni servis duyurusu geldi', 'ok'); newest = s.newest; }
         var p = new URL(location.href).searchParams.get('p') || 'dash';
@@ -875,6 +903,25 @@ input[type=file]::file-selector-button{font:inherit;font-weight:500;background:v
 .live.off .pulse{background:var(--text-3);animation:none}.live.err .pulse{background:var(--bad);animation:none}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 @media (max-width:760px){.live span{display:none}.live{margin-right:6px}#toasts{top:auto;bottom:calc(90px + env(safe-area-inset-bottom));right:14px}}
+
+/* ===== Dikkat gerekenler, yardım penceresi, tablo etkileşimi ===== */
+.attn{margin:0 0 22px}
+.attn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
+.attn-item{display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:var(--r-m);background:var(--surface);border:1px solid var(--sep-2);box-shadow:var(--shadow);color:var(--text);position:relative;overflow:hidden;transition:transform .18s,box-shadow .18s}
+.attn-item::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--warn)}
+.attn-item.bad::before{background:var(--bad)}.attn-item.info::before{background:var(--accent)}
+.attn-item .ic{flex:none;color:var(--warn)}.attn-item.bad .ic{color:var(--bad)}.attn-item.info .ic{color:var(--accent-text)}
+.attn-item span{flex:1;font-size:14px;line-height:1.35}
+.attn-item b{flex:none;font-size:13px;color:var(--accent-text);font-weight:600;white-space:nowrap}
+.attn-item:hover{text-decoration:none;transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.09)}
+.help-in{padding:22px 24px;min-width:min(420px,86vw)}
+.help-in h3{margin:0 0 14px;font-size:17px}
+.help dl{display:grid;grid-template-columns:auto 1fr;gap:9px 18px;margin:0 0 18px;align-items:center}
+.help dt{white-space:nowrap}.help dd{margin:0;color:var(--text-2);font-size:14px}
+tbody tr{transition:background-color .12s}
+tbody tr:hover>td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+.edit-table tbody tr:hover>td{background:transparent}
+.foot kbd{margin-left:4px}
 
 CSS;
 }

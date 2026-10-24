@@ -39,8 +39,11 @@ final class Watcher
             return $report;
         }
 
-        $maxId = $res['posts'] ? max(array_column($res['posts'], 'id')) : (int)$ch['last_post_id'];
         $last = $ch['last_post_id'] === null ? null : (int)$ch['last_post_id'];
+        if ($last !== null && $backfill === 0 && $res['posts']) {
+            $res['posts'] = $this->catchUp($u, $last, $res['posts'], $dry);
+        }
+        $maxId = $res['posts'] ? max(array_column($res['posts'], 'id')) : (int)$ch['last_post_id'];
 
         foreach ($res['posts'] as $p) {
             $isNew = $backfill > 0 || ($last !== null && $p['id'] > $last);
@@ -60,6 +63,11 @@ final class Watcher
             }
             $items = Parser::parse($p['text']);
             if (!$items) {
+                $reason = self::unparsedReason($p['text']);
+                if ($reason !== null && !$dry) { // servis duyurusuna benziyor ama okunamadı: panelde "Okunamayanlar" listesine düş
+                    $this->db->run('INSERT OR IGNORE INTO unparsed(channel, msg_id, text, reason, created_at) VALUES(?,?,?,?,?)', [$u, $p['id'], $p['text'], $reason, time()]);
+                    $report['unparsed'] = ($report['unparsed'] ?? 0) + 1;
+                }
                 continue;
             }
             $report['found'][] = ['id' => $p['id'], 'items' => $items];
@@ -83,6 +91,61 @@ final class Watcher
             }
         }
         return $report;
+    }
+
+    /**
+     * Sayfa son ~20 gönderiyi verir. Cron uzun süre durup dönerse aradaki gönderiler sayfanın dışında kalır:
+     * ?before= ile geriye giderek last_post_id'ye kadar tamamlar. Hâlâ boşluk varsa uyarır.
+     * @return list<array>
+     */
+    private function catchUp(string $u, int $last, array $posts, bool $dry): array
+    {
+        $min = min(array_column($posts, 'id'));
+        $guard = 0;
+        $fetched = 0;
+        while ($min > $last + 1 && $guard++ < 6) {
+            $older = $this->reader->fetch($u, $min);
+            if (!$older['ok'] || !$older['posts']) {
+                break;
+            }
+            $before = array_filter($older['posts'], static fn($p) => $p['id'] < $min);
+            if (!$before) {
+                break;
+            }
+            $fetched += count(array_filter($before, static fn($p) => $p['id'] > $last));
+            $posts = array_merge($before, $posts);
+            $min = min(array_column($posts, 'id'));
+        }
+        $gap = $min - $last - 1; // kayıp kalan mesaj numarası sayısı (silinen mesajlar da buna dahildir)
+        if (!$dry) {
+            if ($fetched > 0) {
+                $this->db->log('info', 'channel', "@$u: $fetched kaçırılmış gönderi geriye gidilerek telafi edildi");
+            }
+            if ($gap > 5) {
+                $this->db->log('warn', 'channel', "@$u: $gap mesaj numarası atlandı (cron uzun süre durmuş olabilir), eski gönderiler okunamadı");
+                try {
+                    (new Alerts($this->db))->send("gap:$u", 'gap', "🕳 <b>@" . Telegram::esc($u) . "</b>: yaklaşık $gap gönderi okunamadan geçilmiş olabilir.\nKanalı Telegram'da elle kontrol edin ya da Kanallar → Geçmiş duyuruları işle'yi kullanın.", 86400);
+                } catch (\Throwable) {
+                }
+            }
+        }
+        return $posts;
+    }
+
+    /** Servis duyurusuna benzeyen ama ayrıştırılamayan metin için neden; benzemiyorsa null. */
+    public static function unparsedReason(string $text): ?string
+    {
+        $t = trim($text);
+        if ($t === '') {
+            return null;
+        }
+        $hasNum = preg_match('/(?<![\d.,])\d{3,7}(?![\d.,])/u', $t) === 1;
+        $kw = preg_match('/\b(service|servis|xidmət|услуг|новин|добавл|нов(?:ый|ые|ая)|new|added|price|prices|qiymət|fiyat|цена|цены|rate)\b|🆔|\$|₽|₺|₼|€/iu', $t) === 1;
+        $lines = preg_match_all('/^.*(?<![\d.,])\d{3,7}(?![\d.,]).*$/mu', $t);
+        if ($hasNum && $kw) {
+            return $lines >= 2 ? 'Birden çok satırda ID var ama ad ayrıştırılamadı' : 'ID benzeri sayı ve servis kelimeleri var ama biçim tanınmadı';
+        }
+        return $lines >= 3 ? 'Birçok satırda sayı var, servis listesi olabilir' : null;
     }
 
     /** Kanalın "yoksay" kelimelerinden (virgül ya da satırla ayrılmış) biri gönderide geçiyorsa true. */

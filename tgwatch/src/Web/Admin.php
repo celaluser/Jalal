@@ -78,6 +78,7 @@ final class Admin
             'backup' => $this->backupDownload(),
             'live' => $this->live(),
             'job_new' => $this->jobNewPage(),
+            'unparsed' => $this->unparsedPage(),
             'catalog' => $this->catalogPage(),
             'audit' => $this->auditPage(),
             'reports' => $this->reportsPage(),
@@ -205,9 +206,9 @@ final class Admin
         $j = $this->db->one('SELECT COUNT(*) c, COALESCE(MAX(updated_at),0) m, COALESCE(MAX(id),0) i FROM jobs');
         $n = $this->db->one('SELECT COUNT(*) c, COALESCE(MAX(updated_at),0) m FROM notices');
         $cron = $this->cronState();
-        $sig = md5(implode('|', [$j['c'], $j['m'], $j['i'], $n['c'], $n['m'], $q, $this->db->get('cron_last_run', '0'), $this->db->get('cron_last_result', '')]));
+        $sig = md5(implode('|', [$this->unparsedCount(), $j['c'], $j['m'], $j['i'], $n['c'], $n['m'], $q, $this->db->get('cron_last_run', '0'), $this->db->get('cron_last_result', '')]));
         header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['sig' => $sig, 'queue' => $q, 'changes' => $notices->openCount(), 'cron' => $cron, 'newest' => (int)$j['i'], 'at' => time()]);
+        echo json_encode(['sig' => $sig, 'queue' => $q, 'changes' => $notices->openCount(), 'unparsed' => $this->unparsedCount(), 'cron' => $cron, 'newest' => (int)$j['i'], 'at' => time()]);
     }
 
     private function render(string $title, string $body, array $o = []): void
@@ -215,7 +216,7 @@ final class Admin
         $nav = $o['nav'] ?? true;
         if ($nav && isset($this->db)) {
             $o += ['pending' => $this->pending(), 'cron' => $this->cronState()];
-            $o['counts'] = ['queue' => $o['pending'], 'changes' => (new \TgWatch\Notices($this->db))->openCount()];
+            $o['counts'] = ['queue' => $o['pending'], 'changes' => (new \TgWatch\Notices($this->db))->openCount(), 'unparsed' => $this->unparsedCount()];
         }
         $o['flash'] = $this->flash;
         $o['prefs'] = ['name' => (string)($this->config['panel_name'] ?? 'tgwatch'), 'theme' => (string)($this->config['ui_theme'] ?? 'auto'),
@@ -542,7 +543,7 @@ final class Admin
         $activity = '<section class="card c-6"><div class="card-h"><h3>Son etkinlik</h3><a href="?p=logs">Kayıtlar</a></div>'
             . ($tl ? '<ul class="timeline">' . $tl . '</ul>' : '<p class="muted">Henüz kayıt yok.</p>') . '</section>';
 
-        $h = '<div class="dash">' . $hero . $tiles . $chart . $channels . $queue . $sys . $mix . $activity . '</div>';
+        $h = $this->attentionStrip() . '<div class="dash">' . $hero . $tiles . $chart . $channels . $queue . $sys . $mix . $activity . '</div>';
         $hour = (int)date('G');
         $greet = $hour < 6 ? 'İyi geceler' : ($hour < 12 ? 'Günaydın' : ($hour < 18 ? 'İyi günler' : 'İyi akşamlar'));
         $state = $cron['state'] === 'ok' && !$failed && !(is_array($res) && $res['errors']) ? 'Sistem sorunsuz çalışıyor.' : 'Dikkat isteyen bir şey var, aşağıya bakın.';
@@ -707,7 +708,7 @@ final class Admin
                     . '<div class="src">' . Ui::via($it['via'] ?? null) . '</div>'
                     . (!empty($it['unknown']) ? '<div class="src lvl-warn">Sözlükte yok: ' . Ui::e(implode(', ', $it['unknown'])) . '</div>' : '')
                     . (!empty($it['ai_note']) ? '<div class="src lvl-warn">' . Ui::e($it['ai_note']) . '</div>' : '')
-                    . '</td><td class="num tight">' . ($it['price'] !== '' ? '$' . Ui::e($it['price']) : '<span class="muted">—</span>') . '</td></tr>';
+                    . '</td><td class="num tight">' . ($it['price'] !== '' ? '$' . Ui::e($it['price']) : '<span class="muted">—</span>') . (!empty($it['price_orig']) ? '<div class="src ' . (!empty($it['fx_missing']) ? 'lvl-warn' : '') . '">' . Ui::e($it['price_orig']) . (!empty($it['fx_missing']) ? ' (kur yok)' : '') . '</div>' : '') . '</td></tr>';
             }
             $h .= '</tbody></table></div>'
                 . '<div class="actionbar">'

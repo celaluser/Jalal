@@ -34,7 +34,7 @@ final class Settings
             'bot_token' => ['g' => 'telegram', 'label' => 'Bot token', 'type' => 'secret', 'help' => 'BotFather\'dan alınır. Boş bırakırsan mevcut değer korunur.'],
             'owner_id' => ['g' => 'telegram', 'label' => 'Sahip Telegram ID', 'type' => 'int', 'min' => 0, 'help' => 'Butonlara yalnızca bu hesap basabilir. Bota /start yazınca ID\'n gösterilir.'],
             'bot_mode' => ['g' => 'telegram', 'label' => 'Bot modu', 'type' => 'select', 'options' => ['webhook' => 'Webhook (anında, HTTPS gerekir)', 'polling' => 'Polling (cron aralığında)'], 'help' => 'Mod değişince Sağlık sayfasından webhook\'u kur ya da sil.'],
-            'webhook_url' => ['g' => 'telegram', 'label' => 'Webhook adresi', 'type' => 'url', 'help' => 'https://alanadiniz.com/…/bot.php'],
+            'webhook_url' => ['g' => 'telegram', 'label' => 'Webhook adresi', 'type' => 'url', 'optional' => true, 'help' => 'https://alanadiniz.com/…/bot.php'],
             'webhook_secret' => ['g' => 'telegram', 'label' => 'Webhook anahtarı', 'type' => 'key', 'help' => 'Telegram her istekte bu anahtarı gönderir. Değişince webhook\'u yeniden kur.'],
             'telegram_api_base' => ['g' => 'telegram', 'label' => 'Telegram API adresi', 'type' => 'url', 'optional' => true, 'help' => 'Genelde boş. Hosting Telegram\'a erişemiyorsa kendi ara sunucunun adresi.'],
 
@@ -43,7 +43,11 @@ final class Settings
             'panel_api_key' => ['g' => 'publish', 'label' => 'Panel API anahtarı', 'type' => 'secret', 'help' => 'Boş bırakırsan mevcut değer korunur.'],
 
             'cron_key' => ['g' => 'reading', 'label' => 'Cron anahtarı', 'type' => 'key', 'help' => 'cron-job.org adresindeki key=… değeri. Değişirse cron-job.org adresini de güncelle.'],
+            'monitor_key' => ['g' => 'reading', 'label' => 'İzleme anahtarı', 'type' => 'key', 'help' => 'UptimeRobot gibi dış bir servisin sorgulayacağı adresin anahtarı (aşağıda adres görünür). Cron durursa ya da kanal okunamazsa adres hata döner ve o servis sana e-posta atar: Telegram\'dan bağımsız ikinci uyarı yolu.'],
+            'alert_email' => ['g' => 'telegram', 'label' => 'Uyarı e-postası', 'type' => 'email', 'optional' => true, 'help' => 'Boşsa kapalı. Uyarılar Telegram\'a gitmezse (bot bozuk, engelli) bu adrese e-posta gider. Hosting e-postası gönderebiliyor olmalı.'],
+            'alert_email_mode' => ['g' => 'telegram', 'label' => 'E-posta ne zaman', 'type' => 'select', 'options' => ['fallback' => 'Yalnızca Telegram gitmezse', 'all' => 'Her uyarı e-postaya da gitsin']],
             'priority_source' => ['g' => 'reading', 'label' => 'Öncelikli sağlayıcı', 'type' => 'source', 'help' => 'Seçersen aynı servisi farklı sağlayıcıların kanalları duyurunca bu sağlayıcı tercih edilir: onun işi diğerlerinin yerine geçer, diğerlerinden gelen aynı servis için yeni iş açılmaz. Boş: ilk gelen kazanır. Kanalların sağlayıcısı Kanallar sayfasından seçilmiş olmalı.'],
+            'fx_rates' => ['g' => 'reading', 'label' => 'Kurlar (1 birim = kaç $)', 'type' => 'text', 'max' => 200, 'help' => 'Kanal fiyatı $ dışındaysa (₽, ₺, ₼, €) dolara çevirmek için. Örnek: RUB=0.011, TRY=0.029, AZN=0.588, EUR=1.08. Boşsa fiyat çevrilmez ve mesajda uyarı çıkar.'],
             'dedupe_days' => ['g' => 'reading', 'label' => 'Aynı servisi tekrar sayma (gün)', 'type' => 'int', 'min' => 0, 'max' => 90, 'help' => 'Aynı sağlayıcıdaki aynı servis ID\'si birden çok kanalda paylaşılırsa tek iş açılır, diğer kanallar "ayrıca paylaşan" olarak eklenir. 0: kapalı.'],
             'fetch_timeout' => ['g' => 'reading', 'label' => 'Kanal bekleme süresi (sn)', 'type' => 'int', 'min' => 5, 'max' => 60, 'help' => 'Bir kanal bu sürede cevap vermezse atlanır.'],
             'cron_time_limit' => ['g' => 'reading', 'label' => 'Cron en uzun süre (sn)', 'type' => 'int', 'min' => 20, 'max' => 600, 'help' => 'Bir cron turunun üst sınırı.'],
@@ -98,6 +102,11 @@ final class Settings
                     return [false, $f['label'] . ': ' . ($f['min'] ?? 0) . ' ile ' . ($f['max'] ?? '∞') . ' arasında olmalı'];
                 }
                 return [true, $v];
+            case 'email':
+                if ($raw === '' && ($f['optional'] ?? false)) {
+                    return [true, ''];
+                }
+                return filter_var($raw, FILTER_VALIDATE_EMAIL) ? [true, (string)$raw] : [false, $f['label'] . ': geçerli bir e-posta adresi girin'];
             case 'source':
                 return $raw === '' || ctype_digit((string)$raw) ? [true, (string)$raw] : [false, $f['label'] . ': geçersiz sağlayıcı'];
             case 'select':
