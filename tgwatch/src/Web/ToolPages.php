@@ -261,18 +261,18 @@ trait ToolPages
         $h = '<p class="muted lead">Telegram botuna yazılan komutların hangi işi yapacağını burada belirlersin. Komut adını değiştirebilir, aynı işe ikinci bir ad (takma ad) verebilir, istemediğini kapatabilir ve sabit cevaplı kendi komutunu ekleyebilirsin. Komutları yalnızca sen (owner) kullanabilirsin.</p>'
             . '<form method="post" action="?p=botcmds_save" class="stack">' . $this->ui->csrfField()
             . '<label class="check"><input type="checkbox" name="master" value="1"' . ($master ? ' checked' : '') . '><span><b>Bot komutları açık</b><br><span class="muted">Kapalıysa hiçbir komut çalışmaz (düğmeler ve /start, /id, /iptal etkilenmez)</span></span></label>'
-            . '<div class="table-wrap edit-table"><table><thead><tr><th>Açık</th><th>Komut</th><th>Ne yapsın</th><th>Menüde görünen açıklama</th><th>Sabit cevap metni</th><th>Sil</th></tr></thead><tbody>';
+            . '<div class="table-wrap edit-table labeled"><table><thead><tr><th>Açık</th><th>Komut</th><th>Ne yapsın</th><th>Menüde görünen açıklama</th><th>Sabit cevap metni</th><th>Sil</th></tr></thead><tbody>';
         foreach ($list as $i => $c) {
             $opts = '';
             foreach ($actions as $k => [$label]) {
                 $opts .= '<option value="' . $k . '"' . ($c['action'] === $k ? ' selected' : '') . '>' . Ui::e($label) . '</option>';
             }
-            $h .= '<tr><td class="tight"><input type="checkbox" name="c[' . $i . '][enabled]" value="1"' . ($c['enabled'] ? ' checked' : '') . ' aria-label="Komut açık"></td>'
-                . '<td class="tight"><div class="row nowrap"><span class="muted">/</span><input type="text" name="c[' . $i . '][name]" value="' . Ui::e($c['name']) . '" placeholder="yeni_komut" maxlength="32" class="cmd-name" aria-label="Komut adı" autocapitalize="off"></div></td>'
-                . '<td><select name="c[' . $i . '][action]" aria-label="Eylem">' . $opts . '</select></td>'
-                . '<td><input type="text" name="c[' . $i . '][desc]" value="' . Ui::e($c['desc']) . '" maxlength="120" aria-label="Açıklama"></td>'
-                . '<td><input type="text" name="c[' . $i . '][text]" value="' . Ui::e($c['text']) . '" maxlength="1500" placeholder="yalnızca “Sabit cevap” için" aria-label="Sabit cevap"></td>'
-                . '<td class="tight">' . (empty($c['new']) ? '<input type="checkbox" name="c[' . $i . '][del]" value="1" aria-label="Sil">' : '<span class="muted">yeni</span><input type="hidden" name="c[' . $i . '][new]" value="1">') . '</td></tr>';
+            $h .= '<tr><td class="tight" data-label="Açık"><input type="checkbox" name="c[' . $i . '][enabled]" value="1"' . ($c['enabled'] ? ' checked' : '') . ' aria-label="Komut açık"></td>'
+                . '<td class="tight" data-label="Komut"><div class="row nowrap"><span class="muted">/</span><input type="text" name="c[' . $i . '][name]" value="' . Ui::e($c['name']) . '" placeholder="yeni_komut" maxlength="32" class="cmd-name" aria-label="Komut adı" autocapitalize="off"></div></td>'
+                . '<td data-label="Ne yapsın"><select name="c[' . $i . '][action]" aria-label="Eylem">' . $opts . '</select></td>'
+                . '<td data-label="Menüde görünen açıklama"><input type="text" name="c[' . $i . '][desc]" value="' . Ui::e($c['desc']) . '" maxlength="120" aria-label="Açıklama"></td>'
+                . '<td data-label="Sabit cevap metni"><input type="text" name="c[' . $i . '][text]" value="' . Ui::e($c['text']) . '" maxlength="1500" placeholder="yalnızca “Sabit cevap” için" aria-label="Sabit cevap"></td>'
+                . '<td class="tight" data-label="Sil">' . (empty($c['new']) ? '<input type="checkbox" name="c[' . $i . '][del]" value="1" aria-label="Sil">' : '<span class="muted">yeni</span><input type="hidden" name="c[' . $i . '][new]" value="1">') . '</td></tr>';
         }
         $h .= '</tbody></table></div>'
             . '<div class="row"><button class="btn primary">' . Ui::icon('check') . '<span>Kaydet ve menüyü güncelle</span></button></div>'

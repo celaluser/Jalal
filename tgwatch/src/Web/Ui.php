@@ -393,6 +393,18 @@ final class Ui
   }
   toasts(); if (mainEl) countUp(mainEl);
 
+  function labelTables(root) { // dar ekranda tablo satırları kart olur: hücrelere başlık etiketi ver
+    (root || d).querySelectorAll('.table-wrap:not(.edit-table)').forEach(function (w) {
+      var t = w.querySelector('table'); if (!t) return;
+      var heads = Array.prototype.map.call(t.querySelectorAll('thead th'), function (h) { return h.textContent.trim(); });
+      if (!heads.length) return;
+      w.classList.add('cards');
+      t.querySelectorAll('tbody tr').forEach(function (tr) {
+        Array.prototype.forEach.call(tr.children, function (td, i) { if (heads[i] && !td.hasAttribute('data-label')) td.setAttribute('data-label', heads[i]); });
+      });
+    });
+  }
+  labelTables(d);
   function titleCount(n) {
     if (n === undefined) { var q = d.querySelector('.nav a[href="?p=queue"] .count'); n = q ? parseInt(q.textContent, 10) || 0 : 0; }
     var base = d.title.replace(/^\(\d+\)\s*/, ''); d.title = n > 0 ? '(' + n + ') ' + base : base;
@@ -415,7 +427,7 @@ final class Ui
       mainEl.innerHTML = nm.innerHTML;
       ['.side .nav', '.side-foot', '.tabbar', '.tb-title'].forEach(function (s) { var a = d.querySelector(s), b = doc.querySelector(s); if (a && b) a.innerHTML = b.innerHTML; });
       d.title = doc.title; titleCount();
-      toasts(); if (mode !== 'live') countUp(mainEl);
+      toasts(); labelTables(mainEl); if (mode !== 'live') countUp(mainEl);
     };
     if (d.startViewTransition && !reduce && mode !== 'live') d.startViewTransition(apply); else apply();
     return true;
@@ -609,7 +621,7 @@ kbd{font:500 11.5px/1 var(--font);color:var(--text-2);background:var(--fill-2);b
 .panel-pad{padding:18px 20px}
 .panel+.panel{margin-top:12px}
 .code{background:var(--surface-2);border-radius:var(--r-m);padding:12px 14px}
-.kv{display:grid;grid-template-columns:max-content 1fr;gap:8px 22px;margin:0}.kv dt{color:var(--text-2)}.kv dd{margin:0;font-weight:500}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:8px 22px;margin:0}.kv dt{color:var(--text-2)}.kv dd{margin:0;font-weight:500;min-width:0;overflow-wrap:anywhere}
 details>summary{cursor:pointer;color:var(--accent-text);font-weight:500;list-style:none;display:flex;align-items:center;gap:6px}
 details>summary::before{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .2s;margin-right:2px}
 details[open]>summary::before{transform:rotate(45deg)}
@@ -617,7 +629,7 @@ details>summary::-webkit-details-marker{display:none}
 details[open]>summary{margin-bottom:12px}
 
 /* ===== Butonlar (kapsül) ===== */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:7px 15px;border-radius:999px;border:0;
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:7px 16px;border-radius:999px;border:0;
   font:500 14.5px/1.1 var(--font);letter-spacing:-.01em;cursor:pointer;text-decoration:none!important;white-space:nowrap;
   background:color-mix(in srgb,var(--text) 7%,transparent);color:var(--text);transition:background .15s,transform .1s}
 .btn:hover{background:color-mix(in srgb,var(--text) 11%,transparent)}
@@ -628,7 +640,7 @@ details[open]>summary{margin-bottom:12px}
 .btn.danger{background:var(--bad-soft);color:var(--bad)}.btn.danger:hover{background:color-mix(in srgb,var(--bad) 18%,transparent)}
 .btn.ghost{background:transparent;color:var(--accent-text)}.btn.ghost:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .btn.quiet{background:color-mix(in srgb,var(--text) 7%,transparent)}
-.btn.sm{min-height:28px;padding:5px 11px;font-size:13px}
+.btn.sm{min-height:32px;padding:5px 12px;font-size:13px}
 .btn.done{color:var(--good)}
 form.inline{display:inline}
 
@@ -925,6 +937,58 @@ tbody tr:hover>td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
 
 .cmd-name{width:160px;min-width:130px;flex:none}
 .edit-table td select{min-width:170px}
+
+/* ===== Mobil ve dokunmatik uyum: tablo kartları, dokunma hedefleri, taşmalar ===== */
+@media (max-width:760px){
+  .table-wrap.cards{overflow:visible;background:transparent;border:0;box-shadow:none;border-radius:0}
+  .table-wrap.cards table,.table-wrap.cards tbody,.table-wrap.cards tr,.table-wrap.cards td{display:block;width:100%}
+  .table-wrap.cards thead{display:none}
+  .table-wrap.cards tr{background:var(--surface);border:1px solid var(--sep-2);border-radius:var(--r-m);box-shadow:var(--shadow);padding:4px 14px;margin:0 0 10px}
+  .table-wrap.cards tr{position:relative}
+  .table-wrap.cards td{display:block;border:0;border-top:1px solid var(--sep-2);padding:9px 0;width:auto!important;white-space:normal!important;text-align:left;min-width:0;overflow-wrap:anywhere}
+  .table-wrap.cards td[data-label]{display:grid;grid-template-columns:minmax(72px,34%) minmax(0,1fr);column-gap:12px;align-items:start}
+  .table-wrap.cards td[data-label]::before{content:attr(data-label);grid-column:1;color:var(--text-2);font-size:12.5px;font-weight:500;padding-top:2px}
+  .table-wrap.cards td[data-label]>*{grid-column:2}
+  .table-wrap.cards td:first-child{border-top:0}
+  .table-wrap.cards td:has(>input[type=checkbox]){position:absolute;top:8px;right:12px;padding:0;border:0;width:auto!important;z-index:1}
+  .table-wrap.cards td:has(>input[type=checkbox])+td{border-top:0}
+  .table-wrap.cards td.num{text-align:right}
+  .table-wrap.cards td .row{flex-wrap:wrap}
+  .table-wrap.cards .bulk{background:var(--surface);border:1px solid var(--sep-2);border-radius:var(--r-m);padding:12px 14px;margin-top:4px}
+  .table-wrap.cards td form.row,.table-wrap.cards td form.field-row{width:100%}
+  .kv{grid-template-columns:1fr;gap:2px 0}.kv dt{font-size:12.5px;margin-top:8px}
+  .strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .page-title .sub{overflow-wrap:anywhere}
+  .code pre,pre{overflow-wrap:anywhere}
+  .search kbd{display:none!important}.js .search kbd.js-only{display:none!important}
+  .live{width:34px;height:34px;padding:0;justify-content:center;margin-right:6px}
+  .toolbar .live+.search{margin-left:0}
+  .chips{max-width:100%}
+  .setting-r .check.sm{padding:4px 0}
+  .attn-grid{grid-template-columns:1fr}
+}
+@media (pointer:coarse),(max-width:760px){
+  .btn{min-height:44px;padding:9px 18px}.btn.sm{min-height:40px;padding:7px 15px}
+  input[type=text],input[type=password],input[type=number],input[type=search],input[type=url],input[type=email],select,textarea{min-height:44px;font-size:16px}
+  input[type=checkbox],input[type=radio]{width:22px;height:22px}
+  input[type=file]{min-height:44px;padding-top:9px}
+  .chip{padding:10px 14px}
+  .nav a{min-height:44px}.tabs a{min-height:42px}
+  .icon-btn{min-width:44px;min-height:44px}
+  .check{min-height:36px}
+}
+
+.panel-pad>p:first-child,.card>p:first-child{margin-top:0}.panel-pad>p:last-child,.card>p:last-child{margin-bottom:0}
+.panel-pad.stack>p{margin:0}
+
+@media (max-width:760px){
+  .edit-table.labeled td[data-label]::before{content:attr(data-label);display:block;font-size:12.5px;font-weight:500;color:var(--text-2);margin-bottom:3px}
+  .edit-table.labeled td{border:0;padding:2px 0}
+  .edit-table.labeled td.tight .row{flex-wrap:nowrap}
+  .edit-table.labeled tr{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:end}
+  .edit-table.labeled td:nth-child(n+3){grid-column:1/-1}
+  .cmd-name{width:100%;min-width:0;flex:1}
+}
 
 CSS;
 }
