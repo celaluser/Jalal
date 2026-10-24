@@ -61,6 +61,9 @@ final class Settings
             'ui_accent' => ['g' => 'appearance', 'label' => 'Vurgu rengi', 'type' => 'select', 'options' => self::ACCENTS],
             'ui_density' => ['g' => 'appearance', 'label' => 'Yoğunluk', 'type' => 'select', 'options' => ['comfortable' => 'Rahat', 'compact' => 'Sıkı (daha çok satır)']],
 
+            'backup_auto' => ['g' => 'data', 'label' => 'Otomatik yedek', 'type' => 'select', 'options' => ['off' => 'Kapalı', 'daily' => 'Her gün', 'weekly' => 'Haftada bir'], 'help' => 'Yedek dosyası (çeviri bankası, sözlük, kanal listesi, ayarlar) cron ile gönderilir. API anahtarı ve şifre içermez.'],
+            'backup_to' => ['g' => 'data', 'label' => 'Yedek nereye', 'type' => 'select', 'options' => ['telegram' => 'Telegram (sana dosya olarak)', 'email' => 'E-posta (Uyarı e-postasına)', 'both' => 'İkisine de']],
+            'backup_hour' => ['g' => 'data', 'label' => 'Yedek saati', 'type' => 'int', 'min' => 0, 'max' => 23, 'help' => 'Bu saatten sonraki ilk cron turunda gönderilir.'],
             'retention_logs_days' => ['g' => 'data', 'label' => 'Kayıtları sakla (gün)', 'type' => 'int', 'min' => 1, 'max' => 3650, 'help' => 'Daha eski kayıtlar günde bir silinir.'],
             'retention_jobs_days' => ['g' => 'data', 'label' => 'Bitmiş işleri sakla (gün)', 'type' => 'int', 'min' => 0, 'max' => 3650, 'help' => '0: hiç silme. Onaylanan, reddedilen ve yayınlanan işler silinir; çeviri bankası etkilenmez.'],
         ];

@@ -864,6 +864,11 @@ final class Flow
             $this->resolveNotice((int)$nm[2], $nm[1] === 'nd' ? 'done' : 'ignored');
             return;
         }
+        if (preg_match('/^ba:(ask|yes|no)$/', (string)($cb['data'] ?? ''), $bm)) {
+            $reply = (new BotCommands($this->db, $this->tg, $this, $this->config))->callback($bm[1], $cb['message']['chat']['id'] ?? $this->owner(), (int)($cb['message']['message_id'] ?? 0));
+            $this->safe(fn() => $this->tg->answerCallback((string)$cb['id'], $reply));
+            return;
+        }
         if (!preg_match('/^(ok|ed|rg|rj):(\d+)$/', (string)($cb['data'] ?? ''), $m)) {
             $this->safe(fn() => $this->tg->answerCallback((string)$cb['id']));
             return;
@@ -905,6 +910,9 @@ final class Flow
             }
             $s .= 'Son cron: ' . date('Y-m-d H:i:s', (int)$this->db->get('cron_last_run', '0'));
             $this->safe(fn() => $this->tg->sendMessage($chat, $s));
+            return;
+        }
+        if ($text !== '' && $text[0] === '/' && $text !== '/iptal' && (new BotCommands($this->db, $this->tg, $this, $this->config))->handle($chat, $text)) {
             return;
         }
         $editing = (int)$this->db->get('editing_job', '0');

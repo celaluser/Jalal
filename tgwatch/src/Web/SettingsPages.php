@@ -89,6 +89,7 @@ trait SettingsPages
         return '<h2>Bağlantıyı dene</h2><div class="row">'
             . $this->ui->action('tg_test', 'Botu sına', [], 'quiet', 'check')
             . $this->ui->action('alerts_test', 'Test mesajı gönder', [], 'quiet', 'send')
+            . $this->ui->action('tg_commands', 'Bot komut menüsünü güncelle', [], 'quiet', 'send')
             . $this->ui->action('mail_test', 'Test e-postası gönder', [], 'quiet', 'send')
             . Ui::link('?p=health', 'Webhook’u kur (Sağlık)', 'quiet', 'link') . '</div>'
             . '<p class="muted">Token, webhook adresi ya da anahtarı değiştirdiysen Sağlık sayfasından “Webhook’u kur”a bir kez bas.</p>';
@@ -159,7 +160,12 @@ trait SettingsPages
             $counts[] = $label . ': <b>' . (int)$this->db->one("SELECT COUNT(*) c FROM $t")['c'] . '</b>';
         }
         $cleaned = (int)$this->db->get('cleaned_at', '0');
-        $h = '<h2>Temizlik</h2><div class="panel panel-pad stack"><p>' . implode(' · ', $counts) . ' · Veritabanı: <b>' . round($dbBytes / 1048576, 2) . ' MB</b></p>'
+        $bk = $this->db->getJson('backup_last_result');
+        $h = '<h2>Otomatik yedek</h2><div class="panel panel-pad stack"><div class="row">' . Ui::dot(is_array($bk) ? ($bk['ok'] ? 'ok' : 'bad') : 'warn')
+            . '<span>' . (is_array($bk) ? Ui::e((string)$bk['message']) . ' · ' . Ui::ago((int)$bk['at']) : 'Henüz yedek gönderilmedi') . '</span></div>'
+            . '<div class="row">' . $this->ui->action('backup_send', 'Şimdi yedekle ve gönder', [], 'quiet', 'send') . '</div>'
+            . '<p class="muted">Ayarlar yukarıdaki "Otomatik yedek" satırlarından yapılır. Dosya: Ayarlar → Veri ve bakım → "Yedekten geri yükle" ile geri açılır.</p></div>'
+            . '<h2>Temizlik</h2><div class="panel panel-pad stack"><p>' . implode(' · ', $counts) . ' · Veritabanı: <b>' . round($dbBytes / 1048576, 2) . ' MB</b></p>'
             . '<p class="muted">Son temizlik: ' . ($cleaned ? Ui::ago($cleaned) : 'hiç') . '. Yukarıdaki sürelerden eski kayıtlar günde bir kez cron ile silinir.</p>'
             . '<div class="row">' . $this->ui->action('clean_now', 'Şimdi temizle', [], 'quiet', 'trash', 'Süresi geçen kayıtlar ve (süre verildiyse) eski işler silinsin mi?')
             . $this->ui->action('vacuum', 'Veritabanını sıkıştır', [], 'quiet', 'refresh') . '</div></div>';
@@ -244,6 +250,20 @@ trait SettingsPages
             case 'mail_test':
                 $ok = (new \TgWatch\Alerts($this->db))->mail('tgwatch test e-postası: uyarılar bu adrese de gelecek.', 'tgwatch test');
                 $this->say($ok ? 'ok' : 'bad', $ok ? 'Test e-postası gönderildi (kutuyu ve spam klasörünü kontrol edin).' : 'E-posta gönderilemedi: adres boş/geçersiz ya da hosting mail() kapalı.');
+                $this->redirect('settings', ['tab' => 'telegram']);
+                return true;
+            case 'backup_send':
+                $r = (new \TgWatch\AutoBackup($this->db, $this->config))->run();
+                $this->say($r['ok'] ? 'ok' : 'bad', $r['message']);
+                $this->redirect('settings', ['tab' => 'data']);
+                return true;
+            case 'tg_commands':
+                try {
+                    App::telegram()->setCommands();
+                    $this->say('ok', 'Bot komut menüsü güncellendi (Telegram’da / yazınca komutlar çıkar).');
+                } catch (\Throwable $e) {
+                    $this->say('bad', 'Güncellenemedi: ' . preg_replace('~bot\d+:[A-Za-z0-9_-]+~', 'bot***', $e->getMessage()));
+                }
                 $this->redirect('settings', ['tab' => 'telegram']);
                 return true;
             case 'tg_test':

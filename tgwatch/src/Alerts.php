@@ -17,6 +17,7 @@ final class Alerts
         'cron' => ['Kanal okuma durdu', 'Cron 15 dakikadan uzun süredir çalışmadıysa'],
         'webhook' => ['Telegram webhook hatası', 'Telegram bot adresine ulaşamıyorsa'],
         'claude' => ['Claude kullanım sınırı', 'Aylık istek sınırının %80 ve %100\'üne gelince'],
+        'backup' => ['Otomatik yedek gönderilemedi', 'Günlük/haftalık yedek Telegram ya da e-postaya gidemediyse'],
         'gap' => ['Kaçırılmış gönderi', 'Cron uzun süre durup dönünce kanalın eski gönderileri okunamadıysa'],
         'unpublished' => ['Onaylandı ama panele eklenmedi', 'Onaylı servisler 24 saatten uzun süredir "yayın bekliyor" durumundaysa (günde bir kez)'],
         'stale' => ['Uzun süredir bekleyen iş', 'Bir iş 12 saatten uzun süredir onay bekliyorsa (günde bir kez)'],

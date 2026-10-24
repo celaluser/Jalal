@@ -75,6 +75,11 @@ return [
     'alert_email_mode' => 'fallback',
     'monitor_key' => '',
 
+    // Otomatik yedek: off | daily | weekly; hedef: telegram | email | both; saat 0-23
+    'backup_auto' => 'daily',
+    'backup_to' => 'telegram',
+    'backup_hour' => 4,
+
     // Kanal okuma ayarları
     'fetch_timeout' => 20,
     'cron_time_limit' => 50,      // komut satırı cron'u için saniye

@@ -1390,6 +1390,94 @@ test('Ayar: e-posta ve izleme anahtarı doğrulanır', function () {
     eq(false, Settings::check('monitor_key', 'kisa')[0]);
 });
 
+echo "Bot komutları ve otomatik yedek\n";
+function lastText(FakeTelegram $tg): string
+{
+    foreach (array_reverse($tg->calls) as [$m, $p]) {
+        if (in_array($m, ['sendMessage', 'editMessageText'], true)) {
+            return (string)($p['text'] ?? '');
+        }
+    }
+    return '';
+}
+test('/bekleyen listeler; /is, /ara, /fiyat, /onayla, /reddet, /yardim çalışır', function () {
+    [$db, $tg, $flow] = env();
+    $a = $flow->createJob('kanala', 1, "🆔 7001 Instagram Likes | Fast");
+    $b = $flow->createJob('kanala', 2, "🆔 7002 TikTok Views | Max 1M");
+    $flow->handleUpdate(msg(1, OWNER, '/bekleyen'));
+    $t = lastText($tg);
+    ok(str_contains($t, '2 iş karar bekliyor') && str_contains($t, "#$a") && str_contains($t, "#$b"));
+    ok(str_contains(json_encode(end($tg->calls)[1]['reply_markup'] ?? []), 'ba:ask'));
+    $flow->handleUpdate(msg(2, OWNER, "/ara 7002"));
+    ok(str_contains(lastText($tg), "#$b") && !str_contains(lastText($tg), "#$a "));
+    $flow->handleUpdate(msg(3, OWNER, "/is $a"));
+    ok(str_contains(lastText($tg), 'Çeviriyi onaylıyor musun'));
+    $db->setJson('match_report', ['model' => ['a' => 2.0, 'b' => 0.1, 'mode' => 'fit']]);
+    $flow->handleUpdate(msg(4, OWNER, '/fiyat 0,44'));
+    ok(str_contains(lastText($tg), '0.98'), lastText($tg));
+    $flow->handleUpdate(msg(5, OWNER, "/reddet $b"));
+    eq('rejected', $db->job($b)['status']);
+    $flow->handleUpdate(msg(6, OWNER, "/onayla $a"));
+    ok(in_array($db->job($a)['status'], ['approved', 'published']));
+    $flow->handleUpdate(msg(7, OWNER, '/yardim'));
+    ok(str_contains(lastText($tg), '/bekleyen'));
+    $flow->handleUpdate(msg(8, OWNER, '/ozet'));
+    ok(str_contains(lastText($tg), 'Özet'));
+    $flow->handleUpdate(msg(9, OWNER, '/kanallar'));
+    $before = count($tg->calls);
+    $flow->handleUpdate(msg(10, 999, '/bekleyen'));
+    eq($before, count($tg->calls), 'sahip dışı kişiye cevap yok');
+});
+test('Toplu onay: önce soru, evet deyince yalnızca güvenli işler; eksik kelimeli iş atlanır', function () {
+    [$db, $tg, $flow] = env();
+    $ok = $flow->createJob('kanala', 1, "🆔 7001 Instagram Likes | Fast");
+    $bad = $flow->createJob('kanala', 2, "🆔 7002 Zzyzx Qwertyplon");
+    $db->saveItems($bad, array_map(static fn($i) => $i + ['unknown' => ['Zzyzx']], $db->job($bad)['items']));
+    $cbq = fn($uid, $data) => ['update_id' => $uid, 'callback_query' => ['id' => "c$uid", 'from' => ['id' => OWNER], 'data' => $data, 'message' => ['message_id' => 77, 'chat' => ['id' => OWNER]]]];
+    $flow->handleUpdate($cbq(1, 'ba:ask'));
+    ok(str_contains(lastText($tg), '1 iş onaylansın mı'));
+    eq('awaiting', $db->job($ok)['status'], 'soru aşamasında onaylanmaz');
+    $flow->handleUpdate($cbq(2, 'ba:no'));
+    eq('awaiting', $db->job($ok)['status']);
+    $flow->handleUpdate($cbq(3, 'ba:yes'));
+    ok(in_array($db->job($ok)['status'], ['approved', 'published']));
+    eq('awaiting', $db->job($bad)['status'], 'eksik kelimeli iş onaylanmadı');
+    ok(str_contains(lastText($tg), '1 iş onaylandı'));
+});
+test('Otomatik yedek: zamanı gelince Telegram\'a dosya gider, aynı gün tekrar gitmez', function () {
+    [$db, $tg] = env();
+    $b = new TgWatch\AutoBackup($db, ['owner_id' => OWNER, 'backup_auto' => 'daily', 'backup_to' => 'telegram', 'backup_hour' => 0], $tg);
+    ok($b->due());
+    $b->maybeRun();
+    eq(1, count($tg->docs));
+    ok(str_starts_with($tg->docs[0][0], 'tgwatch-yedek-') && str_contains($tg->docs[0][1], '"tgwatch": 1'));
+    ok(!str_contains($tg->docs[0][1], 'bot_token'), 'anahtar yok');
+    ok(!$b->due(), 'bugün gitti');
+    ok($b->due(time() + 21 * 3600), 'ertesi gün');
+    $off = new TgWatch\AutoBackup($db, ['backup_auto' => 'off'], $tg);
+    ok(!$off->due(time() + 99 * 86400));
+});
+test('Otomatik yedek: e-posta eki, hata durumunda uyarı ve 30 dk bekleme', function () {
+    [$db, $tg] = env();
+    $mails = [];
+    TgWatch\AutoBackup::$mailer = function ($to, $subj, $body, $name, $content) use (&$mails) {
+        $mails[] = [$to, $name, strlen($content)];
+        return true;
+    };
+    $b = new TgWatch\AutoBackup($db, ['owner_id' => OWNER, 'backup_auto' => 'daily', 'backup_to' => 'email', 'alert_email' => 'ben@ornek.com', 'backup_hour' => 0], $tg);
+    $r = $b->run();
+    ok($r['ok']);
+    eq('ben@ornek.com', $mails[0][0]);
+    eq(0, count($tg->docs), 'yalnızca e-posta');
+    TgWatch\AutoBackup::$mailer = null;
+    [$db2, $tg2] = env();
+    $bad = new TgWatch\AutoBackup($db2, ['owner_id' => OWNER, 'backup_auto' => 'daily', 'backup_to' => 'email', 'alert_email' => '', 'backup_hour' => 0], $tg2);
+    $r2 = $bad->run();
+    ok(!$r2['ok'] && str_contains($r2['message'], 'adres yok'));
+    ok(!$bad->due(), '30 dk beklenir');
+    ok(str_contains(json_encode($tg2->calls, JSON_UNESCAPED_UNICODE), 'Otomatik yedek gönderilemedi'), 'uyarı gitti');
+});
+
 // temizlik
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmp, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($it as $f) {
