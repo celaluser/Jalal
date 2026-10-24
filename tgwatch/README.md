@@ -127,6 +127,7 @@ Tasarım Apple'ın arayüz ilkelerini (HIG) izler. Sistem yazı tipi kullanılı
   - **⌘K / Ctrl K:** Komut paleti; sayfaya git ya da iş ara, ok tuşları ve Enter ile.
   - **/:** Aramaya odaklanır.
   - Kenar menü üst çubuktaki düğmeyle gizlenebilir, tercih tarayıcıda hatırlanır.
+- **Dinamik arayüz (JavaScript açıkken):** Sayfalar tam yenilenmeden değişir (yumuşak geçiş, geri tuşu çalışır); onay/ret gibi işlemler sayfayı yenilemeden yapılır ve köşede bildirim çıkar. Üstteki **Canlı** düğmesi açıkken 15 sn'de bir hafif bir sorgu yapılır: yeni duyuru gelince bildirim çıkar, rozetler güncellenir, Genel bakış/Kuyruk/Değişiklikler/İşler/Kayıtlar sayfaları yazı yazarken ya da seçim yaparken bozulmadan kendini yeniler. Sayılar sayarak açılır, grafikler büyür, kartlar sırayla belirir (azaltılmış hareket tercihinde kapalı). JavaScript kapalıyken her şey eskisi gibi çalışır.
 - **Mobil:** Altta sekme çubuğu (Genel, Kuyruk, İşler, Kanallar, Menü).
 - **JavaScript'siz de çalışır:** Kopyalama, onay sorusu, komut paleti, ipucu ve menü gizleme JavaScript ile gelir. Formlar, arama ve gezinme JavaScript kapalıyken de çalışır.
 

@@ -75,6 +75,7 @@ final class Admin
             'changes' => $this->changes(),
             'alerts' => $this->alertsPage(),
             'backup' => $this->backupDownload(),
+            'live' => $this->live(),
             'settings' => $this->settingsPage(),
             'export' => $this->exportCsv(),
             'jobs' => $this->jobs(),
@@ -96,7 +97,7 @@ final class Admin
     private function headers(): void
     {
         $n = $this->nonce;
-        header("Content-Security-Policy: default-src 'none'; script-src 'nonce-$n'; style-src 'nonce-$n'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
+        header("Content-Security-Policy: default-src 'none'; script-src 'nonce-$n'; style-src 'nonce-$n'; img-src 'self' data:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
         header('X-Frame-Options: DENY');
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: no-referrer');
@@ -189,6 +190,19 @@ final class Admin
         }
         $age = time() - $last;
         return ['state' => $age < 180 ? 'ok' : ($age < 900 ? 'warn' : 'bad'), 'text' => Ui::ago($last)];
+    }
+
+    /** Canlı güncelleme için hafif durum özeti: imza değişince sayfa yumuşakça yenilenir. */
+    private function live(): void
+    {
+        $notices = new \TgWatch\Notices($this->db);
+        $q = $this->pending();
+        $j = $this->db->one('SELECT COUNT(*) c, COALESCE(MAX(updated_at),0) m, COALESCE(MAX(id),0) i FROM jobs');
+        $n = $this->db->one('SELECT COUNT(*) c, COALESCE(MAX(updated_at),0) m FROM notices');
+        $cron = $this->cronState();
+        $sig = md5(implode('|', [$j['c'], $j['m'], $j['i'], $n['c'], $n['m'], $q, $this->db->get('cron_last_run', '0'), $this->db->get('cron_last_result', '')]));
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['sig' => $sig, 'queue' => $q, 'changes' => $notices->openCount(), 'cron' => $cron, 'newest' => (int)$j['i'], 'at' => time()]);
     }
 
     private function render(string $title, string $body, array $o = []): void
