@@ -164,6 +164,7 @@ trait BankPages
         foreach (Ai::EFFORTS as $k => $v) {
             $effOpts .= '<option value="' . $k . '"' . ($ai->effort() === $k ? ' selected' : '') . '>' . Ui::e($v) . '</option>';
         }
+        $round = max(0, min(4, (int)$this->db->get('markup_round', '2')));
         $keyFromConfig = trim((string)($this->config['claude_api_key'] ?? '')) !== '' && trim((string)$this->db->get('claude_api_key', '')) === '';
 
         $h = '<form method="post" action="?p=ai_save" class="stack" autocomplete="off">' . $this->ui->csrfField()
@@ -180,6 +181,12 @@ trait BankPages
             . '<label>Aylık istek sınırı<input type="number" name="limit" min="0" value="' . $limit . '" class="narrow"></label></div>'
             . '<p class="muted">Bu ay: ' . (int)$u['requests'] . ' istek' . ($limit ? ' / ' . $limit : '') . ', ' . number_format((int)$u['input']) . ' giriş + ' . number_format((int)$u['output']) . ' çıkış token, tahmini $' . number_format((float)$u['cost'], 4) . '. Fiyatlar yaklaşık; kesin tutar Anthropic konsolundadır. Sınır 0 ise sınırsız.</p>'
             . '</div>'
+
+            . '<h2>Fiyat önerisi</h2><div class="panel panel-pad stack"><p class="muted">Yeni servis için önerilen satış fiyatı: <b>satış = sağlayıcı fiyatı × çarpan + sabit</b>. Boş bırakırsanız formül, kendi servisleriniz sağlayıcı servisleriyle eşleştirilirken otomatik bulunur'
+            . (($f = (new \TgWatch\Enrich($this->db))->formula()) ? ' (şu an: ' . Ui::e($f) . ')' : ' (henüz bulunamadı)') . '. Sağlayıcı ile paneliniz farklı para birimi kullanıyorsa çarpan kuru da içerir.</p>'
+            . '<div class="field-row"><label>Çarpan<input type="text" name="markup_a" value="' . Ui::e((string)$this->db->get('markup_a', '')) . '" placeholder="otomatik" class="narrow" inputmode="decimal"></label>'
+            . '<label>Sabit<input type="text" name="markup_b" value="' . Ui::e((string)$this->db->get('markup_b', '')) . '" placeholder="0" class="narrow" inputmode="decimal"></label>'
+            . '<label>Ondalık<select name="markup_round">' . implode('', array_map(static fn($n) => '<option' . ($n === $round ? ' selected' : '') . '>' . $n . '</option>', [0, 1, 2, 3, 4])) . '</select></label></div></div>'
 
             . '<h2>Kurallarınız</h2><div class="panel panel-pad stack"><p class="muted">Claude’a her istekte bu metin, sözlük ve bankadan benzer örneklerle birlikte gönderilir. Kendi cümlelerinizle yazabilirsiniz.</p>'
             . '<textarea name="style_rules" rows="12">' . Ui::e($ai->styleRules()) . '</textarea></div>'
@@ -317,6 +324,14 @@ trait BankPages
                 $eff = (string)($_POST['effort'] ?? '');
                 $this->db->set('claude_effort', isset(Ai::EFFORTS[$eff]) ? $eff : '');
                 $this->db->set('claude_monthly_limit', (string)max(0, (int)($_POST['limit'] ?? 300)));
+                foreach (['markup_a', 'markup_b'] as $k) {
+                    $v = trim(str_replace(',', '.', (string)($_POST[$k] ?? '')));
+                    if ($v !== '' && !is_numeric($v)) {
+                        throw new \InvalidArgumentException('Çarpan ve sabit sayı olmalı (örn. 1.7 ve 0.1).');
+                    }
+                    $this->db->set($k, $v);
+                }
+                $this->db->set('markup_round', (string)max(0, min(4, (int)($_POST['markup_round'] ?? 2))));
                 $key = trim((string)($_POST['api_key'] ?? ''));
                 if (!empty($_POST['api_key_clear'])) {
                     $this->db->set('claude_api_key', '');

@@ -68,7 +68,10 @@ final class CronRunner
                     $say("@$u  ✗ {$r['error']}");
                     continue;
                 }
-                $say("@$u  ✓ {$r['posts']} gönderi okundu, {$r['new']} yeni, " . count($r['found']) . ' servis duyurusu' . ($test ? '' : ', iş: ' . (implode(',', $r['jobs']) ?: '-')));
+                $say("@$u  ✓ {$r['posts']} gönderi okundu, {$r['new']} yeni, " . count($r['found']) . ' servis duyurusu, ' . count($r['notices']) . ' değişiklik bildirimi' . ($test ? '' : ', iş: ' . (implode(',', $r['jobs']) ?: '-')));
+                foreach ($r['notices'] as $nt) {
+                    $say("   gönderi {$nt['post']}: " . (Notices::KINDS[$nt['kind']] ?? $nt['kind']) . ', servisler: ' . implode(', ', $nt['ids']));
+                }
                 if ($test || $backfill > 0) {
                     foreach ($r['found'] as $f) {
                         $say("   gönderi {$f['id']}:");
@@ -98,6 +101,7 @@ final class CronRunner
         if (!$test) {
             $db->set('cron_last_run', (string)time());
             $db->setJson('cron_last_result', ['errors' => $errors, 'seconds' => round(microtime(true) - $started, 2), 'at' => time()]);
+            (new Alerts($db))->check(true);
         }
         $say(sprintf('Bitti: %.1f sn, %d hata.', microtime(true) - $started, $errors));
         return $errors;
@@ -127,6 +131,9 @@ final class CronRunner
             $db->set('webhook_last_error_at', (string)$errAt);
             $db->log('error', 'webhook', 'Telegram webhook\'a ulaşamadı (' . date('H:i', $errAt) . '): ' . ($i['last_error_message'] ?? '?')
                 . ' · bekleyen güncelleme: ' . ($i['pending_update_count'] ?? 0));
+            (new Alerts($db))->send('webhook', 'webhook', "⚠️ <b>Telegram bot adresine ulaşamıyor</b>\n" . Telegram::esc((string)($i['last_error_message'] ?? '?')) . "\nButonlar çalışmayabilir. Panel → Sağlık → Webhook'u kur.", 21600);
+        } elseif ($errAt > 0 && time() - $errAt > 1800) {
+            (new Alerts($db))->resolve('webhook', 'webhook', '✅ Telegram webhook yeniden çalışıyor.');
         }
     }
 }

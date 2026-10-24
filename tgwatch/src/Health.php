@@ -36,6 +36,8 @@ final class Health
         }
         $r[] = ['cron_key', preg_match('/^[A-Za-z0-9_-]{16,256}$/', (string)$c['cron_key']) ? self::OK : self::WARN,
             $c['cron_key'] === '' ? 'boş — cron-job.org kullanacaksanız gerekli' : 'ayarlı'];
+        $tfOn = ($c['login_2fa'] ?? null) !== false && App::db()->get('login_2fa', '0') === '1';
+        $r[] = ['İki adımlı giriş', $tfOn ? self::OK : self::WARN, $tfOn ? 'açık (Telegram kodu)' : (($c['login_2fa'] ?? null) === false ? 'config.php ile kapalı' : 'kapalı — Uyarılar ve güvenlik sayfasından açılabilir')];
         $r[] = ['publisher', $c['publisher'] === 'manual' ? self::OK : self::WARN, $c['publisher'] === 'manual' ? 'manual (onaydan sonra panelde elle eklenir; API gelince otomatik)' : 'admin_api henüz desteklenmiyor'];
         try {
             $ai = new Ai(App::db(), $c);

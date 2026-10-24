@@ -29,7 +29,7 @@ final class Watcher
     {
         $u = $ch['username'];
         $res = $backfill > 0 ? $this->reader->fetchLast($u, $backfill) : $this->reader->fetch($u);
-        $report = ['ok' => $res['ok'], 'error' => $res['error'], 'title' => $res['title'], 'posts' => count($res['posts']), 'new' => 0, 'jobs' => [], 'found' => []];
+        $report = ['ok' => $res['ok'], 'error' => $res['error'], 'title' => $res['title'], 'posts' => count($res['posts']), 'new' => 0, 'jobs' => [], 'found' => [], 'notices' => []];
 
         if (!$res['ok']) {
             if (!$dry) {
@@ -48,6 +48,12 @@ final class Watcher
                 continue;
             }
             $report['new']++;
+            $kind = Notices::classify($p['text']);
+            if ($kind !== null) { // fiyat değişikliği ya da kapatılan servis: yeni servis değildir
+                $nid = $dry ? null : $this->flow->createNotice($u, $p['id'], $p['text'], $kind);
+                $report['notices'][] = ['post' => $p['id'], 'kind' => $kind, 'ids' => Notices::extractIds($p['text']), 'notice' => $nid];
+                continue;
+            }
             $items = Parser::parse($p['text']);
             if (!$items) {
                 continue;

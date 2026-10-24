@@ -14,8 +14,10 @@ final class ManualPublisher implements Publisher
         return 'manual';
     }
 
-    /** Panelde elle ekleme için düz metin paket (ID<TAB>ad<TAB>fiyat). */
-    public static function package(array $job): string
+    /**
+     * Panelde elle ekleme için düz metin paket. $info (Enrich::forJob) verilirse sağlayıcı, öneri ve kategori de eklenir.
+     */
+    public static function package(array $job, ?array $info = null): string
     {
         $lines = [];
         $lines[] = "# tgwatch iş #{$job['id']} — @{$job['channel']} / {$job['msg_id']}";
@@ -25,12 +27,26 @@ final class ManualPublisher implements Publisher
                 $cats[$it['category_az']] = true;
             }
         }
-        if ($cats) {
+        if ($info && ($info['category']['az'] ?? '') !== '') {
+            $lines[] = '# Kategori: ' . $info['category']['az'] . ($info['category']['exists'] ? ' (panelde var)' : ' (yeni)');
+        } elseif ($cats) {
             $lines[] = '# Kategori: ' . implode(' / ', array_keys($cats));
         }
-        $lines[] = '# ID<TAB>Ad<TAB>Fiyat(sağlayıcı)';
+        if ($info && $info['provider']) {
+            $lines[] = '# Sağlayıcı: ' . $info['provider']['name'];
+        }
+        if ($info && $info['formula']) {
+            $lines[] = '# ' . $info['formula'];
+        }
+        $lines[] = $info ? "# ID\tAd\tSağlayıcı fiyatı\tÖnerilen satış\tMin\tMax\tPanelde" : "# ID\tAd\tFiyat(sağlayıcı)";
         foreach ($job['items'] as $it) {
-            $lines[] = $it['id'] . "\t" . $it['az'] . "\t" . ($it['price'] ?? '');
+            if ($info) {
+                $x = $info['items'][(int)$it['id']] ?? [];
+                $lines[] = implode("\t", [$it['id'], $it['az'], $x['rate'] ?? ($it['price'] ?? ''), $x['suggest'] ?? '', $x['min'] ?? '', $x['max'] ?? '',
+                    !empty($x['own']) ? 'VAR #' . (int)$x['own']['service_id'] : '']);
+            } else {
+                $lines[] = $it['id'] . "\t" . $it['az'] . "\t" . ($it['price'] ?? '');
+            }
         }
         return implode("\n", $lines) . "\n";
     }

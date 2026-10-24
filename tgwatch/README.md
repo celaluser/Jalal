@@ -5,7 +5,7 @@ botun üzerinden **✅ Onayla / ✏️ Düzenle / 🔄 Yeniden oluştur / ❌ Re
 Onaydan sonra yayın yapar. Her şeyi web panelden izleyebilirsin.
 
 > **Yayın şu an "manual":** Perfect Panel Admin API v2'de servis/kategori/sağlayıcı metotları henüz yok.
-> Onaydan sonra iş "Onaylandı (yayın bekliyor)" olur; import paketi web panelde durur, bota ayrıca mesaj gitmez.
+> Onaydan sonra iş "Onaylandı (yayın bekliyor)" olur; ekleme paketi web panelde durur, bota ayrıca mesaj gitmez.
 > Metotlar yayınlanınca `src/Publisher/AdminApiPublisher.php` doldurulacak.
 
 ## Denenmiş / denenmemiş
@@ -19,6 +19,7 @@ Onaydan sonra yayın yapar. Her şeyi web panelden izleyebilirsin.
 | Claude API çevirisi | Anthropic API'ye erişim var (sahte anahtar 401 döndü); gerçek anahtarla **denenmedi** |
 | Çeviri bankası, eşleştirme, motor, kontrol | Otomatik testler + yerel panel |
 | Sağlayıcı/panel API'sinden gerçek senkron | **Denenmedi** (bu ortamdan erişim yok) |
+| Ekleme paketi, servis değişikliği duyuruları, uyarılar, Telegram ile giriş, yedek | Otomatik testler + sahte Telegram ile yerel panel. Gerçek Telegram'la **denenmedi** |
 
 ## Dosyalar
 
@@ -111,6 +112,10 @@ Tasarım Apple'ın arayüz ilkelerini (HIG) izler. Sistem yazı tipi kullanılı
 - **İşler:** Arama (servis ID, iş numarası, kelime), durum ve kanal filtresi, sayfalama, toplu onaylama, reddetme ve "sitede yayınlandı say".
 - **İş sayfası:** Her ad ayrı bir kutuda düzenlenir, "Kaydet ve onayla" tek adımdır. Eksik kelimeler oradan sözlüğe eklenir. Onaylanan işte ID'ler ve adlar kopyalanabilir ya da `.txt` olarak indirilebilir. "claude.ai için hazırla" butonu da buradadır.
 - **Sözlük, Çeviri bankası, Çeviri ayarları, Kanallar, Kayıtlar, Sağlık:** Önceki bölümlerde anlatıldığı gibi.
+- **Ekleme paketi (iş sayfası ve bot mesajı):** Kanalın sağlayıcısı Kanallar sayfasında seçilir (tek sağlayıcı varsa otomatik). Pakette sağlayıcıdaki servis ID'si, sağlayıcı fiyatı, önerilen satış fiyatı (Eşleştirme'den öğrenilen kâr formülü; Çeviri ayarları > Fiyat önerisi'nden elle de verilebilir), min/max, kategori (ikonu panelindeki kategorilerden öğrenilir, panelde var/yeni) ve "panelinde zaten var" uyarısı bulunur. Formülün çalışması için "Eşleştirmeyi çalıştır" bir kez çalıştırılmalı.
+- **Servis değişiklikleri:** Kanalda "fiyat değişti" ya da "servis kapatıldı" duyurusu gelirse yeni servis sayılmaz. Panelindeki etkilenen servisler bulunur, ne yapman gerektiği yazılır, bota ✅ Yaptım / 🚫 Yoksay butonlu mesaj gider.
+- **Uyarılar ve güvenlik:** Telegram uyarıları (kanal okunamıyor, cron durdu, webhook hatası, Claude limiti, uzun süre servis gelmedi, servis değişikliği, giriş) tür tür açılıp kapatılır; günlük özet saati seçilir. **Telegram ile iki adımlı giriş:** Şifreden sonra bota 6 haneli kod gelir (5 dk, 5 deneme). Açarken önce test kodu doğrulanır, kilitlenme olmaz. Yine de kilitlenirsen `config.php` içine `'login_2fa' => false,` yaz. Hosting Telegram'a doğrudan erişemiyorsa `'telegram_api_base'` ile ara sunucu adresi verilir.
+- **Yedek:** Sağlık sayfasından indir/geri yükle (ayarlar, kanallar, çeviri bankası; API anahtarları yedeğe girmez).
 - **Kısayollar:**
   - **⌘K / Ctrl K:** Komut paleti; sayfaya git ya da iş ara, ok tuşları ve Enter ile.
   - **/:** Aramaya odaklanır.

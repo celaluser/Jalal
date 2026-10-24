@@ -109,6 +109,20 @@ CREATE TABLE IF NOT EXISTS tm (
     UNIQUE(kind, en_norm, az)
 );
 CREATE INDEX IF NOT EXISTS tm_lookup ON tm(kind, en_norm, status);
+CREATE TABLE IF NOT EXISTS notices (
+    id INTEGER PRIMARY KEY,
+    channel TEXT NOT NULL,
+    msg_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    ids_json TEXT NOT NULL,
+    details_json TEXT NOT NULL DEFAULT '{}',
+    text TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    tg_message_id INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(channel, msg_id)
+);
 CREATE TABLE IF NOT EXISTS tm_segments (
     en_norm TEXT NOT NULL,
     az TEXT NOT NULL,
@@ -118,6 +132,10 @@ CREATE TABLE IF NOT EXISTS tm_segments (
 SQL);
         // Sonradan eklenen sütunlar (eski veritabanları için).
         $cols = array_column($this->pdo->query('PRAGMA table_info(jobs)')->fetchAll(), 'name');
+        $chCols = array_column($this->pdo->query('PRAGMA table_info(channels)')->fetchAll(), 'name');
+        if (!in_array('source_id', $chCols, true)) {
+            $this->pdo->exec('ALTER TABLE channels ADD COLUMN source_id INTEGER');
+        }
         if (!in_array('ai_state', $cols, true)) {
             $this->pdo->exec("ALTER TABLE jobs ADD COLUMN ai_state TEXT NOT NULL DEFAULT ''");
         }

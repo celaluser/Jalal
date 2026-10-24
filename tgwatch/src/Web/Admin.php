@@ -19,6 +19,8 @@ use TgWatch\Watcher;
 final class Admin
 {
     use BankPages;
+    use SecurityPages;
+    use ChangePages;
 
     private const MAX_FAILS = 5;
     private const LOCK_SECONDS = 900;
@@ -57,6 +59,10 @@ final class Admin
             $this->login();
             return;
         }
+        try {
+            (new \TgWatch\Alerts($this->db))->check();
+        } catch (\Throwable) {
+        }
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!hash_equals((string)($_SESSION['csrf'] ?? ''), (string)($_POST['csrf'] ?? ''))) {
                 http_response_code(400);
@@ -68,6 +74,9 @@ final class Admin
         }
         match ($p) {
             'queue' => $this->queue(),
+            'changes' => $this->changes(),
+            'alerts' => $this->alertsPage(),
+            'backup' => $this->backupDownload(),
             'jobs' => $this->jobs(),
             'job' => $this->job((int)($_GET['id'] ?? 0)),
             'job_txt' => $this->jobTxt((int)($_GET['id'] ?? 0)),
@@ -181,6 +190,7 @@ final class Admin
         $nav = $o['nav'] ?? true;
         if ($nav && isset($this->db)) {
             $o += ['pending' => $this->pending(), 'cron' => $this->cronState()];
+            $o['counts'] = ['queue' => $o['pending'], 'changes' => (new \TgWatch\Notices($this->db))->openCount()];
         }
         $o['flash'] = $this->flash;
         echo $this->ui->page($title, $body, $o);
@@ -233,11 +243,41 @@ final class Admin
         $this->bare('İlk kurulum', 'Panel şifresi henüz ayarlanmamış. Bu sayfa hiçbir dosyaya yazmaz.', $inner);
     }
 
+    /** Hatalı şifre/kod sayacı: 5 hatada 15 dakika kilit. @return array{0:int,1:int} [deneme sayısı, kilit bitişi] */
+    private function registerLoginFail(?array $row, string $what = 'şifre'): array
+    {
+        $fails = ($row && (int)$row['locked_until'] <= time() && (int)$row['locked_until'] > 0) ? 1 : ((int)($row['fails'] ?? 0) + 1);
+        $until = $fails >= self::MAX_FAILS ? time() + self::LOCK_SECONDS : 0;
+        $this->db->run('INSERT INTO login_attempts(ip, fails, locked_until, last_at) VALUES(?,?,?,?) ON CONFLICT(ip) DO UPDATE SET fails = excluded.fails, locked_until = excluded.locked_until, last_at = excluded.last_at',
+            [$this->ip(), $fails, $until, time()]);
+        $this->db->log('warn', 'web', "Hatalı giriş ($what, $fails): " . $this->ip());
+        usleep(500000);
+        return [$fails, $until];
+    }
+
+    private function completeLogin(): void
+    {
+        $this->db->run('DELETE FROM login_attempts WHERE ip = ?', [$this->ip()]);
+        session_regenerate_id(true);
+        $_SESSION['auth'] = true;
+        $_SESSION['seen'] = time();
+        $_SESSION['csrf'] = bin2hex(random_bytes(32));
+        $this->db->log('info', 'web', 'Panele giriş: ' . $this->ip());
+        try {
+            (new \TgWatch\Alerts($this->db))->notify('login', "🔓 <b>Panele giriş yapıldı</b>\nIP: " . \TgWatch\Telegram::esc($this->ip()) . "\n" . \TgWatch\Telegram::esc($this->ua()) . "\nSen değilsen şifreni değiştir.");
+        } catch (\Throwable) {
+        }
+        $this->redirect('dash');
+    }
+
     private function login(): void
     {
         $hash = (string)$this->config['admin_password_hash'];
         if ($hash === '') {
             $this->setup();
+            return;
+        }
+        if ($this->loginStep2()) { // şifre doğru, Telegram kodu bekleniyor
             return;
         }
         $msg = '';
@@ -250,21 +290,14 @@ final class Admin
             } elseif ($locked) {
                 $msg = 'Çok fazla hatalı deneme. ' . ceil(((int)$row['locked_until'] - time()) / 60) . ' dakika sonra tekrar deneyin.';
             } elseif (password_verify((string)($_POST['password'] ?? ''), $hash)) {
-                $this->db->run('DELETE FROM login_attempts WHERE ip = ?', [$this->ip()]);
-                session_regenerate_id(true);
-                $_SESSION['auth'] = true;
-                $_SESSION['seen'] = time();
-                $_SESSION['csrf'] = bin2hex(random_bytes(32));
-                $this->db->log('info', 'web', 'Panele giriş: ' . $this->ip());
-                $this->redirect('dash');
+                if ($this->twoFactorOn()) {
+                    $this->beginTwoFactor();
+                    return;
+                }
+                $this->completeLogin();
                 return;
             } else {
-                $fails = ($row && (int)$row['locked_until'] <= time() && (int)$row['locked_until'] > 0) ? 1 : ((int)($row['fails'] ?? 0) + 1);
-                $until = $fails >= self::MAX_FAILS ? time() + self::LOCK_SECONDS : 0;
-                $this->db->run('INSERT INTO login_attempts(ip, fails, locked_until, last_at) VALUES(?,?,?,?) ON CONFLICT(ip) DO UPDATE SET fails = excluded.fails, locked_until = excluded.locked_until, last_at = excluded.last_at',
-                    [$this->ip(), $fails, $until, time()]);
-                $this->db->log('warn', 'web', "Hatalı giriş ($fails): " . $this->ip());
-                usleep(500000);
+                [, $until] = $this->registerLoginFail($row);
                 $msg = $until ? 'Çok fazla hatalı deneme. Giriş 15 dakika kilitlendi.' : 'Şifre yanlış.';
             }
         }
@@ -417,7 +450,8 @@ final class Admin
         // --- 1. satır: karar bekleyen (tek büyük rakam) + dört kutucuk
         $hero = '<section class="card hero-card c-4" aria-labelledby="hero-l"><div><div class="tile-label" id="hero-l">' . Ui::icon('queue', 16) . 'Kararını bekleyen</div>'
             . '<div class="hero-num">' . $deciding . '</div><div class="hero-label">' . ($deciding ? 'iş onay ya da düzeltme bekliyor' : 'Bekleyen iş yok, her şey güncel')
-            . ($failed ? ', <a href="?p=jobs&amp;status=failed">' . $failed . ' yayın hatası</a>' : '') . '</div></div>'
+            . ($failed ? ', <a href="?p=jobs&amp;status=failed">' . $failed . ' yayın hatası</a>' : '')
+            . (($ncount = (new \TgWatch\Notices($this->db))->openCount()) ? '. <a href="?p=changes">' . $ncount . ' servis değişikliği</a> panelinde yapılmayı bekliyor' : '') . '</div></div>'
             . '<div class="row">' . ($deciding ? Ui::link('?p=queue', 'Kuyruğu aç', 'primary', 'arrow') : '') . $this->ui->action('run_cron', 'Kanalları şimdi oku', ['back' => 'dash'], 'quiet', 'refresh') . '</div></section>';
 
         $tile = static function (string $icon, string $label, string $value, string $foot, string $extra = ''): string {
@@ -647,6 +681,8 @@ final class Admin
                 . '<button class="btn danger" name="do" value="reject" data-confirm="Bu iş reddedilsin mi?">' . Ui::icon('x') . '<span>Reddet</span></button>'
                 . '</div></form>';
 
+            $h .= $this->enrichCard($job);
+
             // eksik kelimeleri tek tıkla sözlüğe ekle
             $words = [];
             foreach ($job['items'] as $it) {
@@ -688,7 +724,8 @@ final class Admin
         if (in_array($st, ['approved', 'published'], true)) {
             $ids = implode(',', array_map(static fn($i) => (string)$i['id'], $job['items']));
             $lines = implode("\n", array_map(static fn($i) => $i['id'] . ' → ' . $i['az'], $job['items']));
-            $h .= '<h2>Panele ekleme bilgisi</h2><p class="muted">Perfect Panel → Services → Import services → sağlayıcıyı seçin ve bu ID\'leri işaretleyin.</p>'
+            $h .= $this->enrichCard($job);
+            $h .= '<h2>Kopyalanacaklar</h2><p class="muted">Perfect Panel → Services → Import services → sağlayıcıyı seçin ve bu ID\'leri işaretleyin.</p>'
                 . '<div class="split"><div class="panel panel-pad stack"><div class="row"><b>Servis ID\'leri</b>' . Ui::copy('pkg-ids') . '</div><div class="code"><pre id="pkg-ids">' . Ui::e($ids) . '</pre></div></div>'
                 . '<div class="panel panel-pad stack"><div class="row"><b>Azerice adlar</b>' . Ui::copy('pkg-lines') . Ui::link('?p=job_txt&id=' . $id, '.txt indir', 'ghost sm', 'download') . '</div><div class="code"><pre id="pkg-lines">' . Ui::e($lines) . '</pre></div></div></div>';
         }
@@ -707,7 +744,7 @@ final class Admin
         }
         header('Content-Type: text/plain; charset=utf-8');
         header('Content-Disposition: attachment; filename="import_' . $id . '.txt"');
-        echo ManualPublisher::package($job);
+        echo ManualPublisher::package($job, (new \TgWatch\Enrich($this->db))->forJob($job));
     }
 
     private function channels(): void
@@ -728,11 +765,13 @@ final class Admin
             $this->render('Kanallar', $h, ['active' => 'channels']);
             return;
         }
-        $h .= '<div class="table-wrap gap-top"><table><thead><tr><th>Kanal</th><th>Durum</th><th>Son gönderi</th><th>Son okuma</th><th class="num">İş</th><th></th></tr></thead><tbody>';
+        $h .= '<div class="table-wrap gap-top"><table><thead><tr><th>Kanal</th><th>Sağlayıcı</th><th>Durum</th><th>Son gönderi</th><th>Son okuma</th><th class="num">İş</th><th></th></tr></thead><tbody>';
+        $provs = (new \TgWatch\Enrich($this->db))->providers();
         foreach ($rows as $c) {
             $u = Ui::e($c['username']);
             [$state, $txt] = !$c['enabled'] ? ['', 'Duraklatıldı'] : ($c['last_error'] ? ['bad', Ui::e($c['last_error'])] : ($c['last_ok_at'] ? ['ok', 'Çalışıyor'] : ['warn', 'Henüz okunmadı']));
             $h .= '<tr><td><a href="https://t.me/s/' . $u . '" target="_blank" rel="noopener noreferrer"><b>@' . $u . '</b></a>' . ($c['title'] !== '' ? '<div class="src">' . Ui::e($c['title']) . '</div>' : '') . '</td>'
+                . '<td class="tight">' . $this->providerSelect($c, $provs) . '</td>'
                 . '<td><span class="row nowrap">' . Ui::dot($state) . '<span>' . $txt . '</span></span></td>'
                 . '<td class="tight">' . ($c['last_post_id'] ? '<a href="https://t.me/' . $u . '/' . (int)$c['last_post_id'] . '" target="_blank" rel="noopener noreferrer">' . (int)$c['last_post_id'] . '</a>' : '<span class="muted">—</span>') . '</td>'
                 . '<td class="tight">' . Ui::ago($c['last_checked_at'] ? (int)$c['last_checked_at'] : null) . '</td>'
@@ -749,6 +788,20 @@ final class Admin
             . '<span class="muted note">gönderisini okuyup servis duyurularından iş oluşturur ve bota onay mesajı gönderir. Daha önce işlenen gönderiler atlanır.</span>'
             . '<button class="btn quiet">' . Ui::icon('play') . '<span>Çalıştır</span></button></form>';
         $this->render('Kanallar', $h, ['active' => 'channels', 'actions' => $this->ui->action('run_cron', 'Şimdi oku', ['back' => 'channels'], 'quiet', 'refresh')]);
+    }
+
+    /** Kanalın hangi sağlayıcıya ait olduğu (fiyat, min/max ve panelde var mı kontrolü için). */
+    private function providerSelect(array $c, array $provs): string
+    {
+        if (!$provs) {
+            return '<span class="muted">—</span>';
+        }
+        $opts = '<option value="">' . (count($provs) === 1 ? Ui::e($provs[0]['name']) . ' (otomatik)' : 'Seçin…') . '</option>';
+        foreach ($provs as $s) {
+            $opts .= '<option value="' . (int)$s['id'] . '"' . ((int)$c['source_id'] === (int)$s['id'] ? ' selected' : '') . '>' . Ui::e($s['name']) . '</option>';
+        }
+        return '<form method="post" action="?p=channel_source" class="row nowrap">' . $this->ui->csrfField() . '<input type="hidden" name="id" value="' . (int)$c['id'] . '"><input type="hidden" name="back" value="channels">'
+            . '<select name="source_id" aria-label="@' . Ui::e($c['username']) . ' sağlayıcısı">' . $opts . '</select><button class="btn ghost sm">Kaydet</button></form>';
     }
 
     private function dict(?array $draft = null, string $previewIn = '', string $previewOut = '', bool $openBulk = false): void
@@ -909,6 +962,7 @@ final class Admin
             $h .= '<div class="code gap-top"><pre>' . Ui::e($_SESSION['webhook_report']) . '</pre></div>';
             unset($_SESSION['webhook_report']);
         }
+        $h .= $this->backupCard();
         $this->render('Sağlık', $h, ['active' => 'health', 'actions' => $this->ui->action('health_net', 'Ağ testlerini çalıştır', [], 'quiet', 'play')]);
     }
 
@@ -934,7 +988,7 @@ final class Admin
     {
         $id = (int)($_POST['id'] ?? 0);
         try {
-            if ($this->postBank($p)) {
+            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p)) {
                 return;
             }
             switch ($p) {

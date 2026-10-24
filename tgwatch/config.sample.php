@@ -41,6 +41,12 @@ return [
     // Web cron (cron-job.org) anahtarı: public/webcron.php?key=... Panelin Kurulum ekranı üretir (yalnızca A-Z a-z 0-9 _ -).
     'cron_key' => '',
 
+    // İki adımlı giriş (Telegram kodu) panelden açılır. Kilitlenirseniz buraya false yazarak zorla kapatın.
+    'login_2fa' => null,
+
+    // Telegram API adresi. Boş bırakın; hosting Telegram'a erişemiyorsa kendi ara sunucunuzun adresini yazın.
+    'telegram_api_base' => '',
+
     // Kanal okuma ayarları
     'fetch_timeout' => 20,
     'cron_time_limit' => 50,      // komut satırı cron'u için saniye

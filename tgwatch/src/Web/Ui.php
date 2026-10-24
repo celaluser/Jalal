@@ -14,10 +14,10 @@ final class Ui
 {
     /** Gezinme: grup => [sayfa => [ad, ikon]] (kenar menü en fazla iki seviye: HIG › Sidebars) */
     public const NAV = [
-        'Masa' => ['dash' => ['Genel bakış', 'gauge'], 'queue' => ['Onay kuyruğu', 'queue'], 'jobs' => ['İşler', 'jobs']],
+        'Masa' => ['dash' => ['Genel bakış', 'gauge'], 'queue' => ['Onay kuyruğu', 'queue'], 'jobs' => ['İşler', 'jobs'], 'changes' => ['Servis değişiklikleri', 'change']],
         'Kaynaklar' => ['channels' => ['Kanallar', 'channels']],
         'Çeviri' => ['dict' => ['Sözlük', 'dict'], 'bank' => ['Çeviri bankası', 'bank'], 'ai' => ['Çeviri ayarları', 'sliders']],
-        'Sistem' => ['logs' => ['Kayıtlar', 'logs'], 'health' => ['Sağlık', 'health']],
+        'Sistem' => ['alerts' => ['Uyarılar ve güvenlik', 'bell'], 'logs' => ['Kayıtlar', 'logs'], 'health' => ['Sağlık', 'health']],
     ];
     /** Mobil sekme çubuğu: en sık kullanılan dört bölüm + menü */
     private const TABS = ['dash' => ['Genel', 'gauge'], 'queue' => ['Kuyruk', 'queue'], 'jobs' => ['İşler', 'jobs'], 'channels' => ['Kanallar', 'channels']];
@@ -137,6 +137,8 @@ final class Ui
             'chevron' => '<path d="M9 6l6 6-6 6"/>',
             'clock' => '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
             'arrow' => '<path d="M5 12h14M13 6l6 6-6 6"/>',
+            'change' => '<path d="M7 4v14M3.5 14.5L7 18l3.5-3.5"/><path d="M17 20V6M13.5 9.5L17 6l3.5 3.5"/>',
+            'bell' => '<path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15z"/><path d="M10 21a2 2 0 0 0 4 0"/>',
         ][$name] ?? '';
         return '<svg class="ic" width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . $p . '</svg>';
     }
@@ -173,7 +175,8 @@ final class Ui
         foreach (self::NAV as $group => $items) {
             $links .= '<div class="nav-group"><p class="nav-label">' . self::e($group) . '</p>';
             foreach ($items as $k => [$label, $ic]) {
-                $count = $k === 'queue' && !empty($o['pending']) ? '<span class="count" aria-label="' . (int)$o['pending'] . ' bekleyen">' . (int)$o['pending'] . '</span>' : '';
+                $cnt = (int)($o['counts'][$k] ?? 0);
+                $count = $cnt > 0 ? '<span class="count" aria-label="' . $cnt . ' bekleyen">' . $cnt . '</span>' : '';
                 $links .= '<a href="?p=' . $k . '"' . ($active === $k ? ' aria-current="page"' : '') . '>' . self::icon($ic) . '<span>' . $label . '</span>' . $count . '</a>';
                 $palette .= '<li><a href="?p=' . $k . '" data-cmd="' . self::e(mb_strtolower($label . ' ' . $group)) . '">' . self::icon($ic, 16) . '<span>' . $label . '</span><small>' . self::e($group) . '</small></a></li>';
             }

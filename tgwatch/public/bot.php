@@ -55,6 +55,7 @@ if (function_exists('fastcgi_finish_request')) {
 
 try {
     App::flow()->handleUpdate($update);
+    (new TgWatch\Alerts(App::db()))->check();
 } catch (Throwable $e) {
     try {
         App::db()->log('error', 'webhook', get_class($e) . ': ' . $e->getMessage());

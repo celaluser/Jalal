@@ -111,7 +111,7 @@ final class App
 
     public static function telegram(): Telegram
     {
-        return new Telegram((string)self::config()['bot_token']);
+        return new Telegram((string)self::config()['bot_token'], (string)(self::config()['telegram_api_base'] ?? ''));
     }
 
     public static function flow(): Flow

@@ -9,10 +9,13 @@ class Telegram
     public const MAX_TEXT = 4096;
 
     private string $token;
+    private string $base;
 
-    public function __construct(string $token)
+    /** @param string|null $base API adresi (varsayılan https://api.telegram.org). Telegram'a doğrudan erişilemeyen hosting'lerde ara sunucu adresi verilebilir. */
+    public function __construct(string $token, ?string $base = null)
     {
         $this->token = self::cleanToken($token);
+        $this->base = rtrim($base !== null && $base !== '' ? $base : 'https://api.telegram.org', '/');
     }
 
     /** Kopyala-yapıştırda karışan boşlukları, satır sonlarını ve görünmez karakterleri temizler. */
@@ -55,7 +58,7 @@ class Telegram
         if (!$this->configured()) {
             throw new \RuntimeException('bot_token: ' . self::describeToken($this->token));
         }
-        $url = 'https://api.telegram.org/bot' . $this->token . '/' . $method;
+        $url = $this->base . '/bot' . $this->token . '/' . $method;
         $r = Http::postJson($url, $params, [], $timeout);
         if ($r['error'] !== '') {
             throw new \RuntimeException("Telegram'a bağlanılamadı ($method): " . $r['error']);
@@ -116,7 +119,7 @@ class Telegram
         $tmp = tempnam(sys_get_temp_dir(), 'tgw');
         file_put_contents($tmp, $content);
         try {
-            $r = Http::request('POST', 'https://api.telegram.org/bot' . $this->token . '/sendDocument', [], [
+            $r = Http::request('POST', $this->base . '/bot' . $this->token . '/sendDocument', [], [
                 'chat_id' => (string)$chatId,
                 'caption' => $caption,
                 'document' => new \CURLFile($tmp, 'text/plain', $filename),

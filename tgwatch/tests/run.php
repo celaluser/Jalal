@@ -795,6 +795,224 @@ test('onaylanan iş bankaya öğrenilir; bir sonraki duyuru bankadan çevrilir',
     eq(['Threads Bəyəni | Çox Sürətli', 'bank'], [$it['az'], $it['via']]);
 });
 
+echo "Servis değişiklikleri (Notices)\n";
+test('fiyat değişikliği / kapatılan servis ayrılır, yeni servis duyurusu karışmaz', function () {
+    $cases = [
+        ["⚠️ Price update\n🆔 3309 YouTube Subscribers | Fast\n\$8.50 → \$9.20", 'price'],
+        ['Price changed for ID 100, 101 and 102. New rate: $0.45', 'price'],
+        ['Servis 555 qiymət dəyişdi: $1.20 → $1.50', 'price'],
+        ['🚫 Service disabled: ID 4455 (YouTube Views) is temporarily unavailable', 'closed'],
+        ['IDs 200, 201, 202 removed from the panel', 'closed'],
+        ['3309 servisi kapatıldı', 'closed'],
+        ["📢 New services added\n🆔 13125 Threads Followers | No Drop\n💰 \$1.20", null],
+        ["🆔 9001 TikTok Likes | Instant\n💰 New price: \$0.12", null],
+        ['New services! Price drop on old ones too. 🆔 500 Instagram Likes', null],
+        ['Prices have changed across the panel, check the list', null],
+        ['Hello everyone, maintenance tonight', null],
+    ];
+    foreach ($cases as [$text, $want]) {
+        eq($want, TgWatch\Notices::classify($text), mb_substr($text, 0, 40));
+    }
+});
+test('duyurudan servis ID\'leri ve yeni fiyatlar çıkarılır', function () {
+    eq([100, 101, 102], TgWatch\Notices::extractIds('Price changed for ID 100, 101 and 102. New rate: $0.45'));
+    $p = TgWatch\Notices::extractPrices("🆔 3309 YouTube Subscribers\n\$8.50 → \$9.20");
+    eq(['old' => 8.5, 'new' => 9.2], $p[3309]);
+});
+test('Watcher: bildirim iş olmaz, bota butonlu mesaj gider, "Yaptım" kapatır, tekrar gelmez', function () {
+    [$db, $tg, $flow] = env();
+    $reader = new FakeReader();
+    $w = new Watcher($db, $flow, $reader);
+    $w->addChannel('demosmm');
+    $reader->pages['demosmm'] = ['ok' => true, 'error' => '', 'title' => '', 'posts' => [['id' => 5, 'text' => 'x', 'date' => '']]];
+    $w->runAll();
+    $reader->pages['demosmm']['posts'][] = ['id' => 6, 'text' => "Price update\n🆔 3309 YouTube Subscribers\n\$8.50 → \$9.20", 'date' => ''];
+    $reader->pages['demosmm']['posts'][] = ['id' => 7, 'text' => "New services\n🆔 4001 Threads Likes | Fast", 'date' => ''];
+    $r = $w->runAll();
+    eq(1, count($r['demosmm']['notices']));
+    eq(1, count($r['demosmm']['jobs']), 'yeni servis hâlâ iş olur');
+    eq(1, (int)$db->one('SELECT COUNT(*) c FROM notices')['c']);
+    $m = null;
+    foreach ($tg->calls as [$meth, $params]) {
+        if ($meth === 'sendMessage' && str_contains($params['text'], 'Fiyat değişti')) {
+            $m = $params;
+        }
+    }
+    ok($m !== null, 'bildirim mesajı gönderilmedi');
+    $nid = (int)$db->one('SELECT id FROM notices')['id'];
+    ok(str_contains($m['text'], 'Fiyat değişti') && str_contains($m['text'], '3309'), $m['text']);
+    $cb = array_merge(...$m['reply_markup']['inline_keyboard']);
+    eq(["nd:$nid", "ni:$nid"], array_column($cb, 'callback_data'));
+    $flow->handleUpdate(cb(1, OWNER, "nd:$nid"));
+    eq('done', $db->one('SELECT status FROM notices')['status']);
+    eq([], $tg->last('editMessageText')['reply_markup']['inline_keyboard']);
+    $flow->handleUpdate(cb(2, 999, "ni:$nid"));
+    eq('done', $db->one('SELECT status FROM notices')['status'], 'yabancı basamaz');
+    $reader->pages['demosmm']['posts'][] = ['id' => 6, 'text' => 'again', 'date' => ''];
+    $w->runAll(3);
+    eq(1, (int)$db->one('SELECT COUNT(*) c FROM notices')['c']);
+});
+test('etki: panelindeki servis ve önerilen yeni satış hesaplanır', function () {
+    [$db] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('own','panel','https://x','k',1),('provider','prov','https://y','k',1)");
+    $db->run("INSERT INTO remote_services(source_id,service_id,name,rate,min,max) VALUES(2,3309,'YT Subs',8.5,10,5000),(1,101,'YouTube Abunə',15.0,10,5000)");
+    $db->run("INSERT INTO tm(kind,en_norm,en,az,origin,status,provider_source,provider_service,own_service,updated_at) VALUES('service','yt subs','YT Subs','YouTube Abunə','import','ok',2,3309,101,1)");
+    $db->setJson('match_report', ['model' => ['a' => 1.7, 'b' => 0.5, 'points' => 9, 'mode' => 'linear']]);
+    $db->run("INSERT INTO channels(username,source_id,created_at) VALUES('demosmm',2,1)");
+    $nt = new TgWatch\Notices($db);
+    $id = $nt->create('demosmm', 6, "Price update\n🆔 3309 YT Subs\n\$8.50 → \$9.20", 'price');
+    $x = $nt->impact($nt->get($id))[0];
+    eq(101, (int)$x['own']['service_id']);
+    eq(9.2, $x['new']);
+    eq(16.14, $x['suggest']);
+    ok(str_contains($x['action'], '#101') && str_contains($x['action'], '16.14') && str_contains($x['action'], '15.00'), $x['action']);
+    $id2 = $nt->create('demosmm', 7, 'ID 3309 removed', 'closed');
+    ok(str_contains($nt->impact($nt->get($id2))[0]['action'], 'gizle ya da kapat'));
+});
+
+echo "Panele ekleme paketi (Enrich)\n";
+test('sağlayıcı, öneri, panelde var uyarısı, kategori ve ikon', function () {
+    [$db] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,last_sync_at,created_at) VALUES('own','panel','https://x','k',1,1),('provider','prov','https://y','k',1,1)");
+    $db->run("INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max,refill,cancel) VALUES
+        (2,901,'Threads Followers | No Drop','Threads Followers',1.0,10,5000,1,0),
+        (2,902,'Threads Likes | Fast','Threads Likes',0.5,10,5000,0,1),
+        (1,201,'Threads İzləyici | Azalma olmaz','🧵 Threads İzləyici',1.8,10,5000,1,0),
+        (1,202,'Instagram Bəyəni','📸 Instagram Bəyəni',1.0,10,5000,0,0)");
+    $db->run("INSERT INTO tm(kind,en_norm,en,az,origin,status,provider_source,provider_service,own_service,updated_at) VALUES('service','threads followers | no drop','Threads Followers | No Drop','Threads İzləyici | Azalma olmaz','import','ok',2,901,201,1)");
+    $db->setJson('match_report', ['model' => ['a' => 1.8, 'b' => 0.0, 'points' => 9, 'mode' => 'linear']]);
+    $db->run("INSERT INTO channels(username,created_at) VALUES('demosmm',1)");
+    $flow = new Flow($db, new FakeTelegram(), App::config());
+    $id = $flow->createJob('demosmm', 9, "🆔 901 Threads Followers | No Drop\n🆔 902 Threads Likes | Fast");
+    $info = (new TgWatch\Enrich($db))->forJob($db->job($id));
+    eq('prov', $info['provider']['name'], 'tek sağlayıcı otomatik');
+    eq(1.8, $info['items'][901]['suggest']);
+    eq(0.9, $info['items'][902]['suggest']);
+    eq(201, (int)$info['items'][901]['own']['service_id'], 'panelinde var');
+    eq(null, $info['items'][902]['own']);
+    eq(1, $info['duplicates']);
+    eq([10, 5000], [(int)$info['items'][901]['min'], (int)$info['items'][901]['max']]);
+    eq('🧵 Threads İzləyici', $info['category']['az'], 'ikon paneldeki kategoriden öğrenilir');
+    ok($info['category']['exists']);
+    $m = $flow->render($db->job($id))[0];
+    ok(str_contains($m, 'Sağlayıcı: prov') && str_contains($m, 'Panelinde var: #201') && str_contains($m, 'öneri 1.80'), $m);
+    $pkg = TgWatch\Publisher\ManualPublisher::package($db->job($id), $info);
+    ok(str_contains($pkg, "901\tThreads İzləyici | Azalma olmaz\t1\t1.8\t10\t5000\tVAR #201"), $pkg);
+});
+test('elle girilen kâr formülü otomatik olanı geçer; formül yoksa öneri yok', function () {
+    [$db] = env();
+    $en = new TgWatch\Enrich($db);
+    eq(null, $en->suggestPrice(2.0));
+    $db->set('markup_a', '2,5');
+    $db->set('markup_b', '0.1');
+    eq(5.1, $en->suggestPrice(2.0));
+    eq('manual', $en->model()['mode']);
+});
+
+echo "Uyarılar (Alerts)\n";
+test('kanal uyarısı bekleme süresinde tekrar etmez, düzelince bir kez haber verir', function () {
+    [$db, $tg] = env();
+    $db->run("INSERT INTO channels(username,last_error,last_ok_at,created_at) VALUES('demosmm','HTTP 500',?,?)", [time() - 5 * 3600, time() - 9 * 3600]);
+    $al = new TgWatch\Alerts($db, $tg, App::config());
+    $al->check();
+    eq(1, $tg->count('sendMessage'));
+    ok(str_contains($tg->last('sendMessage')['text'], '@demosmm okunamıyor'));
+    $db->set('alerts_checked_at', '0');
+    $al->check();
+    eq(1, $tg->count('sendMessage'), 'bekleme süresinde tekrar yok');
+    $db->run("UPDATE channels SET last_error = NULL, last_ok_at = ?", [time()]);
+    $db->set('alerts_checked_at', '0');
+    $al->check();
+    eq(2, $tg->count('sendMessage'));
+    ok(str_contains($tg->last('sendMessage')['text'], 'yeniden okunuyor'));
+    $db->set('alerts_checked_at', '0');
+    $al->check();
+    eq(2, $tg->count('sendMessage'), 'düzeldi mesajı tek sefer');
+});
+test('kapalı uyarı türü gönderilmez; test mesajı gider', function () {
+    [$db, $tg] = env();
+    $al = new TgWatch\Alerts($db, $tg, App::config());
+    $al->setEnabled(['cron'], false, 21);
+    ok(!$al->enabled('channel') && $al->enabled('cron'));
+    ok(!$al->send('k', 'channel', 'x'));
+    ok($al->test());
+    eq(1, $tg->count('sendMessage'));
+});
+test('cron durduysa uyarı, cron çalışınca düzeldi', function () {
+    [$db, $tg] = env();
+    $al = new TgWatch\Alerts($db, $tg, App::config());
+    $db->set('cron_last_run', (string)(time() - 3600));
+    $al->check();
+    ok(str_contains($tg->last('sendMessage')['text'], 'Kanal okuma durdu'));
+    $db->set('cron_last_run', (string)time());
+    $db->set('alerts_checked_at', '0');
+    $al->check();
+    ok(str_contains($tg->last('sendMessage')['text'], 'yeniden çalışıyor'));
+});
+test('Claude sınırı %80 ve %100 ayda bir kez; uzun bekleyen iş günde bir', function () {
+    [$db, $tg, $flow] = env();
+    $db->set('claude_api_key', 'sk-ant-x');
+    $db->set('claude_monthly_limit', '10');
+    $db->setJson('ai_usage', [date('Y-m') => ['requests' => 8, 'input' => 0, 'output' => 0, 'cost' => 0]]);
+    $al = new TgWatch\Alerts($db, $tg, App::config());
+    $al->check();
+    ok(str_contains($tg->last('sendMessage')['text'], '%80'));
+    $db->set('alerts_checked_at', '0');
+    $al->check();
+    eq(1, $tg->count('sendMessage'));
+    $db->setJson('ai_usage', [date('Y-m') => ['requests' => 10, 'input' => 0, 'output' => 0, 'cost' => 0]]);
+    $db->set('alerts_checked_at', '0');
+    $al->check();
+    ok(str_contains($tg->last('sendMessage')['text'], 'sınırı doldu'));
+    $id = $flow->createJob('demosmm', 1, '🆔 111 Instagram Likes');
+    $db->run('UPDATE jobs SET created_at = ? WHERE id = ?', [time() - 20 * 3600, $id]);
+    $db->set('alerts_checked_at', '0');
+    $before = $tg->count('sendMessage');
+    $al->check();
+    ok(str_contains($tg->last('sendMessage')['text'], 'onay bekliyor'));
+    eq($before + 1, $tg->count('sendMessage'));
+});
+test('günlük özet saatinden sonra günde bir kez gider', function () {
+    [$db, $tg, $flow] = env();
+    $al = new TgWatch\Alerts($db, $tg, App::config());
+    $al->setEnabled([], true, 0);
+    $flow->createJob('demosmm', 1, '🆔 111 Instagram Likes');
+    $al->check();
+    ok(str_contains($tg->last('sendMessage')['text'], 'Günlük özet') && str_contains($tg->last('sendMessage')['text'], 'Gelen iş: 1'));
+    $n = $tg->count('sendMessage');
+    $db->set('alerts_checked_at', '0');
+    $al->check();
+    eq($n, $tg->count('sendMessage'));
+});
+
+echo "Yedek\n";
+test('yedek dışa/içe aktarılır; anahtarlar yedeğe girmez, import kayıtları geri gelmez', function () {
+    [$db] = env();
+    $m = new TgWatch\Memory($db);
+    $m->learn('service', 'Threads Likes | Fast', 'Threads Bəyəni | Sürətli', 'manual');
+    $m->learn('service', 'Auto', 'Otomatik', 'import');
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('provider','prov','https://y','SECRETKEY',1)");
+    $db->run("INSERT INTO channels(username,source_id,created_at) VALUES('demosmm',1,1)");
+    $db->set('claude_api_key', 'sk-ant-SECRET');
+    $db->set('markup_a', '1.7');
+    $json = json_encode((new TgWatch\Backup($db))->export());
+    ok(!str_contains($json, 'SECRETKEY') && !str_contains($json, 'sk-ant-SECRET'));
+    ok(!str_contains($json, 'Otomatik'), 'otomatik eşleşmeler yedekte yok');
+    [$db2] = env();
+    $n = (new TgWatch\Backup($db2))->import($json);
+    eq(1, $n['tm']);
+    eq('Threads Bəyəni | Sürətli', (new TgWatch\Memory($db2))->lookup('service', 'Threads Likes | Fast'));
+    eq('1.7', $db2->get('markup_a'));
+    $ch = $db2->one('SELECT c.username, s.name FROM channels c LEFT JOIN sources s ON s.id = c.source_id');
+    eq(['demosmm', 'prov'], [$ch['username'], $ch['name']]);
+    eq('', $db2->one('SELECT api_key FROM sources')['api_key']);
+    try {
+        (new TgWatch\Backup($db2))->import('{"x":1}');
+        ok(false);
+    } catch (InvalidArgumentException) {
+    }
+});
+
 echo "Dictionary\n";
 test('metin kutusu ↔ sözlük', function () {
     $p = Dictionary::phrasesFromText("Likes = Bəyəni\n# yorum\n\nCustom Comments = Özəl Rəy\nbozuk satır");

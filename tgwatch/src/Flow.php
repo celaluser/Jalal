@@ -24,6 +24,16 @@ final class Flow
         'rejected' => 'Reddedildi',
     ];
 
+    public function notices(): Notices
+    {
+        return new Notices($this->db);
+    }
+
+    public function enrich(): Enrich
+    {
+        return new Enrich($this->db);
+    }
+
     private ?Publisher $publisher = null;
 
     public function __construct(private Db $db, private Telegram $tg, private array $config)
@@ -138,15 +148,41 @@ final class Flow
         if ($cats) {
             $head .= '📁 ' . $e(implode(' / ', $cats)) . "\n";
         }
+        $info = null;
+        if (in_array($job['status'], ['new', 'awaiting', 'editing'], true)) {
+            try {
+                $info = $this->enrich()->forJob($job);
+            } catch (\Throwable) {
+            }
+        }
+        if ($info && $info['provider']) {
+            $head .= '🏷 Sağlayıcı: ' . $e($info['provider']['name']) . "\n";
+        }
+        if ($info && $info['category']['az'] !== '') {
+            $head .= '📁 Kategori: ' . $e($info['category']['az']) . ($info['category']['exists'] ? ' (panelde var)' : ' (yeni)') . "\n";
+        }
+        if ($info && $info['duplicates'] > 0) {
+            $head .= '⚠️ <b>' . $info['duplicates'] . ' servis panelinde zaten var</b>' . "\n";
+        }
         $head .= "\n";
         $body = '';
         $shown = 0;
         foreach ($job['items'] as $it) {
-            $block = '<b>' . $it['id'] . '</b>' . ($it['price'] !== '' ? ' · $' . $e($it['price']) : '') . ($it['edited'] ? ' ✏️' : '') . "\n"
+            $x = $info['items'][(int)$it['id']] ?? null;
+            $extra = '';
+            if ($x && $x['rate'] !== null) {
+                $extra = '💲 ' . number_format($x['rate'], 2) . ($x['suggest'] !== null ? ' → öneri ' . number_format($x['suggest'], 2) : '')
+                    . ($x['min'] !== null ? ' · ' . $x['min'] . '–' . $x['max'] : '') . "\n";
+            }
+            if ($x && $x['own']) {
+                $extra .= '⚠️ Panelinde var: #' . (int)$x['own']['service_id'] . "\n";
+            }
+            $block = '<b>' . $it['id'] . '</b>' . ($it['price'] !== '' && !$x ? ' · $' . $e($it['price']) : '') . ($it['edited'] ? ' ✏️' : '') . "\n"
                 . '📝 ' . $e($it['name']) . "\n"
                 . '🇦🇿 <b>' . $e($it['az']) . "</b>\n"
                 . ($it['unknown'] ? '⚠️ Sözlükte yok: ' . $e(implode(', ', $it['unknown'])) . "\n" : '')
                 . (!empty($it['ai_note']) ? '🤖 ' . $e(mb_strimwidth($it['ai_note'], 0, 160, '…')) . "\n" : '')
+                . $extra
                 . "\n";
             if (mb_strlen($head . $body . $block) > 3500) {
                 break;
@@ -454,6 +490,75 @@ final class Flow
         return $changed;
     }
 
+    // --- fiyat değişikliği / kapatılan servis bildirimleri ---
+
+    public function createNotice(string $channel, int $msgId, string $text, string $kind): ?int
+    {
+        $id = $this->notices()->create($channel, $msgId, $text, $kind);
+        // Mesajın kendisi bildirimdir; "Servis değişikliği" uyarısı kapalıysa yalnızca panelde görünür.
+        if ($id !== null && (new Alerts($this->db, $this->tg, $this->config))->enabled('change')) {
+            $this->sendNotice($id);
+        }
+        return $id;
+    }
+
+    /** @return array{0:string,1:array} */
+    public function renderNotice(array $n): array
+    {
+        $e = [Telegram::class, 'esc'];
+        $id = (int)$n['id'];
+        $icon = $n['kind'] === 'closed' ? '🚫' : '💲';
+        $head = $icon . ' <b>' . $e(Notices::KINDS[$n['kind']] ?? $n['kind']) . '</b> — @' . $e($n['channel']) . " (gönderi {$n['msg_id']}) · bildirim #$id\n\n";
+        $body = '';
+        foreach ($this->notices()->impact($n) as $x) {
+            $line = '<b>' . $x['id'] . '</b>';
+            if ($n['kind'] === 'price' && $x['new'] !== null) {
+                $line .= ' · ' . ($x['old'] !== null ? '$' . number_format($x['old'], 2) . ' → ' : '→ ') . '$' . number_format($x['new'], 2);
+            }
+            $line .= "\n" . ($x['own'] ? '✅ ' : '❔ ') . $e($x['action']) . "\n\n";
+            if (mb_strlen($head . $body . $line) > 3600) {
+                $body .= "… devamı web panelde\n\n";
+                break;
+            }
+            $body .= $line;
+        }
+        if ($n['status'] === 'open') {
+            return [$head . $body . '❓ <b>Panelinde bunu yaptın mı?</b>', [[['text' => '✅ Yaptım', 'callback_data' => "nd:$id"], ['text' => '🚫 Yoksay', 'callback_data' => "ni:$id"]]]];
+        }
+        return [$head . $body . (Notices::STATUS[$n['status']] ?? $n['status']), []];
+    }
+
+    public function sendNotice(int $id): bool
+    {
+        $n = $this->notices()->get($id);
+        if ($n === null) {
+            return false;
+        }
+        [$html, $kb] = $this->renderNotice($n);
+        try {
+            if ($n['tg_message_id']) {
+                $this->tg->editMessage($this->owner(), (int)$n['tg_message_id'], $html, $kb);
+            } else {
+                $msg = $this->tg->sendMessage($this->owner(), $html, $kb);
+                $this->db->run('UPDATE notices SET tg_message_id = ? WHERE id = ?', [(int)$msg['message_id'], $id]);
+            }
+            return true;
+        } catch (\Throwable $e) {
+            $this->db->log('error', 'bot', "Bildirim #$id bota gönderilemedi: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function resolveNotice(int $id, string $status): string
+    {
+        if (!$this->notices()->setStatus($id, $status)) {
+            return 'Bu bildirim zaten işlendi.';
+        }
+        $this->db->log('info', 'notice', "Bildirim #$id: " . (Notices::STATUS[$status] ?? $status));
+        $this->sendNotice($id);
+        return $status === 'done' ? 'Yapıldı olarak işaretlendi.' : 'Yoksayıldı.';
+    }
+
     private function clearEditing(int $id): void
     {
         if ($this->db->get('editing_job') === (string)$id) {
@@ -487,6 +592,11 @@ final class Flow
         if ($from !== $this->owner() || $this->owner() === 0) {
             $this->db->log('warn', 'bot', "Yetkisiz buton denemesi: kullanıcı $from");
             $this->safe(fn() => $this->tg->answerCallback((string)$cb['id'], 'Yetkiniz yok.'));
+            return;
+        }
+        if (preg_match('/^(nd|ni):(\d+)$/', (string)($cb['data'] ?? ''), $nm)) {
+            $this->safe(fn() => $this->tg->answerCallback((string)$cb['id'], 'Tamam'));
+            $this->resolveNotice((int)$nm[2], $nm[1] === 'nd' ? 'done' : 'ignored');
             return;
         }
         if (!preg_match('/^(ok|ed|rg|rj):(\d+)$/', (string)($cb['data'] ?? ''), $m)) {
