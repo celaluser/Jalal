@@ -89,13 +89,25 @@ final class Flow
         if ($this->db->one('SELECT id FROM jobs WHERE (channel = ? AND msg_id = ?) OR (channel = ? AND text_hash = ?)', [$channel, $msgId, $channel, $hash])) {
             return null; // aynı gönderi ya da aynı metin daha önce işlendi
         }
+        // Aynı servisi başka kanallar da paylaşıyorsa (son N gün, aynı sağlayıcı) tekrar iş açma: mevcut işe kaynak olarak ekle.
+        $dups = $this->duplicateItems($channel, $items);
+        if ($dups) {
+            foreach (array_unique($dups) as $jid) {
+                $this->addJobSource($jid, $channel, $msgId);
+            }
+            $items = array_values(array_filter($items, static fn($i) => !isset($dups[(int)$i['id']])));
+            if (!$items) {
+                $this->db->log('info', 'flow', "@$channel/$msgId: tüm servisler zaten işte (#" . implode(', #', array_unique($dups)) . '), yeni iş açılmadı');
+                return null;
+            }
+        }
         $items = $this->engine()->translateItems($items);
         $ai = $this->ai();
         $aiState = $ai->active() && array_filter($items, [$ai, 'needs']) ? 'pending' : '';
         $now = time();
         $this->db->run(
-            'INSERT INTO jobs(channel, msg_id, text_hash, source_text, items_json, status, created_at, updated_at, ai_state) VALUES(?,?,?,?,?,?,?,?,?)',
-            [$channel, $msgId, $hash, $text, json_encode($items, JSON_UNESCAPED_UNICODE), 'new', $now, $now, $aiState]
+            'INSERT INTO jobs(channel, msg_id, text_hash, source_text, items_json, status, created_at, updated_at, ai_state, also_json) VALUES(?,?,?,?,?,?,?,?,?,?)',
+            [$channel, $msgId, $hash, $text, json_encode($items, JSON_UNESCAPED_UNICODE), 'new', $now, $now, $aiState, $dups ? json_encode(['skipped' => $dups]) : '{}']
         );
         $id = (int)$this->db->pdo->lastInsertId();
         $this->db->log('info', 'flow', "İş #$id oluşturuldu: @$channel/$msgId, " . count($items) . ' servis');
@@ -108,6 +120,71 @@ final class Flow
             $this->sendPreview($id);
         }
         return $id;
+    }
+
+    private function dedupeDays(): int
+    {
+        return max(0, (int)($this->config['dedupe_days'] ?? 7));
+    }
+
+    /** Kanalın bağlı olduğu sağlayıcı (aynı ID'ler yalnızca aynı sağlayıcıda aynı servistir). */
+    private function sourceId(string $channel): int
+    {
+        return (int)($this->enrich()->sourceFor($channel)['id'] ?? 0);
+    }
+
+    /**
+     * Son dedupe_days gün içinde, aynı sağlayıcıdaki başka işlerde zaten bulunan servisler.
+     * Elle eklenen işler (kanal "elle") bilerek tekrar edilebilir.
+     * @return array<int,int> servis ID => iş no
+     */
+    private function duplicateItems(string $channel, array $items): array
+    {
+        $days = $this->dedupeDays();
+        if ($days === 0 || $channel === 'elle') {
+            return [];
+        }
+        $ids = array_map(static fn($i) => (int)$i['id'], $items);
+        $mine = $this->sourceId($channel);
+        $cache = [];
+        $out = [];
+        foreach ($this->db->all("SELECT id, channel, items_json FROM jobs WHERE created_at >= ? AND status != 'failed' ORDER BY id", [time() - $days * 86400]) as $j) {
+            $cache[$j['channel']] ??= $this->sourceId($j['channel']);
+            if ($cache[$j['channel']] !== $mine) {
+                continue;
+            }
+            foreach ((array)json_decode((string)$j['items_json'], true) as $it) {
+                $sid = (int)($it['id'] ?? 0);
+                if (in_array($sid, $ids, true) && !isset($out[$sid])) {
+                    $out[$sid] = (int)$j['id'];
+                }
+            }
+        }
+        return $out;
+    }
+
+    /** Mevcut işe "bu kanal da paylaştı" bilgisini ekler; karar bekliyorsa bot mesajını günceller. */
+    private function addJobSource(int $jobId, string $channel, int $msgId): void
+    {
+        $job = $this->db->job($jobId);
+        if ($job === null) {
+            return;
+        }
+        $also = json_decode((string)($job['also_json'] ?? '{}'), true) ?: [];
+        foreach ($also['sources'] ?? [] as $s) {
+            if ($s['channel'] === $channel && (int)$s['msg'] === $msgId) {
+                return;
+            }
+        }
+        if ($job['channel'] === $channel && (int)$job['msg_id'] === $msgId) {
+            return;
+        }
+        $also['sources'][] = ['channel' => $channel, 'msg' => $msgId, 'at' => time()];
+        $this->db->run('UPDATE jobs SET also_json = ? WHERE id = ?', [json_encode($also), $jobId]);
+        $this->db->log('info', 'flow', "İş #$jobId: @$channel/$msgId de aynı servisleri paylaştı (yeni iş açılmadı)");
+        if (in_array($job['status'], ['new', 'awaiting'], true)) {
+            $this->sendPreview($jobId);
+        }
     }
 
     /** Kanalda otomatik onay açıksa ve her ad bankadan (eksik kelime yok, Claude gerekmiyor) geldiyse true. */
@@ -167,6 +244,13 @@ final class Flow
         $cats = array_unique(array_filter(array_map(static fn($i) => $i['category_az'] ?? '', $job['items'])));
         if ($cats) {
             $head .= '📁 ' . $e(implode(' / ', $cats)) . "\n";
+        }
+        $also = json_decode((string)($job['also_json'] ?? '{}'), true) ?: [];
+        if (!empty($also['sources'])) {
+            $head .= '📡 Ayrıca paylaşan: ' . implode(', ', array_map(static fn($s) => '@' . $e($s['channel']) . ' (' . (int)$s['msg'] . ')', array_slice($also['sources'], 0, 6))) . "\n";
+        }
+        if (!empty($also['skipped'])) {
+            $head .= 'ℹ️ ' . count($also['skipped']) . ' servis başka işte zaten var (#' . implode(', #', array_unique(array_values($also['skipped']))) . ") — burada tekrar yok\n";
         }
         $info = null;
         if (in_array($job['status'], ['new', 'awaiting', 'editing'], true)) {
@@ -514,6 +598,16 @@ final class Flow
 
     public function createNotice(string $channel, int $msgId, string $text, string $kind): ?int
     {
+        $dup = $this->notices()->findDuplicate($kind, Notices::extractIds($text), $this->dedupeDays());
+        if ($dup !== null) { // aynı değişikliği başka kanal da duyurdu: yeni bildirim açma
+            $this->notices()->addSource($dup, $channel, $msgId);
+            $this->db->log('info', 'notice', "Bildirim #$dup: @$channel/$msgId de aynı değişikliği duyurdu");
+            $n = $this->notices()->get($dup);
+            if ($n && $n['status'] === 'open') {
+                $this->sendNotice($dup);
+            }
+            return null;
+        }
         $id = $this->notices()->create($channel, $msgId, $text, $kind);
         // Mesajın kendisi bildirimdir; "Servis değişikliği" uyarısı kapalıysa yalnızca panelde görünür.
         if ($id !== null && (new Alerts($this->db, $this->tg, $this->config))->enabled('change')) {
@@ -529,6 +623,10 @@ final class Flow
         $id = (int)$n['id'];
         $icon = $n['kind'] === 'closed' ? '🚫' : '💲';
         $head = $icon . ' <b>' . $e(Notices::KINDS[$n['kind']] ?? $n['kind']) . '</b> — @' . $e($n['channel']) . " (gönderi {$n['msg_id']}) · bildirim #$id\n\n";
+        $also = json_decode((string)($n['also_json'] ?? '{}'), true) ?: [];
+        if (!empty($also['sources'])) {
+            $head .= '📡 Ayrıca duyuran: ' . implode(', ', array_map(static fn($s) => '@' . $e($s['channel']), array_slice($also['sources'], 0, 6))) . "\n\n";
+        }
         $body = '';
         foreach ($this->notices()->impact($n) as $x) {
             $line = '<b>' . $x['id'] . '</b>';

@@ -676,6 +676,13 @@ final class Admin
         $open = in_array($st, self::OPEN, true);
         $sub = Ui::badge($st) . ($job['channel'] === 'elle' ? ' elle eklendi' : ' <a href="https://t.me/' . Ui::e($job['channel']) . '/' . (int)$job['msg_id'] . '" target="_blank" rel="noopener noreferrer">@' . Ui::e($job['channel']) . ' gönderisi ' . (int)$job['msg_id'] . '</a>')
             . ', ' . Ui::ago((int)$job['created_at']) . ' geldi';
+        $also = json_decode((string)($job['also_json'] ?? '{}'), true) ?: [];
+        if (!empty($also['sources'])) {
+            $sub .= ' · ayrıca: ' . implode(', ', array_map(static fn($s) => '<a href="https://t.me/' . Ui::e($s['channel']) . '/' . (int)$s['msg'] . '" target="_blank" rel="noopener noreferrer">@' . Ui::e($s['channel']) . '</a>', $also['sources']));
+        }
+        if (!empty($also['skipped'])) {
+            $sub .= ' · ' . count($also['skipped']) . ' servis başka işte (' . implode(', ', array_map(static fn($i) => '<a href="?p=job&amp;id=' . (int)$i . '">#' . (int)$i . '</a>', array_unique(array_values($also['skipped'])))) . ')';
+        }
         $actions = ($open ? Ui::link('?p=job_prompt&id=' . $id, 'claude.ai için hazırla', 'quiet', 'spark') : '')
             . $this->ui->action('job_do', 'Bota tekrar gönder', ['id' => $id, 'do' => 'resend'], 'ghost', 'send')
             . $this->ui->action('job_delete', 'Sil', ['id' => $id], 'ghost', 'trash', 'Bu iş kalıcı olarak silinsin mi?');

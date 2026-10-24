@@ -1147,10 +1147,61 @@ test('Otomatik onay: yalnızca açık kanalda ve tüm adlar bankadansa', functio
     $text = "🆔 701 Instagram Likes | Fast";
     $flow->createJob('kapali', 1, $text);
     eq('awaiting', $db->one('SELECT status FROM jobs WHERE channel = ?', ['kapali'])['status']);
-    $flow->createJob('oto', 1, $text);
+    $flow->createJob('oto', 1, "🆔 703 Instagram Likes | Fast");
     ok(in_array($db->one('SELECT status FROM jobs WHERE channel = ?', ['oto'])['status'], ['approved', 'published']), 'otomatik onaylandı');
     $flow->createJob('oto', 2, "🆔 702 Totally Unknownword Service");
     eq('awaiting', $db->one('SELECT status FROM jobs WHERE msg_id = 2')['status'], 'bankada olmayan onaylanmaz');
+});
+
+echo "Aynı servisi birden çok kanal paylaşınca\n";
+test('ikinci ve üçüncü kanal yeni iş açmaz, ilk işe kaynak olarak eklenir', function () {
+    [$db, $tg, $flow] = env();
+    $text = "🆔 5001 Instagram Likes | Fast\n💰 0.50\$";
+    $a = $flow->createJob('kanala', 10, $text);
+    ok($a !== null);
+    eq(null, $flow->createJob('kanalb', 77, $text . "\n(kanal b)"), 'farklı metin ama aynı servis');
+    eq(null, $flow->createJob('kanalc', 5, $text));
+    eq(1, (int)$db->one('SELECT COUNT(*) c FROM jobs')['c']);
+    $also = json_decode($db->one('SELECT also_json FROM jobs')['also_json'], true);
+    eq(['kanalb', 'kanalc'], array_column($also['sources'], 'channel'));
+    $last = end($tg->calls);
+    ok(str_contains(json_encode($last, JSON_UNESCAPED_UNICODE), 'Ayrıca paylaşan'), 'bot mesajı güncellendi');
+});
+test('kısmen aynı: yalnızca yeni servisler için iş açılır ve not düşülür', function () {
+    [$db, $tg, $flow] = env();
+    $flow->createJob('kanala', 1, "🆔 5001 Instagram Likes | Fast");
+    $id = $flow->createJob('kanalb', 2, "🆔 5001 Instagram Likes | Fast\n🆔 5002 TikTok Views | Fast");
+    ok($id !== null);
+    $job = $db->job($id);
+    eq([5002], array_map(static fn($i) => (int)$i['id'], $job['items']));
+    eq(['5001' => 1], json_decode($job['also_json'], true)['skipped']);
+});
+test('elle eklenen ve pencere dışı işler tekrar edilebilir; dedupe_days=0 kapatır', function () {
+    [$db, $tg, $flow] = env();
+    $flow->createJob('kanala', 1, "🆔 5001 Instagram Likes");
+    ok($flow->createJob('elle', 99, "🆔 5001 Instagram Likes") !== null, 'elle');
+    $db->run('UPDATE jobs SET created_at = created_at - ?', [30 * 86400]);
+    ok($flow->createJob('kanalb', 2, "🆔 5001 Instagram Likes") !== null, '30 gün önceki sayılmaz');
+    App::setConfig(['data_dir' => App::config()['data_dir'], 'owner_id' => OWNER, 'bot_token' => '123456:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi', 'dedupe_days' => 0]);
+    $f2 = new Flow(App::db(), $tg, App::config());
+    ok($f2->createJob('kanalc', 3, "🆔 5001 Instagram Likes") !== null, 'kapalı');
+});
+test('farklı sağlayıcıdaki aynı ID aynı servis sayılmaz', function () {
+    [$db, $tg, $flow] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('provider','P1','u','k',1),('provider','P2','u','k',1)");
+    $db->run("INSERT INTO channels(username, created_at, source_id) VALUES('c1',1,1),('c2',1,2),('c3',1,1)");
+    ok($flow->createJob('c1', 1, "🆔 5001 Instagram Likes") !== null);
+    ok($flow->createJob('c2', 1, "🆔 5001 Instagram Likes") !== null, 'başka sağlayıcı');
+    eq(null, $flow->createJob('c3', 1, "🆔 5001 Instagram Likes"), 'aynı sağlayıcı');
+});
+test('aynı fiyat değişikliğini 2 kanal duyurunca tek bildirim', function () {
+    [$db, $tg, $flow] = env();
+    $t = "Price update! Service 4101 price changed from \$0.44 to \$0.54";
+    ok($flow->createNotice('kanala', 1, $t, 'price') !== null);
+    eq(null, $flow->createNotice('kanalb', 9, $t, 'price'));
+    eq(1, (int)$db->one('SELECT COUNT(*) c FROM notices')['c']);
+    eq('kanalb', json_decode($db->one('SELECT also_json FROM notices')['also_json'], true)['sources'][0]['channel']);
+    ok($flow->createNotice('kanalb', 10, "Service 4102 price changed from \$1 to \$2", 'price') !== null, 'farklı servis');
 });
 
 // temizlik

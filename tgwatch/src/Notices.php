@@ -116,6 +116,37 @@ final class Notices
         return $id;
     }
 
+    /** Son $days gün içinde aynı türde, servisleri (en az bir ID) kapsayan bildirim varsa numarası. */
+    public function findDuplicate(string $kind, array $ids, int $days): ?int
+    {
+        if ($days <= 0 || !$ids) {
+            return null;
+        }
+        foreach ($this->db->all('SELECT id, ids_json FROM notices WHERE kind = ? AND created_at >= ? ORDER BY id DESC', [$kind, time() - $days * 86400]) as $n) {
+            $old = array_map('intval', json_decode((string)$n['ids_json'], true) ?: []);
+            if (!array_diff(array_map('intval', $ids), $old)) {
+                return (int)$n['id'];
+            }
+        }
+        return null;
+    }
+
+    public function addSource(int $id, string $channel, int $msgId): void
+    {
+        $n = $this->db->one('SELECT channel, msg_id, also_json FROM notices WHERE id = ?', [$id]);
+        if (!$n) {
+            return;
+        }
+        $also = json_decode((string)$n['also_json'], true) ?: [];
+        foreach ($also['sources'] ?? [] as $s) {
+            if ($s['channel'] === $channel && (int)$s['msg'] === $msgId) {
+                return;
+            }
+        }
+        $also['sources'][] = ['channel' => $channel, 'msg' => $msgId, 'at' => time()];
+        $this->db->run('UPDATE notices SET also_json = ? WHERE id = ?', [json_encode($also), $id]);
+    }
+
     public function get(int $id): ?array
     {
         $n = $this->db->one('SELECT * FROM notices WHERE id = ?', [$id]);
