@@ -114,9 +114,9 @@ trait SettingsPages
     private function readingTools(): string
     {
         $key = (string)$this->config['cron_key'];
-        $url = $key !== '' ? $this->siblingUrl('webcron.php') . '?key=' . $key : '';
+        $url = $key !== '' ? $this->siblingUrl('webcron.php') . '?key=' . ($this->loginOff() ? '••••••••' : $key) : '';
         $mk = (string)$this->config['monitor_key'];
-        $mon = $mk !== '' ? $this->siblingUrl('monitor.php') . '?key=' . $mk : '';
+        $mon = $mk !== '' ? $this->siblingUrl('monitor.php') . '?key=' . ($this->loginOff() ? '••••••••' : $mk) : '';
         $monCard = '<h2>Dış izleme adresi</h2><div class="panel panel-pad stack">' . ($mon !== ''
             ? '<div class="row"><code id="mon-url">' . Ui::e($mon) . '</code>' . Ui::copy('mon-url') . '</div><p class="muted">UptimeRobot gibi ücretsiz bir servise “HTTP(s) monitor” olarak ekle (5 dk aralık). Cron durursa ya da bir kanal 3 saat okunamazsa adres 503 döner ve o servis sana e-posta atar. Telegram bozulsa da haber alırsın.</p>'
             : '<p class="muted">Önce yukarıdan “İzleme anahtarı” için “Yeni rastgele anahtar üret”i işaretleyip kaydet.</p>') . '</div>';
@@ -128,6 +128,9 @@ trait SettingsPages
 
     private function securityTools(): string
     {
+        if ($this->loginOff()) {
+            return '<h2>Giriş kapalı</h2><div class="panel panel-pad stack"><p>config.php içinde <code>\'login_required\' => false</code> olduğu için panel şifresiz açılıyor. Şifre, oturum ve iki adımlı giriş ayarları kullanılmıyor.</p><p class="muted">Tekrar açmak için config.php’de <code>\'login_required\' => true</code> yazın (ya da satırı silin). Erişimi sınırlamak için <code>\'allowed_ips\' => \'1.2.3.4, 10.0.0.0/24\'</code> ekleyebilirsiniz.</p></div>';
+        }
         $h = '<h2>Şifreyi değiştir</h2><form method="post" action="?p=password_change" class="panel panel-pad stack">' . $this->ui->csrfField()
             . '<div class="grid-2"><label>Mevcut şifre<input type="password" name="current" required autocomplete="current-password"></label><span></span>'
             . '<label>Yeni şifre (en az 10 karakter)<input type="password" name="new" required minlength="10" autocomplete="new-password"></label>'
@@ -241,6 +244,11 @@ trait SettingsPages
                     $row = $this->db->one('SELECT * FROM login_attempts WHERE ip = ?', [$this->ip()]);
                     if ($row && (int)$row['locked_until'] > time()) {
                         $this->say('bad', 'Çok fazla hatalı deneme. Biraz sonra tekrar deneyin.');
+                        $this->redirect('settings', ['tab' => $tab]);
+                        return true;
+                    }
+                    if ($this->loginOff()) {
+                        $this->say('bad', 'Panel girişi kapalıyken token, adres, anahtar ve e-posta gibi hassas ayarlar panelden değiştirilemez (adresi bilen biri botu yönlendirebilirdi). config.php’den değiştirin ya da girişi açın.');
                         $this->redirect('settings', ['tab' => $tab]);
                         return true;
                     }

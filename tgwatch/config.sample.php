@@ -23,6 +23,13 @@ return [
     // Webhook doğrulama anahtarı: tools/make_hash.php --secret ile üretin (yalnızca A-Z a-z 0-9 _ -).
     'webhook_secret' => '',
 
+    // Panel girişi. false: şifresiz açılır, adresi bilen herkes paneli yönetir! Kapalıyken token/adres/anahtar gibi
+    // hassas ayarlar panelden değiştirilemez. Güvenli alternatif: açık bırakıp 'allowed_ips' ile IP sınırı koymak.
+    'login_required' => true,
+
+    // Panele yalnızca bu IP'ler girebilir (virgülle; tek IP ya da 10.0.0.0/24). Boş: kısıtlama yok.
+    'allowed_ips' => '',
+
     // Web panel şifresinin hash'i: php tools/make_hash.php ile üretin.
     'admin_password_hash' => '',
 

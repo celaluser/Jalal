@@ -54,6 +54,12 @@ final class Admin
             $this->redirect('dash');
             return;
         }
+        if (!$this->ipAllowed()) {
+            http_response_code(403);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo "Bu adresten panele erişim kapalı.\n";
+            return;
+        }
         if (!$this->loggedIn()) {
             $this->login();
             return;
@@ -146,8 +152,44 @@ final class Admin
         unset($_SESSION['flash']);
     }
 
+    /** config.php'de 'login_required' => false ise panel şifresiz açılır (yalnızca config.php'den; panelden değiştirilemez). */
+    private function loginOff(): bool
+    {
+        return ($this->config['login_required'] ?? true) === false;
+    }
+
+    /** 'allowed_ips' doluysa panele yalnızca bu adresler (tek IP ya da IPv4 CIDR, virgülle) girebilir. */
+    private function ipAllowed(): bool
+    {
+        $list = array_filter(array_map('trim', explode(',', (string)($this->config['allowed_ips'] ?? ''))));
+        if (!$list) {
+            return true;
+        }
+        $ip = $this->ip();
+        foreach ($list as $rule) {
+            if ($rule === $ip) {
+                return true;
+            }
+            if (str_contains($rule, '/') && filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                [$net, $bits] = explode('/', $rule, 2);
+                $bits = (int)$bits;
+                if (filter_var($net, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && $bits >= 0 && $bits <= 32) {
+                    $mask = $bits === 0 ? 0 : (-1 << (32 - $bits)) & 0xFFFFFFFF;
+                    if ((ip2long($ip) & $mask) === (ip2long($net) & $mask)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     private function loggedIn(): bool
     {
+        if ($this->loginOff()) {
+            $_SESSION['auth'] = true;
+            return true;
+        }
         if (empty($_SESSION['auth'])) {
             return false;
         }
@@ -237,6 +279,9 @@ final class Admin
             $o['counts'] = ['queue' => $o['pending'], 'changes' => (new \TgWatch\Notices($this->db))->openCount(), 'unparsed' => $this->unparsedCount()];
         }
         $o['flash'] = $this->flash;
+        if ($this->loginOff()) {
+            $o['banner'] = '<div class="open-banner" role="alert">' . Ui::icon('alert') . '<span><b>Panel girişi kapalı.</b> Adresi bilen herkes bu paneli yönetebilir. Kapatılma nedenin geçici değilse config.php’den <code>\'allowed_ips\'</code> ile erişimi kendi IP’nle sınırla ya da girişi tekrar aç (<code>\'login_required\' => true</code>).</span></div>';
+        }
         $o['prefs'] = ['name' => (string)($this->config['panel_name'] ?? 'tgwatch'), 'theme' => (string)($this->config['ui_theme'] ?? 'auto'),
             'accent' => (string)($this->config['ui_accent'] ?? 'blue'), 'density' => (string)($this->config['ui_density'] ?? 'comfortable')];
         echo $this->ui->page($title, $body, $o);
@@ -1031,7 +1076,7 @@ final class Admin
             }
             $h .= '</tbody></table></div>';
         }
-        $cronUrl = (string)$this->config['cron_key'] !== '' ? $this->siblingUrl('webcron.php') . '?key=' . $this->config['cron_key'] : '';
+        $cronUrl = (string)$this->config['cron_key'] !== '' ? $this->siblingUrl('webcron.php') . '?key=' . ($this->loginOff() ? '••••••••' : $this->config['cron_key']) : '';
         $h .= '<h2>Kurulum bilgileri</h2><div class="table-wrap"><table><tbody>'
             . '<tr><td class="tight">tgwatch klasörü</td><td><code>' . Ui::e(TGWATCH_ROOT) . '</code></td></tr>'
             . '<tr><td class="tight">Webhook adresi</td><td><div class="row"><code id="hook-url">' . Ui::e($this->suggestedWebhook()) . '</code>' . Ui::copy('hook-url')

@@ -204,7 +204,7 @@ final class Ui
             . '<a class="close-menu" href="#" aria-label="Menüyü kapat">' . self::icon('x') . '</a></div>'
             . '<nav class="nav">' . $links . '</nav>'
             . '<div class="side-foot">' . ($cron ? '<a class="side-status" href="?p=health">' . self::dot($cron['state']) . '<span>Kanal okuma ' . $cron['text'] . '</span></a>' : '')
-            . '<form method="post" action="?p=logout">' . $this->csrfField() . '<button class="side-link">' . self::icon('logout', 16) . '<span>Çıkış yap</span></button></form></div></aside>';
+            . (empty($o['banner']) ? '<form method="post" action="?p=logout">' . $this->csrfField() . '<button class="side-link">' . self::icon('logout', 16) . '<span>Çıkış yap</span></button></form>' : '<span class="side-link muted">Giriş kapalı</span>') . '</div></aside>';
 
         $tabs = '';
         foreach (self::TABS as $k => [$label, $ic]) {
@@ -237,7 +237,7 @@ final class Ui
             . '<ul class="cmd-list" id="cmd-list">' . $palette . '<li data-search><a href="?p=jobs&amp;q=" id="cmd-search">' . self::icon('search', 16) . '<span>İşlerde ara: <b id="cmd-term"></b></span><small>Arama</small></a></li></ul></dialog>';
 
         return $doc . '<body class="app"><a class="skip" href="#main">İçeriğe geç</a>' . $side
-            . '<div class="shell">' . $toolbar . '<main class="main" id="main">' . $head . $flash . $body . '<footer class="foot"><span>' . self::e($name) . ' v' . \TgWatch\VERSION . '</span><a href="?p=settings">Ayarlar</a><a href="?p=health">Sağlık</a><a href="?p=logs">Kayıtlar</a><a href="#" data-open-help>Kısayollar <kbd>?</kbd></a></footer></main></div>'
+            . '<div class="shell">' . $toolbar . '<main class="main" id="main">' . ($o['banner'] ?? '') . $head . $flash . $body . '<footer class="foot"><span>' . self::e($name) . ' v' . \TgWatch\VERSION . '</span><a href="?p=settings">Ayarlar</a><a href="?p=health">Sağlık</a><a href="?p=logs">Kayıtlar</a><a href="#" data-open-help>Kısayollar <kbd>?</kbd></a></footer></main></div>'
             . '<nav class="tabbar glass" aria-label="Sekmeler">' . $tabs . '</nav>'
             . $cmd . $help . '<div class="tip" id="tip" role="tooltip" hidden></div><div id="toasts" role="status" aria-live="polite"></div>'
             . '<script nonce="' . $this->nonce . '">' . self::JS . '</script></body></html>';
@@ -998,6 +998,9 @@ tbody tr:hover>td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
   .edit-table.labeled td:nth-child(n+3){grid-column:1/-1}
   .cmd-name{width:100%;min-width:0;flex:1}
 }
+
+.open-banner{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;margin:0 0 18px;border-radius:var(--r-m);background:var(--bad-soft);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent);color:var(--text);font-size:14px;line-height:1.45}
+.open-banner .ic{color:var(--bad);flex:none;margin-top:2px}
 
 CSS;
 }

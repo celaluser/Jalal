@@ -26,6 +26,11 @@ final class Health
         $tokOk = (new Telegram((string)$c['bot_token']))->configured();
         $r[] = ['bot_token', $tokOk ? self::OK : self::FAIL, Telegram::describeToken((string)$c['bot_token'])];
         $r[] = ['owner_id', (int)$c['owner_id'] > 0 ? self::OK : self::FAIL, (int)$c['owner_id'] > 0 ? 'ayarlı' : 'boş — bota /start yazın, gelen ID\'yi girin'];
+        if (($c['login_required'] ?? true) === false) {
+            $r[] = ['Panel girişi', self::FAIL, 'KAPALI (login_required => false): adresi bilen herkes paneli yönetebilir' . (trim((string)($c['allowed_ips'] ?? '')) !== '' ? ' — yalnızca şu IP\'ler: ' . $c['allowed_ips'] : ' — allowed_ips ile IP sınırı koyun')];
+        } elseif (trim((string)($c['allowed_ips'] ?? '')) !== '') {
+            $r[] = ['IP sınırı', self::OK, 'panel yalnızca şu adreslerden açılır: ' . $c['allowed_ips']];
+        }
         $r[] = ['admin_password_hash', str_starts_with((string)$c['admin_password_hash'], '$') ? self::OK : self::FAIL, $c['admin_password_hash'] === '' ? 'boş — php tools/make_hash.php' : 'ayarlı'];
         if ($c['bot_mode'] === 'webhook') {
             $okUrl = str_starts_with((string)$c['webhook_url'], 'https://');

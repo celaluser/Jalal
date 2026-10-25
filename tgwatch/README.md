@@ -215,6 +215,12 @@ Tanınan servis satırları: `🆔 13125 Ad…`, `ID: 13125 | Ad`, `13125 - Ad`,
 satırının altında ad. Fiyat aynı satırda ya da altındaki satırlarda (`$1.20`, `0.35$`, `Price: …`). Kategori olarak
 ID satırlarından önceki kısa başlık satırı alınır. Gerçek kanallarda farklı biçim çıkarsa `src/Parser.php` güncellenir.
 
+## Girişi kapatmak (önerilmez) ve IP sınırı
+
+- `config.php`'ye `'login_required' => false,` yazarsan panel şifresiz açılır. Adresi bilen herkes işleri onaylayabilir, kanalları ve ayarları değiştirebilir; bu yüzden her sayfanın üstünde kırmızı uyarı çıkar, Sağlık'ta "Panel girişi" kırmızı görünür ve cron/izleme adresleri gizlenir. Giriş kapalıyken token, adres, anahtar ve e-posta gibi hassas ayarlar panelden değiştirilemez (config.php'den değişir). Geri açmak için `true` yaz ya da satırı sil.
+- Daha güvenli yol: girişi açık bırakıp `'allowed_ips' => '1.2.3.4, 10.0.0.0/24',` ile paneli yalnızca kendi IP'lerine aç (giriş kapalıyken de çalışır). Bu IP'ler dışında panel 403 verir; bot, webhook ve cron etkilenmez.
+- Hosting seviyesinde alternatif: DirectAdmin → Parola korumalı dizinler ile `public` klasörüne tarayıcı parolası koymak.
+
 ## Şifreyi unuttuysan
 
 1. `config.php`'ye şu satırı ekle: `'panel_settings' => false,` (panelden kaydedilen şifre ve ayarlar geçici olarak yok sayılır).
