@@ -183,7 +183,7 @@ final class Ui
             . '<style nonce="' . $this->nonce . '">' . self::css($theme, $accent) . '</style></head>';
 
         if (!$nav) {
-            return $doc . '<body class="bare"><main class="bare-main" id="main">' . $flash . $body . '</main></body></html>';
+            return $doc . '<body class="bare"><main class="bare-main" id="main">' . $flash . $body . '<p class="login-ver">tgwatch v' . \TgWatch\VERSION . '</p></main></body></html>';
         }
 
         $links = '';
@@ -1001,6 +1001,8 @@ tbody tr:hover>td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
 
 .open-banner{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;margin:0 0 18px;border-radius:var(--r-m);background:var(--bad-soft);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent);color:var(--text);font-size:14px;line-height:1.45}
 .open-banner .ic{color:var(--bad);flex:none;margin-top:2px}
+
+.login-ver{text-align:center;color:var(--text-3);font-size:12px;margin:18px 0 0}
 
 CSS;
 }
