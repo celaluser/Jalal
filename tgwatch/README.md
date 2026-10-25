@@ -217,8 +217,14 @@ ID satırlarından önceki kısa başlık satırı alınır. Gerçek kanallarda 
 
 ## Güvenlik
 
-- public_html içindeyken yalnızca `public/` açıktır. Diğer her şey `.htaccess` ile kapalıdır. CLI betikleri web'den çağrılırsa çalışmaz,
-  veritabanı adı rastgeledir (`data/secret.php`, silme).
-- Panel: şifre (Argon2id/bcrypt hash), aynı IP'den 5 yanlış denemede 15 dk kilit, CSRF, sıkı CSP, 2 saat hareketsizlikte oturum kapanır.
-- Webhook: `X-Telegram-Bot-Api-Secret-Token` doğrulanır.
-- `config.php` git'e girmez (`.gitignore`).
+Son güvenlik incelemesinde (kod taraması + canlı panelde saldırı denemeleri) bakılanlar ve alınan önlemler:
+
+- **Giriş:** bcrypt/argon2 hash, 5 hatada IP kilidi, isteğe bağlı Telegram kodu (2FA), oturum süresi ve "tüm oturumları kapat", oturum kimliği girişte yenilenir; çerez `HttpOnly`, `SameSite=Strict`, HTTPS'te `Secure` ve `__Host-` öneki; oturum dosyaları `data/sessions` altında (0700).
+- **İstekler:** her POST'ta CSRF anahtarı (eksik ya da yanlışsa 400), durum değiştiren hiçbir GET yok, katı CSP (nonce'lu betik/stil, harici kaynak yok), `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP/CORP, HTTPS'te HSTS.
+- **Hassas ayarlar:** bot token'ı, sahip ID'si, webhook ve cron/izleme anahtarları, panel API, Telegram API adresi ve uyarı e-postası değişirken mevcut panel şifresi sorulur (çalınmış bir oturum botu ya da uyarıları başka yere yönlendiremesin); yanlış şifre giriş kilidine sayılır.
+- **Dış kaynaklı metinler** (kanal gönderileri, sağlayıcı adları): panelde ve Telegram mesajlarında HTML kaçışlı; CSV'de `=`, `+`, `-`, `@` ile başlayanlar Excel formülü olarak çalışmasın diye etkisizleştirilir.
+- **Uç noktalar:** webhook gizli anahtar başlığı, web cron ve izleme anahtarı (`hash_equals`, en az 16 karakter); bota yalnızca `owner_id` komut verebilir.
+- **Dosyalar:** `src/`, `tools/`, `tests/`, `data/` için `.htaccess` ile erişim kapalı; veritabanı adı rastgele; CLI betikleri web'den çalışmaz; web'de PHP hataları ekrana yazılmaz.
+- **Ağ:** yalnızca HTTP/HTTPS, TLS doğrulaması açık; kanal okuma yalnızca `t.me`.
+
+Yine de senin yapman gerekenler: bot token'ını BotFather'dan yenile (sohbette paylaşılmıştı), canlıda yeni şifre/webhook/cron anahtarı üret, iki adımlı girişi aç, `config.php` izinlerini 600/640 yap, hosting `.htaccess` dosyalarını okumuyorsa (nginx) `src/`, `data/`, `tools/` klasörlerini `public_html` dışına koy.

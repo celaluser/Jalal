@@ -4,6 +4,10 @@ declare(strict_types=1);
 namespace TgWatch;
 
 const VERSION = '1.0.0';
+if (PHP_SAPI !== 'cli') { // hata ayrıntıları (dosya yolları) ziyaretçiye gösterilmesin; sunucu loguna yazılır
+    @ini_set('display_errors', '0');
+    @ini_set('log_errors', '1');
+}
 define('TGWATCH_ROOT', dirname(__DIR__));
 
 spl_autoload_register(static function (string $class): void {

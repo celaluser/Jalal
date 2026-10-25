@@ -12,6 +12,13 @@ use TgWatch\Telegram;
 /** Ayarlar sayfası: config.php'deki her şey panelden değiştirilir; ayrıca şifre, oturumlar ve bakım. */
 trait SettingsPages
 {
+    /** Bunlar değişirse mevcut panel şifresi sorulur: çalınmış bir oturum botu/uyarıları başka yere yönlendiremesin. */
+    private static function sensitiveKeys(): array
+    {
+        return ['bot_token', 'owner_id', 'telegram_api_base', 'webhook_url', 'webhook_secret', 'cron_key', 'monitor_key',
+            'panel_api_url', 'panel_api_key', 'publisher', 'alert_email', 'alert_email_mode'];
+    }
+
     /** @return array<string,string> (trait'te sabit PHP 8.2 ister; 8.1 için metot) */
     private static function settingsTabs(): array
     {
@@ -70,8 +77,10 @@ trait SettingsPages
         if ($rows === '') {
             return '';
         }
+        $sens = array_filter(array_keys(array_filter(Settings::fields(), static fn($f) => $f['g'] === $tab)), static fn($k) => in_array($k, self::sensitiveKeys(), true));
+        $confirm = $sens ? '<div class="panel panel-pad field-row"><label class="grow">Panel şifren <span class="muted">(token, adres, anahtar, e-posta gibi hassas bir ayarı değiştiriyorsan gerekli)</span><input type="password" name="confirm_pw" autocomplete="current-password" placeholder="••••••••"></label></div>' : '';
         return '<form method="post" action="?p=settings_save" class="stack">' . $this->ui->csrfField() . '<input type="hidden" name="tab" value="' . $tab . '">'
-            . '<div class="panel settings">' . $rows . '</div>'
+            . '<div class="panel settings">' . $rows . '</div>' . $confirm
             . '<div class="row"><button class="btn primary">' . Ui::icon('check') . '<span>Kaydet</span></button></div></form>';
     }
 
@@ -190,7 +199,7 @@ trait SettingsPages
         fputcsv($out, ['İş', 'Tarih', 'Kanal', 'Durum', 'Servis ID', 'Kaynak ad', 'Azerice ad', 'Fiyat'], ';', '"', '');
         foreach ($this->db->all('SELECT * FROM jobs ORDER BY id') as $j) {
             foreach ((array)json_decode((string)$j['items_json'], true) as $it) {
-                fputcsv($out, [$j['id'], date('Y-m-d H:i', (int)$j['created_at']), '@' . $j['channel'], $j['status'], $it['id'] ?? '', $it['name'] ?? '', $it['az'] ?? '', $it['price'] ?? ''], ';', '"', '');
+                fputcsv($out, array_map([Ui::class, 'csvCell'], [$j['id'], date('Y-m-d H:i', (int)$j['created_at']), '@' . $j['channel'], $j['status'], $it['id'] ?? '', $it['name'] ?? '', $it['az'] ?? '', $it['price'] ?? '']), ';', '"', '');
             }
         }
         fclose($out);
@@ -226,6 +235,20 @@ trait SettingsPages
                     $f = Settings::fields()[(string)$k] ?? null;
                     if ($f && $f['g'] === $tab && $f['type'] === 'secret') {
                         $vals[(string)$k] = '';
+                    }
+                }
+                if (array_intersect(array_keys($vals), self::sensitiveKeys())) {
+                    $row = $this->db->one('SELECT * FROM login_attempts WHERE ip = ?', [$this->ip()]);
+                    if ($row && (int)$row['locked_until'] > time()) {
+                        $this->say('bad', 'Çok fazla hatalı deneme. Biraz sonra tekrar deneyin.');
+                        $this->redirect('settings', ['tab' => $tab]);
+                        return true;
+                    }
+                    if (!password_verify((string)($_POST['confirm_pw'] ?? ''), (string)$this->config['admin_password_hash'])) {
+                        $this->registerLoginFail($row, 'ayar onayı');
+                        $this->say('bad', 'Hassas bir ayar değişiyor: değişiklik kaydedilmedi. Sayfanın altındaki kutuya panel şifreni yazıp tekrar kaydet.');
+                        $this->redirect('settings', ['tab' => $tab]);
+                        return true;
                     }
                 }
                 $errors = Settings::save($this->db, $vals);

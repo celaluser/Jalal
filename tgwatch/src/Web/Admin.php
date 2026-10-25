@@ -108,6 +108,12 @@ final class Admin
         header('X-Frame-Options: DENY');
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: no-referrer');
+        header('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()');
+        header('Cross-Origin-Opener-Policy: same-origin');
+        header('Cross-Origin-Resource-Policy: same-origin');
+        if ($this->https()) {
+            header('Strict-Transport-Security: max-age=15552000');
+        }
         header('Cache-Control: no-store');
         header('Content-Type: text/html; charset=utf-8');
     }
@@ -119,7 +125,18 @@ final class Admin
 
     private function session(): void
     {
-        session_name('tgwsid');
+        // Oturum dosyaları paylaşımlı sunucunun ortak /tmp klasörü yerine data/ altında (0700) tutulur.
+        $sdir = rtrim((string)$this->config['data_dir'], '/') . '/sessions';
+        if (!is_dir($sdir)) {
+            @mkdir($sdir, 0700, true);
+        }
+        if (is_dir($sdir) && is_writable($sdir)) {
+            session_save_path($sdir);
+        }
+        @ini_set('session.use_strict_mode', '1');
+        @ini_set('session.use_only_cookies', '1');
+        @ini_set('session.use_trans_sid', '0');
+        session_name($this->https() ? '__Host-tgwsid' : 'tgwsid'); // __Host- öneki: yalnızca bu alan adı, yalnızca HTTPS, path=/
         session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $this->https(), 'httponly' => true, 'samesite' => 'Strict']);
         session_start();
         if (empty($_SESSION['csrf'])) {

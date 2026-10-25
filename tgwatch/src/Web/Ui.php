@@ -27,6 +27,15 @@ final class Ui
     {
     }
 
+    /** CSV/Excel formül enjeksiyonuna karşı: =, +, -, @, sekme ya da satır başı ile başlayan metni etkisizleştirir (dış kaynaklı adlar!). */
+    public static function csvCell($v)
+    {
+        if (!is_string($v) || $v === '') {
+            return $v;
+        }
+        return preg_match('/^[=+\-@\t\r]/', $v) && !is_numeric($v) ? "'" . $v : $v;
+    }
+
     public static function e(string $s): string
     {
         return htmlspecialchars($s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');

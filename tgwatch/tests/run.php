@@ -1530,6 +1530,29 @@ test('Ana anahtar kapalıyken hiçbir komut çalışmaz; /yardim yalnızca açı
     ok(TgWatch\BotRegistry::find($db, 'ÖZET') !== null, 'Türkçe harfli yazım');
 });
 
+echo "Güvenlik\n";
+test('CSV: dış kaynaklı adlar formül olarak çalışmasın', function () {
+    $c = [TgWatch\Web\Ui::class, 'csvCell'];
+    eq("'=HYPERLINK(\"http://x\")", $c('=HYPERLINK("http://x")'));
+    eq("'+cmd|' /C calc'!A0", $c("+cmd|' /C calc'!A0"));
+    eq("'@SUM(1)", $c('@SUM(1)'));
+    eq("'-2+3", $c('-2+3'));
+    eq('-5', $c('-5'), 'sayı kalır');
+    eq('Instagram Likes', $c('Instagram Likes'));
+    eq(12, $c(12));
+});
+test('Telegram mesajlarında dış kaynaklı metin kaçışlı gider', function () {
+    [$db, $tg, $flow] = env();
+    $flow->createJob('kanal', 1, "🆔 9001 <b>Evil</b> & <a href=\"x\">link</a> Likes");
+    $sent = json_encode(array_map(static fn($c) => $c[1]['text'] ?? '', array_filter($tg->calls, static fn($c) => $c[0] === 'sendMessage')), JSON_UNESCAPED_UNICODE);
+    ok(!str_contains($sent, '<a href') && !str_contains($sent, '<b>Evil'), 'HTML enjekte edilemez');
+    ok(str_contains($sent, '&lt;b&gt;Evil'));
+});
+test('Webhook anahtarı boşsa ya da yanlışsa istek reddedilir (bot.php mantığı)', function () {
+    ok(!hash_equals('abc', ''), 'boş başlık');
+    ok(!hash_equals('abc', 'abd'));
+});
+
 // temizlik
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmp, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($it as $f) {

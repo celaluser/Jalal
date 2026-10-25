@@ -210,7 +210,7 @@ trait ToolPages
         fwrite($out, "\xEF\xBB\xBF");
         fputcsv($out, $head, ';', '"', '');
         foreach ($rows as $r) {
-            fputcsv($out, $r, ';', '"', '');
+            fputcsv($out, array_map([Ui::class, 'csvCell'], $r), ';', '"', '');
         }
         fclose($out);
     }

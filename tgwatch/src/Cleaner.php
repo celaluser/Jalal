@@ -24,6 +24,11 @@ final class Cleaner
             $out['notices'] = $this->db->run("DELETE FROM notices WHERE status != 'open' AND updated_at < ?", [$cut]);
         }
         $this->db->run('DELETE FROM cron_runs WHERE id NOT IN (SELECT id FROM cron_runs ORDER BY id DESC LIMIT 500)');
+        foreach (glob(rtrim((string)($this->config['data_dir'] ?? ''), '/') . '/sessions/sess_*') ?: [] as $f) { // süresi geçen oturum dosyaları
+            if (@filemtime($f) < time() - 3 * 86400) {
+                @unlink($f);
+            }
+        }
         $this->db->set('cleaned_at', (string)time());
         $n = array_sum($out);
         if ($n > 0) {
