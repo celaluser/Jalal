@@ -304,6 +304,11 @@ final class Admin
     private function completeLogin(): void
     {
         $this->db->run('DELETE FROM login_attempts WHERE ip = ?', [$this->ip()]);
+        if (($this->config['panel_settings'] ?? true) === false && $this->db->get('admin_hash', '') !== '') {
+            // Kurtarma modu: config.php'deki şifreyle girildi; panelden kaydedilmiş eski şifre bir daha ezmesin.
+            $this->db->set('admin_hash', '');
+            $this->db->log('info', 'web', 'Kurtarma: config.php şifresi geçerli kılındı, veritabanındaki eski şifre silindi');
+        }
         session_regenerate_id(true);
         $_SESSION['auth'] = true;
         $_SESSION['epoch'] = (string)$this->db->get('session_epoch', '0');

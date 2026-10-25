@@ -215,6 +215,15 @@ Tanınan servis satırları: `🆔 13125 Ad…`, `ID: 13125 | Ad`, `13125 - Ad`,
 satırının altında ad. Fiyat aynı satırda ya da altındaki satırlarda (`$1.20`, `0.35$`, `Price: …`). Kategori olarak
 ID satırlarından önceki kısa başlık satırı alınır. Gerçek kanallarda farklı biçim çıkarsa `src/Parser.php` güncellenir.
 
+## Şifreyi unuttuysan
+
+1. `config.php`'ye şu satırı ekle: `'panel_settings' => false,` (panelden kaydedilen şifre ve ayarlar geçici olarak yok sayılır).
+2. `'admin_password_hash' => '',` satırını boş bırak. Panel adresini açınca **kurulum ekranı** gelir; yeni şifreyi yaz, verdiği hash'i `config.php`'deki aynı satıra yapıştır.
+3. Yeni şifrenle bir kez giriş yap: panelden kaydedilmiş eski şifre otomatik silinir.
+4. `'panel_settings' => false,` satırını sil (yoksa Ayarlar sayfasındaki değişiklikler geçerli olmaz).
+
+Giriş ekranı geliyor ama `config.php`'de hash boşsa sebep budur: şifre veritabanındadır.
+
 ## Güvenlik
 
 Son güvenlik incelemesinde (kod taraması + canlı panelde saldırı denemeleri) bakılanlar ve alınan önlemler:
