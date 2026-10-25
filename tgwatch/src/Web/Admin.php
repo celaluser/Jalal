@@ -57,7 +57,7 @@ final class Admin
         if (!$this->ipAllowed()) {
             http_response_code(403);
             header('Content-Type: text/plain; charset=utf-8');
-            echo "Bu adresten panele erişim kapalı.\n";
+            echo "Bu adresten panele erişim kapalı.\nSunucunun gördüğü IP adresin: " . preg_replace('/[^0-9a-fA-F:.]/', '', $this->ip()) . "\nBu adresi config.php içindeki 'allowed_ips' satırına yazın ya da satırı silin.\n";
             return;
         }
         if (!$this->loggedIn()) {
