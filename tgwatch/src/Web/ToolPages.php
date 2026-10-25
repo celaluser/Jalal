@@ -324,13 +324,18 @@ trait ToolPages
 
     private function attentionStrip(): string
     {
-        $items = $this->attentionItems();
+        $items = array_values(array_filter($this->attentionItems(), static fn($i) => $i[0] !== 'info')); // bilgi notları Sağlık/Ayarlar'da
         if (!$items) {
             return '';
         }
+        $more = max(0, count($items) - 3);
+        $items = array_slice($items, 0, 3);
         $h = '<section class="attn" aria-label="Dikkat gerekenler"><h2 class="first">Dikkat gerekenler</h2><div class="attn-grid">';
         foreach ($items as [$sev, $text, $href, $btn]) {
             $h .= '<a class="attn-item ' . Ui::e($sev) . '" href="' . Ui::e($href) . '">' . Ui::icon($sev === 'info' ? 'bell' : 'alert', 18) . '<span>' . Ui::e($text) . '</span><b>' . Ui::e($btn) . ' →</b></a>';
+        }
+        if ($more > 0) {
+            $h .= '<a class="attn-item info" href="?p=health"><span>ve ' . $more . ' uyarı daha</span><b>Sağlık →</b></a>';
         }
         return $h . '</div></section>';
     }

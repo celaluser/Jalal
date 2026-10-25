@@ -64,10 +64,7 @@ final class Admin
             $this->login();
             return;
         }
-        try {
-            (new \TgWatch\Alerts($this->db))->check();
-        } catch (\Throwable) {
-        }
+        $this->deferAlerts();
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!hash_equals((string)($_SESSION['csrf'] ?? ''), (string)($_POST['csrf'] ?? ''))) {
                 http_response_code(400);
@@ -150,6 +147,33 @@ final class Admin
         }
         $this->flash = $_SESSION['flash'] ?? [];
         unset($_SESSION['flash']);
+    }
+
+    /**
+     * Uyarı kontrolü (Telegram'a ağ çağrısı yapabilir) sayfa kullanıcıya gittikten SONRA çalışır:
+     * tıklayan kişi bekletilmez. Sunucu yanıtı erken bitiremiyorsa panelde çalışmaz (cron ve bot webhook'u zaten çalıştırır).
+     */
+    private function deferAlerts(): void
+    {
+        if ((int)$this->db->get('alerts_checked_at', '0') > time() - 300) {
+            return;
+        }
+        register_shutdown_function(static function (): void {
+            if (function_exists('fastcgi_finish_request')) {
+                @session_write_close(); // oturum kilidi açılsın: sonraki tıklama beklemesin
+                fastcgi_finish_request();
+            } elseif (function_exists('litespeed_finish_request')) {
+                @session_write_close();
+                litespeed_finish_request();
+            } else {
+                return;
+            }
+            ignore_user_abort(true);
+            try {
+                (new \TgWatch\Alerts(App::db()))->check();
+            } catch (\Throwable) {
+            }
+        });
     }
 
     /** config.php'de 'login_required' => false ise panel şifresiz açılır (yalnızca config.php'den; panelden değiştirilemez). */
@@ -279,8 +303,9 @@ final class Admin
             $o['counts'] = ['queue' => $o['pending'], 'changes' => (new \TgWatch\Notices($this->db))->openCount(), 'unparsed' => $this->unparsedCount()];
         }
         $o['flash'] = $this->flash;
-        if ($this->loginOff()) {
-            $o['banner'] = '<div class="open-banner" role="alert">' . Ui::icon('alert') . '<span><b>Panel girişi kapalı.</b> Adresi bilen herkes bu paneli yönetebilir. Kapatılma nedenin geçici değilse config.php’den <code>\'allowed_ips\'</code> ile erişimi kendi IP’nle sınırla ya da girişi tekrar aç (<code>\'login_required\' => true</code>).</span></div>';
+        $o['loginOff'] = $this->loginOff();
+        if ($this->loginOff() && in_array($o['active'] ?? '', ['dash', 'settings', 'health'], true)) {
+            $o['banner'] = '<div class="open-banner slim" role="alert">' . Ui::icon('alert') . '<span><b>Panel girişi kapalı:</b> adresi bilen herkes yönetebilir. <code>\'allowed_ips\'</code> ile IP sınırı koyabilirsin.</span></div>';
         }
         $o['prefs'] = ['name' => (string)($this->config['panel_name'] ?? 'tgwatch'), 'theme' => (string)($this->config['ui_theme'] ?? 'auto'),
             'accent' => (string)($this->config['ui_accent'] ?? 'blue'), 'density' => (string)($this->config['ui_density'] ?? 'comfortable')];

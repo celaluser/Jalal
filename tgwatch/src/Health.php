@@ -43,6 +43,9 @@ final class Health
             $c['cron_key'] === '' ? 'boş — cron-job.org kullanacaksanız gerekli' : 'ayarlı'];
         $tfOn = ($c['login_2fa'] ?? null) !== false && App::db()->get('login_2fa', '0') === '1';
         $r[] = ['İki adımlı giriş', $tfOn ? self::OK : self::WARN, $tfOn ? 'açık (Telegram kodu)' : (($c['login_2fa'] ?? null) === false ? 'config.php ile kapalı' : 'kapalı — Uyarılar ve güvenlik sayfasından açılabilir')];
+        $hasMail = filter_var((string)($c['alert_email'] ?? ''), FILTER_VALIDATE_EMAIL) !== false;
+        $r[] = ['İkinci uyarı yolu', ($hasMail || (string)($c['monitor_key'] ?? '') !== '') ? self::OK : self::WARN,
+            ($hasMail || (string)($c['monitor_key'] ?? '') !== '') ? ($hasMail ? 'uyarı e-postası tanımlı' : 'dış izleme anahtarı tanımlı') : 'yok — Telegram bozulursa uyarı alamazsınız (Ayarlar → Telegram → Uyarı e-postası ya da Kanal okuma → İzleme anahtarı)'];
         $r[] = ['publisher', $c['publisher'] === 'manual' ? self::OK : self::WARN, $c['publisher'] === 'manual' ? 'manual (onaydan sonra panelde elle eklenir; API gelince otomatik)' : 'admin_api henüz desteklenmiyor'];
         try {
             $ai = new Ai(App::db(), $c);
