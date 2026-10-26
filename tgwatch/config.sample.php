@@ -3,6 +3,7 @@
 // config.php gizli bilgiler içerir: sohbetlere, git'e veya public_html'e koymayın.
 return [
     'timezone' => 'Asia/Baku',
+    'admin_name' => 'Yönetici',   // profil menüsünde görünen ad
 
     // Veritabanı, log ve kilit dosyalarının klasörü (public_html DIŞINDA olmalı).
     'data_dir' => __DIR__ . '/data',

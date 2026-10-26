@@ -1553,6 +1553,37 @@ test('Webhook anahtarı boşsa ya da yanlışsa istek reddedilir (bot.php mantı
     ok(!hash_equals('abc', 'abd'));
 });
 
+echo "Ad kalıbı\n";
+test('Ad kalıbı: parça seçimi, sıra, ayraç, emoji, ön/son ek, uzunluk', function () {
+    $segs = ['Instagram Bəyəni', 'Sürətli', 'Start: 0-1 Hour', 'Ləğv aktivdir', 'Real', 'Maks 100K', 'Saatda 10K', '30 Gün Qarantili ♻️'];
+    $N = [TgWatch\NameTemplate::class, 'apply'];
+    eq(implode(' | ', $segs), $N($segs, []), 'varsayılan: hiçbir şey değişmez');
+    eq('Instagram Bəyəni | Sürətli | Start: 0-1 Hour | Ləğv aktivdir | Real | Saatda 10K | 30 Gün Qarantili ♻️', $N($segs, ['keep_max' => false]));
+    eq('Instagram Bəyəni | Sürətli | Start: 0-1 Hour | Ləğv aktivdir | Real | Maks 100K | 30 Gün Qarantili ♻️', $N($segs, ['keep_speed' => false]));
+    eq('Instagram Bəyəni | Sürətli | Real | 30 Gün Qarantili ♻️', $N($segs, ['keep_start' => false, 'keep_cancel' => false, 'keep_max' => false, 'keep_speed' => false]));
+    eq('Instagram Bəyəni', $N($segs, ['keep_quality' => false, 'keep_refill' => false, 'keep_start' => false, 'keep_cancel' => false, 'keep_max' => false, 'keep_speed' => false]), 'hepsi kapalıysa yalnızca ana ad kalır');
+    ok(str_starts_with($N($segs, ['order' => 'tidy']), 'Instagram Bəyəni | Sürətli | Real | 30 Gün Qarantili ♻️ | Start'), 'derli toplu sıra');
+    ok(str_ends_with($N($segs, ['order' => 'tidy']), 'Maks 100K | Saatda 10K'));
+    eq('Instagram Bəyəni • Sürətli', $N(['Instagram Bəyəni', 'Sürətli'], ['separator' => ' • ']));
+    eq('x | 30 Gün Qarantili', $N(['x', '30 Gün Qarantili ♻️'], ['emoji' => 'remove']), 'emoji silinir');
+    eq('⚡ Instagram Bəyəni | Sürətli [TG]', $N(['Instagram Bəyəni', 'Sürətli'], ['prefix' => '⚡', 'suffix' => '[TG]']));
+    eq('Instagram Bəyəni | Sürətli | Real | 30 Gün Qarantili ♻️', $N($segs, ['order' => 'tidy', 'max_len' => 60]), 'sığmayınca önemsiz parçalar atılır');
+    ok(mb_strlen($N(['A' . str_repeat('b', 80)], ['max_len' => 30])) <= 30, 'ana ad kesilir');
+    eq("Instagram Bəyəni | Sürətli", $N(['Instagram Bəyəni', 'Sürətli', '', '  '], []), 'boş parçalar atılır');
+    // normalize: geçersiz değerler varsayılana düşer
+    $n = TgWatch\NameTemplate::normalize(['separator' => '<script>', 'order' => 'x', 'emoji' => 'y', 'max_len' => 9999, 'prefix' => "a\nb|c"]);
+    eq([' | ', 'source', 'keep', 255, 'a b c'], [$n['separator'], $n['order'], $n['emoji'], $n['max_len'], $n['prefix']]);
+});
+test('Ad kalıbı çeviri motoruna bağlı: banka ve kurallar aynı kalıpla çıkar', function () {
+    [$db] = env();
+    $d = Dictionary::defaults();
+    $d['options'] = ['keep_max' => false, 'separator' => ' - ', 'order' => 'tidy'];
+    $e = new TgWatch\Engine($db, $d);
+    eq('Threads İzləyici - Azalma olmaz - 30 Gün Qarantili ♻️ - Gündə 5K', $e->translate('Threads Followers | Max 50K | 5K/Day | No Drop | 30 Days Refill ♻️')['text']);
+    $e->memory()->learn('service', 'Twitch Followers | Max 10K', 'Twitch İzləyici | Maks 10K', 'manual');
+    eq('Twitch İzləyici', $e->translate('Twitch Followers | Max 10K')['text'], 'banka yolu da kalıptan geçer');
+});
+
 // temizlik
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmp, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($it as $f) {

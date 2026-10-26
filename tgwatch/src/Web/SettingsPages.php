@@ -317,6 +317,7 @@ trait SettingsPages
                 } elseif (mb_strlen($new) < 10) {
                     $this->say('bad', 'Yeni şifre en az 10 karakter olmalı.');
                 } else {
+                    $this->db->set('pw_changed_at', (string)time());
                     $this->db->set('admin_hash', password_hash($new, defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_BCRYPT));
                     $this->db->set('session_epoch', bin2hex(random_bytes(8)));
                     $this->db->log('info', 'web', 'Panel şifresi değiştirildi: ' . $this->ip());

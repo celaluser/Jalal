@@ -80,12 +80,11 @@ final class Translator
             }
             [$t, $u] = $this->segment($seg);
             $unknown = array_merge($unknown, $u);
-            if (!self::keepSegment($t, $this->options)) {
-                continue;
+            if ($t !== '') {
+                $out[] = $t;
             }
-            $out[] = $t;
         }
-        return ['text' => implode(' | ', $out), 'unknown' => array_values(array_unique($unknown))];
+        return ['text' => NameTemplate::apply($out, $this->options), 'unknown' => array_values(array_unique($unknown))];
     }
 
     /** @return array{0:string,1:list<string>} */

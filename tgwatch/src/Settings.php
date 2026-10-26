@@ -28,6 +28,7 @@ final class Settings
     public static function fields(): array
     {
         return [
+            'admin_name' => ['g' => 'general', 'label' => 'Yönetici adı', 'type' => 'text', 'max' => 40, 'help' => 'Profil menüsünde ve profil sayfasında görünür.'],
             'panel_name' => ['g' => 'general', 'label' => 'Panel adı', 'type' => 'text', 'max' => 30, 'help' => 'Kenar menüde ve sekme başlığında görünür.'],
             'timezone' => ['g' => 'general', 'label' => 'Saat dilimi', 'type' => 'select', 'options' => array_combine(self::ZONES, self::ZONES), 'help' => 'Saatler, günlük özet ve grafikler bu saate göre gösterilir.'],
 

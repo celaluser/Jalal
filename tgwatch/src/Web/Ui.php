@@ -22,7 +22,7 @@ final class Ui
         'channels' => ['Kanallar', 'channels', ['channels' => 'Kanallar']],
         'translate' => ['Çeviri', 'dict', ['dict' => 'Sözlük', 'bank' => 'Çeviri bankası', 'ai' => 'Çeviri ayarları']],
         'insights' => ['Analiz', 'chart', ['catalog' => 'Servisler', 'audit' => 'Fiyat denetimi', 'reports' => 'Raporlar']],
-        'system' => ['Ayarlar', 'gear', ['settings' => 'Ayarlar', 'alerts' => 'Uyarılar', 'botcmds' => 'Bot komutları', 'health' => 'Sağlık', 'logs' => 'Kayıtlar']],
+        'system' => ['Ayarlar', 'gear', ['settings' => 'Ayarlar', 'profile' => 'Profil', 'alerts' => 'Uyarılar', 'botcmds' => 'Bot komutları', 'health' => 'Sağlık', 'logs' => 'Kayıtlar']],
     ];
 
     /** Sayfa => bölüm anahtarı. */
@@ -129,6 +129,7 @@ final class Ui
     public static function icon(string $name, int $size = 18): string
     {
         $p = [
+            'user' => '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',
             'chart' => '<path d="M5 20V11M12 20V5M19 20v-6"/>',
             'gauge' => '<path d="M4 15a8 8 0 1 1 16 0"/><path d="M12 15l3.5-4.5"/><circle cx="12" cy="15" r="1.2"/><path d="M4 19h16"/>',
             'queue' => '<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16" r="3"/>',
@@ -236,13 +237,23 @@ final class Ui
             . '<div class="side-foot">' . ($cron ? '<a class="side-status" href="?p=health">' . self::dot($cron['state']) . '<span>Kanal okuma ' . $cron['text'] . '</span></a>' : '')
             . (empty($o['loginOff']) ? '<form method="post" action="?p=logout">' . $this->csrfField() . '<button class="side-link">' . self::icon('logout', 16) . '<span>Çıkış yap</span></button></form>' : '<span class="side-link muted">Giriş kapalı</span>') . '</div></aside>';
 
+        $adm = trim((string)($pf['admin'] ?? '')) !== '' ? trim((string)$pf['admin']) : 'Yönetici';
+        $words = preg_split('/\s+/u', $adm) ?: [$adm];
+        $initials = mb_strtoupper(mb_substr($words[0], 0, 1) . (isset($words[1]) ? mb_substr($words[1], 0, 1) : mb_substr($words[0], 1, 1)));
+        $menu = '<details class="profile-menu"><summary class="avatar" aria-label="Profil menüsü"><span aria-hidden="true">' . self::e($initials) . '</span></summary>'
+            . '<div class="pm-panel glass"><div class="pm-head"><span class="avatar big" aria-hidden="true">' . self::e($initials) . '</span><div><b>' . self::e($adm) . '</b><small>' . (empty($o['loginOff']) ? 'Yönetici' : 'Giriş kapalı') . '</small></div></div>'
+            . '<a href="?p=profile">' . self::icon('user', 18) . '<span>Profilim</span></a>'
+            . '<a href="?p=settings">' . self::icon('gear', 18) . '<span>Ayarlar</span></a>'
+            . '<a href="#" data-open-help>' . self::icon('menu', 18) . '<span>Klavye kısayolları</span></a>'
+            . (empty($o['loginOff']) ? '<form method="post" action="?p=logout">' . $this->csrfField() . '<button class="pm-out">' . self::icon('logout', 18) . '<span>Çıkış yap</span></button></form>' : '')
+            . '</div></details>';
         $toolbar = '<div class="toolbar glass" role="banner">'
             . '<button type="button" class="icon-btn js-only" data-toggle-side aria-label="Kenar menüyü gizle veya göster" aria-controls="menu">' . self::icon('sidebar') . '</button>'
             . '<span class="tb-title">' . self::e($title) . '</span>'
             . '<button type="button" class="live js-only" data-live aria-pressed="true" title="Canlı güncelleme: açık"><i class="pulse" aria-hidden="true"></i><span>Canlı</span></button>'
             . '<form method="get" class="search" role="search"><input type="hidden" name="p" value="jobs">' . self::icon('search', 16)
             . '<input type="search" name="q" placeholder="Servis ID, iş ya da kelime ara" aria-label="İşlerde ara" autocomplete="off"><kbd class="js-only" data-open-cmd title="Komut paleti">⌘K</kbd></form>'
-            . '</div>';
+            . $menu . '</div>';
 
         $palette .= '<li><a href="?p=job_new" data-cmd="yeni iş duyuru yapıştır ekle">' . self::icon('plus', 16) . '<span>Yeni iş ekle</span><small>İşlem</small></a></li>'
             . '<li><a href="?p=settings&amp;tab=telegram" data-cmd="ayarlar telegram bot token e-posta">' . self::icon('gear', 16) . '<span>Ayarlar: Telegram ve e-posta</span><small>Ayarlar</small></a></li>'
@@ -369,6 +380,13 @@ final class Ui
     });
     cmd.addEventListener('click', function (e) { if (e.target === cmd) cmd.close(); });
   }
+  // Profil menüsü: dışarı tıklayınca, bağlantıya tıklayınca ya da Esc ile kapanır
+  d.addEventListener('click', function (e) {
+    var pm = d.querySelector('.profile-menu[open]'); if (!pm) return;
+    if (!pm.contains(e.target) || (e.target.closest && e.target.closest('.pm-panel a'))) pm.removeAttribute('open');
+  });
+  d.addEventListener('keydown', function (e) { if (e.key === 'Escape') { var pm = d.querySelector('.profile-menu[open]'); if (pm) { pm.removeAttribute('open'); } } });
+
   // Kısayollar: "g" + harf sayfaya gider, "n" yeni iş, "?" yardım
   var gPending = false, gTimer = 0, GO = { d: 'dash', q: 'queue', j: 'jobs', c: 'channels', u: 'unparsed', s: 'settings', l: 'logs', h: 'health', r: 'reports' };
   var help = d.getElementById('help');
@@ -474,7 +492,7 @@ final class Ui
     var apply = function () {
       mainEl.classList.add('quiet'); // giriş animasyonu yalnızca ilk açılışta; sayfa geçişleri anında
       mainEl.innerHTML = nm.innerHTML;
-      ['.side .nav', '.side-foot', '.tabbar', '.tb-title'].forEach(function (s) { var a = d.querySelector(s), b = doc.querySelector(s); if (a && b) a.innerHTML = b.innerHTML; });
+      ['.side .nav', '.side-foot', '.tabbar', '.tb-title', '.profile-menu'].forEach(function (s) { var a = d.querySelector(s), b = doc.querySelector(s); if (a && b) a.innerHTML = b.innerHTML; });
       d.title = doc.title; d.body.setAttribute('data-queue', doc.body.getAttribute('data-queue') || '0'); titleCount();
       toasts(); labelTables(mainEl);
     };
@@ -1129,6 +1147,35 @@ input:focus,select:focus,textarea:focus{background:var(--g-strong)}
   .card,.panel,.table-wrap,.empty,.qcard,.attn-item,.strip>div,.login-card,.help-in,.hero-card,.glass,.side,.toolbar,.tabbar,.cmd{background:var(--surface)}
 }
 @media (prefers-contrast:more){:root{--g-card:var(--surface);--g-strong:var(--surface)}body.app::before{display:none}}
+
+.chk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px 18px;margin-top:8px}
+
+/* ===== Profil menüsü ===== */
+.profile-menu{position:relative;flex:none;margin-left:8px}
+.avatar{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:linear-gradient(145deg,var(--accent),color-mix(in srgb,var(--accent) 55%,#7b3fd4));color:var(--on-accent);font-weight:700;font-size:13px;letter-spacing:.02em;cursor:pointer;list-style:none;user-select:none;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+.profile-menu>summary::-webkit-details-marker{display:none}
+.avatar.big{width:44px;height:44px;font-size:16px;cursor:default;flex:none}
+.pm-panel{position:absolute;right:0;top:calc(100% + 10px);width:260px;padding:10px;border-radius:20px;z-index:50;display:grid;gap:2px;box-shadow:var(--shadow-pop)}
+.pm-head{display:flex;gap:12px;align-items:center;padding:6px 8px 12px;border-bottom:1px solid var(--g-line);margin-bottom:6px}
+.pm-head b{display:block;font-size:15px}.pm-head small{color:var(--text-2);font-size:12.5px}
+.pm-panel a,.pm-out{display:flex;align-items:center;gap:11px;min-height:42px;padding:8px 10px;border-radius:12px;color:var(--text);font:500 14.5px var(--font);text-decoration:none;border:0;background:none;width:100%;cursor:pointer;text-align:left}
+.pm-panel a:hover,.pm-out:hover{background:var(--g-fill);text-decoration:none}
+.pm-panel .ic{color:var(--text-2)}
+.pm-out{color:var(--bad)}.pm-out .ic{color:var(--bad)}
+.pm-panel form{margin:4px 0 0;border-top:1px solid var(--g-line);padding-top:4px}
+.profile-head{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.profile-head .avatar.big{width:72px;height:72px;font-size:26px}
+.kv-list{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:10px 22px;margin:0}
+.kv-list dt{color:var(--text-2)}.kv-list dd{margin:0;font-weight:500;min-width:0;overflow-wrap:anywhere}
+@media (max-width:760px){.pm-panel{position:fixed;right:12px;left:12px;top:72px;width:auto}.kv-list{grid-template-columns:1fr;gap:2px}.kv-list dt{margin-top:8px;font-size:12.5px}}
+
+.nomargin{margin:0!important}
+
+.inline-warn{display:flex;gap:10px;align-items:center;padding:10px 14px;border-radius:var(--r-m);background:var(--warn-soft);color:var(--text);font-size:14px}.inline-warn .ic{color:var(--warn);flex:none}
+
+.profile-menu>summary::before,.profile-menu>summary::after{content:none!important;display:none}.profile-menu>summary::marker{content:""}
+
+.pm-panel.glass{background:color-mix(in srgb,var(--surface) 94%,transparent)}
 
 CSS;
 }

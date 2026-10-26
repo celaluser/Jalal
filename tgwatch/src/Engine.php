@@ -19,7 +19,8 @@ final class Engine
 
     public function __construct(Db $db, private array $dict)
     {
-        $this->rules = new Translator($dict);
+        // Ad kalıbı parça başına değil, adın tamamına bu sınıfta uygulanır; Translator'a kalıp verilmez.
+        $this->rules = new Translator(array_merge($dict, ['options' => []]));
         $this->mem = new Memory($db);
         foreach ($dict['keep'] ?? [] as $w) {
             $this->keep[mb_strtolower((string)$w)] = true;
@@ -58,8 +59,7 @@ final class Engine
         $clean = $this->strip($name);
         $exact = $this->mem->lookup('service', $clean);
         if ($exact !== null) {
-            $segs = array_filter(Memory::splitSegments($exact), fn($t) => Translator::keepSegment($t, $this->dict['options'] ?? []));
-            return ['text' => implode(' | ', $segs), 'unknown' => [], 'via' => 'bank'];
+            return ['text' => NameTemplate::apply(Memory::splitSegments($exact), $this->dict['options'] ?? []), 'unknown' => [], 'via' => 'bank'];
         }
         $out = [];
         $unknown = [];
@@ -74,12 +74,10 @@ final class Engine
                 $t = $r['text'];
                 $unknown = array_merge($unknown, $r['unknown']);
             }
-            if (Translator::keepSegment($t, $this->dict['options'] ?? [])) {
-                $out[] = $t;
-            }
+            $out[] = $t;
         }
         $via = $segs && $bank === count($segs) ? 'bank' : ($bank > 0 ? 'mixed' : 'rules');
-        return ['text' => implode(' | ', $out), 'unknown' => array_values(array_unique($unknown)), 'via' => $via];
+        return ['text' => NameTemplate::apply($out, $this->dict['options'] ?? []), 'unknown' => array_values(array_unique($unknown)), 'via' => $via];
     }
 
     public function translateCategory(string $cat): string

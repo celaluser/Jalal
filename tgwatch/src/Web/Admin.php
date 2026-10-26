@@ -83,6 +83,7 @@ final class Admin
             'job_new' => $this->jobNewPage(),
             'unparsed' => $this->unparsedPage(),
             'botcmds' => $this->botCommandsPage(),
+            'profile' => $this->profilePage(),
             'catalog' => $this->catalogPage(),
             'audit' => $this->auditPage(),
             'reports' => $this->reportsPage(),
@@ -308,7 +309,7 @@ final class Admin
             $o['banner'] = '<div class="open-banner slim" role="alert">' . Ui::icon('alert') . '<span><b>Panel girişi kapalı:</b> adresi bilen herkes yönetebilir. <code>\'allowed_ips\'</code> ile IP sınırı koyabilirsin.</span></div>';
         }
         $o['prefs'] = ['name' => (string)($this->config['panel_name'] ?? 'tgwatch'), 'theme' => (string)($this->config['ui_theme'] ?? 'auto'),
-            'accent' => (string)($this->config['ui_accent'] ?? 'blue'), 'density' => (string)($this->config['ui_density'] ?? 'comfortable')];
+            'admin' => (string)($this->config['admin_name'] ?? 'Yönetici'), 'accent' => (string)($this->config['ui_accent'] ?? 'blue'), 'density' => (string)($this->config['ui_density'] ?? 'comfortable')];
         echo $this->ui->page($title, $body, $o);
     }
 
@@ -381,6 +382,8 @@ final class Admin
         }
         session_regenerate_id(true);
         $_SESSION['auth'] = true;
+        $_SESSION['login_at'] = time();
+        $_SESSION['login_ua'] = $this->ua();
         $_SESSION['epoch'] = (string)$this->db->get('session_epoch', '0');
         $_SESSION['seen'] = time();
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
@@ -986,10 +989,7 @@ final class Admin
             . '<label class="grow">Azerice<input type="text" name="az" placeholder="Hekayə Baxışı" required></label>'
             . '<button class="btn primary">' . Ui::icon('plus') . '<span>Ekle</span></button></form>';
 
-        $h .= '<h2>Ad kalıbı</h2><form method="post" action="?p=dict_opts" class="panel panel-pad field-row">' . $this->ui->csrfField()
-            . '<label class="check"><input type="checkbox" name="keep_max" value="1"' . (!empty($d['options']['keep_max']) ? ' checked' : '') . '> Adda “Maks 50K” kalsın</label>'
-            . '<label class="check"><input type="checkbox" name="keep_speed" value="1"' . (!empty($d['options']['keep_speed']) ? ' checked' : '') . '> Adda “Gündə 5K” kalsın</label>'
-            . '<span class="grow"></span><button class="btn quiet">Kaydet</button></form>';
+        $h .= $this->nameTemplateCard($d);
 
         // sözlük tablosu
         $phrases = $d['phrases'];
@@ -1015,7 +1015,6 @@ final class Admin
         // toplu düzenleme
         $h .= '<h2>Toplu düzenleme ve kurallar</h2><details class="panel panel-pad"' . ($openBulk ? ' open' : '') . '><summary>Kuralları, sözlüğü ve çevrilmeyecek kelimeleri metin olarak düzenle</summary>'
             . '<form method="post" action="?p=dict_save" class="stack">' . $this->ui->csrfField()
-            . '<input type="hidden" name="keep_max" value="' . (!empty($d['options']['keep_max']) ? '1' : '') . '"><input type="hidden" name="keep_speed" value="' . (!empty($d['options']['keep_speed']) ? '1' : '') . '">'
             . '<label>Kurallar <span class="hint">— her satır “regex =&gt; çıktı”, sözlükten önce ve sırayla uygulanır, $1 yakalanan grubu yazar</span><textarea name="rules" rows="9">' . Ui::e(Dictionary::rulesToText($d['rules'])) . '</textarea></label>'
             . '<label>Sözlük <span class="hint">— her satır “English = Azərbaycanca”, uzun ifadeler önce eşleşir</span><textarea name="phrases" rows="12">' . Ui::e(Dictionary::phrasesToText($d['phrases'])) . '</textarea></label>'
             . '<label>Çevrilmeyecek kelimeler <span class="hint">— marka adları, virgülle ayırın</span><textarea name="keep" rows="3">' . Ui::e(implode(', ', $d['keep'])) . '</textarea></label>'
@@ -1337,12 +1336,7 @@ final class Admin
                     $this->redirect('dict');
                     return;
                 case 'dict_opts':
-                    $d = Dictionary::load($this->db);
-                    $d['options'] = ['keep_max' => !empty($_POST['keep_max']), 'keep_speed' => !empty($_POST['keep_speed'])];
-                    Dictionary::save($this->db, $d);
-                    $n = $this->refreshOpenJobs();
-                    $this->say('ok', 'Ad kalıbı kaydedildi.' . ($n ? " $n açık iş güncellendi." : ''));
-                    $this->redirect('dict');
+                    $this->saveNameTemplate();
                     return;
                 case 'dict_save':
                     $this->dictPost();
@@ -1422,7 +1416,7 @@ final class Admin
             'phrases' => Dictionary::phrasesFromText((string)($_POST['phrases'] ?? '')),
             'keep' => Dictionary::listFromText((string)($_POST['keep'] ?? '')),
             'guesses' => array_values(array_filter(array_map('trim', explode(',', (string)($_POST['guesses'] ?? ''))))),
-            'options' => ['keep_max' => !empty($_POST['keep_max']), 'keep_speed' => !empty($_POST['keep_speed'])],
+            'options' => Dictionary::load($this->db)['options'], // Ad kalıbı kartında düzenlenir
             'remove' => Dictionary::load($this->db)['remove'] ?? [], // Çeviri ayarları sayfasında düzenlenir
         ];
         foreach ($errors as $err) {

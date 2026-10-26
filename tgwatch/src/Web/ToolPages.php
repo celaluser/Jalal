@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace TgWatch\Web;
 
 use TgWatch\App;
+use TgWatch\Dictionary;
+use TgWatch\Engine;
 use TgWatch\Enrich;
 use TgWatch\Flow;
 use TgWatch\Notices;
@@ -240,6 +242,130 @@ trait ToolPages
         $this->render('Okunamayanlar', $h, ['active' => 'unparsed', 'actions' => $this->ui->action('unparsed_dismiss', 'Hepsini yoksay', ['id' => 'all'], 'quiet', 'x', 'Listedeki tüm gönderiler yoksayılsın mı?')]);
     }
 
+    // ---------------------------------------------------------------- profil
+
+    private function profilePage(): void
+    {
+        $name = trim((string)($this->config['admin_name'] ?? '')) ?: 'Yönetici';
+        $words = preg_split('/\s+/u', $name) ?: [$name];
+        $initials = mb_strtoupper(mb_substr($words[0], 0, 1) . (isset($words[1]) ? mb_substr($words[1], 0, 1) : mb_substr($words[0], 1, 1)));
+        $off = $this->loginOff();
+        $logins = $this->db->all("SELECT ts, message FROM logs WHERE message LIKE 'Panele giriş:%' ORDER BY id DESC LIMIT 8");
+        $cur = (int)($_SESSION['login_at'] ?? 0);
+        $prev = null;
+        foreach ($logins as $l) { // bu oturumdan önceki en son giriş
+            if ($cur === 0 || (int)$l['ts'] < $cur - 1) {
+                $prev = $l;
+                break;
+            }
+        }
+        $pw = (int)$this->db->get('pw_changed_at', '0');
+        $left = max(0, (int)ceil((max(5, (int)($this->config['session_minutes'] ?? 120)) * 60 - (time() - (int)($_SESSION['seen'] ?? time()))) / 60));
+        $h = '<section class="card"><div class="profile-head"><span class="avatar big" aria-hidden="true">' . Ui::e($initials) . '</span>'
+            . '<div class="grow"><h2 class="first nomargin">' . Ui::e($name) . '</h2><p class="muted nomargin">' . ($off ? 'Panel girişi kapalı, tek kullanıcı olarak çalışıyorsun' : 'Panel yöneticisi') . '</p></div>'
+            . (!$off ? $this->ui->action('logout', 'Çıkış yap', [], 'danger', 'logout') : '') . '</div></section>';
+
+        $h .= '<form method="post" action="?p=profile_save" class="panel panel-pad field-row">' . $this->ui->csrfField()
+            . '<label class="grow">Görünen ad<input type="text" name="admin_name" value="' . Ui::e($name) . '" maxlength="40" required></label>'
+            . '<button class="btn primary">' . Ui::icon('check') . '<span>Kaydet</span></button></form>';
+
+        $h .= '<h2>Bu oturum</h2><div class="panel panel-pad"><dl class="kv-list">'
+            . '<dt>IP adresi</dt><dd>' . Ui::e($this->ip()) . '</dd>'
+            . '<dt>Tarayıcı</dt><dd>' . Ui::e($this->ua() ?: '—') . '</dd>'
+            . (!$off ? '<dt>Giriş zamanı</dt><dd>' . ($cur ? Ui::e(date('d.m.Y H:i', $cur)) . ' <span class="muted">(' . Ui::ago($cur) . ')</span>' : '—') . '</dd>'
+                . '<dt>Oturum bitimi</dt><dd>' . $left . ' dakika sonra, işlem yapmazsan <span class="muted">(Ayarlar → Güvenlik’ten değişir)</span></dd>'
+                . '<dt>Önceki giriş</dt><dd>' . ($prev ? Ui::e(date('d.m.Y H:i', (int)$prev['ts'])) . ' · ' . Ui::e(trim(substr($prev['message'], strlen('Panele giriş:')))) : '—') . '</dd>' : '')
+            . '</dl></div>';
+
+        if (!$off) {
+            $tf = $this->twoFactorOn();
+            $h .= '<h2>Güvenlik</h2><div class="panel panel-pad stack"><dl class="kv-list">'
+                . '<dt>Şifre</dt><dd>' . ($pw ? 'son değişim ' . Ui::e(date('d.m.Y', $pw)) : 'panelden hiç değiştirilmedi') . '</dd>'
+                . '<dt>İki adımlı giriş</dt><dd>' . Ui::dot($tf ? 'ok' : 'warn', $tf ? 'açık' : 'kapalı') . ' ' . ($tf ? 'açık (Telegram kodu)' : 'kapalı') . '</dd>'
+                . '<dt>IP sınırı</dt><dd>' . (trim((string)($this->config['allowed_ips'] ?? '')) !== '' ? Ui::e((string)$this->config['allowed_ips']) : 'yok') . '</dd></dl>'
+                . '<div class="row">' . Ui::link('?p=settings&tab=security', 'Şifreyi değiştir', 'quiet', 'gear') . Ui::link('?p=alerts', 'İki adımlı giriş', 'quiet', 'bell')
+                . $this->ui->action('sessions_revoke', 'Tüm oturumları kapat', [], 'ghost', 'logout', 'Bu cihaz dahil tüm oturumlar kapatılsın mı? Yeniden giriş yapman gerekir.') . '</div></div>';
+            if ($logins) {
+                $h .= '<h2>Son girişler</h2><div class="table-wrap"><table><thead><tr><th>Zaman</th><th>IP</th></tr></thead><tbody>';
+                foreach ($logins as $l) {
+                    $h .= '<tr><td class="tight">' . Ui::e(date('d.m.Y H:i', (int)$l['ts'])) . ' <span class="muted">(' . Ui::ago((int)$l['ts']) . ')</span></td><td>' . Ui::e(trim(substr($l['message'], strlen('Panele giriş:')))) . '</td></tr>';
+                }
+                $h .= '</tbody></table></div>';
+            }
+        }
+        $this->render('Profilim', $h, ['active' => 'profile', 'sub' => 'Hesap bilgilerin, oturumun ve çıkış.']);
+    }
+
+    // ---------------------------------------------------------------- ad kalıbı
+
+    private function nameTemplateCard(array $dict): string
+    {
+        $draft = $_SESSION['nt_draft'] ?? null;
+        unset($_SESSION['nt_draft']);
+        $o = \TgWatch\NameTemplate::normalize($draft ?? $dict['options'] ?? []);
+        $chk = '';
+        foreach (\TgWatch\NameTemplate::TYPES as [$label, $key]) {
+            $chk .= '<label class="check"><input type="checkbox" name="' . $key . '" value="1"' . ($o[$key] ? ' checked' : '') . '><span>' . Ui::e($label) . '</span></label>';
+        }
+        $sel = static function (string $name, array $opts, string $cur): string {
+            $h = '';
+            foreach ($opts as $v => $l) {
+                $h .= '<option value="' . Ui::e((string)$v) . '"' . ((string)$v === $cur ? ' selected' : '') . '>' . Ui::e($l) . '</option>';
+            }
+            return '<select name="' . $name . '">' . $h . '</select>';
+        };
+        // örnekler: hazır iki ad + son işlerden iki gerçek ad
+        $samples = ['Instagram Followers | No Drop | Start: Instant | Max 100K | 10K/Day | 30 Days Refill ♻️', 'TikTok Likes | Fast | Real | Cancel Enabled | Max 50K | 5K/Hour'];
+        foreach ($this->db->all('SELECT items_json FROM jobs ORDER BY id DESC LIMIT 2') as $j) {
+            $it = json_decode((string)$j['items_json'], true)[0] ?? null;
+            if ($it && !empty($it['name'])) {
+                $samples[] = (string)$it['name'];
+            }
+        }
+        $engine = new Engine($this->db, ['options' => $o] + $dict);
+        $rows = '';
+        foreach ($samples as $s) {
+            $r = $engine->translate($s);
+            $rows .= '<tr><td class="muted" data-label="Kaynak">' . Ui::e($s) . '</td><td data-label="Sonuç"><b>' . Ui::e($r['text']) . '</b>' . ($o['max_len'] > 0 ? ' <span class="muted">(' . mb_strlen($r['text']) . ')</span>' : '') . '</td></tr>';
+        }
+        return '<h2>Ad kalıbı</h2><form method="post" action="?p=dict_opts" class="panel panel-pad stack">' . $this->ui->csrfField()
+            . ($draft !== null ? '<div class="inline-warn">' . Ui::icon('alert') . '<span>Bu bir önizleme: henüz kaydedilmedi. Beğendiysen Kaydet’e bas.</span></div>' : '')
+            . '<p class="muted">Çevrilen adın hangi parçalarının, hangi sırayla ve nasıl yazılacağını belirler. Kaydedince açık işlerdeki adlar da yeni kalıba göre yenilenir (elle düzenlenenler hariç).</p>'
+            . '<div><b>Adda hangi parçalar kalsın</b><div class="chk-grid">' . $chk . '</div></div>'
+            . '<div class="grid-2"><label>Parça sırası' . $sel('order', \TgWatch\NameTemplate::ORDERS, $o['order']) . '</label>'
+            . '<label>Ayraç' . $sel('separator', \TgWatch\NameTemplate::SEPARATORS, $o['separator']) . '</label>'
+            . '<label>Emoji' . $sel('emoji', \TgWatch\NameTemplate::EMOJI, $o['emoji']) . '</label>'
+            . '<label>En çok uzunluk <span class="hint">(0: sınır yok; sığmazsa önemsiz parçalar atılır)</span><input type="number" name="max_len" min="0" max="255" value="' . (int)$o['max_len'] . '"></label>'
+            . '<label>Başa eklenecek <span class="hint">(en çok 20 karakter)</span><input type="text" name="prefix" maxlength="20" value="' . Ui::e($o['prefix']) . '" placeholder="⚡"></label>'
+            . '<label>Sona eklenecek <span class="hint">(en çok 20 karakter)</span><input type="text" name="suffix" maxlength="20" value="' . Ui::e($o['suffix']) . '" placeholder="[Premium]"></label></div>'
+            . '<div class="row"><button class="btn primary" name="do" value="save">' . Ui::icon('check') . '<span>Kaydet</span></button><button class="btn quiet" name="do" value="preview">Önizle</button>'
+            . '<span class="grow"></span><button class="btn ghost" name="do" value="reset" data-confirm="Ad kalıbı varsayılana dönsün mü?">Varsayılan</button></div>'
+            . '<div class="table-wrap"><table><thead><tr><th>Kaynak ad</th><th>Sonuç</th></tr></thead><tbody>' . $rows . '</tbody></table></div></form>';
+    }
+
+    private function saveNameTemplate(): void
+    {
+        $do = (string)($_POST['do'] ?? 'save');
+        $o = $do === 'reset' ? \TgWatch\NameTemplate::defaults() : \TgWatch\NameTemplate::normalize([
+            'keep_max' => !empty($_POST['keep_max']), 'keep_speed' => !empty($_POST['keep_speed']), 'keep_min' => !empty($_POST['keep_min']),
+            'keep_refill' => !empty($_POST['keep_refill']), 'keep_start' => !empty($_POST['keep_start']), 'keep_cancel' => !empty($_POST['keep_cancel']),
+            'keep_quality' => !empty($_POST['keep_quality']), 'separator' => $_POST['separator'] ?? '', 'order' => $_POST['order'] ?? '', 'emoji' => $_POST['emoji'] ?? '',
+            'prefix' => $_POST['prefix'] ?? '', 'suffix' => $_POST['suffix'] ?? '', 'max_len' => $_POST['max_len'] ?? 0,
+        ]);
+        if ($do === 'preview') {
+            $_SESSION['nt_draft'] = $o;
+            $this->redirect('dict');
+            return;
+        }
+        $d = Dictionary::load($this->db);
+        $d['options'] = $o;
+        Dictionary::save($this->db, $d);
+        $n = $this->refreshOpenJobs();
+        $this->db->log('info', 'web', 'Ad kalıbı ' . ($do === 'reset' ? 'sıfırlandı' : 'kaydedildi'));
+        $this->say('ok', 'Ad kalıbı ' . ($do === 'reset' ? 'varsayılana döndü.' : 'kaydedildi.') . ($n ? " $n açık iş güncellendi." : ''));
+        $this->redirect('dict');
+    }
+
     // ---------------------------------------------------------------- bot komutları
 
     private function botCommandsPage(): void
@@ -421,6 +547,12 @@ trait ToolPages
                 \TgWatch\BotRegistry::reset($this->db);
                 $this->say('ok', 'Komutlar varsayılana döndü.');
                 $this->redirect('botcmds');
+                return true;
+            case 'profile_save':
+                $n = trim((string)($_POST['admin_name'] ?? ''));
+                $errors = $n === '' ? ['Ad boş olamaz.'] : \TgWatch\Settings::save($this->db, ['admin_name' => $n]);
+                $errors ? $this->say('bad', (string)$errors[0]) : $this->say('ok', 'Profil kaydedildi.');
+                $this->redirect('profile');
                 return true;
             case 'unparsed_fix':
                 $r = $this->db->one('SELECT * FROM unparsed WHERE id = ?', [(int)($_POST['id'] ?? 0)]);

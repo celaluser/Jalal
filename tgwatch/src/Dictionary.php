@@ -80,7 +80,7 @@ final class Dictionary
             'guesses' => [], // defaults() doldurur
             // Çeviriden önce addan silinecek ifadeler (reklam etiketleri vb.). Düz metin ya da /regex/.
             'remove' => [],
-            'options' => [
+            'options' => [ // ad kalıbı: ayrıntı NameTemplate::defaults()
                 'keep_max' => true,   // "Maks 50K" kısmını ada koy
                 'keep_speed' => true, // "Gündə 5K" kısmını ada koy
             ],
@@ -99,7 +99,7 @@ final class Dictionary
                 $d[$k] = $v;
             }
         }
-        $d['options'] = array_merge($def['options'], $d['options']);
+        $d['options'] = NameTemplate::normalize(array_merge($def['options'], $d['options']));
         return $d;
     }
 
