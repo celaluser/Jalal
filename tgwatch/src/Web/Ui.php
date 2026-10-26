@@ -12,16 +12,29 @@ use TgWatch\Flow;
  */
 final class Ui
 {
-    /** Gezinme: grup => [sayfa => [ad, ikon]] (kenar menü en fazla iki seviye: HIG › Sidebars) */
-    public const NAV = [
-        'Masa' => ['dash' => ['Genel bakış', 'gauge'], 'queue' => ['Onay kuyruğu', 'queue'], 'jobs' => ['İşler', 'jobs'], 'changes' => ['Servis değişiklikleri', 'change'], 'unparsed' => ['Okunamayanlar', 'alert']],
-        'Kaynaklar' => ['channels' => ['Kanallar', 'channels']],
-        'Çeviri' => ['dict' => ['Sözlük', 'dict'], 'bank' => ['Çeviri bankası', 'bank'], 'ai' => ['Çeviri ayarları', 'sliders']],
-        'Araçlar' => ['catalog' => ['Servisler', 'search'], 'audit' => ['Fiyat denetimi', 'gauge'], 'reports' => ['Raporlar', 'logs']],
-        'Sistem' => ['alerts' => ['Uyarılar ve güvenlik', 'bell'], 'logs' => ['Kayıtlar', 'logs'], 'health' => ['Sağlık', 'health'], 'botcmds' => ['Bot komutları', 'send'], 'settings' => ['Ayarlar', 'gear']],
+    /**
+     * Gezinme: 6 bölüm. Her bölümün alt sayfaları sayfanın üstünde segment kontrolü (sekmeler) olarak çıkar;
+     * kenar menü ve mobil alt çubuk yalnızca bölümleri gösterir. [ad, ikon, [sayfa => sekme adı]]
+     */
+    public const SECTIONS = [
+        'dash' => ['Genel bakış', 'gauge', ['dash' => 'Genel bakış']],
+        'work' => ['İşler', 'queue', ['queue' => 'Onay kuyruğu', 'jobs' => 'Tüm işler', 'changes' => 'Değişiklikler', 'unparsed' => 'Okunamayanlar']],
+        'channels' => ['Kanallar', 'channels', ['channels' => 'Kanallar']],
+        'translate' => ['Çeviri', 'dict', ['dict' => 'Sözlük', 'bank' => 'Çeviri bankası', 'ai' => 'Çeviri ayarları']],
+        'insights' => ['Analiz', 'chart', ['catalog' => 'Servisler', 'audit' => 'Fiyat denetimi', 'reports' => 'Raporlar']],
+        'system' => ['Ayarlar', 'gear', ['settings' => 'Ayarlar', 'alerts' => 'Uyarılar', 'botcmds' => 'Bot komutları', 'health' => 'Sağlık', 'logs' => 'Kayıtlar']],
     ];
-    /** Mobil sekme çubuğu: en sık kullanılan dört bölüm + menü */
-    private const TABS = ['dash' => ['Genel', 'gauge'], 'queue' => ['Kuyruk', 'queue'], 'jobs' => ['İşler', 'jobs'], 'channels' => ['Kanallar', 'channels']];
+
+    /** Sayfa => bölüm anahtarı. */
+    public static function sectionOf(string $page): string
+    {
+        foreach (self::SECTIONS as $k => [, , $pages]) {
+            if (isset($pages[$page])) {
+                return $k;
+            }
+        }
+        return 'dash';
+    }
 
     public function __construct(public string $csrf, public string $nonce)
     {
@@ -116,6 +129,7 @@ final class Ui
     public static function icon(string $name, int $size = 18): string
     {
         $p = [
+            'chart' => '<path d="M5 20V11M12 20V5M19 20v-6"/>',
             'gauge' => '<path d="M4 15a8 8 0 1 1 16 0"/><path d="M12 15l3.5-4.5"/><circle cx="12" cy="15" r="1.2"/><path d="M4 19h16"/>',
             'queue' => '<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16" r="3"/>',
             'jobs' => '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h8M8 17h5"/>',
@@ -188,15 +202,31 @@ final class Ui
 
         $links = '';
         $palette = '';
-        foreach (self::NAV as $group => $items) {
-            $links .= '<div class="nav-group"><p class="nav-label">' . self::e($group) . '</p>';
-            foreach ($items as $k => [$label, $ic]) {
-                $cnt = (int)($o['counts'][$k] ?? 0);
-                $count = $cnt > 0 ? '<span class="count" aria-label="' . $cnt . ' bekleyen">' . $cnt . '</span>' : '';
-                $links .= '<a href="?p=' . $k . '"' . ($active === $k ? ' aria-current="page"' : '') . '>' . self::icon($ic) . '<span>' . $label . '</span>' . $count . '</a>';
-                $palette .= '<li><a href="?p=' . $k . '" data-cmd="' . self::e(mb_strtolower($label . ' ' . $group)) . '">' . self::icon($ic, 16) . '<span>' . $label . '</span><small>' . self::e($group) . '</small></a></li>';
+        $tabs = '';
+        $sub = '';
+        $curSec = self::sectionOf($active);
+        $counts = $o['counts'] ?? [];
+        foreach (self::SECTIONS as $sk => [$label, $ic, $pages]) {
+            $first = (string)array_key_first($pages);
+            $cnt = 0;
+            foreach ($pages as $pk => $pl) {
+                $cnt += (int)($counts[$pk] ?? 0);
             }
-            $links .= '</div>';
+            $badge = $cnt > 0 ? '<span class="count" aria-label="' . $cnt . ' bekleyen">' . $cnt . '</span>' : '';
+            $cur = $sk === $curSec ? ' aria-current="page"' : '';
+            $links .= '<a href="?p=' . $first . '" data-sec="' . $sk . '"' . $cur . '>' . self::icon($ic) . '<span>' . self::e($label) . '</span>' . $badge . '</a>';
+            $tabs .= '<a href="?p=' . $first . '" data-sec="' . $sk . '"' . $cur . '>' . self::icon($ic, 22) . ($cnt > 0 ? '<span class="tab-badge">' . $cnt . '</span>' : '') . '<span>' . self::e($sk === 'dash' ? 'Genel' : $label) . '</span></a>';
+            foreach ($pages as $pk => $pl) {
+                $palette .= '<li><a href="?p=' . $pk . '" data-cmd="' . self::e(mb_strtolower($pl . ' ' . $label)) . '">' . self::icon($ic, 16) . '<span>' . self::e($pl) . '</span><small>' . self::e($label) . '</small></a></li>';
+            }
+            if ($sk === $curSec && count($pages) > 1) {
+                $sub = '<nav class="tabs subnav" aria-label="' . self::e($label) . ' bölümü">';
+                foreach ($pages as $pk => $pl) {
+                    $c = (int)($counts[$pk] ?? 0);
+                    $sub .= '<a href="?p=' . $pk . '"' . ($active === $pk ? ' aria-current="page"' : '') . '>' . self::e($pl) . ($c > 0 ? ' <span class="n">' . $c . '</span>' : '') . '</a>';
+                }
+                $sub .= '</nav>';
+            }
         }
         $cron = $o['cron'] ?? null;
         $side = '<aside class="side glass" id="menu" aria-label="Ana menü">'
@@ -205,13 +235,6 @@ final class Ui
             . '<nav class="nav">' . $links . '</nav>'
             . '<div class="side-foot">' . ($cron ? '<a class="side-status" href="?p=health">' . self::dot($cron['state']) . '<span>Kanal okuma ' . $cron['text'] . '</span></a>' : '')
             . (empty($o['loginOff']) ? '<form method="post" action="?p=logout">' . $this->csrfField() . '<button class="side-link">' . self::icon('logout', 16) . '<span>Çıkış yap</span></button></form>' : '<span class="side-link muted">Giriş kapalı</span>') . '</div></aside>';
-
-        $tabs = '';
-        foreach (self::TABS as $k => [$label, $ic]) {
-            $badge = $k === 'queue' && !empty($o['pending']) ? '<span class="tab-badge">' . (int)$o['pending'] . '</span>' : '';
-            $tabs .= '<a href="?p=' . $k . '"' . ($active === $k ? ' aria-current="page"' : '') . '>' . self::icon($ic, 22) . $badge . '<span>' . $label . '</span></a>';
-        }
-        $tabs .= '<a href="#menu" data-menu>' . self::icon('menu', 22) . '<span>Menü</span></a>';
 
         $toolbar = '<div class="toolbar glass" role="banner">'
             . '<button type="button" class="icon-btn js-only" data-toggle-side aria-label="Kenar menüyü gizle veya göster" aria-controls="menu">' . self::icon('sidebar') . '</button>'
@@ -236,8 +259,8 @@ final class Ui
             . '<input type="text" id="cmd-q" placeholder="Sayfaya git ya da servis ID / iş ara…" autocomplete="off" aria-label="Komut ara"><kbd>esc</kbd></form>'
             . '<ul class="cmd-list" id="cmd-list">' . $palette . '<li data-search><a href="?p=jobs&amp;q=" id="cmd-search">' . self::icon('search', 16) . '<span>İşlerde ara: <b id="cmd-term"></b></span><small>Arama</small></a></li></ul></dialog>';
 
-        return $doc . '<body class="app"><a class="skip" href="#main">İçeriğe geç</a>' . $side
-            . '<div class="shell">' . $toolbar . '<main class="main" id="main">' . ($o['banner'] ?? '') . $head . $flash . $body . '<footer class="foot"><span>' . self::e($name) . ' v' . \TgWatch\VERSION . '</span><a href="?p=settings">Ayarlar</a><a href="?p=health">Sağlık</a><a href="?p=logs">Kayıtlar</a><a href="#" data-open-help>Kısayollar <kbd>?</kbd></a></footer></main></div>'
+        return $doc . '<body class="app" data-queue="' . (int)($o['pending'] ?? 0) . '"><a class="skip" href="#main">İçeriğe geç</a>' . $side
+            . '<div class="shell">' . $toolbar . '<main class="main" id="main">' . ($o['banner'] ?? '') . $head . $sub . $flash . $body . '<footer class="foot"><span>' . self::e($name) . ' v' . \TgWatch\VERSION . '</span><a href="?p=settings">Ayarlar</a><a href="?p=health">Sağlık</a><a href="?p=logs">Kayıtlar</a><a href="#" data-open-help>Kısayollar <kbd>?</kbd></a></footer></main></div>'
             . '<nav class="tabbar glass" aria-label="Sekmeler">' . $tabs . '</nav>'
             . $cmd . $help . '<div class="tip" id="tip" role="tooltip" hidden></div><div id="toasts" role="status" aria-live="polite"></div>'
             . '<script nonce="' . $this->nonce . '">' . self::JS . '</script></body></html>';
@@ -423,15 +446,23 @@ final class Ui
     });
   }
   labelTables(d);
-  function titleCount(n) {
-    if (n === undefined) { var q = d.querySelector('.nav a[href="?p=queue"] .count'); n = q ? parseInt(q.textContent, 10) || 0 : 0; }
+  function titleCount(n) { // sekme başlığında onay bekleyen sayısı
+    if (n === undefined) n = parseInt(d.body.getAttribute('data-queue'), 10) || 0;
     var base = d.title.replace(/^\(\d+\)\s*/, ''); d.title = n > 0 ? '(' + n + ') ' + base : base;
   }
   titleCount();
-  function setBadge(href, n) {
-    d.querySelectorAll('.nav a[href="?p=' + href + '"], .tabbar a[href="?p=' + href + '"]').forEach(function (a) {
-      var c = a.querySelector('.count, .tab-badge');
-      if (n > 0) { if (!c) { c = d.createElement('span'); c.className = a.closest('.tabbar') ? 'tab-badge' : 'count'; a.appendChild(c); } if (c.textContent !== String(n)) { c.textContent = n; c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); } }
+  function bump(c) { c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
+  function setSecBadge(sec, n) { // kenar menü ve alt çubuktaki bölüm rozeti
+    d.querySelectorAll('[data-sec="' + sec + '"]').forEach(function (a) {
+      var c = a.querySelector('.count, .tab-badge'), inBar = !!a.closest('.tabbar');
+      if (n > 0) { if (!c) { c = d.createElement('span'); c.className = inBar ? 'tab-badge' : 'count'; a.appendChild(c); } if (c.textContent !== String(n)) { c.textContent = n; bump(c); } }
+      else if (c) c.remove();
+    });
+  }
+  function setSubBadge(page, n) { // sayfanın üstündeki sekmelerdeki sayı
+    d.querySelectorAll('.subnav a[href="?p=' + page + '"]').forEach(function (a) {
+      var c = a.querySelector('.n');
+      if (n > 0) { if (!c) { c = d.createElement('span'); c.className = 'n'; a.appendChild(c); } c.textContent = n; }
       else if (c) c.remove();
     });
   }
@@ -444,7 +475,7 @@ final class Ui
       mainEl.classList.add('quiet'); // giriş animasyonu yalnızca ilk açılışta; sayfa geçişleri anında
       mainEl.innerHTML = nm.innerHTML;
       ['.side .nav', '.side-foot', '.tabbar', '.tb-title'].forEach(function (s) { var a = d.querySelector(s), b = doc.querySelector(s); if (a && b) a.innerHTML = b.innerHTML; });
-      d.title = doc.title; titleCount();
+      d.title = doc.title; d.body.setAttribute('data-queue', doc.body.getAttribute('data-queue') || '0'); titleCount();
       toasts(); labelTables(mainEl);
     };
     apply();
@@ -529,7 +560,7 @@ final class Ui
     fetch('?p=live', { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
       .then(function (r) { if (!/json/.test(r.headers.get('content-type') || '')) { location.reload(); throw 0; } return r.json(); })
       .then(function (s) {
-        titleCount(s.queue); setBadge('queue', s.queue); setBadge('changes', s.changes); setBadge('unparsed', s.unparsed);
+        d.body.setAttribute('data-queue', String(s.queue)); titleCount(s.queue); setSecBadge('work', s.queue + s.changes + s.unparsed); setSubBadge('queue', s.queue); setSubBadge('changes', s.changes); setSubBadge('unparsed', s.unparsed);
         if (shown === null) { shown = s.sig; newest = s.newest; liveUi('ok'); return; }
         if (s.newest > newest) { toast('Yeni servis duyurusu geldi', 'ok'); newest = s.newest; }
         var p = new URL(location.href).searchParams.get('p') || 'dash';
@@ -1034,6 +1065,70 @@ tbody tr:hover>td{background:color-mix(in srgb,var(--accent) 5%,transparent)}
 
 .main.loading{opacity:.55;transition:opacity .2s;pointer-events:none}
 .open-banner.slim{padding:8px 14px;font-size:13px;margin-bottom:14px}
+
+/* ===== iOS cam görünümü (sade menü, yarı saydam kartlar, yumuşak arka plan) ===== */
+:root{
+  --r-xl:26px;--r-l:22px;--r-m:16px;--r-s:12px;
+  --bg:#eef1f7;--text-2:#5c5c63;
+  --mesh-1:#c9ddff;--mesh-2:#ecd5ff;--mesh-3:#cff3e6;
+  --g-card:rgba(255,255,255,.64);--g-strong:rgba(255,255,255,.80);--g-line:rgba(255,255,255,.78);--g-input:rgba(255,255,255,.72);--g-fill:rgba(110,120,150,.13);
+  --g-shadow:0 10px 34px rgba(40,60,120,.10),0 1px 0 rgba(255,255,255,.7) inset;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#080a14;--text-2:#a1a1a6;
+  --mesh-1:#1b3b8f;--mesh-2:#4b1f7d;--mesh-3:#0f5a56;
+  --g-card:rgba(30,33,46,.58);--g-strong:rgba(42,46,62,.78);--g-line:rgba(255,255,255,.10);--g-input:rgba(255,255,255,.07);--g-fill:rgba(160,170,200,.16);
+  --g-shadow:0 12px 36px rgba(0,0,0,.45),0 1px 0 rgba(255,255,255,.06) inset;
+}}
+body.app{background:var(--bg)}
+body.app::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.8;
+  background:radial-gradient(60vw 52vh at 10% 6%,var(--mesh-1),transparent 70%),radial-gradient(52vw 50vh at 94% 10%,var(--mesh-2),transparent 70%),radial-gradient(64vw 60vh at 68% 104%,var(--mesh-3),transparent 70%)}
+.card,.panel,.table-wrap,.empty,.qcard,.attn-item,.strip>div,.login-card,.help-in,.hero-card{
+  background:var(--g-card);border:1px solid var(--g-line);box-shadow:var(--g-shadow);
+  -webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5)}
+.hero-card{background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 18%,transparent),transparent 72%),var(--g-card)}
+.card,.panel,.table-wrap,.empty,.qcard,.hero-card{border-radius:var(--r-l)}
+.table-wrap{overflow:hidden}.table-wrap.cards{overflow:visible}
+.glass,.side,.toolbar,.tabbar,.cmd{background:var(--g-strong);border:1px solid var(--g-line);box-shadow:var(--g-shadow);-webkit-backdrop-filter:blur(26px) saturate(1.7);backdrop-filter:blur(26px) saturate(1.7)}
+input[type=text],input[type=password],input[type=number],input[type=search],input[type=url],input[type=email],select,textarea{background:var(--g-input);border:1px solid var(--g-line);border-radius:14px}
+input:focus,select:focus,textarea:focus{background:var(--g-strong)}
+.btn{background:var(--g-fill)}.btn.primary{background:var(--accent)}.btn.danger{background:color-mix(in srgb,var(--bad) 14%,transparent)}.btn.ghost{background:transparent}
+.btn.success{background:var(--good)}
+.tabs{background:var(--g-fill)}.tabs a[aria-current="page"]{background:var(--g-strong);color:var(--text)}
+.tabs .n{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--accent);color:var(--on-accent);font-size:11px;font-weight:600;line-height:18px;text-align:center}
+.subnav{margin:-6px 0 20px}
+/* menü: yalnızca 6 bölüm */
+.side{padding:16px 12px 12px;border-radius:var(--r-xl)}
+.brand small{display:none}.brand{padding:2px 10px 18px}
+.nav{display:grid;gap:4px}
+.nav a{min-height:44px;padding:9px 14px;border-radius:15px;font-size:15px;gap:12px}
+.nav a[aria-current="page"]{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent-text);font-weight:600}
+.nav a[aria-current="page"] .ic{color:var(--accent-text)}
+.nav a .ic{color:var(--text-2)}
+.side-foot{border-top:1px solid var(--g-line)}
+/* üst çubuk: arama + tek nokta */
+.toolbar{border-radius:20px;height:56px}
+.live{width:30px;height:30px;padding:0;justify-content:center;margin-right:8px;background:transparent}
+.live span{display:none}
+.page-head h1,h1{font-size:30px;letter-spacing:-.025em}
+/* mobil alt çubuk: 6 bölüm */
+@media (max-width:900px){
+  .tabbar{border-radius:26px}
+  .tabbar a{font-size:10.5px;min-width:0;padding:0 2px;border-radius:20px}
+  .table-wrap.cards tr{background:var(--g-card);border:1px solid var(--g-line);-webkit-backdrop-filter:none;backdrop-filter:none}
+  .card,.panel,.attn-item,.strip>div,.qcard,.hero-card{-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4)}
+}
+.flash{backdrop-filter:blur(14px)}
+#toasts .flash{background:var(--g-strong)}
+/* erişilebilirlik: saydamlık azaltılırsa düz yüzey */
+@media (prefers-reduced-transparency:reduce){
+  .card,.panel,.table-wrap,.empty,.qcard,.attn-item,.strip>div,.login-card,.help-in,.hero-card,.glass,.side,.toolbar,.tabbar,.cmd{background:var(--surface);-webkit-backdrop-filter:none;backdrop-filter:none}
+  body.app::before{display:none}
+}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .card,.panel,.table-wrap,.empty,.qcard,.attn-item,.strip>div,.login-card,.help-in,.hero-card,.glass,.side,.toolbar,.tabbar,.cmd{background:var(--surface)}
+}
+@media (prefers-contrast:more){:root{--g-card:var(--surface);--g-strong:var(--surface)}body.app::before{display:none}}
 
 CSS;
 }
