@@ -206,7 +206,7 @@ final class Ui
         $name = (string)($pf['name'] ?? 'tgwatch');
         $accent = isset(self::ACCENT_SET[$pf['accent'] ?? '']) ? $pf['accent'] : 'blue';
         $theme = in_array($pf['theme'] ?? 'auto', ['light', 'dark'], true) ? $pf['theme'] : 'auto';
-        $doc = '<!doctype html><html lang="tr" data-style="' . (($pf['style'] ?? 'buta') === 'cam' ? 'cam' : 'buta') . '" data-density="' . (($pf['density'] ?? '') === 'compact' ? 'compact' : 'comfortable') . '"><head><meta charset="utf-8">'
+        $doc = '<!doctype html><html lang="tr" data-forced="' . $theme . '" data-style="' . (($pf['style'] ?? 'buta') === 'cam' ? 'cam' : 'buta') . '" data-density="' . (($pf['density'] ?? '') === 'compact' ? 'compact' : 'comfortable') . '"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow">'
             . '<meta name="color-scheme" content="' . ($theme === 'auto' ? 'light dark' : $theme) . '"><meta name="theme-color" content="' . ($theme === 'dark' ? '#000000' : '#f5f5f7') . '"' . ($theme === 'auto' ? ' media="(prefers-color-scheme: light)"' : '') . '>'
             . ($theme === 'auto' ? '<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">' : '')
@@ -261,6 +261,13 @@ final class Ui
             . '<div class="pm-panel glass"><div class="pm-head"><span class="avatar big" aria-hidden="true">' . self::e($initials) . '</span><div><b>' . self::e($adm) . '</b><small>' . (empty($o['loginOff']) ? 'Yönetici' : 'Giriş kapalı') . '</small></div></div>'
             . '<a href="?p=profile">' . self::icon('user', 18) . '<span>Profilim</span></a>'
             . '<a href="?p=settings">' . self::icon('gear', 18) . '<span>Ayarlar</span></a>'
+            . '<div class="pm-look js-only" role="group" aria-label="Tasarım stili"><span>Tasarım</span>'
+            . '<button type="button" data-look="style" data-val="buta"' . (($pf['style'] ?? 'buta') === 'cam' ? '' : ' aria-pressed="true"') . '>Buta</button>'
+            . '<button type="button" data-look="style" data-val="cam"' . (($pf['style'] ?? 'buta') === 'cam' ? ' aria-pressed="true"' : '') . '>Cam</button></div>'
+            . '<div class="pm-look js-only" role="group" aria-label="Renk modu"><span>Mod</span>'
+            . '<button type="button" data-look="theme" data-val="light"' . ($theme === 'light' ? ' aria-pressed="true"' : '') . '>Açık</button>'
+            . '<button type="button" data-look="theme" data-val="dark"' . ($theme === 'dark' ? ' aria-pressed="true"' : '') . '>Koyu</button>'
+            . '<button type="button" data-look="theme" data-val="auto"' . ($theme === 'auto' ? ' aria-pressed="true"' : '') . '>Otomatik</button></div>'
             . '<a href="#" data-open-help>' . self::icon('menu', 18) . '<span>Klavye kısayolları</span></a>'
             . (empty($o['loginOff']) ? '<form method="post" action="?p=logout">' . $this->csrfField() . '<button class="pm-out">' . self::icon('logout', 18) . '<span>Çıkış yap</span></button></form>' : '')
             . '</div></details>';
@@ -270,6 +277,7 @@ final class Ui
             . '<button type="button" class="live js-only" data-live aria-pressed="true" title="Canlı güncelleme: açık"><i class="pulse" aria-hidden="true"></i><span>Canlı</span></button>'
             . '<form method="get" class="search" role="search"><input type="hidden" name="p" value="jobs">' . self::icon('search', 16)
             . '<input type="search" name="q" placeholder="Servis ID, iş ya da kelime ara" aria-label="İşlerde ara" autocomplete="off"><kbd class="js-only" data-open-cmd title="Komut paleti">⌘K</kbd></form>'
+            . '<button type="button" class="icon-btn js-only theme-btn" data-look="theme" data-val="' . ($theme === 'dark' ? 'light' : 'dark') . '" data-cycle="1" aria-label="Açık ve koyu modu değiştir" title="' . ($theme === 'dark' ? 'Açık moda geç' : 'Koyu moda geç') . '"><span aria-hidden="true">' . ($theme === 'dark' ? '☀' : '☾') . '</span></button>'
             . $menu . '</div>';
 
         $palette .= '<li><a href="?p=job_new" data-cmd="yeni iş duyuru yapıştır ekle">' . self::icon('plus', 16) . '<span>Yeni iş ekle</span><small>İşlem</small></a></li>'
@@ -401,6 +409,16 @@ final class Ui
   d.addEventListener('click', function (e) {
     var pm = d.querySelector('.profile-menu[open]'); if (!pm) return;
     if (!pm.contains(e.target) || (e.target.closest && e.target.closest('.pm-panel a'))) pm.removeAttribute('open');
+  });
+  d.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-look]'); if (!b) return;
+    var val = b.getAttribute('data-val'), k = b.getAttribute('data-look');
+    if (k === 'theme' && b.hasAttribute('data-cycle')) {
+      var f = d.documentElement.getAttribute('data-forced'), dark = f === 'dark' || (f === 'auto' && matchMedia('(prefers-color-scheme:dark)').matches);
+      val = dark ? 'light' : 'dark';
+    }
+    try { d.cookie = 'tgw_' + k + '=' + val + ';path=' + location.pathname.replace(/[^\/]*$/, '') + ';max-age=31536000;samesite=lax'; } catch (x) {}
+    location.reload();
   });
   d.addEventListener('keydown', function (e) { if (e.key === 'Escape') { var pm = d.querySelector('.profile-menu[open]'); if (pm) { pm.removeAttribute('open'); } } });
 
@@ -1190,6 +1208,10 @@ input:focus,select:focus,textarea:focus{background:var(--g-strong)}
 
 .inline-warn{display:flex;gap:10px;align-items:center;padding:10px 14px;border-radius:var(--r-m);background:var(--warn-soft);color:var(--text);font-size:14px}.inline-warn .ic{color:var(--warn);flex:none}
 
+.pm-look{display:flex;align-items:center;gap:6px;padding:6px 10px;flex-wrap:wrap}.pm-look span{flex:1 0 100%;font-size:12.5px;color:var(--text-2)}
+.pm-look button{flex:1;min-height:36px;border:1px solid var(--g-line,var(--rule-strong));border-radius:10px;background:none;color:var(--text);font:600 13.5px var(--font);cursor:pointer}
+.pm-look button[aria-pressed="true"]{background:var(--text);color:var(--surface);border-color:var(--text)}
+.theme-btn{font-size:18px;line-height:1}
 .profile-menu>summary::before,.profile-menu>summary::after{content:none!important;display:none}.profile-menu>summary::marker{content:""}
 
 .pm-panel.glass{background:color-mix(in srgb,var(--surface) 94%,transparent)}

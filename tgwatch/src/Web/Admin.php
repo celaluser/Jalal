@@ -310,6 +310,15 @@ final class Admin
         }
         $o['prefs'] = ['name' => (string)($this->config['panel_name'] ?? 'tgwatch'), 'theme' => (string)($this->config['ui_theme'] ?? 'auto'),
             'admin' => (string)($this->config['admin_name'] ?? 'Yönetici'), 'style' => (string)($this->config['ui_style'] ?? 'buta'), 'accent' => (string)($this->config['ui_accent'] ?? 'blue'), 'density' => (string)($this->config['ui_density'] ?? 'comfortable')];
+        // Tarayıcıya özel hızlı seçim (çerez): ayardaki varsayılanı bu tarayıcı için geçersiz kılar.
+        $ck = (string)($_COOKIE['tgw_style'] ?? '');
+        if ($ck === 'buta' || $ck === 'cam') {
+            $o['prefs']['style'] = $ck;
+        }
+        $ck = (string)($_COOKIE['tgw_theme'] ?? '');
+        if ($ck === 'auto' || $ck === 'light' || $ck === 'dark') {
+            $o['prefs']['theme'] = $ck;
+        }
         echo $this->ui->page($title, $body, $o);
     }
 

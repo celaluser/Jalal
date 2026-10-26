@@ -226,6 +226,8 @@ Panelin kimliği **Buta**: karavansaray defteri gibi sade bir görünüm. Logo, 
 
 Eski cam (iOS) görünümüne dönmek için: **Ayarlar → Görünüm → Tasarım stili → Cam** (`ui_style` = `buta` | `cam`). Vurgu rengi yalnızca Cam'da geçerlidir.
 
+**Hızlı geçiş:** üst çubuktaki ☀/☾ düğmesi açık/koyu modu değiştirir; profil menüsünde (sağ üst avatar) Buta/Cam ve Açık/Koyu/Otomatik seçilir. Bu seçim sadece o tarayıcı için geçerlidir (çerez); herkes için varsayılan Ayarlar → Görünüm'dedir.
+
 Gerçek telefon/Safari'de denenmedi; Chromium'da masaüstü ve mobil genişlikte bakıldı.
 
 ## Girişi kapatmak (önerilmez) ve IP sınırı
