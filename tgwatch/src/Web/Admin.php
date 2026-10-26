@@ -108,7 +108,7 @@ final class Admin
     private function headers(): void
     {
         $n = $this->nonce;
-        header("Content-Security-Policy: default-src 'none'; script-src 'nonce-$n'; style-src 'nonce-$n'; img-src 'self' data:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
+        header("Content-Security-Policy: default-src 'none'; script-src 'nonce-$n'; style-src 'nonce-$n'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
         header('X-Frame-Options: DENY');
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: no-referrer');
@@ -309,7 +309,7 @@ final class Admin
             $o['banner'] = '<div class="open-banner slim" role="alert">' . Ui::icon('alert') . '<span><b>Panel girişi kapalı:</b> adresi bilen herkes yönetebilir. <code>\'allowed_ips\'</code> ile IP sınırı koyabilirsin.</span></div>';
         }
         $o['prefs'] = ['name' => (string)($this->config['panel_name'] ?? 'tgwatch'), 'theme' => (string)($this->config['ui_theme'] ?? 'auto'),
-            'admin' => (string)($this->config['admin_name'] ?? 'Yönetici'), 'accent' => (string)($this->config['ui_accent'] ?? 'blue'), 'density' => (string)($this->config['ui_density'] ?? 'comfortable')];
+            'admin' => (string)($this->config['admin_name'] ?? 'Yönetici'), 'style' => (string)($this->config['ui_style'] ?? 'buta'), 'accent' => (string)($this->config['ui_accent'] ?? 'blue'), 'density' => (string)($this->config['ui_density'] ?? 'comfortable')];
         echo $this->ui->page($title, $body, $o);
     }
 
@@ -317,7 +317,7 @@ final class Admin
 
     private function bare(string $title, string $sub, string $inner): void
     {
-        $this->render($title, '<div class="login-card"><div class="body"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>'
+        $this->render($title, '<div class="login-card"><div class="body"><span class="mark login-mark" aria-hidden="true">' . Ui::mark(56) . '</span>'
             . '<div><h1>' . Ui::e($title) . '</h1><p class="sub">' . $sub . '</p></div>' . $inner . '</div></div>', ['nav' => false]);
     }
 
@@ -639,7 +639,27 @@ final class Admin
         $activity = '<section class="card c-6"><div class="card-h"><h3>Son etkinlik</h3><a href="?p=logs">Kayıtlar</a></div>'
             . ($tl ? '<ul class="timeline">' . $tl . '</ul>' : '<p class="muted">Henüz kayıt yok.</p>') . '</section>';
 
-        $h = $this->attentionStrip() . '<div class="dash">' . $hero . $tiles . $chart . $channels . $queue . $sys . $mix . $activity . '</div>';
+        $parts = [];
+        if ($deciding > 0) {
+            $parts[] = '<a href="?p=queue">' . $deciding . ' iş</a> senin kararını bekliyor.';
+        }
+        if ($failed > 0) {
+            $parts[] = '<a href="?p=jobs&amp;status=failed">' . $failed . ' iş</a> yayın hatası verdi.';
+        }
+        if ($approved > 0) {
+            $parts[] = '<a href="?p=jobs&amp;status=approved">' . $approved . ' onaylı iş</a> panele eklenmeyi bekliyor.';
+        }
+        $openNotices = (new \TgWatch\Notices($this->db))->openCount();
+        if ($openNotices > 0) {
+            $parts[] = '<a href="?p=changes">' . $openNotices . ' bildirim</a> panelde yapılmayı bekliyor.';
+        }
+        $unp = $this->unparsedCount();
+        if ($unp > 0) {
+            $parts[] = '<a href="?p=unparsed">' . $unp . ' gönderi</a> okunamadı.';
+        }
+        $brief = '<p class="brief">' . ($parts ? implode(' ', $parts) : 'Bekleyen bir şey yok. Kanallar sakin.')
+            . '<span class="muted">Son kanal okuma ' . $cron['text'] . '. Bugün ' . (int)$itemsToday . ' servis geldi.</span></p>';
+        $h = $brief . $this->attentionStrip() . '<div class="dash">' . $hero . $tiles . $chart . $channels . $queue . $sys . $mix . $activity . '</div>';
         $hour = (int)date('G');
         $greet = $hour < 6 ? 'İyi geceler' : ($hour < 12 ? 'Günaydın' : ($hour < 18 ? 'İyi günler' : 'İyi akşamlar'));
         $state = $cron['state'] === 'ok' && !$failed && !(is_array($res) && $res['errors']) ? 'Sistem sorunsuz çalışıyor.' : 'Dikkat isteyen bir şey var, aşağıya bakın.';

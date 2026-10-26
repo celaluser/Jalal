@@ -220,6 +220,14 @@ Tanınan servis satırları: `🆔 13125 Ad…`, `ID: 13125 | Ad`, `13125 - Ad`,
 satırının altında ad. Fiyat aynı satırda ya da altındaki satırlarda (`$1.20`, `0.35$`, `Price: …`). Kategori olarak
 ID satırlarından önceki kısa başlık satırı alınır. Gerçek kanallarda farklı biçim çıkarsa `src/Parser.php` güncellenir.
 
+## Görünüm: "Buta" (varsayılan) ve "Cam"
+
+Panelin kimliği **Buta**: karavansaray defteri gibi sade bir görünüm. Logo, Bakü'nün Alov Qüllələri'ni (üç kule) çizen bir işaret; renkler çivit mavisi ray, kâğıt zemin ve halı dokusundan gelen bir şerit. Başlıklarda **Zilla Slab** (SIL OFL, `public/assets/fonts/` içinde, dışarıdan yüklenmez). Panoda sayı kutuları yerine tek cümlelik özet var.
+
+Eski cam (iOS) görünümüne dönmek için: **Ayarlar → Görünüm → Tasarım stili → Cam** (`ui_style` = `buta` | `cam`). Vurgu rengi yalnızca Cam'da geçerlidir.
+
+Gerçek telefon/Safari'de denenmedi; Chromium'da masaüstü ve mobil genişlikte bakıldı.
+
 ## Girişi kapatmak (önerilmez) ve IP sınırı
 
 - `config.php`'ye `'login_required' => false,` yazarsan panel şifresiz açılır. Adresi bilen herkes işleri onaylayabilir, kanalları ve ayarları değiştirebilir; bu yüzden her sayfanın üstünde kırmızı uyarı çıkar, Sağlık'ta "Panel girişi" kırmızı görünür ve cron/izleme adresleri gizlenir. Giriş kapalıyken token, adres, anahtar ve e-posta gibi hassas ayarlar panelden değiştirilemez (config.php'den değişir). Geri açmak için `true` yaz ya da satırı sil.

@@ -65,6 +65,7 @@ return [
     'lock_minutes' => 15,
     'retention_logs_days' => 30,
     'retention_jobs_days' => 0,   // 0: işleri hiç silme
+    'ui_style' => 'buta',         // buta | cam
     'ui_theme' => 'auto',         // auto | light | dark
     'ui_accent' => 'blue',
     'ui_density' => 'comfortable',
