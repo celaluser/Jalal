@@ -72,7 +72,7 @@ trait SettingsPages
         $learn = '<div class="panel panel-pad stack"><div><h3>Çeviri öğrenme</h3><p class="muted">Bankadaki ad çiftlerinden çeviri mantığını çıkarır ve öneri verir. Sen onaylamadan hiçbir şey değişmez.</p></div>'
             . '<div class="row between"><span class="src">' . ($rep ? 'Son analiz ' . Ui::ago((int)$rep['at']) . ', ' . count($rep['suggestions'] ?? []) . ' öneri' : 'Henüz çalıştırılmadı') . '</span>'
             . '<div class="row">' . $this->ui->action('learn_run', 'Analiz et', [], 'quiet sm', 'play') . Ui::link('?p=learn', 'Önerilere bak', 'quiet sm') . '</div></div></div>';
-        $look = '<div class="panel panel-pad stack"><div><h3>Görünüm</h3><p class="muted">Buta ve Cam arasında, açık ve koyu mod arasında seçim. Hızlı değiştirmek için sağ üstteki ☀/☾ düğmesini ya da avatar menüsünü kullan. Herkes için varsayılan aşağıda.</p></div>'
+        $look = '<div class="panel panel-pad stack"><div><h3>Görünüm</h3><p class="muted">Buta, Cam ve İmpuls arasında, açık ve koyu mod arasında seçim. Hızlı değiştirmek için sağ üstteki ☀/☾ düğmesini ya da avatar menüsünü kullan. Herkes için varsayılan aşağıda.</p></div>'
             . '<div class="row">' . Ui::link('?p=settings&tab=appearance', 'Görünüm ayarları', 'quiet sm') . Ui::link('?p=dict', 'Ad kalıbı', 'quiet sm') . '</div></div>';
         return '<h2 class="first">Yeni servis izleme</h2>' . $watch . '<h2>Öğrenme</h2>' . $learn . '<h2>Görünüm ve ad kalıbı</h2>' . $look . '<h2>Zamanlama</h2>';
     }

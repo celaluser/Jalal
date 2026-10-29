@@ -62,7 +62,7 @@ final class Settings
             'max_fails' => ['g' => 'security', 'label' => 'Hatalı giriş hakkı', 'type' => 'int', 'min' => 3, 'max' => 20, 'help' => 'Aşılınca o IP kilitlenir.'],
             'lock_minutes' => ['g' => 'security', 'label' => 'Kilit süresi (dk)', 'type' => 'int', 'min' => 1, 'max' => 1440, 'help' => ''],
 
-            'ui_style' => ['g' => 'appearance', 'label' => 'Tasarım stili', 'type' => 'select', 'options' => ['buta' => 'Buta: kervansaray defteri (nila, rövənd, zəfəran; slab serif, dokuma şerit)', 'cam' => 'Cam: buzlu cam, iOS tarzı (önceki)'], 'help' => 'Vurgu rengi yalnızca Cam stilinde geçerlidir; Buta kendi boya paletini kullanır.'],
+            'ui_style' => ['g' => 'appearance', 'label' => 'Tasarım stili', 'type' => 'select', 'options' => ['buta' => 'Buta: kervansaray defteri (nila, rövənd, zəfəran; slab serif, dokuma şerit)', 'impuls' => 'İmpuls: koyu kumanda paneli (sintetik firuzə, mono rakamlar, ızgara)', 'cam' => 'Cam: buzlu cam, iOS tarzı (önceki)'], 'help' => 'Vurgu rengi yalnızca Cam stilinde geçerlidir; Buta ve İmpuls kendi boya paletini kullanır.'],
             'ui_theme' => ['g' => 'appearance', 'label' => 'Tema', 'type' => 'select', 'options' => ['auto' => 'Sistemi izle', 'light' => 'Açık', 'dark' => 'Koyu']],
             'ui_accent' => ['g' => 'appearance', 'label' => 'Vurgu rengi', 'type' => 'select', 'options' => self::ACCENTS],
             'ui_density' => ['g' => 'appearance', 'label' => 'Yoğunluk', 'type' => 'select', 'options' => ['comfortable' => 'Rahat', 'compact' => 'Sıkı (daha çok satır)']],

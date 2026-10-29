@@ -258,13 +258,23 @@ Bankadaki ad çiftlerinden (sağlayıcı adı ↔ senin adın) çeviri mantığ�
 
 **Denenmedi:** gerçek verinle. Testler ve panel sahte çiftlerle denendi. Alanlar uyuşmuyorsa (ör. sağlayıcı adı başka biçimde) ölçüm düşük çıkar ve bu bilgi işe yarar. Parça sayıları çok farklı adlarda hizalama yanılabilir; öneri listesindeki örneklere bakarak onayla.
 
-## Görünüm: "Buta" (varsayılan) ve "Cam"
+## Görünüm: "Buta" (varsayılan), "Cam" ve "İmpuls"
+
+Üç tasarım kimliği var, hepsi aynı veriyi gösterir, sadece görünüm değişir:
+
+- **Buta** (varsayılan): karavansaray defteri. Alov Qüllələri logosu, çivit mavisi/kehribar renkleri, Zilla Slab serif başlıklar, dokuma şerit.
+- **Cam**: önceki iOS tarzı buzlu cam görünüm.
+- **İmpuls** (yeni): koyu, ızgaralı bir komuta paneli. Rakamlar ve başlıklar mono (yazı tipi indirmeden, sistem mono fontuyla), vurgu rengi sintetik firuzə/pembe, köşeler keskin, çizgiler ince. Otomasyon ve veri ağırlıklı sayfalara (Rakipler, Öğrenme, Sağlayıcı izleme) en çok yakışan stil.
+
+Hepsi açık ve koyu modu destekler. Değiştirmek için: **Ayarlar → Görünüm → Tasarım stili** (herkes için varsayılan) ya da sağ üstteki avatar menüsü (sadece o tarayıcı için, hızlı).
+
+
 
 Panelin kimliği **Buta**: karavansaray defteri gibi sade bir görünüm. Logo, Bakü'nün Alov Qüllələri'ni (üç kule) çizen bir işaret; renkler çivit mavisi ray, kâğıt zemin ve halı dokusundan gelen bir şerit. Başlıklarda **Zilla Slab** (SIL OFL, `public/assets/fonts/` içinde, dışarıdan yüklenmez). Panoda sayı kutuları yerine tek cümlelik özet var.
 
 Eski cam (iOS) görünümüne dönmek için: **Ayarlar → Görünüm → Tasarım stili → Cam** (`ui_style` = `buta` | `cam`). Vurgu rengi yalnızca Cam'da geçerlidir.
 
-**Hızlı geçiş:** üst çubuktaki ☀/☾ düğmesi açık/koyu modu değiştirir; profil menüsünde (sağ üst avatar) Buta/Cam ve Açık/Koyu/Otomatik seçilir. Bu seçim sadece o tarayıcı için geçerlidir (çerez); herkes için varsayılan Ayarlar → Görünüm'dedir.
+**Hızlı geçiş:** üst çubuktaki ☀/☾ düğmesi açık/koyu modu değiştirir; profil menüsünde (sağ üst avatar) Buta/Cam/İmpuls ve Açık/Koyu/Otomatik seçilir. Bu seçim sadece o tarayıcı için geçerlidir (çerez); herkes için varsayılan Ayarlar → Görünüm'dedir.
 
 Gerçek telefon/Safari'de denenmedi; Chromium'da masaüstü ve mobil genişlikte bakıldı.
 

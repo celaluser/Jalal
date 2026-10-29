@@ -47,6 +47,16 @@ final class Ui
      * Logo: Bakü'nün Alov Qüllələri (Alev Kuleleri) silueti; üç kule = üç kanal.
      * $mono true ise tek renk (menü şeridi ve koyu zemin), değilse nila/rövənd/zəfəran boyaları.
      */
+    /** Profil menüsündeki tasarım stili düğmeleri. */
+    private static function styleButtons(string $cur): string
+    {
+        $h = '';
+        foreach (self::STYLES as $k => $label) {
+            $h .= '<button type="button" data-look="style" data-val="' . $k . '"' . ($cur === $k ? ' aria-pressed="true"' : '') . '>' . self::e($label) . '</button>';
+        }
+        return $h;
+    }
+
     public static function mark(int $size = 32, bool $mono = false): string
     {
         $paths = self::MARK_PATHS;
@@ -208,7 +218,8 @@ final class Ui
         $name = (string)($pf['name'] ?? 'tgwatch');
         $accent = isset(self::ACCENT_SET[$pf['accent'] ?? '']) ? $pf['accent'] : 'blue';
         $theme = in_array($pf['theme'] ?? 'auto', ['light', 'dark'], true) ? $pf['theme'] : 'auto';
-        $doc = '<!doctype html><html lang="tr" data-forced="' . $theme . '" data-style="' . (($pf['style'] ?? 'buta') === 'cam' ? 'cam' : 'buta') . '" data-density="' . (($pf['density'] ?? '') === 'compact' ? 'compact' : 'comfortable') . '"><head><meta charset="utf-8">'
+        $style = isset(self::STYLES[$pf['style'] ?? '']) ? (string)$pf['style'] : 'buta';
+        $doc = '<!doctype html><html lang="tr" data-forced="' . $theme . '" data-style="' . $style . '" data-density="' . (($pf['density'] ?? '') === 'compact' ? 'compact' : 'comfortable') . '"><head><meta charset="utf-8">'
             . '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow">'
             . '<meta name="color-scheme" content="' . ($theme === 'auto' ? 'light dark' : $theme) . '"><meta name="theme-color" content="' . ($theme === 'dark' ? '#000000' : '#f5f5f7') . '"' . ($theme === 'auto' ? ' media="(prefers-color-scheme: light)"' : '') . '>'
             . ($theme === 'auto' ? '<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">' : '')
@@ -263,9 +274,7 @@ final class Ui
             . '<div class="pm-panel glass"><div class="pm-head"><span class="avatar big" aria-hidden="true">' . self::e($initials) . '</span><div><b>' . self::e($adm) . '</b><small>' . (empty($o['loginOff']) ? 'Yönetici' : 'Giriş kapalı') . '</small></div></div>'
             . '<a href="?p=profile">' . self::icon('user', 18) . '<span>Profilim</span></a>'
             . '<a href="?p=settings">' . self::icon('gear', 18) . '<span>Ayarlar</span></a>'
-            . '<div class="pm-look js-only" role="group" aria-label="Tasarım stili"><span>Tasarım</span>'
-            . '<button type="button" data-look="style" data-val="buta"' . (($pf['style'] ?? 'buta') === 'cam' ? '' : ' aria-pressed="true"') . '>Buta</button>'
-            . '<button type="button" data-look="style" data-val="cam"' . (($pf['style'] ?? 'buta') === 'cam' ? ' aria-pressed="true"' : '') . '>Cam</button></div>'
+            . '<div class="pm-look js-only" role="group" aria-label="Tasarım stili"><span>Tasarım</span>' . self::styleButtons($style) . '</div>'
             . '<div class="pm-look js-only" role="group" aria-label="Renk modu"><span>Mod</span>'
             . '<button type="button" data-look="theme" data-val="light"' . ($theme === 'light' ? ' aria-pressed="true"' : '') . '>Açık</button>'
             . '<button type="button" data-look="theme" data-val="dark"' . ($theme === 'dark' ? ' aria-pressed="true"' : '') . '>Koyu</button>'
@@ -305,6 +314,8 @@ final class Ui
     }
 
     /** vurgu rengi: [açık/koyu düğme rengi, koyu temada yazı rengi] */
+    public const STYLES = ['buta' => 'Buta', 'cam' => 'Cam', 'impuls' => 'İmpuls'];
+
     private const ACCENT_SET = [
         'blue' => ['#0a63ce', '#5aa9ff'], 'green' => ['#1b7f3b', '#4cc277'], 'purple' => ['#7b3fd4', '#a779f0'],
         'orange' => ['#b5500a', '#f08a3c'], 'pink' => ['#c2255f', '#f06a9c'],
@@ -1391,6 +1402,170 @@ html[data-style="buta"] .btn:active,html[data-style="buta"] .count.bump{animatio
 @media (prefers-reduced-transparency:reduce){html[data-style="buta"] .tabbar,html[data-style="buta"] .side{background:var(--rail)}}
 
 html[data-style="cam"] .brief{display:none}
+
+/* ===== İMPULS: koyu kumanda paneli (sintetik firuzə üzerinə qara, mono rakamlar, ızgara) ===== */
+html[data-style="impuls"]{
+  --display:ui-monospace,'SFMono-Regular','SF Mono','JetBrains Mono','Roboto Mono',Menlo,Consolas,monospace;
+  --imp-good:#0E8C7B;--imp-bad:#B8244B;--imp-warn:#9A6A00;
+  --bg:#F2F5F4;--surface:#FFFFFF;--surface-2:#E7ECEB;--fill:#DEE6E4;--fill-2:#E9EFEE;
+  --text:#0E1416;--text-2:#4B5A5C;--text-3:#7C8A8C;
+  --sep:rgba(14,20,22,.30);--sep-2:rgba(14,20,22,.14);--rule:rgba(14,20,22,.14);--rule-strong:rgba(14,20,22,.34);
+  --accent:#0E8C7B;--accent-text:#0E8C7B;--on-accent:#F4FFFC;--accent-soft:#D9F0EC;--accent-hover:#0B6F62;
+  --good:#0E8C7B;--good-soft:#D9F0EC;--warn:#8A5E00;--warn-soft:#F5E6C2;--bad:#B8244B;--bad-soft:#F5D9E1;
+  --s1:#0E8C7B;--s2:#B8244B;--s3:#9A6A00;--s4:#2E6B9E;--s5:#6B4F9E;
+  --rail:#0B1215;--rail-ink:rgba(224,255,250,.64);
+  --glass:var(--surface);--g-card:var(--surface);--g-strong:var(--surface);--g-line:var(--rule);--g-input:var(--surface);--g-fill:var(--fill-2);
+  --shadow:none;--shadow-pop:0 16px 40px rgba(6,14,16,.20),0 2px 6px rgba(6,14,16,.12);--g-shadow:none;
+  --r-xl:6px;--r-l:4px;--r-m:4px;--r-s:3px;
+  --grid:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M0 .5H28M.5 0V28' stroke='%230E8C7B' stroke-opacity='.16'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme:dark){html[data-style="impuls"]{
+  --bg:#090D0F;--surface:#10171A;--surface-2:#141D20;--fill:#172124;--fill-2:#121A1D;
+  --text:#E7F3F1;--text-2:#9FB3B2;--text-3:#71898A;
+  --sep:rgba(231,243,241,.28);--sep-2:rgba(231,243,241,.14);--rule:rgba(231,243,241,.14);--rule-strong:rgba(231,243,241,.30);
+  --accent:#35E1C6;--accent-text:#35E1C6;--on-accent:#04201C;--accent-soft:#113531;--accent-hover:#54ECD5;
+  --good:#35E1C6;--good-soft:#0F2E29;--warn:#E8B23C;--warn-soft:#352a0e;--bad:#F2537D;--bad-soft:#36131C;
+  --s1:#35E1C6;--s2:#F2537D;--s3:#E8B23C;--s4:#6EA8E8;--s5:#B28AF2;
+  --rail:#05090A;--rail-ink:rgba(224,255,250,.60);
+  --grid:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M0 .5H28M.5 0V28' stroke='%2335E1C6' stroke-opacity='.10'/%3E%3C/svg%3E");
+  color-scheme:dark;
+}}
+html[data-style="impuls"] body.app{background:var(--bg) var(--grid);color:var(--text)}
+html[data-style="impuls"] body.app::before{display:none}
+html[data-style="impuls"] h1,html[data-style="impuls"] h2,html[data-style="impuls"] h3,html[data-style="impuls"] .brand,html[data-style="impuls"] .hero-num,html[data-style="impuls"] .tile-value{font-family:var(--display);letter-spacing:-.01em}
+html[data-style="impuls"] h1{font-size:33px;line-height:1.15;font-weight:700}
+html[data-style="impuls"] h2{font-size:18px;font-weight:700;margin:36px 0 14px;color:var(--text-2)}
+html[data-style="impuls"] h3{font-size:15px;font-weight:700;font-family:var(--display)}
+html[data-style="impuls"] :focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:2px}
+/* ince komuta şeridi */
+html[data-style="impuls"] .side{left:0;top:0;bottom:0;width:68px;border-radius:0;border:0;border-right:1px solid rgba(255,255,255,.06);background:var(--rail);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;padding:12px 0;align-items:center;overflow:visible}
+html[data-style="impuls"] .shell{margin-left:68px}
+html[data-style="impuls"] .brand{padding:4px 0 14px;justify-content:center}
+html[data-style="impuls"] .brand>span:not(.mark),html[data-style="impuls"] .close-menu{display:none}
+html[data-style="impuls"] .brand .mark{width:auto;height:auto;background:none;box-shadow:none;display:block}
+html[data-style="impuls"] .side .mark-svg,html[data-style="impuls"] .tabbar .mark-svg{--m1:currentColor;--m2:currentColor;--m3:currentColor}
+html[data-style="impuls"] .side .mark-svg{width:30px;height:30px;color:var(--accent)}
+html[data-style="impuls"] .mark-svg.mono .m1,html[data-style="impuls"] .mark-svg.mono .m2,html[data-style="impuls"] .mark-svg.mono .m3{fill:currentColor}
+html[data-style="impuls"] .nav{gap:2px;width:100%;padding:0 6px;display:grid}
+html[data-style="impuls"] .nav a{flex-direction:column;justify-content:center;gap:4px;min-height:54px;padding:6px 2px;border-radius:3px;font-size:10px;font-weight:600;text-align:center;color:var(--rail-ink);position:relative;line-height:1.1;font-family:var(--display)}
+html[data-style="impuls"] .nav a .ic{color:inherit;opacity:.85;width:19px;height:19px}
+html[data-style="impuls"] .nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+html[data-style="impuls"] .nav a[aria-current="page"]{background:rgba(53,225,198,.12);color:var(--accent)}
+html[data-style="impuls"] .nav a[aria-current="page"] .ic{color:var(--accent)}
+html[data-style="impuls"] .nav a[aria-current="page"]::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;background:var(--accent)}
+html[data-style="impuls"] .nav a .count{position:absolute;top:3px;right:6px;margin:0;background:var(--accent);color:var(--on-accent);min-width:16px;padding:0 4px;font-size:10px;border-radius:2px}
+html[data-style="impuls"] .side-foot{border:0;padding:0 6px 4px;width:100%;margin-top:auto}
+html[data-style="impuls"] .side-status,html[data-style="impuls"] .side-link{justify-content:center;padding:9px 0;color:var(--rail-ink);border-radius:3px}
+html[data-style="impuls"] .side-status span,html[data-style="impuls"] .side-link span{display:none}
+html[data-style="impuls"] .side-status:hover,html[data-style="impuls"] .side-link:hover{background:rgba(255,255,255,.06);color:#fff}
+html[data-style="impuls"] [data-toggle-side]{display:none!important}
+/* üst çubuk: düz, alt çizgi */
+html[data-style="impuls"] .shell>.toolbar{position:sticky;top:0;margin:0;height:54px;border-radius:0;background:var(--bg);border:0;border-bottom:1px solid var(--rule);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;padding:0 28px}
+html[data-style="impuls"] .search{background:var(--surface);border:1px solid var(--rule-strong);border-radius:3px}
+html[data-style="impuls"] .search input{background:transparent;border:0;font-family:var(--display);font-size:13px}
+html[data-style="impuls"] .live{background:transparent;color:var(--good)}
+html[data-style="impuls"] .pulse{border-radius:2px}
+html[data-style="impuls"] .avatar{border-radius:3px;background:var(--accent);color:var(--on-accent);box-shadow:none;font-family:var(--display)}
+html[data-style="impuls"] .main{max-width:1180px;padding:28px 28px 90px}
+html[data-style="impuls"] .page-head{margin:0 0 18px;padding:0}
+html[data-style="impuls"] .page-head::before,html[data-style="impuls"] .with-aurora::before{display:none}
+html[data-style="impuls"] .page-head .sub{color:var(--text-2);font-size:14px;margin-top:4px}
+/* sekmeler: alt çizgi, mono */
+html[data-style="impuls"] .tabs{background:none;border-bottom:1px solid var(--rule);border-radius:0;padding:0;gap:22px;width:100%;margin:0 0 22px}
+html[data-style="impuls"] .tabs a{padding:9px 0;border-radius:0;color:var(--text-2);font-weight:600;font-family:var(--display);font-size:13px;border-bottom:2px solid transparent;margin-bottom:-1px;min-height:0}
+html[data-style="impuls"] .tabs a:hover{color:var(--text);background:none}
+html[data-style="impuls"] .tabs a[aria-current="page"]{background:none;box-shadow:none;color:var(--accent);border-bottom-color:var(--accent)}
+html[data-style="impuls"] .tabs .n{background:var(--accent);color:var(--on-accent);border-radius:2px;font-family:var(--display)}
+html[data-style="impuls"] .tabs:not(.subnav){border-bottom:0;gap:7px;flex-wrap:wrap;margin:0 0 18px}
+html[data-style="impuls"] .tabs:not(.subnav) a{border:1px solid var(--rule-strong);border-radius:3px;padding:5px 12px;margin:0;font-size:12.5px}
+html[data-style="impuls"] .tabs:not(.subnav) a[aria-current="page"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+/* paneller: düz çerçeve, köşesiz */
+html[data-style="impuls"] .card,html[data-style="impuls"] .panel,html[data-style="impuls"] .table-wrap,html[data-style="impuls"] .empty,html[data-style="impuls"] .strip>div,html[data-style="impuls"] .login-card,html[data-style="impuls"] .help-in{
+  background:var(--surface);border:1px solid var(--rule);border-radius:var(--r-m);box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+html[data-style="impuls"] .card:hover,html[data-style="impuls"] .qcard:hover{transform:none;box-shadow:none;border-color:var(--rule-strong)}
+html[data-style="impuls"] .card-h h3{font-size:14px;text-transform:none}
+html[data-style="impuls"] .table-wrap{overflow:hidden}html[data-style="impuls"] .table-wrap.cards{overflow:visible;background:transparent;border:0}
+html[data-style="impuls"] th{font-size:11px;font-weight:700;color:var(--text-2);border-bottom:1px solid var(--rule-strong);background:var(--fill-2);font-family:var(--display)}
+html[data-style="impuls"] td{border-top:1px solid var(--rule)}
+html[data-style="impuls"] td.num,html[data-style="impuls"] th.num,html[data-style="impuls"] .tile-value,html[data-style="impuls"] .hero-num{font-family:var(--display);font-variant-numeric:lining-nums tabular-nums}
+html[data-style="impuls"] tbody tr:hover>td{background:var(--fill-2)}
+/* onay kuyruğu: ince sol çizgi, köşesiz */
+html[data-style="impuls"] .qcard{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--accent);border-radius:0 var(--r-m) var(--r-m) 0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+html[data-style="impuls"] .qcard::before{display:none}
+html[data-style="impuls"] .attn-item{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--warn);border-radius:0 var(--r-m) var(--r-m) 0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+html[data-style="impuls"] .attn-item.bad{border-left-color:var(--bad)}
+html[data-style="impuls"] .attn-item::before{display:none}
+html[data-style="impuls"] .attn-item:hover{transform:none;box-shadow:none;background:var(--fill-2)}
+html[data-style="impuls"] .qcard .pair .az,html[data-style="impuls"] .pair .az{font-weight:600}
+/* düğmeler: köşesiz, ince çerçeve */
+html[data-style="impuls"] .btn{border-radius:3px;background:transparent;border:1px solid var(--rule-strong);color:var(--text);font-weight:600;font-family:var(--display);font-size:13px;min-height:36px;padding:7px 14px;transition:background-color .1s,color .1s,border-color .1s}
+html[data-style="impuls"] .btn:hover{background:var(--fill);text-decoration:none}
+html[data-style="impuls"] .btn:active{transform:none}
+html[data-style="impuls"] .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+html[data-style="impuls"] .btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+html[data-style="impuls"] .btn.danger{background:transparent;border-color:var(--bad);color:var(--bad)}
+html[data-style="impuls"] .btn.danger:hover{background:var(--bad);border-color:var(--bad);color:#fff}
+html[data-style="impuls"] .btn.success{background:var(--good);border-color:var(--good);color:var(--on-accent)}
+html[data-style="impuls"] .btn.ghost{border-color:transparent;color:var(--accent-text)}
+html[data-style="impuls"] .btn.ghost:hover{background:var(--fill);color:var(--text)}
+html[data-style="impuls"] .btn.sm{min-height:30px;padding:4px 11px;font-size:12px}
+html[data-style="impuls"] input[type=text],html[data-style="impuls"] input[type=password],html[data-style="impuls"] input[type=number],html[data-style="impuls"] input[type=search],html[data-style="impuls"] input[type=url],html[data-style="impuls"] input[type=email],html[data-style="impuls"] select,html[data-style="impuls"] textarea{background:var(--surface);border:1px solid var(--rule-strong);border-radius:3px;color:var(--text);font-family:var(--display);font-size:13.5px}
+html[data-style="impuls"] input:focus,html[data-style="impuls"] select:focus,html[data-style="impuls"] textarea:focus{background:var(--surface);border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%,transparent)}
+html[data-style="impuls"] input[type=checkbox],html[data-style="impuls"] input[type=radio]{accent-color:var(--accent)}
+/* etiketler: köşesiz, mono */
+html[data-style="impuls"] .badge,html[data-style="impuls"] .via{font-family:var(--display);border-radius:2px;background:transparent!important;border:1px solid currentColor;font-weight:600;font-size:11.5px;padding:1px 6px}
+html[data-style="impuls"] .chips{background:none;padding:0;gap:6px;border-radius:0}
+html[data-style="impuls"] .chip{border:1px solid var(--rule-strong);border-radius:3px;padding:5px 11px;background:transparent;font-family:var(--display);font-size:12.5px}
+html[data-style="impuls"] .chip:hover{background:var(--fill)}
+html[data-style="impuls"] .chip[aria-current="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent);box-shadow:none}
+html[data-style="impuls"] .chip[aria-current="true"] .n{color:inherit;opacity:.85}
+/* genel bakış: durum satırı + sık ızgaralı kutular */
+html[data-style="impuls"] .hero-card{display:none}
+html[data-style="impuls"] .tiles{grid-column:span 12;grid-template-columns:repeat(4,minmax(0,1fr))}
+html[data-style="impuls"] .tile{border-radius:var(--r-m)}
+html[data-style="impuls"] .tile-value{font-size:34px;font-weight:700;line-height:1}
+html[data-style="impuls"] .tile-label{font-size:11.5px;color:var(--text-2);font-family:var(--display);text-transform:uppercase;letter-spacing:.03em}
+html[data-style="impuls"] .brief{display:block;margin:0 0 22px;max-width:46em;font-size:16px;line-height:1.5;color:var(--text-2);font-family:var(--display);padding:10px 14px;background:var(--fill-2);border:1px solid var(--rule);border-radius:var(--r-m)}
+html[data-style="impuls"] .brief a{color:var(--accent);text-decoration:underline;text-decoration-thickness:1px}
+html[data-style="impuls"] .brief .muted{display:block;margin-top:4px;color:var(--text-3)}
+html[data-style="impuls"] .attn{margin-bottom:22px}
+html[data-style="impuls"] #toasts .flash,html[data-style="impuls"] .flash{background:var(--surface);border:1px solid var(--rule-strong);border-left:3px solid var(--good);border-radius:3px;box-shadow:var(--shadow-pop);-webkit-backdrop-filter:none;backdrop-filter:none;font-family:var(--display);font-size:13px}
+html[data-style="impuls"] .flash.bad{border-left-color:var(--bad)}
+html[data-style="impuls"] .flash .ic{color:var(--good)}html[data-style="impuls"] .flash.bad .ic{color:var(--bad)}
+html[data-style="impuls"] .pm-panel.glass,html[data-style="impuls"] .cmd,html[data-style="impuls"] .tip{background:var(--surface);border:1px solid var(--rule-strong);border-radius:4px;-webkit-backdrop-filter:none;backdrop-filter:none}
+html[data-style="impuls"] .loadbar{background:var(--accent);height:3px}
+html[data-style="impuls"] .open-banner{background:var(--bad-soft);border:1px solid var(--bad);border-radius:3px}
+html[data-style="impuls"] .inline-warn{border-left:3px solid var(--warn);border-radius:2px}
+html[data-style="impuls"] .setting,html[data-style="impuls"] .settings{border-color:var(--rule)}
+html[data-style="impuls"] .empty-ic{background:var(--accent-soft);color:var(--accent-text);border-radius:4px}
+html[data-style="impuls"] .foot{border-top:1px solid var(--rule);font-family:var(--display);font-size:11.5px}
+/* giriş ekranı */
+html[data-style="impuls"] .bare-main{max-width:420px;margin:10vh auto 0;padding:0 18px}
+html[data-style="impuls"] .login-card{overflow:hidden;position:relative}
+html[data-style="impuls"] .login-mark{width:auto;height:auto;background:none;box-shadow:none;display:block;color:var(--accent)}
+html[data-style="impuls"] .login-mark .mark-svg{width:46px;height:46px}
+html[data-style="impuls"] .login-card h1{font-size:28px}
+html[data-style="impuls"] .login-ver{color:var(--text-3);font-family:var(--display)}
+/* hareket azaltımı: zaten sakin, fazladan devre dışı bırak */
+html[data-style="impuls"] .main:not(.quiet)>*,html[data-style="impuls"] .main:not(.quiet) .dash>*{animation:none}
+html[data-style="impuls"] .btn:active,html[data-style="impuls"] .count.bump{animation:none}
+@media (max-width:900px){
+  html[data-style="impuls"] .shell{margin-left:0}
+  html[data-style="impuls"] .shell>.toolbar{padding:0 14px;height:52px}
+  html[data-style="impuls"] .main{padding:18px 14px calc(94px + env(safe-area-inset-bottom))}
+  html[data-style="impuls"] h1{font-size:26px}
+  html[data-style="impuls"] .tabbar{left:0;right:0;bottom:0;border-radius:0;background:var(--rail);border:0;box-shadow:0 -1px 0 rgba(255,255,255,.06);padding:0 4px env(safe-area-inset-bottom);-webkit-backdrop-filter:none;backdrop-filter:none}
+  html[data-style="impuls"] .tabbar a{color:var(--rail-ink);border-radius:0;background:none;font-size:10px;font-family:var(--display);position:relative;min-height:56px}
+  html[data-style="impuls"] .tabbar a[aria-current="page"]{color:var(--accent);background:none}
+  html[data-style="impuls"] .tabbar a[aria-current="page"]::before{content:"";position:absolute;left:28%;right:28%;top:0;height:2px;background:var(--accent)}
+  html[data-style="impuls"] .tab-badge{background:var(--accent);color:var(--on-accent);border-radius:2px}
+  html[data-style="impuls"] .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  html[data-style="impuls"] .tabs{gap:16px;overflow-x:auto}
+  html[data-style="impuls"] .qcard{border-left-width:3px}
+  html[data-style="impuls"] #toasts{bottom:calc(74px + env(safe-area-inset-bottom))}
+}
+@media (prefers-reduced-transparency:reduce){html[data-style="impuls"] .tabbar,html[data-style="impuls"] .side{background:var(--rail)}}
+
 
 CSS;
 }
