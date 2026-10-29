@@ -22,6 +22,8 @@ final class Alerts
         'unpublished' => ['Onaylandı ama panele eklenmedi', 'Onaylı servisler 24 saatten uzun süredir "yayın bekliyor" durumundaysa (günde bir kez)'],
         'stale' => ['Uzun süredir bekleyen iş', 'Bir iş 12 saatten uzun süredir onay bekliyorsa (günde bir kez)'],
         'change' => ['Servis değişikliği', 'Fiyat değişikliği ya da kapatılan servis duyurusu gelince'],
+        'rival' => ['Rakip fiyatı', 'Bir rakip senden belirlediğin yüzde kadar ucuza düşünce ya da fiyatı değişince'],
+        'weekly' => ['Haftalık özet', 'Her pazartesi 09:00\'dan sonra geçen haftanın özeti'],
         'login' => ['Panele giriş', 'Panele her başarılı girişte (kim, nereden)'],
     ];
     private const DEFAULT_OFF = ['login'];
@@ -169,6 +171,7 @@ final class Alerts
             $this->checkStale($now);
             $this->checkUnpublished($now);
             $this->checkDaily($now);
+            $this->checkWeekly($now);
         } catch (\Throwable $e) {
             $this->db->log('error', 'alert', 'Uyarı kontrolü: ' . $e->getMessage());
         }
@@ -266,5 +269,58 @@ final class Alerts
         if ($this->deliver($msg)) {
             $this->db->set('alerts_daily_sent', date('Y-m-d', $now));
         }
+    }
+
+    /** Pazartesi 09:00'dan sonraki ilk kontrolde, haftada bir. */
+    private function checkWeekly(int $now): void
+    {
+        $week = date('o-\\WW', $now);
+        if (!$this->enabled('weekly') || (int)date('N', $now) !== 1 || (int)date('G', $now) < 9 || $this->db->get('alerts_weekly_sent') === $week) {
+            return;
+        }
+        $msg = $this->weeklyText($now);
+        if ($this->deliver($msg)) {
+            $this->db->set('alerts_weekly_sent', $week);
+        }
+    }
+
+    /** Son 7 günün özeti. */
+    public function weeklyText(int $now): string
+    {
+        $from = $now - 7 * 86400;
+        $one = fn(string $sql, array $a = []): int => (int)($this->db->one($sql, $a)['c'] ?? 0);
+        $jobs = $one('SELECT COUNT(*) c FROM jobs WHERE created_at >= ?', [$from]);
+        $items = 0;
+        $bank = 0;
+        foreach ($this->db->all('SELECT items_json FROM jobs WHERE created_at >= ?', [$from]) as $j) {
+            foreach ((array)json_decode((string)$j['items_json'], true) as $it) {
+                $items++;
+                $bank += ($it['via'] ?? '') === 'bank' ? 1 : 0;
+            }
+        }
+        $approved = $one("SELECT COUNT(*) c FROM jobs WHERE updated_at >= ? AND status IN ('approved','published')", [$from]);
+        $rejected = $one("SELECT COUNT(*) c FROM jobs WHERE updated_at >= ? AND status = 'rejected'", [$from]);
+        $pending = $one("SELECT COUNT(*) c FROM jobs WHERE status IN ('new','awaiting','editing')");
+        $waiting = $one("SELECT COUNT(*) c FROM jobs WHERE status = 'approved'");
+        $apiNew = $one('SELECT COUNT(*) c FROM api_seen WHERE first_seen >= ?', [$from]);
+        $errors = $one("SELECT COUNT(*) c FROM logs WHERE level = 'error' AND ts >= ?", [$from]);
+        $msg = "🗓 <b>Haftalık özet</b> · " . date('d.m', $from) . ' – ' . date('d.m.Y', $now) . "\n"
+            . "Gelen iş: $jobs ($items servis) · onaylanan: $approved · reddedilen: $rejected\n"
+            . ($items ? 'Bankadan çevrilen: %' . round($bank * 100 / $items) . "\n" : '')
+            . "API'den yakalanan yeni servis: $apiNew\n"
+            . "Şu an onay bekleyen: $pending · sitede yayın bekleyen: $waiting\n"
+            . "Hata kaydı: $errors";
+        $rep = $this->db->getJson('learn_report');
+        if (is_array($rep) && !empty($rep['eval']['ready']) && $rep['eval']['test'] > 0) {
+            $msg .= "\nÇeviri doğruluğu (ölçüm): %" . round($rep['eval']['base'] * 100 / $rep['eval']['test']) . ' → öneriyle %' . round($rep['eval']['after'] * 100 / $rep['eval']['test']);
+        }
+        try {
+            $r = (new Rivals($this->db, $this->config))->compare('all', '', 1, 1);
+            if ($r['summary']['compared'] > 0) {
+                $msg .= "\nRakip kıyası: {$r['summary']['compared']} servis, rakipten pahalı olduğun: {$r['summary']['pricier']}, ucuz olduğun: {$r['summary']['cheaper']}";
+            }
+        } catch (\Throwable) {
+        }
+        return $msg;
     }
 }

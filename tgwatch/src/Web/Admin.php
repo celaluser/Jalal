@@ -24,6 +24,7 @@ final class Admin
     use SettingsPages;
     use ToolPages;
     use LearnPages;
+    use RivalPages;
 
     private const PER_PAGE = 30;
     private const OPEN = ['new', 'awaiting', 'editing'];
@@ -98,6 +99,8 @@ final class Admin
             'dict' => $this->dict(),
             'bank' => $this->bank(),
             'learn' => $this->learnPage(),
+            'rivals' => $this->rivalsPage(),
+            'rival_list' => $this->rivalListPage(),
             'ai' => $this->aiSettings(),
             'job_prompt' => $this->jobPrompt((int)($_GET['id'] ?? 0)),
             'logs' => $this->logs(),
@@ -1182,7 +1185,7 @@ final class Admin
     {
         $id = (int)($_POST['id'] ?? 0);
         try {
-            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p) || $this->postTools($p) || $this->postLearn($p)) {
+            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p) || $this->postTools($p) || $this->postLearn($p) || $this->postRival($p)) {
                 return;
             }
             switch ($p) {
@@ -1423,6 +1426,8 @@ final class Admin
                 $this->redirect('job_prompt', ['id' => $id]);
             } elseif (str_starts_with($p, 'source') || str_starts_with($p, 'tm_') || $p === 'match_run') {
                 $this->redirect('bank');
+            } elseif (str_starts_with($p, 'rival_')) {
+                $this->redirect($p === 'rival_confirm' || $p === 'rival_reject' || $p === 'rival_run' ? 'rivals' : 'rival_list');
             } elseif (str_starts_with($p, 'learn_')) {
                 $this->redirect('learn');
             } elseif ($p === 'ai_save') {

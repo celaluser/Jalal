@@ -1719,6 +1719,70 @@ test('API izleme: ilk kontrol taban çizgisi, sonra yeni servis bota iş olarak 
     }
 });
 
+echo "Rakip fiyat kıyası ve haftalık özet\n";
+test('Rakipler: eşleştirme, kıyas, bildirim ve haftalık özet', function () {
+    [$db, $tg, $flow] = env();
+    $db->run("INSERT INTO sources(kind, name, api_url, api_key, created_at) VALUES('own', 'Benim', 'https://own.test/api', 'k', ?)", [time()]);
+    $own = (int)$db->pdo->lastInsertId();
+    $db->run("INSERT INTO sources(kind, name, api_url, api_key, created_at, fx) VALUES('rival', 'Rakip', 'https://riv.test/api', 'k', ?, 1)", [time()]);
+    $riv = (int)$db->pdo->lastInsertId();
+    $ins = fn(int $src, int $id, string $name, string $cat, float $rate, int $min, int $max) => $db->run('INSERT INTO remote_services(source_id, service_id, name, category, rate, min, max) VALUES(?,?,?,?,?,?,?)', [$src, $id, $name, $cat, $rate, $min, $max]);
+    $ins($own, 1001, 'Instagram İzləyici | Azalma olmaz | 30 Gün Qarantili', 'Instagram', 2.00, 100, 50000);
+    $ins($own, 1002, 'Instagram Bəyəni | Sürətli', 'Instagram', 0.50, 50, 20000);
+    $ins($own, 1003, 'TikTok Baxış', 'TikTok', 0.10, 100, 1000000);
+    $ins($riv, 501, 'Instagram Followers | No Drop | 30 Days Refill', 'IG', 1.50, 100, 50000);
+    $ins($riv, 502, 'Instagram Likes | Fast', 'IG', 0.55, 50, 20000);
+    $ins($riv, 503, 'TikTok Views', 'TT', 0.12, 100, 1000000);
+    $ins($riv, 504, 'Telegram Members', 'TG', 1.00, 100, 10000);
+    $R = new TgWatch\Rivals($db, ['rival_alert_pct' => 10]);
+    $m = $R->match($riv);
+    ok($m['matched'] + $m['review'] === 3, 'üç servis de eşleşti: ' . json_encode($m));
+    $c = $R->compare();
+    eq(3, $c['summary']['compared']);
+    $by = array_column($c['rows'], null, 'id');
+    eq(501, $by[1001]['cells'][$riv]['service'], 'Followers ↔ İzləyici');
+    eq(502, $by[1002]['cells'][$riv]['service']);
+    eq(503, $by[1003]['cells'][$riv]['service']);
+    eq('pricier', $by[1001]['state'], '2.00 vs 1.50: pahalıyım');
+    eq('same', $by[1002]['state'], '0.50 vs 0.55: aşağı yukarı aynı');
+    eq('cheaper', $by[1003]['state'], '0.10 vs 0.12: ucuzum');
+    // kur çarpanı
+    $db->run('UPDATE sources SET fx = 2 WHERE id = ?', [$riv]);
+    eq('cheaper', array_column($R->compare()['rows'], null, 'id')[1001]['state'], 'rakip fiyatı ×2 sayılır');
+    $db->run('UPDATE sources SET fx = 1 WHERE id = ?', [$riv]);
+    // bildirim: yalnızca pahalı olduğun servis, ikinci kez aynı şey gelmez
+    $alerts = new TgWatch\Alerts($db, $tg, ['owner_id' => OWNER]);
+    $n0 = count($tg->calls);
+    $lines = $R->notify($alerts);
+    eq(1, count($lines));
+    ok(count($tg->calls) > $n0 && str_contains(json_encode($tg->calls, JSON_UNESCAPED_UNICODE), 'Rakip senden ucuz'));
+    eq([], $R->notify($alerts), 'aynı durum ikinci kez bildirilmez');
+    // rakip daha da düşürürse tekrar haber ver
+    $db->run('UPDATE remote_services SET rate = 1.00 WHERE source_id = ? AND service_id = 501', [$riv]);
+    eq(1, count($R->notify($alerts)), 'rakip fiyatı değişince yeniden bildirilir');
+    // yanlış eşleşme reddedilince başka servise bağlanmaz
+    $db->run("UPDATE rival_map SET status = 'rejected' WHERE own_service = 1003");
+    $R->match($riv);
+    ok(!isset(array_column($R->compare()['rows'], null, 'id')[1003]), 'reddedilen eşleşme kıyastan çıkar');
+    // haftalık özet metni
+    $w = $alerts->weeklyText(time());
+    ok(str_contains($w, 'Haftalık özet') && str_contains($w, 'Rakip kıyası'), 'haftalık özet rakip satırını içerir');
+});
+test('Haftalık özet: pazartesi 09:00 sonrası haftada bir gider', function () {
+    [$db, $tg] = env();
+    $a = new TgWatch\Alerts($db, $tg, ['owner_id' => OWNER]);
+    $mon = strtotime('next monday 10:00');
+    $ref = new ReflectionMethod($a, 'checkWeekly');
+    $ref->setAccessible(true);
+    $n0 = count($tg->calls);
+    $ref->invoke($a, $mon - 86400 * 3 + 36000); // pazartesi değil
+    eq($n0, count($tg->calls));
+    $ref->invoke($a, $mon);
+    eq($n0 + 1, count($tg->calls), 'gönderildi');
+    $ref->invoke($a, $mon + 600);
+    eq($n0 + 1, count($tg->calls), 'aynı hafta ikinci kez gitmez');
+});
+
 // temizlik
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmp, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($it as $f) {

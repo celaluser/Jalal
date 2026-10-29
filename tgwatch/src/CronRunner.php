@@ -99,6 +99,16 @@ final class CronRunner
                 }
             }
             if (!$test) {
+                foreach ((new Rivals($db, $this->config))->cron($deadline) as $r) {
+                    if (!$r['ok']) {
+                        $errors++;
+                        $say("Rakip {$r['name']}  ✗ {$r['error']}");
+                    } else {
+                        $say("Rakip {$r['name']}  ✓ {$r['matched']} eşleşti, {$r['review']} kontrol bekliyor");
+                    }
+                }
+            }
+            if (!$test) {
                 $aiJob = $flow->processAiQueue($deadline);
                 if ($aiJob !== null) {
                     $say("Claude: iş #$aiJob işlendi");

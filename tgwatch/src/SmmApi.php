@@ -91,7 +91,7 @@ final class SmmApi
      * $markSeen=false (elle senkron): yalnızca ilk kez (taban çizgisi) görülenleri işaretler, yeniler sonraki izlemede bildirilir.
      * @return array{all:list<array>,new:list<array>,baseline:bool}
      */
-    public static function syncDiff(Db $db, int $sourceId, bool $markSeen): array
+    public static function syncDiff(Db $db, int $sourceId, bool $markSeen, bool $track = true): array
     {
         $src = $db->one('SELECT * FROM sources WHERE id = ?', [$sourceId]);
         if ($src === null) {
@@ -103,16 +103,16 @@ final class SmmApi
             $db->run('UPDATE sources SET last_error = ? WHERE id = ?', [$e->getMessage(), $sourceId]);
             throw $e;
         }
-        $seen = array_flip(array_map('intval', array_column($db->all('SELECT service_id FROM api_seen WHERE source_id = ?', [$sourceId]), 'service_id')));
-        $baseline = !$seen;
+        $seen = $track ? array_flip(array_map('intval', array_column($db->all('SELECT service_id FROM api_seen WHERE source_id = ?', [$sourceId]), 'service_id'))) : [];
+        $baseline = $track && !$seen;
         $new = [];
-        $db->tx(static function () use ($db, $sourceId, $list, $seen, $baseline, $markSeen, &$new): void {
+        $db->tx(static function () use ($db, $sourceId, $list, $seen, $baseline, $markSeen, $track, &$new): void {
             $db->run('DELETE FROM remote_services WHERE source_id = ?', [$sourceId]);
             $st = $db->pdo->prepare('INSERT OR REPLACE INTO remote_services(source_id, service_id, name, category, rate, min, max, refill, cancel, type) VALUES(?,?,?,?,?,?,?,?,?,?)');
             $mark = $db->pdo->prepare('INSERT OR IGNORE INTO api_seen(source_id, service_id, first_seen) VALUES(?,?,?)');
             foreach ($list as $s) {
                 $st->execute([$sourceId, $s['service_id'], $s['name'], $s['category'], $s['rate'], $s['min'], $s['max'], $s['refill'], $s['cancel'], $s['type']]);
-                if (!isset($seen[$s['service_id']])) {
+                if ($track && !isset($seen[$s['service_id']])) {
                     if ($baseline) {
                         $mark->execute([$sourceId, $s['service_id'], time()]);
                     } else {

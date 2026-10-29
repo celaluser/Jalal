@@ -72,6 +72,8 @@ return [
 
     // Aynı servisi birden çok kanal paylaşırsa, bu kadar gün içinde tekrar iş açılmaz (0: kapalı).
     'dedupe_days' => 7,
+    'rival_minutes' => 360,   // rakip fiyatları kaç dakikada bir çekilsin
+    'rival_alert_pct' => 10,  // rakip bu kadar % ucuzsa bota haber ver
     'api_watch_minutes' => 30, // izleme açık sağlayıcıların API'si kaç dakikada bir kontrol edilsin
 
     // Öncelikli sağlayıcının numarası (Ayarlar'dan seçilir); boş: kapalı.

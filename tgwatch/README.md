@@ -222,6 +222,17 @@ ID satırlarından önceki kısa başlık satırı alınır. Gerçek kanallarda 
 
 **Hepsi tek yerde:** Ayarlar → **Özellikler**. Yeni servis izlemeyi sağlayıcı bazında aç/kapat, "Şimdi kontrol et", kontrol aralığı, çeviri öğrenme analizi ve görünüm kısayolları orada.
 
+## Rakipler (fiyat kıyası) ve haftalık özet
+
+Menüde **Rakipler** bölümü: **Fiyat kıyası** ve **Rakip listesi**.
+
+- **Rakip ekle:** rakip panelin API adresi + anahtarı (standart `action=services`). Kur çarpanı: rakip fiyatı × bu sayı = senin para birimin (aynı para birimiyse 1).
+- **Eşleştirme:** her servisin için her rakipte en benzer servis bulunur (platform, ad benzerliği, min/max, sayılar). Rakibin adı kurallarla Azericeye çevrilip senin adınla ve bankadaki İngilizce karşılığınla karşılaştırılır. Emin olunamayanlar **Kontrol bekleyen** olur: Doğru/Yanlış de, yanlış dediğin bir daha önerilmez.
+- **Kıyas:** senin fiyatın ve her rakibin fiyatı yan yana, fark yüzdesiyle. Süzgeçler: rakipten pahalıyım / ucuzum / kontrol bekleyen / eşleşmeyen.
+- **Otomatik:** cron her `rival_minutes` dakikada bir (varsayılan 360) rakip listesini çeker, yeniden eşleştirir. Bir rakip senden `rival_alert_pct`% (varsayılan 10) ucuzsa ya da fiyatı o kadar değişirse bota tek mesajla haber gelir (Uyarılar sayfasından kapatılır).
+- **Haftalık özet:** pazartesi 09:00'dan sonraki ilk cron'da bota geçen haftanın özeti gider (gelen/onaylanan/reddedilen iş, bankadan oran, API'den yakalanan yeni servis, bekleyenler, öğrenme doğruluğu, rakip kıyası). Uyarılar sayfasından kapatılır.
+- **Denenmedi:** gerçek rakip API'siyle. Test sahte listelerle yapıldı. Eşleştirme tahmindir; kontrol bekleyenlere göz at.
+
 ## Sağlayıcı API izleme (yeni servis kanalda duyurulmasa da haber gelir)
 
 Çeviri bankası → Kaynaklar'da bir sağlayıcının yanındaki **Kapalı: aç** düğmesi izlemeyi açar. Cron her çalıştığında (en sık Ayarlar → Okuma → "Sağlayıcı API kontrolü" dakikasında bir) sağlayıcının servis listesi çekilir ve daha önce görülmemiş servisler için normal iş açılır: çeviri + fiyat önerisi, bota ✅ Onayla / ✏️ Düzenle butonlu mesaj ("Yeni servisler (API)").

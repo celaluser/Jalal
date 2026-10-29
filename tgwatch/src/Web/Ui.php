@@ -22,6 +22,7 @@ final class Ui
         'channels' => ['Kanallar', 'channels', ['channels' => 'Kanallar']],
         'translate' => ['Çeviri', 'dict', ['dict' => 'Sözlük', 'bank' => 'Çeviri bankası', 'learn' => 'Öğrenme', 'ai' => 'Çeviri ayarları']],
         'insights' => ['Analiz', 'chart', ['catalog' => 'Servisler', 'audit' => 'Fiyat denetimi', 'reports' => 'Raporlar']],
+        'rivals' => ['Rakipler', 'scale', ['rivals' => 'Fiyat kıyası', 'rival_list' => 'Rakip listesi']],
         'system' => ['Ayarlar', 'gear', ['settings' => 'Ayarlar', 'profile' => 'Profil', 'alerts' => 'Uyarılar', 'botcmds' => 'Bot komutları', 'health' => 'Sağlık', 'logs' => 'Kayıtlar']],
     ];
 
@@ -181,6 +182,7 @@ final class Ui
             'arrow' => '<path d="M5 12h14M13 6l6 6-6 6"/>',
             'change' => '<path d="M7 4v14M3.5 14.5L7 18l3.5-3.5"/><path d="M17 20V6M13.5 9.5L17 6l3.5 3.5"/>',
             'gear' => '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M4.6 7.5l1.9 1.1M17.5 15.4l1.9 1.1M4.6 16.5l1.9-1.1M17.5 8.6l1.9-1.1"/><circle cx="12" cy="12" r="7.2"/>',
+            'scale' => '<path d="M12 4v16M7 20h10M5 7h14"/><path d="M5 7l-3 7a3 3 0 0 0 6 0zM19 7l-3 7a3 3 0 0 0 6 0z"/>',
             'bell' => '<path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15z"/><path d="M10 21a2 2 0 0 0 4 0"/>',
         ][$name] ?? '';
         return '<svg class="ic" width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . $p . '</svg>';
@@ -788,7 +790,7 @@ input[type=checkbox],input[type=radio]{width:18px;height:18px;accent-color:var(-
 .dot.ok{background:var(--good)}.dot.warn{background:#e3a008}.dot.bad{background:var(--bad)}
 .via{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;background:var(--fill-2);color:var(--text-2);vertical-align:2px;margin-left:6px}
 .via-bank{background:var(--good-soft);color:var(--good)}.via-claude{background:var(--accent-soft);color:var(--accent-text)}.via-manual{background:var(--warn-soft);color:var(--warn)}
-.lvl-error{color:var(--bad);font-weight:500}.lvl-warn{color:var(--warn);font-weight:500}.lvl-info{color:var(--text-2)}
+.lvl-error{color:var(--bad);font-weight:500}.lvl-good{color:var(--ok);font-weight:500}.lvl-warn{color:var(--warn);font-weight:500}.lvl-info{color:var(--text-2)}
 td .lvl-warn{color:var(--warn)}td .lvl-error{color:var(--bad)}
 
 /* ===== Bildirim ===== */
