@@ -1700,6 +1700,15 @@ test('API izleme: ilk kontrol taban çizgisi, sonra yeni servis bota iş olarak 
         ok(str_contains($sent, 'Yeni servisler (API)') && str_contains($sent, 'Sag'), 'mesaj sağlayıcıyı gösterir');
         $r = $w->run(0, true);
         eq(0, reset($r)['new'], 'aynı servis ikinci kez bildirilmez');
+        // 1000 servis arasına sonradan eklenen, küçük ID'li servis de yakalanır (ID sırası önemli değil)
+        for ($i = 200; $i < 1200; $i++) {
+            $list[] = ['service' => $i, 'name' => "Filler $i", 'category' => 'X', 'rate' => '1', 'min' => 1, 'max' => 2];
+        }
+        $w->run(0, true); // 1000 yeni servis: bu turda en çok 60'ı bildirilir, kalanı görülmüş say
+        $db->run('INSERT OR IGNORE INTO api_seen(source_id, service_id, first_seen) SELECT source_id, service_id, 1 FROM remote_services WHERE name LIKE \'Filler %\'');
+        $list[] = ['service' => 150, 'name' => 'Threads Views', 'category' => 'Threads', 'rate' => '0.1', 'min' => 1, 'max' => 2];
+        $r = $w->run(0, true);
+        eq(1, reset($r)['new'], 'araya karışan küçük ID de yeni sayılır');
         // süre dolmadan tekrar sorgulanmaz
         eq([], $w->run(0, false), 'aralık dolmadan API çağrılmaz');
         // izleme kapalıysa hiç bakılmaz
