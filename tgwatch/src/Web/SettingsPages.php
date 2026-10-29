@@ -22,7 +22,7 @@ trait SettingsPages
     /** @return array<string,string> (trait'te sabit PHP 8.2 ister; 8.1 için metot) */
     private static function settingsTabs(): array
     {
-        return ['general' => 'Genel', 'telegram' => 'Telegram', 'publish' => 'Yayın', 'reading' => 'Kanal okuma',
+        return ['general' => 'Genel', 'features' => 'Özellikler', 'telegram' => 'Telegram', 'publish' => 'Yayın', 'reading' => 'Kanal okuma',
             'security' => 'Güvenlik', 'appearance' => 'Görünüm', 'data' => 'Veri ve bakım'];
     }
 
@@ -37,7 +37,7 @@ trait SettingsPages
         $nav .= '</nav>';
 
         [$title, $intro] = Settings::GROUPS[$tab];
-        $h = $nav . '<p class="muted lead">' . Ui::e($intro) . '</p>' . $this->settingsForm($tab);
+        $h = $nav . '<p class="muted lead">' . Ui::e($intro) . '</p>' . ($tab === 'features' ? $this->featureTools() : '') . $this->settingsForm($tab);
         $h .= match ($tab) {
             'telegram' => $this->telegramTools(),
             'publish' => $this->publishTools(),
@@ -49,6 +49,34 @@ trait SettingsPages
         $this->render('Ayarlar', $h, ['active' => 'settings', 'sub' => 'Bütün ayarlar burada. config.php\'ye dokunmadan değiştirebilirsin.']);
     }
 
+    /** Yeni özelliklerin tek yerden açılıp kapatıldığı basit kutular. */
+    private function featureTools(): string
+    {
+        $rep = $this->db->getJson('learn_report');
+        $providers = $this->db->all("SELECT * FROM sources WHERE kind = 'provider' ORDER BY id");
+        $watch = '<div class="panel panel-pad stack"><div><h3>Yeni servisi API\'den yakala</h3><p class="muted">Sağlayıcı yeni servisi kanalda duyurmasa bile panelinde göründüğü anda çeviri hazırlanır, bota ✅ Onayla butonlu mesaj gelir. Açtığın anda mevcut servisler sessizce kaydedilir.</p></div>';
+        if ($providers) {
+            foreach ($providers as $s) {
+                $on = (int)$s['watch'] === 1;
+                $watch .= '<div class="row between"><div><b>' . Ui::e($s['name']) . '</b>'
+                    . '<div class="src">' . ($on ? Ui::dot('ok') . ' Açık' . ((string)$s['watch_note'] !== '' ? ' · ' . Ui::e((string)$s['watch_note']) : '') . ($s['watch_at'] ? ' · ' . Ui::ago((int)$s['watch_at']) : '') : 'Kapalı') . '</div></div>'
+                    . $this->ui->action('source_watch', $on ? 'Kapat' : 'Aç', ['id' => $s['id'], 'back' => 'features'], $on ? 'quiet sm' : 'primary sm', 'bell') . '</div>';
+            }
+            if (array_filter($providers, static fn($s) => (int)$s['watch'] === 1)) {
+                $watch .= '<div class="row">' . $this->ui->action('watch_now', 'Şimdi kontrol et', [], 'quiet', 'refresh') . '</div>';
+            }
+        } else {
+            $watch .= '<p class="muted">Önce <a href="?p=bank">Çeviri bankası</a> sayfasından sağlayıcıyı (API adresi ve anahtar) ekle.</p>';
+        }
+        $watch .= '</div>';
+        $learn = '<div class="panel panel-pad stack"><div><h3>Çeviri öğrenme</h3><p class="muted">Bankadaki ad çiftlerinden çeviri mantığını çıkarır ve öneri verir. Sen onaylamadan hiçbir şey değişmez.</p></div>'
+            . '<div class="row between"><span class="src">' . ($rep ? 'Son analiz ' . Ui::ago((int)$rep['at']) . ', ' . count($rep['suggestions'] ?? []) . ' öneri' : 'Henüz çalıştırılmadı') . '</span>'
+            . '<div class="row">' . $this->ui->action('learn_run', 'Analiz et', [], 'quiet sm', 'play') . Ui::link('?p=learn', 'Önerilere bak', 'quiet sm') . '</div></div></div>';
+        $look = '<div class="panel panel-pad stack"><div><h3>Görünüm</h3><p class="muted">Buta ve Cam arasında, açık ve koyu mod arasında seçim. Hızlı değiştirmek için sağ üstteki ☀/☾ düğmesini ya da avatar menüsünü kullan. Herkes için varsayılan aşağıda.</p></div>'
+            . '<div class="row">' . Ui::link('?p=settings&tab=appearance', 'Görünüm ayarları', 'quiet sm') . Ui::link('?p=dict', 'Ad kalıbı', 'quiet sm') . '</div></div>';
+        return '<h2 class="first">Yeni servis izleme</h2>' . $watch . '<h2>Öğrenme</h2>' . $learn . '<h2>Görünüm ve ad kalıbı</h2>' . $look . '<h2>Zamanlama</h2>';
+    }
+
     private function settingsForm(string $tab): string
     {
         $stored = Settings::stored($this->db);
@@ -57,7 +85,7 @@ trait SettingsPages
             if ($f['g'] !== $tab) {
                 continue;
             }
-            $cur = $this->config[$k] ?? '';
+            $cur = $this->config[$k] ?? ($f['default'] ?? '');
             $from = array_key_exists($k, $stored) ? 'panelden' : 'config.php';
             $help = $f['help'] ?? '';
             $id = 'f_' . $k;

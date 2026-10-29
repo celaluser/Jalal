@@ -11,6 +11,7 @@ final class Settings
 {
     public const GROUPS = [
         'general' => ['Genel', 'Panelin adı ve saat dilimi.'],
+        'features' => ['Özellikler', 'Yeni özelliklerin hepsi burada: aç, kapat, çalıştır.'],
         'telegram' => ['Telegram botu', 'Onay mesajlarını gönderen bot ve butonları alan webhook.'],
         'publish' => ['Yayın ve panel API', 'Onaydan sonra servislerin sitede nasıl yayınlanacağı.'],
         'reading' => ['Kanal okuma ve cron', 'Kanalların ne kadar bekleyerek okunacağı ve cron-job.org anahtarı.'],
@@ -49,8 +50,8 @@ final class Settings
             'alert_email_mode' => ['g' => 'telegram', 'label' => 'E-posta ne zaman', 'type' => 'select', 'options' => ['fallback' => 'Yalnızca Telegram gitmezse', 'all' => 'Her uyarı e-postaya da gitsin']],
             'priority_source' => ['g' => 'reading', 'label' => 'Öncelikli sağlayıcı', 'type' => 'source', 'help' => 'Seçersen aynı servisi farklı sağlayıcıların kanalları duyurunca bu sağlayıcı tercih edilir: onun işi diğerlerinin yerine geçer, diğerlerinden gelen aynı servis için yeni iş açılmaz. Boş: ilk gelen kazanır. Kanalların sağlayıcısı Kanallar sayfasından seçilmiş olmalı.'],
             'fx_rates' => ['g' => 'reading', 'label' => 'Kurlar (1 birim = kaç $)', 'type' => 'text', 'max' => 200, 'help' => 'Kanal fiyatı $ dışındaysa (₽, ₺, ₼, €) dolara çevirmek için. Örnek: RUB=0.011, TRY=0.029, AZN=0.588, EUR=1.08. Boşsa fiyat çevrilmez ve mesajda uyarı çıkar.'],
-            'api_watch_minutes' => ['g' => 'reading', 'label' => 'Sağlayıcı API kontrolü (dakika)', 'type' => 'int', 'min' => 5, 'max' => 1440, 'help' => 'Çeviri bankası → Kaynaklar\'da "yeni servisi izle" açık sağlayıcıların servis listesi bu aralıkla cron ile kontrol edilir. Kanalda duyurulmayan yeni servis de bota gelir. Cron bundan sık çalışsa da en az bu kadar beklenir.'],
-            'dedupe_days' => ['g' => 'reading', 'label' => 'Aynı servisi tekrar sayma (gün)', 'type' => 'int', 'min' => 0, 'max' => 90, 'help' => 'Aynı sağlayıcıdaki aynı servis ID\'si birden çok kanalda paylaşılırsa tek iş açılır, diğer kanallar "ayrıca paylaşan" olarak eklenir. 0: kapalı.'],
+            'api_watch_minutes' => ['g' => 'features', 'default' => 30, 'label' => 'Kaç dakikada bir kontrol edilsin', 'type' => 'int', 'min' => 5, 'max' => 1440, 'help' => 'Yukarıda açık sağlayıcılar bu aralıkla kontrol edilir. Cron bundan sık çalışsa da en az bu kadar beklenir.'],
+            'dedupe_days' => ['g' => 'reading', 'default' => 7, 'label' => 'Aynı servisi tekrar sayma (gün)', 'type' => 'int', 'min' => 0, 'max' => 90, 'help' => 'Aynı sağlayıcıdaki aynı servis ID\'si birden çok kanalda paylaşılırsa tek iş açılır, diğer kanallar "ayrıca paylaşan" olarak eklenir. 0: kapalı.'],
             'fetch_timeout' => ['g' => 'reading', 'label' => 'Kanal bekleme süresi (sn)', 'type' => 'int', 'min' => 5, 'max' => 60, 'help' => 'Bir kanal bu sürede cevap vermezse atlanır.'],
             'cron_time_limit' => ['g' => 'reading', 'label' => 'Cron en uzun süre (sn)', 'type' => 'int', 'min' => 20, 'max' => 600, 'help' => 'Bir cron turunun üst sınırı.'],
             'web_cron_time_limit' => ['g' => 'reading', 'label' => 'Web cron en uzun süre (sn)', 'type' => 'int', 'min' => 10, 'max' => 25, 'help' => 'Arka planda çalışamayan hostinglerde cron-job.org 30 sn bekler.'],

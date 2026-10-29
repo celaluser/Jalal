@@ -288,7 +288,14 @@ trait BankPages
                 } else {
                     $this->say('ok', $src['name'] . ': izleme kapatıldı.');
                 }
-                $this->redirect('bank');
+                $this->redirect(($_POST['back'] ?? '') === 'features' ? 'settings' : 'bank', ($_POST['back'] ?? '') === 'features' ? ['tab' => 'features'] : []);
+                return true;
+            case 'watch_now':
+                $reps = (new \TgWatch\ApiWatch($this->db, \TgWatch\App::flow(), $this->config))->run(0, true);
+                $new = array_sum(array_column($reps, 'new'));
+                $bad = array_filter($reps, static fn($r) => !$r['ok']);
+                $this->say($bad ? 'bad' : 'ok', $bad ? 'Bazı sağlayıcılar okunamadı: ' . implode('; ', array_map(static fn($r) => $r['name'] . ': ' . $r['error'], $bad)) : ($new ? "$new yeni servis bulundu, bota gönderildi." : 'Yeni servis yok.'));
+                $this->redirect('settings', ['tab' => 'features']);
                 return true;
             case 'source_sync':
                 $n = SmmApi::sync($this->db, $id);

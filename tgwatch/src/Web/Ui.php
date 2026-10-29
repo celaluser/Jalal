@@ -728,7 +728,7 @@ kbd{font:500 11.5px/1 var(--font);color:var(--text-2);background:var(--fill-2);b
 .page-actions{gap:8px}
 
 /* ===== Düzen yardımcıları ===== */
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row.center{justify-content:center}.row.nowrap{flex-wrap:nowrap}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row.center{justify-content:center}.row.between{justify-content:space-between;width:100%}.row.nowrap{flex-wrap:nowrap}
 .stack{display:grid;gap:12px}
 .grow{flex:1 1 220px}.grow input,.grow select{width:100%}
 .split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}

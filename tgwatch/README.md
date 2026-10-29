@@ -220,6 +220,8 @@ Tanınan servis satırları: `🆔 13125 Ad…`, `ID: 13125 | Ad`, `13125 - Ad`,
 satırının altında ad. Fiyat aynı satırda ya da altındaki satırlarda (`$1.20`, `0.35$`, `Price: …`). Kategori olarak
 ID satırlarından önceki kısa başlık satırı alınır. Gerçek kanallarda farklı biçim çıkarsa `src/Parser.php` güncellenir.
 
+**Hepsi tek yerde:** Ayarlar → **Özellikler**. Yeni servis izlemeyi sağlayıcı bazında aç/kapat, "Şimdi kontrol et", kontrol aralığı, çeviri öğrenme analizi ve görünüm kısayolları orada.
+
 ## Sağlayıcı API izleme (yeni servis kanalda duyurulmasa da haber gelir)
 
 Çeviri bankası → Kaynaklar'da bir sağlayıcının yanındaki **Kapalı: aç** düğmesi izlemeyi açar. Cron her çalıştığında (en sık Ayarlar → Okuma → "Sağlayıcı API kontrolü" dakikasında bir) sağlayıcının servis listesi çekilir ve daha önce görülmemiş servisler için normal iş açılır: çeviri + fiyat önerisi, bota ✅ Onayla / ✏️ Düzenle butonlu mesaj ("Yeni servisler (API)").
