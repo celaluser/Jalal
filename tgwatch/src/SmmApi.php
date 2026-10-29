@@ -10,6 +10,9 @@ namespace TgWatch;
  */
 final class SmmApi
 {
+    /** Testler için: ağ yerine bu fonksiyon çağrılır (url, key) → ham cevap gövdesi. */
+    public static ?\Closure $fake = null;
+
     /**
      * @return list<array{service_id:int,name:string,category:string,rate:?float,min:?int,max:?int,refill:?int,cancel:?int,type:string}>
      */
@@ -17,6 +20,9 @@ final class SmmApi
     {
         if (!preg_match('~^https://~i', $url)) {
             throw new \InvalidArgumentException('API adresi https:// ile başlamalı (ör. https://panel.com/api/v2)');
+        }
+        if (self::$fake !== null) {
+            return self::parse((string)(self::$fake)($url, $key));
         }
         $r = Http::request('POST', $url, ['Content-Type: application/x-www-form-urlencoded', 'Accept: application/json'],
             http_build_query(['key' => $key, 'action' => 'services']), $timeout);
@@ -77,6 +83,16 @@ final class SmmApi
     /** Kaynağı senkronize eder: eski listeyi siler, yenisini yazar. */
     public static function sync(Db $db, int $sourceId): int
     {
+        return count(self::syncDiff($db, $sourceId, false)['all']);
+    }
+
+    /**
+     * Senkronize eder ve daha önce hiç görülmemiş servisleri bulur.
+     * $markSeen=false (elle senkron): yalnızca ilk kez (taban çizgisi) görülenleri işaretler, yeniler sonraki izlemede bildirilir.
+     * @return array{all:list<array>,new:list<array>,baseline:bool}
+     */
+    public static function syncDiff(Db $db, int $sourceId, bool $markSeen): array
+    {
         $src = $db->one('SELECT * FROM sources WHERE id = ?', [$sourceId]);
         if ($src === null) {
             throw new \InvalidArgumentException('Kaynak bulunamadı');
@@ -87,15 +103,29 @@ final class SmmApi
             $db->run('UPDATE sources SET last_error = ? WHERE id = ?', [$e->getMessage(), $sourceId]);
             throw $e;
         }
-        $db->tx(static function () use ($db, $sourceId, $list): void {
+        $seen = array_flip(array_map('intval', array_column($db->all('SELECT service_id FROM api_seen WHERE source_id = ?', [$sourceId]), 'service_id')));
+        $baseline = !$seen;
+        $new = [];
+        $db->tx(static function () use ($db, $sourceId, $list, $seen, $baseline, $markSeen, &$new): void {
             $db->run('DELETE FROM remote_services WHERE source_id = ?', [$sourceId]);
             $st = $db->pdo->prepare('INSERT OR REPLACE INTO remote_services(source_id, service_id, name, category, rate, min, max, refill, cancel, type) VALUES(?,?,?,?,?,?,?,?,?,?)');
+            $mark = $db->pdo->prepare('INSERT OR IGNORE INTO api_seen(source_id, service_id, first_seen) VALUES(?,?,?)');
             foreach ($list as $s) {
                 $st->execute([$sourceId, $s['service_id'], $s['name'], $s['category'], $s['rate'], $s['min'], $s['max'], $s['refill'], $s['cancel'], $s['type']]);
+                if (!isset($seen[$s['service_id']])) {
+                    if ($baseline) {
+                        $mark->execute([$sourceId, $s['service_id'], time()]);
+                    } else {
+                        $new[] = $s;
+                        if ($markSeen) {
+                            $mark->execute([$sourceId, $s['service_id'], time()]);
+                        }
+                    }
+                }
             }
         });
         $db->run('UPDATE sources SET services = ?, last_sync_at = ?, last_error = NULL WHERE id = ?', [count($list), time(), $sourceId]);
         $db->log('info', 'bank', "{$src['name']}: " . count($list) . ' servis alındı');
-        return count($list);
+        return ['all' => $list, 'new' => $new, 'baseline' => $baseline];
     }
 }

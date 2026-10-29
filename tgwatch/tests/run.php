@@ -1664,6 +1664,52 @@ test('Öğrenme: ayraç, ön ek ve son ek adlardan bulunur; ayardaki gereksiz so
     eq('', $v['value'] ?? null, 'adlarda yoksa son ek boşaltılsın');
 });
 
+echo "Sağlayıcı API izleme ve emoji ile biten ad\n";
+test('Ad 🚀 gibi emojiyle bitince de okunur (trim bayt hatası)', function () {
+    $r = Parser::parse("🆔 12567 Twitter (X) Followers [ Max 5K ] | [ Global ] | No Refill ⚠️ | Instant Start | Day 5K 🚀\n🏦1K PRICE : 0.69\$🏦\n\n🆔 12571 Twitter (X) Likes | Day 5K 🚀");
+    eq(2, count($r));
+    eq('Twitter (X) Followers [ Max 5K ] | [ Global ] | No Refill ⚠️ | Instant Start | Day 5K 🚀', $r[0]['name']);
+    eq('0.69', $r[0]['price']);
+    eq('Twitter (X) Likes | Day 5K 🚀', $r[1]['name']);
+});
+test('API izleme: ilk kontrol taban çizgisi, sonra yeni servis bota iş olarak gider', function () {
+    [$db, $tg, $flow] = env();
+    $db->run("INSERT INTO sources(kind, name, api_url, api_key, created_at, watch) VALUES('provider', 'Sag', 'https://x.test/api/v2', 'k', ?, 1)", [time()]);
+    $list = [['service' => 101, 'name' => 'Threads Followers | No Drop', 'category' => 'Threads', 'rate' => '1.20', 'min' => 10, 'max' => 1000],
+        ['service' => 102, 'name' => 'Threads Likes', 'category' => 'Threads', 'rate' => '0.30', 'min' => 10, 'max' => 1000]];
+    TgWatch\SmmApi::$fake = static function () use (&$list) {
+        return json_encode($list);
+    };
+    try {
+        $w = new TgWatch\ApiWatch($db, $flow, App::config());
+        $r = $w->run(0, true);
+        ok(reset($r)['baseline'], 'ilk kontrol sessiz');
+        eq(0, count($tg->calls), 'ilk kontrolde bota mesaj gitmez');
+        $r = $w->run(0, true);
+        eq(0, reset($r)['new'], 'değişiklik yoksa yeni yok');
+        $list[] = ['service' => 103, 'name' => 'Twitter (X) Followers [ Max 5K ] | Day 5K 🚀', 'category' => 'Twitter', 'rate' => '0.69', 'min' => 10, 'max' => 5000];
+        $r = $w->run(0, true);
+        $rep = reset($r);
+        eq(1, $rep['new']);
+        eq(1, count($rep['jobs']));
+        $job = $db->job($rep['jobs'][0]);
+        eq('awaiting', $job['status'], 'bota gönderildi, onay bekliyor');
+        eq(103, $job['items'][0]['id']);
+        eq('0.69', $job['items'][0]['price']);
+        $sent = json_encode($tg->calls, JSON_UNESCAPED_UNICODE);
+        ok(str_contains($sent, 'Yeni servisler (API)') && str_contains($sent, 'Sag'), 'mesaj sağlayıcıyı gösterir');
+        $r = $w->run(0, true);
+        eq(0, reset($r)['new'], 'aynı servis ikinci kez bildirilmez');
+        // süre dolmadan tekrar sorgulanmaz
+        eq([], $w->run(0, false), 'aralık dolmadan API çağrılmaz');
+        // izleme kapalıysa hiç bakılmaz
+        $db->run('UPDATE sources SET watch = 0');
+        eq([], $w->run(0, true));
+    } finally {
+        TgWatch\SmmApi::$fake = null;
+    }
+});
+
 // temizlik
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmp, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($it as $f) {

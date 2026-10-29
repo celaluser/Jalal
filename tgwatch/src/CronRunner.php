@@ -88,6 +88,17 @@ final class CronRunner
                 }
             }
             if (!$test) {
+                foreach ((new ApiWatch($db, $flow, $this->config))->run($deadline) as $r) {
+                    if (!$r['ok']) {
+                        $errors++;
+                        $say("API {$r['name']}  ✗ {$r['error']}");
+                    } else {
+                        $newJobs += count($r['jobs']);
+                        $say("API {$r['name']}  ✓ " . ($r['baseline'] ? 'izleme başladı' : $r['new'] . ' yeni servis, iş: ' . (implode(',', $r['jobs']) ?: '-')));
+                    }
+                }
+            }
+            if (!$test) {
                 $aiJob = $flow->processAiQueue($deadline);
                 if ($aiJob !== null) {
                     $say("Claude: iş #$aiJob işlendi");

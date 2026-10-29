@@ -27,6 +27,12 @@ final class Enrich
 
     public function sourceFor(string $channel): ?array
     {
+        if (preg_match('/^api-(\d+)$/', $channel, $m)) { // API izlemesinden gelen işler doğrudan sağlayıcıya bağlıdır
+            $s = $this->db->one("SELECT * FROM sources WHERE id = ? AND kind = 'provider'", [(int)$m[1]]);
+            if ($s) {
+                return $s;
+            }
+        }
         $ch = $this->db->one('SELECT source_id FROM channels WHERE username = ?', [$channel]);
         if ($ch && $ch['source_id']) {
             $s = $this->db->one("SELECT * FROM sources WHERE id = ? AND kind = 'provider'", [(int)$ch['source_id']]);

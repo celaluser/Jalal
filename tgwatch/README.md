@@ -220,6 +220,16 @@ Tanınan servis satırları: `🆔 13125 Ad…`, `ID: 13125 | Ad`, `13125 - Ad`,
 satırının altında ad. Fiyat aynı satırda ya da altındaki satırlarda (`$1.20`, `0.35$`, `Price: …`). Kategori olarak
 ID satırlarından önceki kısa başlık satırı alınır. Gerçek kanallarda farklı biçim çıkarsa `src/Parser.php` güncellenir.
 
+## Sağlayıcı API izleme (yeni servis kanalda duyurulmasa da haber gelir)
+
+Çeviri bankası → Kaynaklar'da bir sağlayıcının yanındaki **Kapalı: aç** düğmesi izlemeyi açar. Cron her çalıştığında (en sık Ayarlar → Okuma → "Sağlayıcı API kontrolü" dakikasında bir) sağlayıcının servis listesi çekilir ve daha önce görülmemiş servisler için normal iş açılır: çeviri + fiyat önerisi, bota ✅ Onayla / ✏️ Düzenle butonlu mesaj ("Yeni servisler (API)").
+
+- Açtığın anda mevcut servisler **sessizce** kaydedilir. Yalnızca sonradan eklenenler bildirilir.
+- Aynı servis kanalda da duyurulursa tekrar iş açılmaz (aynı sağlayıcı için tekrar sayma kuralı geçerli).
+- Bir kontrolde en çok 60 yeni servis bildirilir, fazlası sıradaki kontrole kalır. Bir mesaja en çok 20 servis girer.
+- API okunamazsa hata Kaynaklar'da ve Kayıtlar'da görünür.
+- **Denenmedi:** gerçek sağlayıcı API'siyle. Test sahte cevapla yapıldı. Standart `action=services` biçimi kullanılır.
+
 ## Öğrenme laboratuvarı (Çeviri → Öğrenme)
 
 Bankadaki ad çiftlerinden (sağlayıcı adı ↔ senin adın) çeviri mantığını çıkarır. Her çiftte parçalar (`|`) hizalanır; neyi çevirdiğin, neyi sildiğin, neyi eklediğin sayılır. Tutarlı kararlar (en az 5 çift, %80+; sözlük terimleri için en az 3 çift, %70+) **öneri** olur:

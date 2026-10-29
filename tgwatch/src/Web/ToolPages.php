@@ -491,7 +491,15 @@ trait ToolPages
                 $channel = preg_replace('/[^A-Za-z0-9_]/', '', (string)($_POST['channel'] ?? '')) ?: 'elle';
                 if (!Parser::parse($text)) {
                     $_SESSION['job_new_text'] = $text;
-                    $this->say('bad', 'Metinde servis bulunamadı. Her satır "🆔 ID Ad" biçiminde olmalı (ID 2–7 hane).');
+                    $first = '';
+                    foreach (preg_split('/\R/u', \TgWatch\Normalizer::text($text)) ?: [] as $ln) {
+                        if (trim($ln) !== '') {
+                            $first = $ln;
+                            break;
+                        }
+                    }
+                    $codes = implode(' ', array_map(static fn($c) => sprintf('U+%04X', mb_ord($c, 'UTF-8')), mb_str_split(mb_substr($first, 0, 8))));
+                    $this->say('bad', 'Metinde servis bulunamadı. Her satır "🆔 ID Ad" biçiminde olmalı (ID 2–7 hane). İlk satırın başı: ' . $codes);
                     $this->redirect('job_new');
                     return true;
                 }

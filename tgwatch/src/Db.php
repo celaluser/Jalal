@@ -134,6 +134,13 @@ SQL);
         $cols = array_column($this->pdo->query('PRAGMA table_info(jobs)')->fetchAll(), 'name');
         $chCols = array_column($this->pdo->query('PRAGMA table_info(channels)')->fetchAll(), 'name');
         $this->pdo->exec("CREATE TABLE IF NOT EXISTS unparsed (id INTEGER PRIMARY KEY, channel TEXT NOT NULL, msg_id INTEGER NOT NULL, text TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'open', created_at INTEGER NOT NULL, UNIQUE(channel, msg_id))");
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS api_seen (source_id INTEGER NOT NULL, service_id INTEGER NOT NULL, first_seen INTEGER NOT NULL, PRIMARY KEY(source_id, service_id))');
+        $srcCols = array_column($this->pdo->query('PRAGMA table_info(sources)')->fetchAll(), 'name');
+        foreach (['watch' => 'INTEGER NOT NULL DEFAULT 0', 'watch_at' => 'INTEGER', 'watch_note' => "TEXT NOT NULL DEFAULT ''"] as $col => $def) {
+            if (!in_array($col, $srcCols, true)) {
+                $this->pdo->exec("ALTER TABLE sources ADD COLUMN $col $def");
+            }
+        }
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS cron_runs (id INTEGER PRIMARY KEY, at INTEGER NOT NULL, seconds REAL NOT NULL, errors INTEGER NOT NULL, jobs INTEGER NOT NULL DEFAULT 0, notices INTEGER NOT NULL DEFAULT 0)');
         foreach (['jobs', 'notices'] as $t) {
             if (!in_array('also_json', array_column($this->pdo->query("PRAGMA table_info($t)")->fetchAll(), 'name'), true)) {

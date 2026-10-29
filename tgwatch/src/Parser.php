@@ -130,7 +130,8 @@ final class Parser
     public static function cleanName(string $s): string
     {
         $s = preg_replace('/\s+/u', ' ', $s) ?? $s;
-        $s = trim($s, " \t-–—:|•»");
+        // Çok baytlı karakterler trim() listesinde bayt bayt işlenir ve 🚀 gibi emojileri bozar; bu yüzden regex.
+        $s = preg_replace('/^[\s\-–—:|•»]+|[\s\-–—:|•»]+$/u', '', $s) ?? $s;
         return trim($s);
     }
 }

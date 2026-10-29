@@ -39,12 +39,16 @@ trait BankPages
         // Kaynaklar
         $h .= '<h2 class="first">Kaynaklar</h2><p class="muted">Kendi panelinizin ve sağlayıcıların API bilgileri. Anahtarlar yalnızca sunucudaki veritabanında saklanır, burada gizli gösterilir.</p>';
         if ($sources) {
-            $h .= '<div class="table-wrap"><table><thead><tr><th>Kaynak</th><th>API adresi</th><th>Anahtar</th><th class="num">Servis</th><th>Son senkron</th><th></th></tr></thead><tbody>';
+            $h .= '<div class="table-wrap"><table><thead><tr><th>Kaynak</th><th>API adresi</th><th>Anahtar</th><th class="num">Servis</th><th>Son senkron</th><th>Yeni servis izleme</th><th></th></tr></thead><tbody>';
             foreach ($sources as $s) {
                 $h .= '<tr><td><b>' . Ui::e($s['name']) . '</b><div class="src">' . ($s['kind'] === 'own' ? 'Kendi panelim (Azerice adlar)' : 'Sağlayıcı (İngilizce adlar)') . '</div>'
                     . ($s['last_error'] ? '<div class="src lvl-error">' . Ui::e($s['last_error']) . '</div>' : '') . '</td>'
                     . '<td class="src">' . Ui::e($s['api_url']) . '</td><td class="tight muted">' . self::mask($s['api_key']) . '</td>'
                     . '<td class="num tight">' . (int)$s['services'] . '</td><td class="tight">' . Ui::ago($s['last_sync_at'] ? (int)$s['last_sync_at'] : null) . '</td>'
+                    . '<td>' . ($s['kind'] === 'provider'
+                        ? $this->ui->action('source_watch', (int)$s['watch'] ? 'Açık: kapat' : 'Kapalı: aç', ['id' => $s['id']], (int)$s['watch'] ? 'primary sm' : 'quiet sm', 'bell')
+                            . ((int)$s['watch'] && (string)$s['watch_note'] !== '' ? '<div class="src">' . Ui::e((string)$s['watch_note']) . ($s['watch_at'] ? ' · ' . Ui::ago((int)$s['watch_at']) : '') . '</div>' : '')
+                        : '<span class="muted">—</span>') . '</td>'
                     . '<td class="tight"><div class="row">' . $this->ui->action('source_sync', 'Senkronize et', ['id' => $s['id']], 'quiet sm', 'refresh')
                     . $this->ui->action('source_del', 'Sil', ['id' => $s['id']], 'ghost sm', 'trash', $s['name'] . ' ve servis listesi silinsin mi? Bankadaki çiftler kalır.') . '</div></td></tr>';
             }
@@ -251,6 +255,21 @@ trait BankPages
                     $this->say('ok', "$name eklendi, $n servis alındı.");
                 } catch (\Throwable $e) {
                     $this->say('bad', "$name eklendi ama senkronize edilemedi: " . $e->getMessage());
+                }
+                $this->redirect('bank');
+                return true;
+            case 'source_watch':
+                $src = $this->db->one("SELECT * FROM sources WHERE id = ? AND kind = 'provider'", [$id]);
+                if (!$src) {
+                    throw new \InvalidArgumentException('Sağlayıcı bulunamadı.');
+                }
+                $on = (int)$src['watch'] ? 0 : 1;
+                $this->db->run('UPDATE sources SET watch = ?, watch_at = NULL, watch_note = ? WHERE id = ?', [$on, $on ? 'Sıradaki cron çalışmasında başlar.' : '', $id]);
+                if ($on) {
+                    $r = (new \TgWatch\ApiWatch($this->db, \TgWatch\App::flow(), $this->config))->check($src);
+                    $this->say($r['ok'] ? 'ok' : 'bad', $r['ok'] ? $src['name'] . ': izleme açıldı, ' . ($r['baseline'] ? 'mevcut servisler kaydedildi. Bundan sonra eklenenler bota gelir.' : $r['new'] . ' yeni servis bulundu.') : $src['name'] . ': izleme açıldı ama API okunamadı: ' . $r['error']);
+                } else {
+                    $this->say('ok', $src['name'] . ': izleme kapatıldı.');
                 }
                 $this->redirect('bank');
                 return true;

@@ -370,7 +370,9 @@ final class Flow
     {
         $e = [Telegram::class, 'esc'];
         $id = (int)$job['id'];
-        $head = "🆕 <b>Yeni servisler</b> — @" . $e($job['channel']) . " (gönderi {$job['msg_id']}) · iş #$id\n";
+        $head = preg_match('/^api-(\d+)$/', (string)$job['channel'], $am)
+            ? "🆕 <b>Yeni servisler (API)</b> — " . $e((string)($this->db->one('SELECT name FROM sources WHERE id = ?', [(int)$am[1]])['name'] ?? 'sağlayıcı')) . " panelinde bulundu · iş #$id\n"
+            : "🆕 <b>Yeni servisler</b> — @" . $e($job['channel']) . " (gönderi {$job['msg_id']}) · iş #$id\n";
         $cats = array_unique(array_filter(array_map(static fn($i) => $i['category_az'] ?? '', $job['items'])));
         if ($cats) {
             $head .= '📁 ' . $e(implode(' / ', $cats)) . "\n";

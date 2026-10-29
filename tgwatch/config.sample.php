@@ -72,6 +72,7 @@ return [
 
     // Aynı servisi birden çok kanal paylaşırsa, bu kadar gün içinde tekrar iş açılmaz (0: kapalı).
     'dedupe_days' => 7,
+    'api_watch_minutes' => 30, // izleme açık sağlayıcıların API'si kaç dakikada bir kontrol edilsin
 
     // Öncelikli sağlayıcının numarası (Ayarlar'dan seçilir); boş: kapalı.
     'priority_source' => '',
