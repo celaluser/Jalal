@@ -41,7 +41,7 @@ trait BankPages
     {
         $mem = new Memory($this->db);
         $st = $mem->stats();
-        $sources = $this->db->all('SELECT * FROM sources ORDER BY kind DESC, id');
+        $sources = $this->db->all("SELECT * FROM sources WHERE kind != 'rival' ORDER BY kind DESC, id");
         $hasOwn = (bool)array_filter($sources, static fn($s) => $s['kind'] === 'own');
 
         $okSvc = $st['service']['ok'] ?? 0;
@@ -53,7 +53,7 @@ trait BankPages
             . '</section>';
 
         // Kaynaklar
-        $h .= '<h2 class="first">Kaynaklar</h2><p class="muted">Kendi panelinizin ve sağlayıcıların API bilgileri. Anahtarlar yalnızca sunucudaki veritabanında saklanır, burada gizli gösterilir.</p>';
+        $h .= '<h2 class="first">Kaynaklar</h2><p class="muted">Kendi panelinizin ve sağlayıcıların API bilgileri. Anahtarlar yalnızca sunucudaki veritabanında saklanır, burada gizli gösterilir. Rakip panelleri buraya değil, <a href="?p=rival_list">Analiz → Rakip listesi</a>\'nden eklenir.</p>';
         if ($sources) {
             $h .= '<div class="table-wrap"><table><thead><tr><th>Kaynak</th><th>API adresi</th><th>Anahtar</th><th class="num">Servis</th><th>Son senkron</th><th>Yeni servis izleme</th><th></th></tr></thead><tbody>';
             foreach ($sources as $s) {
