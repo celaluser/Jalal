@@ -21,8 +21,7 @@ final class Ui
         'work' => ['İşler', 'queue', ['queue' => 'Onay kuyruğu', 'jobs' => 'Tüm işler', 'changes' => 'Değişiklikler', 'unparsed' => 'Okunamayanlar']],
         'channels' => ['Kanallar', 'channels', ['channels' => 'Kanallar']],
         'translate' => ['Çeviri', 'dict', ['dict' => 'Sözlük', 'bank' => 'Çeviri bankası', 'learn' => 'Öğrenme', 'ai' => 'Çeviri ayarları']],
-        'insights' => ['Analiz', 'chart', ['catalog' => 'Servisler', 'audit' => 'Fiyat denetimi', 'reports' => 'Raporlar']],
-        'rivals' => ['Rakipler', 'scale', ['rivals' => 'Fiyat kıyası', 'rival_list' => 'Rakip listesi']],
+        'insights' => ['Analiz', 'chart', ['catalog' => 'Servisler', 'audit' => 'Fiyat denetimi', 'reports' => 'Raporlar', 'rivals' => 'Rakip kıyası', 'rival_list' => 'Rakip listesi']],
         'system' => ['Ayarlar', 'gear', ['settings' => 'Ayarlar', 'profile' => 'Profil', 'alerts' => 'Uyarılar', 'botcmds' => 'Bot komutları', 'health' => 'Sağlık', 'logs' => 'Kayıtlar']],
     ];
 

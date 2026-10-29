@@ -224,7 +224,7 @@ ID satırlarından önceki kısa başlık satırı alınır. Gerçek kanallarda 
 
 ## Rakipler (fiyat kıyası) ve haftalık özet
 
-Menüde **Rakipler** bölümü: **Fiyat kıyası** ve **Rakip listesi**.
+Menüde **Analiz** bölümü altında: **Rakip kıyası** ve **Rakip listesi** sekmeleri.
 
 - **Rakip ekle:** rakip panelin API adresi + anahtarı (standart `action=services`). Kur çarpanı: rakip fiyatı × bu sayı = senin para birimin (aynı para birimiyse 1).
 - **Eşleştirme:** her servisin için her rakipte en benzer servis bulunur (platform, ad benzerliği, min/max, sayılar). Rakibin adı kurallarla Azericeye çevrilip senin adınla ve bankadaki İngilizce karşılığınla karşılaştırılır. Emin olunamayanlar **Kontrol bekleyen** olur: Doğru/Yanlış de, yanlış dediğin bir daha önerilmez.
