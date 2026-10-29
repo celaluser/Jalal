@@ -247,6 +247,17 @@ Menüde **Analiz** bölümü altında: **Rakip kıyası** ve **Rakip listesi** s
 
 Ayarlar → Kanal okuma → **Kurlar** kartı. Açarsan RUB/TRY/AZN/EUR kurları günde bir kez açık bir servisten (open.er-api.com, anahtar gerekmez) otomatik çekilir. Kapalıysa ya da çekilen kur 48 saatten eskiyse, yine Kanal okuma sekmesindeki **manuel kurlar** kullanılır — yani otomatik her zaman bir yedeğe düşer, fiyat çevirisi sessizce durmaz. "Şimdi çek" ile cron'u beklemeden denenir. **Denenmedi:** bu ortamdan dış servise erişilemedi (bağlantı denemesi 403 ile reddedildi); gerçek sunucunda deneyip sonucu görmen gerekir.
 
+## Sipariş geçmişinden gerçek sağlayıcıyı öğrenme (tahmin değil)
+
+Perfect Panel'in Admin API v2'sindeki **Orders** uçları (`GET /orders`) zaten yayında ve her siparişte hangi sağlayıcıdan geldiğini (`provider` alanı: sağlayıcı adı/takma adı) veriyor — henüz yayınlanmamış "servis listesinde sağlayıcı ID'si" özelliğini beklemeden, bugün kullanılabilir.
+
+**Nasıl çalışır:**
+1. Ayarlar → Yayın'da Panel API adresini (`https://panelin.com/adminapi/v2`) ve anahtarını gir (bu, servisleri çeken API'den ayrı; panelin kendi yönetim API'si, `X-Api-Key` ile).
+2. Çeviri bankası → Otomatik eşleştirme'de **"Sipariş geçmişinden sağlayıcıyı öğren"** de. Kendi servislerinin ID'leriyle tek istekte siparişler çekilir (saniyede 5 istek sınırına uyularak parçalar hâlinde), her servisin en son siparişindeki sağlayıcı adı kaydedilir.
+3. Eşleştirme bu bilgiyi **güçlü bir kanıt** olarak kullanır: aday sağlayıcı adı siparişteki adla örtüşüyorsa skor belirgin yükselir (neredeyse kesinleşir), örtüşmüyorsa düşer. Min/maks aynı olduğu için daha önce "kontrol bekleyen" kalan belirsiz eşleşmeler böylece kesinleşebilir.
+
+**Sınırlar:** Yalnızca en az bir siparişi olan servisler için çalışır (API varsayılanı son 90 gün; geniş bir tarih aralığı istenir ama panelin gerçekte ne kadar geriye izin verdiği bilinmiyor). Sağlayıcının yalnızca adı/takma adı gelir, sağlayıcı servis ID'si gelmez — o, Perfect Panel'in henüz yayınlamadığı ayrı özellik. **Denenmedi:** gerçek bir panelden hiç istek yapılamadı; cevabın sarmalayıcı anahtarı (`data`/`orders`/…) tahminle esnek bırakıldı, gerçek cevapla doğrulanması gerekir.
+
 ## Eski servis referansları otomatik temizlenir
 
 Kendi panelinden, bir sağlayıcıdan ya da rakipten bir servisi kaldırırsan (sync sırasında listeden düşünce), ona değinen kayıtlar günlük temizlikte otomatik silinir: çeviri bankasındaki servis bağlantısı (çevirinin kendisi kalır), rakip kıyası eşleşmesi ve bildirim durumu, kaynağı silinmiş "görülen servis" kaydı. Ayarlar → Veri ve bakım → "Şimdi temizle" ile elle de çalıştırılır.

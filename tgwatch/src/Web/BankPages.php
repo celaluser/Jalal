@@ -97,7 +97,11 @@ trait BankPages
                 . '<dt>Bulunan fiyat formülü</dt><dd>' . Ui::e($formula) . ' <span class="muted">(' . $m['points'] . ' kesin eşleşmeden)</span></dd>'
                 . '<dt>Son çalışma</dt><dd>' . Ui::ago((int)$rep['at']) . '</dd></dl>';
         }
-        $h .= '<div class="row">' . $this->ui->action('match_run', 'Eşleştirmeyi çalıştır', [], 'primary', 'play') . '</div></div>';
+        $opKnown = count(\TgWatch\PanelAdmin::known($this->db));
+        $hasPanelApi = trim((string)($this->config['panel_api_url'] ?? '')) !== '' && trim((string)($this->config['panel_api_key'] ?? '')) !== '';
+        $h .= '<p class="muted">' . ($opKnown ? $opKnown . ' servisin sağlayıcısı sipariş geçmişinden biliniyor; eşleştirme bunları öncelikli ve daha güvenle eşler.' : 'Panel API bağlıysa (Ayarlar → Yayın), eşleştirmeden önce sipariş geçmişinden hangi servisin hangi sağlayıcıdan geldiğini öğrenebilir — tahmin değil, panelin kendi kaydı.') . '</p>'
+            . '<div class="row">' . $this->ui->action('match_run', 'Eşleştirmeyi çalıştır', [], 'primary', 'play')
+            . ($hasPanelApi ? $this->ui->action('order_provider_run', 'Sipariş geçmişinden sağlayıcıyı öğren', [], 'quiet', 'refresh') : Ui::link('?p=settings&tab=publish', 'Panel API\'yi bağla', 'quiet', 'link')) . '</div></div>';
 
         // Kontrol bekleyenler
         $review = $this->db->all("SELECT * FROM tm WHERE status = 'review' ORDER BY score DESC LIMIT 30");
@@ -313,6 +317,34 @@ trait BankPages
                 $r = (new Matcher($this->db))->run();
                 $n = $this->refreshOpenJobs();
                 $this->say('ok', "Eşleştirme bitti: {$r['high']} kesin, {$r['review']} kontrol bekliyor, {$r['none']} eşleşmedi." . ($n ? " $n açık iş güncellendi." : ''));
+                $this->redirect('bank');
+                return true;
+            case 'order_provider_run':
+                @set_time_limit(120);
+                $url = trim((string)($this->config['panel_api_url'] ?? ''));
+                $key = trim((string)($this->config['panel_api_key'] ?? ''));
+                if ($url === '' || $key === '') {
+                    throw new \InvalidArgumentException('Önce Ayarlar → Yayın\'da Panel API adresi ve anahtarını gir.');
+                }
+                $own = $this->db->one("SELECT id FROM sources WHERE kind = 'own' ORDER BY id LIMIT 1");
+                if (!$own) {
+                    throw new \InvalidArgumentException('Önce "Kendi panelim" kaynağını ekleyip senkronize et.');
+                }
+                $ids = array_column($this->db->all('SELECT service_id FROM remote_services WHERE source_id = ?', [(int)$own['id']]), 'service_id');
+                try {
+                    $map = \TgWatch\PanelAdmin::providersFor($url, $key, array_map('intval', $ids));
+                    \TgWatch\PanelAdmin::save($this->db, $map);
+                    $msg = count($map) . ' / ' . count($ids) . ' servisin sağlayıcısı sipariş geçmişinden öğrenildi.';
+                    if (count($map) < count($ids)) {
+                        $msg .= ' Kalanların son 90 günde (ya da hiç) siparişi yok.';
+                    }
+                    $r = (new Matcher($this->db))->run();
+                    $n = $this->refreshOpenJobs();
+                    $msg .= " Eşleştirme yenilendi: {$r['high']} kesin, {$r['review']} kontrol bekliyor." . ($n ? " $n açık iş güncellendi." : '');
+                    $this->say('ok', $msg);
+                } catch (\Throwable $e) {
+                    $this->say('bad', 'Panel API\'den okunamadı: ' . $e->getMessage());
+                }
                 $this->redirect('bank');
                 return true;
             case 'tm_confirm':

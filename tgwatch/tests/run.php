@@ -1870,6 +1870,53 @@ test('Flow: kanal fiyatı canlı kur açıksa canlı kurla, kapalıysa manuel ku
     eq('0.2', $job['items'][0]['price'], 'canlı kur (0.02) kullanıldı, manuel (0.011) değil');
 });
 
+echo "Panel Admin API: sipariş geçmişinden sağlayıcı\n";
+test('PanelAdmin: farklı cevap sarmalayıcıları okunur, en yeni sipariş kazanır', function () {
+    TgWatch\PanelAdmin::$fake = static function (string $url) {
+        ok(str_contains($url, 'service_ids=201%2C202') || str_contains($url, 'service_ids=201,202'), 'servis ID\'leri tek istekte');
+        ok(str_contains($url, 'created_from='), '90 günlük varsayılan aşılıyor');
+        return json_encode(['data' => [
+            ['service_id' => 201, 'provider' => 'B Provider', 'created_timestamp' => 2000],
+            ['service_id' => 201, 'provider' => 'Eski Sağlayıcı', 'created_timestamp' => 1000],
+            ['service_id' => 202, 'provider' => '', 'created_timestamp' => 1500], // boş: sayılmaz
+        ]]);
+    };
+    try {
+        $map = TgWatch\PanelAdmin::providersFor('https://panel.test/adminapi/v2', 'k', [201, 202]);
+        eq(['201' => 'B Provider'], $map, 'en yeni sipariş (ilk sırada, sort=date-desc) kazanır; boş sağlayıcı atlanır');
+    } finally {
+        TgWatch\PanelAdmin::$fake = null;
+    }
+    TgWatch\PanelAdmin::$fake = static fn() => json_encode(['service_id' => 9, 'provider' => 'X', 'created_timestamp' => 1]); // liste değil: boş döner
+    try {
+        eq([], TgWatch\PanelAdmin::providersFor('https://panel.test/adminapi/v2', 'k', [9]));
+    } finally {
+        TgWatch\PanelAdmin::$fake = null;
+    }
+});
+test('Matcher: sipariş geçmişinden bilinen sağlayıcı, belirsiz min/max eşleşmesini kesinleştirir', function () {
+    [$db] = env();
+    $db->run("INSERT INTO sources(kind, name, api_url, api_key, created_at) VALUES('own', 'Ben', 'https://own.test', 'k', ?)", [time()]);
+    $db->run("INSERT INTO sources(kind, name, api_url, api_key, created_at) VALUES('provider', 'A Sağlayıcı', 'https://a.test', 'k', ?)", [time()]);
+    $a = (int)$db->pdo->lastInsertId();
+    $db->run("INSERT INTO sources(kind, name, api_url, api_key, created_at) VALUES('provider', 'B Provider Co', 'https://b.test', 'k', ?)", [time()]);
+    $b = (int)$db->pdo->lastInsertId();
+    $db->run('INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max) VALUES(1,201,?,?,?,?,?)', ['Instagram İzləyici', 'Instagram', 1.0, 10, 1000]);
+    $db->run('INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max) VALUES(?,301,?,?,?,?,?)', [$a, 'Instagram Followers', 'Instagram', 1.0, 10, 1000]);
+    $db->run('INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max) VALUES(?,302,?,?,?,?,?)', [$b, 'Instagram Followers', 'Instagram', 1.0, 10, 1000]);
+    // sipariş geçmişi bilgisi olmadan: tamamen ikiz aday, "kontrol bekliyor"
+    $r = (new TgWatch\Matcher($db))->run();
+    eq(0, $r['high']);
+    eq(1, $r['review']);
+    // sipariş geçmişinden öğrenilen: bu servis gerçekte "B Provider Co"dan geliyor
+    TgWatch\PanelAdmin::save($db, [201 => 'B Provider']);
+    $r = (new TgWatch\Matcher($db))->run();
+    eq(1, $r['high'], 'artık kesin eşleşme');
+    $row = $db->one("SELECT * FROM tm WHERE kind = 'service' AND status = 'ok'");
+    eq($b, (int)$row['provider_source'], 'doğru sağlayıcıya bağlandı');
+    eq(302, (int)$row['provider_service']);
+});
+
 // temizlik
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmp, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($it as $f) {

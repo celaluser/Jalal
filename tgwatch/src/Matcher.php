@@ -41,6 +41,18 @@ final class Matcher
         return '';
     }
 
+    /** Sağlayıcı adı/takma adı ile kaynak adının aynı sağlayıcı olup olmadığını gevşekçe karşılaştırır. */
+    public static function sameProvider(string $order, string $source): bool
+    {
+        $n = static fn(string $s): string => preg_replace('/[^a-z0-9]+/', '', mb_strtolower(trim($s))) ?? '';
+        $a = $n($order);
+        $b = $n($source);
+        if ($a === '' || $b === '') {
+            return false;
+        }
+        return $a === $b || str_contains($a, $b) || str_contains($b, $a);
+    }
+
     private static function jaccard(array $a, array $b): float
     {
         if (!$a && !$b) {
@@ -62,7 +74,8 @@ final class Matcher
             throw new \RuntimeException('Önce "Kendi panelim" kaynağını ekleyip senkronize edin.');
         }
         $ownRows = $this->db->all('SELECT * FROM remote_services WHERE source_id = ?', [(int)$own['id']]);
-        $provRows = $this->db->all("SELECT r.* FROM remote_services r JOIN sources s ON s.id = r.source_id WHERE s.kind = 'provider'");
+        $provRows = $this->db->all("SELECT r.*, s.name AS source_name FROM remote_services r JOIN sources s ON s.id = r.source_id WHERE s.kind = 'provider'");
+        $orderProv = PanelAdmin::known($this->db); // sipariş geçmişinden bilinen: own_service => sağlayıcı adı (tahmin değil)
         if (!$ownRows || !$provRows) {
             throw new \RuntimeException('Eşleştirme için kendi paneliniz ve en az bir sağlayıcı senkronize edilmiş olmalı.');
         }
@@ -106,7 +119,7 @@ final class Matcher
         $mem = new Memory($this->db);
         $high = $review = $none = 0;
         $catVotes = [];
-        $this->db->tx(function () use ($cands, $model, $rejected, $mem, &$high, &$review, &$none, &$catVotes): void {
+        $this->db->tx(function () use ($cands, $model, $rejected, $mem, $orderProv, &$high, &$review, &$none, &$catVotes): void {
             $this->db->run("DELETE FROM tm WHERE origin = 'import' AND status IN ('ok','review')");
             foreach ($cands as [$o, $list]) {
                 $scored = [];
@@ -127,6 +140,11 @@ final class Matcher
                     }
                     $plat = ($o['_plat'] !== '' && $o['_plat'] === $p['_plat']) ? 1.0 : 0.5;
                     $s = 0.45 * $price + 0.3 * self::jaccard($o['_nums'], $p['_nums']) + 0.1 * $flags + 0.15 * $plat;
+                    $known = $orderProv[$o['service_id']] ?? null;
+                    if ($known !== null) {
+                        // Sipariş geçmişi bu servisin gerçekte hangi sağlayıcıdan geldiğini söylüyor: güçlü kanıt.
+                        $s = self::sameProvider($known, (string)$p['source_name']) ? min(1.0, $s + 0.4) : $s * 0.3;
+                    }
                     $scored[] = [$s, $p];
                 }
                 usort($scored, static fn($a, $b) => $b[0] <=> $a[0]);

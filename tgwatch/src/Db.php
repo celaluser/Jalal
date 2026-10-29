@@ -134,6 +134,7 @@ SQL);
         $cols = array_column($this->pdo->query('PRAGMA table_info(jobs)')->fetchAll(), 'name');
         $chCols = array_column($this->pdo->query('PRAGMA table_info(channels)')->fetchAll(), 'name');
         $this->pdo->exec("CREATE TABLE IF NOT EXISTS unparsed (id INTEGER PRIMARY KEY, channel TEXT NOT NULL, msg_id INTEGER NOT NULL, text TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'open', created_at INTEGER NOT NULL, UNIQUE(channel, msg_id))");
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS order_provider (own_service INTEGER PRIMARY KEY, provider TEXT NOT NULL, at INTEGER NOT NULL)');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS rival_map (own_service INTEGER NOT NULL, rival_source INTEGER NOT NULL, rival_service INTEGER NOT NULL, score REAL NOT NULL, status TEXT NOT NULL DEFAULT \'auto\', PRIMARY KEY(own_service, rival_source))');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS rival_state (own_service INTEGER NOT NULL, rival_source INTEGER NOT NULL, flag TEXT NOT NULL DEFAULT \'\', rival_rate REAL, my_rate REAL, at INTEGER NOT NULL, PRIMARY KEY(own_service, rival_source))');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS api_seen (source_id INTEGER NOT NULL, service_id INTEGER NOT NULL, first_seen INTEGER NOT NULL, PRIMARY KEY(source_id, service_id))');

@@ -40,9 +40,9 @@ final class Settings
             'webhook_secret' => ['g' => 'telegram', 'label' => 'Webhook anahtarı', 'type' => 'key', 'help' => 'Telegram her istekte bu anahtarı gönderir. Değişince webhook\'u yeniden kur.'],
             'telegram_api_base' => ['g' => 'telegram', 'label' => 'Telegram API adresi', 'type' => 'url', 'optional' => true, 'help' => 'Genelde boş. Hosting Telegram\'a erişemiyorsa kendi ara sunucunun adresi.'],
 
-            'publisher' => ['g' => 'publish', 'label' => 'Yayın yöntemi', 'type' => 'select', 'options' => ['manual' => 'Elle (ekleme paketi panelde)', 'admin_api' => 'Admin API (henüz desteklenmiyor)'], 'help' => 'Perfect Panel servis metotlarını yayınlayınca "Admin API" açılacak.'],
-            'panel_api_url' => ['g' => 'publish', 'label' => 'Panel API adresi', 'type' => 'url', 'help' => 'Örn. https://panelbaku.com/adminapi/v2'],
-            'panel_api_key' => ['g' => 'publish', 'label' => 'Panel API anahtarı', 'type' => 'secret', 'help' => 'Boş bırakırsan mevcut değer korunur.'],
+            'publisher' => ['g' => 'publish', 'label' => 'Yayın yöntemi', 'type' => 'select', 'options' => ['manual' => 'Elle (ekleme paketi panelde)', 'admin_api' => 'Admin API (henüz desteklenmiyor)'], 'help' => 'Perfect Panel servis oluşturma/düzenleme metotlarını yayınlayınca "Admin API" açılacak.'],
+            'panel_api_url' => ['g' => 'publish', 'label' => 'Panel API adresi', 'type' => 'url', 'help' => 'Örn. https://panelbaku.com/adminapi/v2. Aşağıdaki anahtarla birlikte girilince şimdiden Çeviri bankası → "Sipariş geçmişinden sağlayıcıyı öğren" için kullanılır (Orders uç noktası zaten yayında).'],
+            'panel_api_key' => ['g' => 'publish', 'label' => 'Panel API anahtarı', 'type' => 'secret', 'help' => 'Panelin kendi Admin API v2 anahtarı (X-Api-Key). Boş bırakırsan mevcut değer korunur.'],
 
             'cron_key' => ['g' => 'reading', 'label' => 'Cron anahtarı', 'type' => 'key', 'help' => 'cron-job.org adresindeki key=… değeri. Değişirse cron-job.org adresini de güncelle.'],
             'monitor_key' => ['g' => 'reading', 'label' => 'İzleme anahtarı', 'type' => 'key', 'help' => 'UptimeRobot gibi dış bir servisin sorgulayacağı adresin anahtarı (aşağıda adres görünür). Cron durursa ya da kanal okunamazsa adres hata döner ve o servis sana e-posta atar: Telegram\'dan bağımsız ikinci uyarı yolu.'],

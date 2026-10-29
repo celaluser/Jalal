@@ -58,6 +58,8 @@ final class Cleaner
         $n += $this->db->run('DELETE FROM rival_state WHERE NOT EXISTS (
             SELECT 1 FROM remote_services r JOIN sources s ON s.id = r.source_id AND s.kind = \'own\' WHERE r.service_id = rival_state.own_service)
             OR NOT EXISTS (SELECT 1 FROM sources s WHERE s.id = rival_state.rival_source AND s.kind = \'rival\')');
+        $n += $this->db->run('DELETE FROM order_provider WHERE NOT EXISTS (
+            SELECT 1 FROM remote_services r JOIN sources s ON s.id = r.source_id AND s.kind = \'own\' WHERE r.service_id = order_provider.own_service)');
         $n += $this->db->run('DELETE FROM api_seen WHERE source_id NOT IN (SELECT id FROM sources)');
         $n += $this->db->run('DELETE FROM remote_services WHERE source_id NOT IN (SELECT id FROM sources)');
         return $n;
