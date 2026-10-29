@@ -20,7 +20,7 @@ final class Ui
         'dash' => ['Genel bakış', 'gauge', ['dash' => 'Genel bakış']],
         'work' => ['İşler', 'queue', ['queue' => 'Onay kuyruğu', 'jobs' => 'Tüm işler', 'changes' => 'Değişiklikler', 'unparsed' => 'Okunamayanlar']],
         'channels' => ['Kanallar', 'channels', ['channels' => 'Kanallar']],
-        'translate' => ['Çeviri', 'dict', ['dict' => 'Sözlük', 'bank' => 'Çeviri bankası', 'ai' => 'Çeviri ayarları']],
+        'translate' => ['Çeviri', 'dict', ['dict' => 'Sözlük', 'bank' => 'Çeviri bankası', 'learn' => 'Öğrenme', 'ai' => 'Çeviri ayarları']],
         'insights' => ['Analiz', 'chart', ['catalog' => 'Servisler', 'audit' => 'Fiyat denetimi', 'reports' => 'Raporlar']],
         'system' => ['Ayarlar', 'gear', ['settings' => 'Ayarlar', 'profile' => 'Profil', 'alerts' => 'Uyarılar', 'botcmds' => 'Bot komutları', 'health' => 'Sağlık', 'logs' => 'Kayıtlar']],
     ];

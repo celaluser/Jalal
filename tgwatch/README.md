@@ -220,6 +220,21 @@ Tanınan servis satırları: `🆔 13125 Ad…`, `ID: 13125 | Ad`, `13125 - Ad`,
 satırının altında ad. Fiyat aynı satırda ya da altındaki satırlarda (`$1.20`, `0.35$`, `Price: …`). Kategori olarak
 ID satırlarından önceki kısa başlık satırı alınır. Gerçek kanallarda farklı biçim çıkarsa `src/Parser.php` güncellenir.
 
+## Öğrenme laboratuvarı (Çeviri → Öğrenme)
+
+Bankadaki ad çiftlerinden (sağlayıcı adı ↔ senin adın) çeviri mantığını çıkarır. Her çiftte parçalar (`|`) hizalanır; neyi çevirdiğin, neyi sildiğin, neyi eklediğin sayılır. Tutarlı kararlar (en az 5 çift, %80+; sözlük terimleri için en az 3 çift, %70+) **öneri** olur:
+
+- parça türü silinsin/kalsın (Maks, Min, hız, garanti…), emoji, parça sırası
+- ayraç, ön ek, son ek (adlarından bulunur; ayarda olup adlarında olmayan son ek boşaltılır)
+- hep silinen ifadeler (Silinecek ifadeler listesine)
+- sözlük terimleri ve sayılı kalıplar (`30 Days Refill → 30 gün zəmanət` gibi)
+
+Öneriyi **Uygula** ya da **Gerekmez** dersin. Onaylamadan hiçbir şey değişmez. Öğrenmeye yalnızca senin kararların girer (otomatik eşleşme, onayladığın eşleşme, elle eklenenler). Botun kendi çıktısı olan onaylı işler girmez.
+
+**Doğruluk ölçümü:** çiftlerin ~%20'si saklanır, öneriler kalanından üretilir, saklananlar kurallar ve sözlükle çevrilip senin adınla birebir karşılaştırılır. "Şu anki kurallarla %X → önerilerle %Y" görünür, tutmayan örnekler listelenir.
+
+**Denenmedi:** gerçek verinle. Testler ve panel sahte çiftlerle denendi. Alanlar uyuşmuyorsa (ör. sağlayıcı adı başka biçimde) ölçüm düşük çıkar ve bu bilgi işe yarar. Parça sayıları çok farklı adlarda hizalama yanılabilir; öneri listesindeki örneklere bakarak onayla.
+
 ## Görünüm: "Buta" (varsayılan) ve "Cam"
 
 Panelin kimliği **Buta**: karavansaray defteri gibi sade bir görünüm. Logo, Bakü'nün Alov Qüllələri'ni (üç kule) çizen bir işaret; renkler çivit mavisi ray, kâğıt zemin ve halı dokusundan gelen bir şerit. Başlıklarda **Zilla Slab** (SIL OFL, `public/assets/fonts/` içinde, dışarıdan yüklenmez). Panoda sayı kutuları yerine tek cümlelik özet var.

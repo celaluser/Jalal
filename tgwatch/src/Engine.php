@@ -35,8 +35,13 @@ final class Engine
     /** Silinecek ifadeleri addan çıkarır. Düz metin büyük/küçük harf duyarsız, /…/ biçimi regex. */
     public function strip(string $name): string
     {
+        return self::stripBy($this->dict['remove'] ?? [], $name);
+    }
+
+    public static function stripBy(array $remove, string $name): string
+    {
         $s = Normalizer::text($name);
-        foreach ($this->dict['remove'] ?? [] as $r) {
+        foreach ($remove as $r) {
             $r = (string)$r;
             if ($r === '') {
                 continue;

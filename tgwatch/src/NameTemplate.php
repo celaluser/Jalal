@@ -28,7 +28,7 @@ final class NameTemplate
 
     /** Sığmazsa atılma sırası (ana ad hiç atılmaz). */
     private const DROP_ORDER = ['start', 'cancel', 'speed', 'other', 'min', 'max', 'refill', 'quality'];
-    private const TIDY_ORDER = ['quality' => 1, 'refill' => 2, 'start' => 3, 'cancel' => 4, 'other' => 5, 'min' => 6, 'max' => 7, 'speed' => 8];
+    public const TIDY_ORDER = ['quality' => 1, 'refill' => 2, 'start' => 3, 'cancel' => 4, 'other' => 5, 'min' => 6, 'max' => 7, 'speed' => 8];
 
     public static function defaults(): array
     {

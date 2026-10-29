@@ -1584,6 +1584,86 @@ test('Ad kalıbı çeviri motoruna bağlı: banka ve kurallar aynı kalıpla ç�
     eq('Twitch İzləyici', $e->translate('Twitch Followers | Max 10K')['text'], 'banka yolu da kalıptan geçer');
 });
 
+echo "Öğrenme laboratuvarı\n";
+function learnPairs(): array
+{
+    $P = ['Instagram', 'Threads', 'TikTok', 'Twitch'];
+    $S = [['Followers', 'İzləyici'], ['Reposts', 'Yenidən Paylaşım'], ['Likes', 'Bəyəni']];
+    $out = [];
+    for ($i = 0; $i < 60; $i++) {
+        [$se, $sa] = $S[$i % 3];
+        $d = [30, 60, 90][$i % 3];
+        $out[] = ['en' => $P[$i % 4] . " $se | No Drop | Max " . (10 + $i) . 'K | ' . (1 + $i % 5) . "K/Day | $d Days Refill | 🔥 Best Seller",
+            'az' => $P[$i % 4] . " $sa | Azalma olmaz | $d gün zəmanət"];
+    }
+    return $out;
+}
+test('Öğrenme: parça kararları ve çeviri terimleri öneri olarak çıkar', function () {
+    [$db] = env();
+    $L = new TgWatch\Learner($db);
+    $dict = Dictionary::defaults();
+    $r = $L->analyze(learnPairs(), $dict);
+    $by = [];
+    foreach ($r['suggestions'] as $s) {
+        $by[$s['kind'] . ':' . ($s['payload']['key'] ?? $s['payload']['en'] ?? $s['payload']['value'] ?? $s['payload']['pattern'] ?? '')] = $s;
+    }
+    ok(isset($by['opt:keep_max']) && $by['opt:keep_max']['payload']['value'] === false, 'Maks parçası silinmiş');
+    ok(isset($by['opt:keep_speed']) && $by['opt:keep_speed']['payload']['value'] === false, 'hız parçası silinmiş');
+    ok(isset($by['phrase:reposts']) && $by['phrase:reposts']['payload']['az'] === 'Yenidən Paylaşım', 'marka atılıp çekirdek terim öğrenilir');
+    ok(isset($by['remove:🔥 best seller']), 'hep silinen ifade');
+    $rule = array_values(array_filter($r['suggestions'], static fn($s) => $s['kind'] === 'rule'));
+    eq(1, count($rule), 'sayılı kalıp');
+    $d2 = TgWatch\Learner::applyTo($dict, $rule[0]);
+    eq('45 gün zəmanət', (new Translator(array_merge($d2, ['options' => []])))->translate('45 Days Refill')['text'], 'kural 45 gün için de çalışır');
+    ok(!isset($by['phrase:followers']) && !isset($by['phrase:likes']), 'zaten doğru olan terimler önerilmez');
+});
+test('Öğrenme: önerilerden sonra ölçülen doğruluk artar, kayıtlar saklanır', function () {
+    [$db] = env();
+    $pairs = learnPairs();
+    foreach ($pairs as $p) {
+        $db->run("INSERT INTO tm(kind, en_norm, en, az, origin, status, updated_at) VALUES('service', ?, ?, ?, 'import', 'ok', ?)", [TgWatch\Memory::norm($p['en']), $p['en'], $p['az'], time()]);
+    }
+    $db->run("INSERT INTO tm(kind, en_norm, en, az, origin, status, updated_at) VALUES('service', 'x', 'Bot Only', 'Bot Only', 'approved', 'ok', ?)", [time()]);
+    $L = new TgWatch\Learner($db);
+    eq(60, count($L->pairs()), 'yalnızca senin kararların (import/confirmed/manual) öğrenilir');
+    $r = $L->run();
+    ok($r['eval']['ready'], 'ölçüm yapıldı');
+    ok($r['eval']['after'] > $r['eval']['base'], 'öneriler doğruluğu artırır');
+    ok($r['eval']['after'] / $r['eval']['test'] >= 0.9, 'sentetik veride %90+ doğruluk: ' . $r['eval']['after'] . '/' . $r['eval']['test']);
+    ok(is_array($db->getJson('learn_report')));
+    $id = $r['suggestions'][0]['id'];
+    $L->decide($id, 'applied');
+    eq('applied', $L->decided()[$id]);
+});
+
+test('Öğrenme: ayraç, ön ek ve son ek adlardan bulunur; ayardaki gereksiz son ek kapatılması önerilir', function () {
+    [$db] = env();
+    $L = new TgWatch\Learner($db);
+    $pairs = [];
+    foreach (learnPairs() as $p) {
+        $az = str_replace(' | ', ' • ', $p['az']);
+        $pairs[] = ['en' => $p['en'], 'az' => '⚡ ' . $az . ' [TG]'];
+    }
+    $r = $L->analyze($pairs, Dictionary::defaults());
+    $v = [];
+    foreach ($r['suggestions'] as $s) {
+        if ($s['kind'] === 'opt' && in_array($s['payload']['key'], ['separator', 'prefix', 'suffix'], true)) {
+            $v[$s['payload']['key']] = $s['payload']['value'];
+        }
+    }
+    eq([' • ', '⚡', '[TG]'], [$v['separator'] ?? null, $v['prefix'] ?? null, $v['suffix'] ?? null]);
+    // ayarda olan ama adlarda olmayan son ek: boşaltma önerisi
+    $d = Dictionary::defaults();
+    $d['options']['suffix'] = '[TG]';
+    $v = [];
+    foreach ($L->analyze(learnPairs(), $d)['suggestions'] as $s) {
+        if ($s['kind'] === 'opt' && $s['payload']['key'] === 'suffix') {
+            $v = $s['payload'];
+        }
+    }
+    eq('', $v['value'] ?? null, 'adlarda yoksa son ek boşaltılsın');
+});
+
 // temizlik
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmp, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($it as $f) {

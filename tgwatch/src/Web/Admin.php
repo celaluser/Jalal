@@ -23,6 +23,7 @@ final class Admin
     use ChangePages;
     use SettingsPages;
     use ToolPages;
+    use LearnPages;
 
     private const PER_PAGE = 30;
     private const OPEN = ['new', 'awaiting', 'editing'];
@@ -95,6 +96,7 @@ final class Admin
             'channels' => $this->channels(),
             'dict' => $this->dict(),
             'bank' => $this->bank(),
+            'learn' => $this->learnPage(),
             'ai' => $this->aiSettings(),
             'job_prompt' => $this->jobPrompt((int)($_GET['id'] ?? 0)),
             'logs' => $this->logs(),
@@ -1179,7 +1181,7 @@ final class Admin
     {
         $id = (int)($_POST['id'] ?? 0);
         try {
-            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p) || $this->postTools($p)) {
+            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p) || $this->postTools($p) || $this->postLearn($p)) {
                 return;
             }
             switch ($p) {
@@ -1420,6 +1422,8 @@ final class Admin
                 $this->redirect('job_prompt', ['id' => $id]);
             } elseif (str_starts_with($p, 'source') || str_starts_with($p, 'tm_') || $p === 'match_run') {
                 $this->redirect('bank');
+            } elseif (str_starts_with($p, 'learn_')) {
+                $this->redirect('learn');
             } elseif ($p === 'ai_save') {
                 $this->redirect('ai');
             } else {
