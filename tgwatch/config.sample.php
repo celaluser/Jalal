@@ -81,6 +81,7 @@ return [
 
     // Kanal fiyatı $ dışındaysa kurlar (1 birim = kaç $). Örnek: 'RUB=0.011, TRY=0.029'
     'fx_rates' => '',
+    'fx_auto' => false, // açıksa kurlar günde bir kez open.er-api.com'dan otomatik çekilir (Ayarlar → Kanal okuma'dan da açılır/kapanır)
 
     // Uyarı e-postası (boş: kapalı) ve dış izleme adresi anahtarı (public/monitor.php?key=...)
     'alert_email' => '',

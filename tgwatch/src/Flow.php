@@ -169,7 +169,7 @@ final class Flow
     /** USD dışındaki fiyatları kurla dolara çevirir; kur yoksa fiyatı boş bırakıp asıl tutarı saklar. */
     private function convertCurrency(array $items): array
     {
-        $fx = self::fxRates($this->config);
+        $fx = FxRates::effective($this->db, $this->config);
         foreach ($items as &$it) {
             $cur = $it['currency'] ?? '';
             if ($cur === '' || $it['price'] === '') {

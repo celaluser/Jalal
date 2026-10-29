@@ -243,6 +243,14 @@ Menüde **Rakipler** bölümü: **Fiyat kıyası** ve **Rakip listesi**.
 - API okunamazsa hata Kaynaklar'da ve Kayıtlar'da görünür.
 - **Denenmedi:** gerçek sağlayıcı API'siyle. Test sahte cevapla yapıldı. Standart `action=services` biçimi kullanılır.
 
+## Canlı kur (opsiyonel)
+
+Ayarlar → Kanal okuma → **Kurlar** kartı. Açarsan RUB/TRY/AZN/EUR kurları günde bir kez açık bir servisten (open.er-api.com, anahtar gerekmez) otomatik çekilir. Kapalıysa ya da çekilen kur 48 saatten eskiyse, yine Kanal okuma sekmesindeki **manuel kurlar** kullanılır — yani otomatik her zaman bir yedeğe düşer, fiyat çevirisi sessizce durmaz. "Şimdi çek" ile cron'u beklemeden denenir. **Denenmedi:** bu ortamdan dış servise erişilemedi (bağlantı denemesi 403 ile reddedildi); gerçek sunucunda deneyip sonucu görmen gerekir.
+
+## Eski servis referansları otomatik temizlenir
+
+Kendi panelinden, bir sağlayıcıdan ya da rakipten bir servisi kaldırırsan (sync sırasında listeden düşünce), ona değinen kayıtlar günlük temizlikte otomatik silinir: çeviri bankasındaki servis bağlantısı (çevirinin kendisi kalır), rakip kıyası eşleşmesi ve bildirim durumu, kaynağı silinmiş "görülen servis" kaydı. Ayarlar → Veri ve bakım → "Şimdi temizle" ile elle de çalıştırılır.
+
 ## Öğrenme laboratuvarı (Çeviri → Öğrenme)
 
 Bankadaki ad çiftlerinden (sağlayıcı adı ↔ senin adın) çeviri mantığını çıkarır. Her çiftte parçalar (`|`) hizalanır; neyi çevirdiğin, neyi sildiğin, neyi eklediğin sayılır. Tutarlı kararlar (en az 5 çift, %80+; sözlük terimleri için en az 3 çift, %70+) **öneri** olur:

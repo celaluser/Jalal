@@ -1783,6 +1783,93 @@ test('Haftalık özet: pazartesi 09:00 sonrası haftada bir gider', function () 
     eq($n0 + 1, count($tg->calls), 'aynı hafta ikinci kez gitmez');
 });
 
+test('Temizlik: silinen servislere değinen bağlantılar temizlenir, çeviri korunur', function () {
+    [$db] = env();
+    $db->run("INSERT INTO sources(kind, name, api_url, api_key, created_at) VALUES('own', 'Benim', 'https://own.test/api', 'k', ?)", [time()]);
+    $own = (int)$db->pdo->lastInsertId();
+    $db->run("INSERT INTO sources(kind, name, api_url, api_key, created_at) VALUES('provider', 'Say', 'https://say.test/api', 'k', ?)", [time()]);
+    $prov = (int)$db->pdo->lastInsertId();
+    $db->run("INSERT INTO sources(kind, name, api_url, api_key, created_at) VALUES('rival', 'Rak', 'https://rak.test/api', 'k', ?)", [time()]);
+    $riv = (int)$db->pdo->lastInsertId();
+    $db->run('INSERT INTO remote_services(source_id, service_id, name, category, rate, min, max) VALUES(?,?,?,?,?,?,?)', [$own, 1, 'Instagram İzləyici', 'IG', 2.0, 10, 100]);
+    $db->run('INSERT INTO remote_services(source_id, service_id, name, category, rate, min, max) VALUES(?,?,?,?,?,?,?)', [$prov, 9, 'Instagram Followers', 'IG', 1.0, 10, 100]);
+    $db->run("INSERT INTO tm(kind, en_norm, en, az, origin, status, own_service, provider_source, provider_service, updated_at) VALUES('service','instagram followers','Instagram Followers','Instagram İzləyici','import','ok',?,?,?,?)", [1, $prov, 9, time()]);
+    $db->run('INSERT INTO rival_map(own_service, rival_source, rival_service, score, status) VALUES(?,?,?,?,?)', [1, $riv, 5, 0.9, 'auto']);
+    $db->run('INSERT INTO rival_state(own_service, rival_source, flag, rival_rate, my_rate, at) VALUES(?,?,?,?,?,?)', [1, $riv, '', 1.0, 2.0, time()]);
+    $db->run('INSERT INTO api_seen(source_id, service_id, first_seen) VALUES(?,?,?)', [$prov, 9, time()]);
+    // servis 1'i kendi panelinden kaldır (sync eder gibi)
+    $db->run('DELETE FROM remote_services WHERE source_id = ? AND service_id = 1', [$own]);
+    $c = new TgWatch\Cleaner($db, []);
+    $n = $c->staleRefs();
+    ok($n > 0);
+    $tm = $db->one("SELECT * FROM tm WHERE kind = 'service'");
+    eq(null, $tm['own_service'], 'servis bağlantısı boşaldı');
+    eq('Instagram Followers', $tm['en'], 'çevirinin kendisi korunur');
+    eq('Instagram İzləyici', $tm['az']);
+    eq(0, (int)$db->one('SELECT COUNT(*) c FROM rival_map')['c'], 'rakip eşleşmesi silindi');
+    eq(0, (int)$db->one('SELECT COUNT(*) c FROM rival_state')['c']);
+    // sağlayıcı servisini de kaldır: provider_source/service de boşalmalı
+    $db->run('DELETE FROM remote_services WHERE source_id = ? AND service_id = 9', [$prov]);
+    $c->staleRefs();
+    $tm = $db->one("SELECT * FROM tm WHERE kind = 'service'");
+    eq(null, $tm['provider_source']);
+    eq(null, $tm['provider_service']);
+    // kaynağın kendisi silinirse de (remote_services elle silinmemiş gibi) api_seen/remote_services temizlenir
+    $db->run('INSERT INTO api_seen(source_id, service_id, first_seen) VALUES(?,?,?)', [999, 1, time()]);
+    $db->run('INSERT INTO remote_services(source_id, service_id, name) VALUES(?,?,?)', [999, 1, 'hayalet']);
+    $c->staleRefs();
+    eq(0, (int)$db->one('SELECT COUNT(*) c FROM api_seen WHERE source_id = 999')['c']);
+    eq(0, (int)$db->one('SELECT COUNT(*) c FROM remote_services WHERE source_id = 999')['c']);
+});
+
+echo "Kurlar (canlı)\n";
+test('FxRates: çekme, dönüştürme, bayatlama ve manuele düşme', function () {
+    [$db, $tg, $flow] = env();
+    TgWatch\FxRates::$fake = static fn() => json_encode(['result' => 'success', 'rates' => ['RUB' => 100.0, 'TRY' => 40.0, 'AZN' => 1.7, 'EUR' => 0.92, 'XXX' => 5]]);
+    try {
+        $rates = TgWatch\FxRates::fetch();
+        eq(0.01, $rates['RUB']);
+        eq(0.025, $rates['TRY']);
+        ok(!isset($rates['XXX']), 'desteklenmeyen para birimi alınmaz');
+        eq('RUB=0.01, TRY=0.025, AZN=0.588235, EUR=1.086957', TgWatch\FxRates::text($rates));
+
+        // fx_auto kapalı: manuel kurlar kullanılır
+        $cfg = ['fx_rates' => 'RUB=0.02'];
+        eq(['RUB' => 0.02], TgWatch\FxRates::effective($db, $cfg));
+
+        // fx_auto açık, hiç çekilmemiş: manuele düşer, sonra cron bir kez çeker
+        $cfg['fx_auto'] = 1;
+        eq(['RUB' => 0.02], TgWatch\FxRates::effective($db, $cfg), 'ilk seferde henüz çekilmedi, manuele düşer');
+        $r = TgWatch\FxRates::refresh($db, $cfg);
+        ok($r !== null);
+        eq($rates, TgWatch\FxRates::effective($db, $cfg), 'çekilince canlı kur kullanılır');
+        eq(null, TgWatch\FxRates::refresh($db, $cfg), '24 saat dolmadan tekrar çekmez');
+
+        // bayatlarsa (48 saat) manuele döner
+        $db->set('fx_live_at', (string)(time() - 49 * 3600));
+        eq(['RUB' => 0.02], TgWatch\FxRates::effective($db, $cfg), 'bayat kur yerine manuel kullanılır');
+        ok(TgWatch\FxRates::refresh($db, $cfg, true) !== null, 'force ile süre beklemeden çeker');
+
+        // hata: eski kur (varsa) ya da manuele düşülür, hata kaydedilir
+        TgWatch\FxRates::$fake = static fn() => 'not json';
+        $db->set('fx_live_at', '0');
+        eq(null, TgWatch\FxRates::refresh($db, $cfg));
+        ok(TgWatch\FxRates::status($db)['error'] !== '');
+    } finally {
+        TgWatch\FxRates::$fake = null;
+    }
+});
+test('Flow: kanal fiyatı canlı kur açıksa canlı kurla, kapalıysa manuel kurla dolara çevrilir', function () {
+    [$db, $tg, $flow] = env();
+    App::setConfig(['data_dir' => App::config()['data_dir'], 'owner_id' => OWNER, 'bot_token' => App::config()['bot_token'], 'fx_rates' => 'RUB=0.011', 'fx_auto' => 1]);
+    $flow = new Flow($db, $tg, App::config());
+    $db->setJson('fx_live', ['RUB' => 0.02]);
+    $db->set('fx_live_at', (string)time());
+    $id = $flow->createJob('demosmm', 900, "🆔 100 Threads Followers\n-- 10 RUB");
+    $job = $db->job($id);
+    eq('0.2', $job['items'][0]['price'], 'canlı kur (0.02) kullanıldı, manuel (0.011) değil');
+});
+
 // temizlik
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmp, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($it as $f) {

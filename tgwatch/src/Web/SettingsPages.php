@@ -6,6 +6,7 @@ namespace TgWatch\Web;
 use TgWatch\App;
 use TgWatch\Cleaner;
 use TgWatch\Enrich;
+use TgWatch\FxRates;
 use TgWatch\Settings;
 use TgWatch\Telegram;
 
@@ -139,6 +140,22 @@ trait SettingsPages
             . '<p class="muted">Claude anahtarı, model ve aylık limit Çeviri ayarları sayfasında; sağlayıcı API anahtarları Çeviri bankası sayfasındadır.</p>';
     }
 
+    /** Kurlar kartı: otomatik aç/kapat, durum ve "şimdi çek". */
+    private function fxCard(): string
+    {
+        $auto = !empty($this->config['fx_auto']);
+        $st = \TgWatch\FxRates::status($this->db);
+        $h = '<h2 class="first">Kurlar</h2><div class="panel panel-pad stack">'
+            . '<div class="row between"><div><b>Otomatik güncelleme</b>'
+            . '<div class="src">' . ($auto
+                ? ($st['rates'] ? Ui::dot('ok') . ' ' . FxRates::text($st['rates']) . ' · ' . Ui::ago($st['at'] ?: null) : ($st['error'] !== '' ? Ui::dot('bad') . ' ' . Ui::e($st['error']) : 'Henüz çekilmedi, sıradaki cron turunda çekilir.'))
+                : 'Kapalı, manuel kurlar kullanılıyor (aşağıda).') . '</div></div>'
+            . $this->ui->action('fx_toggle', $auto ? 'Kapat' : 'Aç', [], $auto ? 'quiet sm' : 'primary sm', 'refresh') . '</div>'
+            . ($auto ? '<div class="row">' . $this->ui->action('fx_run', 'Şimdi çek', [], 'quiet sm', 'play') . '</div>' : '')
+            . '<p class="muted">Açık bir kur servisinden (open.er-api.com, anahtar gerekmez) günde bir kez RUB, TRY, AZN, EUR çekilir. Çekilemezse ya da 48 saatten eskiyse aşağıdaki manuel kurlara döner. <b>Denenmedi:</b> bu ortamdan dış servise erişilemedi.</p></div>';
+        return $h;
+    }
+
     private function readingTools(): string
     {
         $key = (string)$this->config['cron_key'];
@@ -148,7 +165,7 @@ trait SettingsPages
         $monCard = '<h2>Dış izleme adresi</h2><div class="panel panel-pad stack">' . ($mon !== ''
             ? '<div class="row"><code id="mon-url">' . Ui::e($mon) . '</code>' . Ui::copy('mon-url') . '</div><p class="muted">UptimeRobot gibi ücretsiz bir servise “HTTP(s) monitor” olarak ekle (5 dk aralık). Cron durursa ya da bir kanal 3 saat okunamazsa adres 503 döner ve o servis sana e-posta atar. Telegram bozulsa da haber alırsın.</p>'
             : '<p class="muted">Önce yukarıdan “İzleme anahtarı” için “Yeni rastgele anahtar üret”i işaretleyip kaydet.</p>') . '</div>';
-        return $monCard . '<h2>cron-job.org adresi</h2><div class="panel panel-pad stack">' . ($url !== ''
+        return $this->fxCard() . $monCard . '<h2>cron-job.org adresi</h2><div class="panel panel-pad stack">' . ($url !== ''
             ? '<div class="row"><code id="cron-url2">' . Ui::e($url) . '</code>' . Ui::copy('cron-url2') . '</div><p class="muted">Her dakika çağrılsın. Anahtar içerir, paylaşma.</p>'
             : '<p class="lvl-error">Önce bir cron anahtarı üret.</p>')
             . '<div class="row">' . $this->ui->action('run_cron', 'Kanalları şimdi oku', ['back' => 'settings'], 'quiet', 'refresh') . '</div></div>';
@@ -206,7 +223,8 @@ trait SettingsPages
             . '<div class="row">' . $this->ui->action('backup_send', 'Şimdi yedekle ve gönder', [], 'quiet', 'send') . '</div>'
             . '<p class="muted">Ayarlar yukarıdaki "Otomatik yedek" satırlarından yapılır. Dosya: Ayarlar → Veri ve bakım → "Yedekten geri yükle" ile geri açılır.</p></div>'
             . '<h2>Temizlik</h2><div class="panel panel-pad stack"><p>' . implode(' · ', $counts) . ' · Veritabanı: <b>' . round($dbBytes / 1048576, 2) . ' MB</b></p>'
-            . '<p class="muted">Son temizlik: ' . ($cleaned ? Ui::ago($cleaned) : 'hiç') . '. Yukarıdaki sürelerden eski kayıtlar günde bir kez cron ile silinir.</p>'
+            . '<p class="muted">Son temizlik: ' . ($cleaned ? Ui::ago($cleaned) : 'hiç') . '. Yukarıdaki sürelerden eski kayıtlar günde bir kez cron ile silinir. '
+            . 'Kendi panelinden ya da bir sağlayıcı/rakipten silinen servislerin çeviri bankasındaki bağlantısı, rakip kıyası ve görülen servis kaydı da bu sırada otomatik temizlenir.</p>'
             . '<div class="row">' . $this->ui->action('clean_now', 'Şimdi temizle', [], 'quiet', 'trash', 'Süresi geçen kayıtlar ve (süre verildiyse) eski işler silinsin mi?')
             . $this->ui->action('vacuum', 'Veritabanını sıkıştır', [], 'quiet', 'refresh') . '</div></div>';
         $h .= '<h2>Dışa aktar</h2><div class="panel panel-pad row">' . Ui::link('?p=export', 'Tüm servisleri CSV indir', 'quiet', 'download')
@@ -377,8 +395,28 @@ trait SettingsPages
                 return true;
             case 'clean_now':
                 $r = (new Cleaner($this->db, $this->config))->run();
-                $this->say('ok', "Temizlendi: {$r['logs']} kayıt, {$r['jobs']} iş, {$r['notices']} bildirim.");
+                $this->say('ok', "Temizlendi: {$r['logs']} kayıt, {$r['jobs']} iş, {$r['notices']} bildirim, {$r['stale']} eski servis referansı.");
                 $this->redirect('settings', ['tab' => 'data']);
+                return true;
+            case 'fx_toggle':
+                $cur = !empty($this->config['fx_auto']);
+                $o = Settings::stored($this->db);
+                if ($cur) {
+                    unset($o['fx_auto']);
+                } else {
+                    $o['fx_auto'] = '1';
+                    $this->db->set('fx_live_at', '0'); // aç: sıradaki cron'da hemen çeksin
+                }
+                $this->db->setJson('cfg_overrides', $o);
+                App::reloadOverrides();
+                $this->say('ok', $cur ? 'Otomatik kur güncelleme kapatıldı, manuel kurlara dönüldü.' : 'Otomatik kur güncelleme açıldı, sıradaki cron turunda çekilir.');
+                $this->redirect('settings', ['tab' => 'reading']);
+                return true;
+            case 'fx_run':
+                $r = FxRates::refresh($this->db, array_merge($this->config, ['fx_auto' => 1]), true);
+                $err = (string)$this->db->get('fx_live_error', '');
+                $this->say($r ? 'ok' : ($err !== '' ? 'bad' : 'ok'), $r ? ('Kurlar çekildi: ' . FxRates::text($r)) : ($err !== '' ? ('Çekilemedi: ' . $err) : 'Önce otomatik güncellemeyi aç.'));
+                $this->redirect('settings', ['tab' => 'reading']);
                 return true;
             case 'vacuum':
                 try {

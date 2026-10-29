@@ -88,6 +88,11 @@ final class CronRunner
                 }
             }
             if (!$test) {
+                if ($r = FxRates::refresh($db, $this->config)) {
+                    $say('Kurlar güncellendi: ' . FxRates::text($r));
+                }
+            }
+            if (!$test) {
                 foreach ((new ApiWatch($db, $flow, $this->config))->run($deadline) as $r) {
                     if (!$r['ok']) {
                         $errors++;
