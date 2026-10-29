@@ -21,6 +21,22 @@ trait BankPages
 
     // ---------------------------------------------------------------- Çeviri bankası
 
+    /** İzlenen sağlayıcıda şimdiye kadar görülen servis ID'leri (yedek ve kontrol için .txt). */
+    private function seenTxt(int $id): void
+    {
+        $src = $this->db->one("SELECT * FROM sources WHERE id = ? AND kind = 'provider'", [$id]);
+        if (!$src) {
+            $this->redirect('bank');
+            return;
+        }
+        header('Content-Type: text/plain; charset=utf-8');
+        header('Content-Disposition: attachment; filename="gorulen-servisler-' . preg_replace('/[^A-Za-z0-9_-]/', '', (string)$src['name']) . '-' . date('Y-m-d') . '.txt"');
+        echo "# {$src['name']}: şimdiye kadar görülen servis ID'leri (ID <TAB> ilk görülme <TAB> ad)\n";
+        foreach ($this->db->all('SELECT a.service_id, a.first_seen, r.name FROM api_seen a LEFT JOIN remote_services r ON r.source_id = a.source_id AND r.service_id = a.service_id WHERE a.source_id = ? ORDER BY a.service_id', [$id]) as $r) {
+            echo $r['service_id'] . "\t" . date('Y-m-d H:i', (int)$r['first_seen']) . "\t" . str_replace(["\t", "\r", "\n"], ' ', (string)($r['name'] ?? '')) . "\n";
+        }
+    }
+
     private function bank(): void
     {
         $mem = new Memory($this->db);
@@ -47,6 +63,7 @@ trait BankPages
                     . '<td class="num tight">' . (int)$s['services'] . '</td><td class="tight">' . Ui::ago($s['last_sync_at'] ? (int)$s['last_sync_at'] : null) . '</td>'
                     . '<td>' . ($s['kind'] === 'provider'
                         ? $this->ui->action('source_watch', (int)$s['watch'] ? 'Açık: kapat' : 'Kapalı: aç', ['id' => $s['id']], (int)$s['watch'] ? 'primary sm' : 'quiet sm', 'bell')
+                            . ((int)$s['watch'] ? '<div class="src">' . (int)($this->db->one('SELECT COUNT(*) c FROM api_seen WHERE source_id = ?', [$s['id']])['c'] ?? 0) . ' ID kayıtlı · <a href="?p=seen_txt&amp;id=' . (int)$s['id'] . '">.txt indir</a></div>' : '')
                             . ((int)$s['watch'] && (string)$s['watch_note'] !== '' ? '<div class="src">' . Ui::e((string)$s['watch_note']) . ($s['watch_at'] ? ' · ' . Ui::ago((int)$s['watch_at']) : '') . '</div>' : '')
                         : '<span class="muted">—</span>') . '</td>'
                     . '<td class="tight"><div class="row">' . $this->ui->action('source_sync', 'Senkronize et', ['id' => $s['id']], 'quiet sm', 'refresh')
