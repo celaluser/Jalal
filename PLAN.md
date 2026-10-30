@@ -140,3 +140,19 @@ Rapor: `reports/poptin-karsilastirma.md` (72 eksik madde, 5 faza bölündü).
 - Düzeltme: blog, galeri ve fiyat sayfası `noindex` başlığıyla gidiyordu ve analitik CSP'ye takılıyordu; artık indekslenebilir.
 - Doğrulama: yeni senaryo `sitepages.php` 35/35; 39 senaryonun hepsi geçti (1271 denetim, sqlite), sitepages/showcase/seo MariaDB'de geçti; tüm lint'ler + budget + version + sdk/builder/admin/site testleri geçti; Spotlight için contrast/long-text/mobile-nav geçti; temiz zip'ten kurulum, yeni 13 adres 200; YARA 0. `tools/test-fresh-install.sh` artık Laravel router'ı ile çalışıyor (eskiden /robots.txt rotasına ulaşamıyordu).
 - Sırada: Faz 3 (editör, form, tetikleyici, hedefleme, kupon), Faz 4 (Kişiler + E-posta), Faz 5 (ajans, entegrasyonlar, taşıma).
+
+### Güncelleme (Faz 3 tamam, 30 Ekim) — PulsePop 3.30.0
+
+- Faz 3 — Tetikleyici, hedefleme, kupon, form, editör (TAMAM, 3.30.0):
+  - Tetikleyiciler: Autopilot (çıkış niyeti / %70 kaydırma / 45 sn — hangisi önce), tıklama sayısı, sayfa sayısı (derleyicide `session_pages` kuralına çevrilir), sepete ekleme (Shopify/Woo/Magento/PrestaShop/OpenCart butonları, tıklamayı engellemeden).
+  - Hedefleme: sayfa başlığı, sayfada metin, sayfada öğe (CSS seçici), başka kampanyayı görmüş/kapatmış/dönüşmüş.
+  - Kampanya sınırları (sunucuda): toplam gösterim / kayıt sınırı, IP ve CIDR hariç tutma. IP listesi tarayıcıya gitmez, yanıt `private` olur.
+  - Kuponlar: panelde oluşturma/düzenleme/silme, CSV ile kod yükleme, bitiş tarihi, dağıtılan kodları CSV indirme, "kullanılan" ve gelir sütunları (siparişlerden). Kod siparişte kullanılınca artık işaretleniyor (önceden hiç işaretlenmiyordu). Kişiler sayfasında kupon segmenti (almış / kullanmış / almış ama kullanmamış). Shopify'da gerçek indirim kodu oluşturma zaten vardı.
+  - Formlar: uluslararası telefon alanı (yeni `x/fields.js` parçası, 1,9 KB), canlı e-posta kontrolü (yazım önerisi + MX), 4 Evet/Hayır şablonu (toplam 171 şablon).
+  - Editör: marka kiti (logo, 4 renk, gövde ve başlık yazı tipi; tek tıkla uygula), 28 Google Fonts ailesi müşterinin kendi sunucusundan sunuluyor (GDPR), kayıtlı bloklar ("Blok olarak kaydet" → "Bloklarım").
+  - Çekirdek SDK: çark, paylaşım ve öneri istekleri kendi parçalarına taşındı; derleme ayarı `wrap_func_args:false` sabitlendi. Çekirdek 3.29.0'dan 484 bayt küçük (gzip 15 890 bayt; "16 KB" iddiası korunuyor).
+- Doğrulama:
+  - Yeni senaryo `phase3.php` 36/36. 40 senaryonun hepsi geçti (1307 kontrol, sqlite). phase3, sitepages, showcase ve seo MariaDB'de de geçti.
+  - Tüm lint'ler, budget, version, claims, contrast/long-text/mobile-nav geçti. sdk/builder/admin/site testleri geçti (yeni SDK testleri: tıklama sayısı, sepete ekleme, başlık/öğe/metin kuralları, kampanya etkileşimi, telefon alanı). 171 şablon tarayıcıda temiz.
+  - Temiz zip'ten kurulum çalıştı; YARA 0.
+- Sırada: Faz 4 (Kişiler/Audience + E-posta pazarlama), Faz 5 (ajans alt hesapları, entegrasyonlar, taşıma).
