@@ -156,3 +156,18 @@ Rapor: `reports/poptin-karsilastirma.md` (72 eksik madde, 5 faza bölündü).
   - Tüm lint'ler, budget, version, claims, contrast/long-text/mobile-nav geçti. sdk/builder/admin/site testleri geçti (yeni SDK testleri: tıklama sayısı, sepete ekleme, başlık/öğe/metin kuralları, kampanya etkileşimi, telefon alanı). 171 şablon tarayıcıda temiz.
   - Temiz zip'ten kurulum çalıştı; YARA 0.
 - Sırada: Faz 4 (Kişiler/Audience + E-posta pazarlama), Faz 5 (ajans alt hesapları, entegrasyonlar, taşıma).
+
+- Faz 4 — Kişiler (Audience) + E-posta pazarlama + dinamik sayılar (TAMAM, 3.31.0):
+  - Dinamik sayılar: sitedeki tüm sayılar (şablon, tetikleyici, hedefleme kuralı, operatör, blok, oyun, dil, entegrasyon, runtime KB) koddan okunuyor. Açık sayfalarda `data-live` ile her istekte, statik sayfalarda derlemede; panel de aynı kaynaktan (`facts`). Eski "12 triggers" / "37 rule subjects" yazıları düzeldi. `lint-claims` artık README ve dokümantasyonu da denetliyor.
+  - Kişiler: e-posta başına tek kişi (tüm form ve siteler), etiketler, özel alanlar, zaman çizelgesi (kayıt + UTM, kupon, sipariş, e-posta açma/tıklama), toplu işlem, CSV içe/dışa aktarma, GDPR silme. Mevcut lead'ler migrate'te kişiye dönüşüyor.
+  - Segmentler: AND grupları / OR, 20+ konu (etiket, alanlar, sipariş, gelir, kupon, e-posta açma/tıklama, ziyaret edilen sayfa...), canlı sayım, 8 hazır segment.
+  - E-posta kampanyaları: blok editör (8 blok tipi) + canlı önizleme, 21 şablon, segment + hariç segment, zamanlama, A/B konu testi (kazanan kalan listeye), rapor. `email_flows` özelliği ve aylık e-posta kotasıyla.
+  - Otomasyon: akış kayıtta veya etiket eklenince başlıyor; adımlar e-posta / etiket / push; her adıma segment kurallarıyla koşul; 4 hazır akış.
+  - Tercih merkezi (`/pp/prefs/{id}/{token}`): konu seçimi, abonelikten çıkma + neden; tek tıkla List-Unsubscribe başlığı.
+  - Teslim edilebilirlik: SPF/DKIM/DMARC/MX kontrolü + önerilen DMARC kaydı, konular, e-posta logu.
+  - Panel düzeltmesi: bir sayfadan açılan diyalog artık sayfa değişince kapanıyor (önceden bir sonraki sayfanın üstünde kalıyordu).
+- Doğrulama:
+  - Yeni senaryo `audience.php` 54/54. 41 senaryonun hepsi geçti (1373 kontrol, sqlite). audience, phase3, sitepages, seo ve emailflows MariaDB'de de geçti.
+  - Tüm lint'ler (api, security, columns, wiring, i18n, translations, claims, version, budget...), sdk/builder/admin/site testleri, contrast/long-text/mobile-nav ve 171 şablon geçti. Nebula temasındaki "16 KB" kontrastı düzeltildi.
+  - 373 yeni metin Türkçeye çevrildi. Temiz zip'ten kurulum çalıştı; YARA 0.
+- Sırada: Faz 5 (ajans alt hesapları, entegrasyonlar, taşıma).
