@@ -171,3 +171,15 @@ Rapor: `reports/poptin-karsilastirma.md` (72 eksik madde, 5 faza bölündü).
   - Tüm lint'ler (api, security, columns, wiring, i18n, translations, claims, version, budget...), sdk/builder/admin/site testleri, contrast/long-text/mobile-nav ve 171 şablon geçti. Nebula temasındaki "16 KB" kontrastı düzeltildi.
   - 373 yeni metin Türkçeye çevrildi. Temiz zip'ten kurulum çalıştı; YARA 0.
 - Sırada: Faz 5 (ajans alt hesapları, entegrasyonlar, taşıma).
+
+- Faz 5 — Ajans, entegrasyonlar, taşıma (TAMAM, 3.32.0):
+  - Ajans müşteri hesapları: her müşteri için ayrı hesap (`organizations.parent_id`); üst çubukta hesap değiştirici, "müşteri hesabındasınız" çubuğu, geçişte eski panel token'ı silinir. Ajans üyesi kendi rolüyle çalışır; müşterinin kendi kullanıcıları yalnızca kendi hesabını görür. Hesap başına saat dilimi ve tarih biçimi. Duraklatma, isim yazarak kapatma, müşteriler genelinde rapor + CSV. Plan özelliği `agency` + `sub_accounts` limiti; müşteri hesabı ajansın planını kullanır, içinde satın alma/kod/fatura profili engelli. Tek site kurulumunda da çalışır. Token her istekte "bu müşteri hâlâ bu ajansın mı" diye kontrol edilir.
+  - 12 yeni entegrasyon: Pipedrive, Zoho CRM, Freshsales, Kit, AWeber, Moosend, Mailjet, SendGrid, SendPulse, Customer.io, Sendlane, Slack (toplam 28). OAuth token'ları kendiliğinden yenilenir. Meta/TikTok pixel'e kayıt olayları (SDK 15,6 KB, "16 KB" iddiası korunuyor).
+  - Taşıma: kampanyaları JSON olarak dışa/içe aktarma (taslak olarak; kupon havuzları taşınmaz), ajans için "müşteriye kopyala". Açık sitede `/migrate` sayfası, 9 yeni platform rehberi.
+  - Entegrasyon sayısı artık katalogdan (paneldeki liste) sayılıyor; README'deki eski "14" düzeldi ve lint-claims bunu da denetliyor.
+- Düzeltme: 3.31.0 paketine MariaDB test betiği yanlış argümanla çalıştırıldığı için `tests/Scenarios/bootstrap.php` ve `isolation.php` MariaDB'ye göre değiştirilmiş hâlde girmişti. 3.31.0 zip'i düzeltilip yeniden gönderildi, betik artık kopyalayamazsa duruyor.
+- Doğrulama:
+  - Yeni senaryolar: agency 42/42, integrations32 32/32, transfer 17/17. 44 senaryonun hepsi geçti (1467 kontrol, sqlite). agency, transfer, integrations32, audience, sitepages, saas MariaDB'de de geçti.
+  - Tüm lint'ler, sdk/builder/admin/site testleri (yeni pixel testleri dahil), contrast/long-text/mobile-nav, 171 şablon geçti. Telefonda yatay taşma: hesap değiştirici telefonda gizlendi (Client accounts sayfasından açılıyor).
+  - 138 yeni metin Türkçeye çevrildi. Temiz zip'ten kurulum çalıştı; YARA 0.
+- Beş fazın hepsi tamam. Sonraki adım önerisi: diğer 15 dilin yeni metinleri (şu an İngilizce gösteriliyor) ve gerçek sağlayıcı hesaplarıyla canlı entegrasyon denemesi.
