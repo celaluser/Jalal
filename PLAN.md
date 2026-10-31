@@ -183,3 +183,14 @@ Rapor: `reports/poptin-karsilastirma.md` (72 eksik madde, 5 faza bölündü).
   - Tüm lint'ler, sdk/builder/admin/site testleri (yeni pixel testleri dahil), contrast/long-text/mobile-nav, 171 şablon geçti. Telefonda yatay taşma: hesap değiştirici telefonda gizlendi (Client accounts sayfasından açılıyor).
   - 138 yeni metin Türkçeye çevrildi. Temiz zip'ten kurulum çalıştı; YARA 0.
 - Beş fazın hepsi tamam. Sonraki adım önerisi: diğer 15 dilin yeni metinleri (şu an İngilizce gösteriliyor) ve gerçek sağlayıcı hesaplarıyla canlı entegrasyon denemesi.
+
+- 3.32.1 — Diğer diller + çeviri hataları (TAMAM):
+  - 3.28–3.32'de eklenen 1326 metin kalan 14 dile çevrildi (ar, az, bn, de, es, fr, hi, id, it, pt_BR, ru, ur, vi, zh_CN). Her satırda yer tutucular (`:name`, `{code}`, `**`) ve sondaki boşluklar otomatik denetlendi. Çeviriler ana dili konuşan biri tarafından gözden geçirilmedi (CHANGELOG ve docs/LANGUAGES.md'de belirtildi).
+  - Bulunan ve düzeltilen eski hatalar:
+    - Arapça/Urduca açık sayfalarda (`/pricing`, `/migrate`, galeri, özellikler, karşılaştırma, blog…) `dir="rtl"` yoktu; eklendi.
+    - Fiyat kartlarındaki limitler ("5 sites", "Unlimited popups"…) çeviri dosyalarına hiç girmemişti, Türkçe dahil her dilde İngilizce kalıyordu. Artık tam cümle olarak çevrilebilir.
+    - Plan özellik kataloğundaki 58 ad/açıklama da hiç çıkarılmamıştı; çıkarıcı artık katalogu okuyor ve 15 dile çevrildi.
+    - Fiyat sayfasındaki özellik listesi dilden bağımsız önbellekleniyordu (ilk gelen dil herkese gösteriliyordu); artık dil başına.
+    - "Free" fiyatı Türkçe/Azerice "Boşalt", Almanca "Freigeben", Rusça "Освободить" çıkıyordu; düzeltildi.
+  - Panel demo'sundaki Diller ekranı gerçek sayıları gösteriyor (hepsi %100) + satın alanın eklediği yarım bir dil örneği.
+- Doğrulama: 44 senaryo / 1467 kontrol / 0 hata (sqlite). Tüm lint'ler, sdk/builder/admin/site testleri, contrast/long-text/mobile-nav/readability geçti. de/ru/ar/ur/vi/hi açık sayfalarda telefonda yatay taşma yok. YARA 0; temiz zip'ten kurulum çalıştı.
