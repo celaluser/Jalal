@@ -107,6 +107,27 @@ if (flock($fp, LOCK_EX)) {
             $pe['act'][$sv] = ((int) ($pe['act'][$sv] ?? 0)) + 1;
         }
     }
+    // içerik sürümü (kategori/başlık) bazında: otomatik popup'ta kategori değiştikçe ayrı sayılır
+    $vk = $vr !== '' ? $vr : 'bilinmiyor';
+    if (!isset($pe['v']) || !is_array($pe['v'])) $pe['v'] = [];
+    if (isset($pe['v'][$vk]) || count($pe['v']) < 60) {
+        if (!isset($pe['v'][$vk]) || !is_array($pe['v'][$vk])) $pe['v'][$vk] = ['view' => 0, 'click' => 0];
+        $ve =& $pe['v'][$vk];
+        if ($ev === 'view' || $ev === 'click') $ve[$ev] = ((int) ($ve[$ev] ?? 0)) + 1;
+        if ($ev === 'view' && $uq) $ve['uniq'] = ((int) ($ve['uniq'] ?? 0)) + 1;
+        if ($ev === 'close') {
+            $ve['close'] = ((int) ($ve['close'] ?? 0)) + 1;
+            if ($ms !== null) {
+                $ve['msSum'] = ((int) ($ve['msSum'] ?? 0)) + $ms;
+                if ($ms < 3000) $ve['quick'] = ((int) ($ve['quick'] ?? 0)) + 1;
+            }
+        }
+        if ($ev === 'click' && $sv !== '' && !in_array($sv, ['coupon', 'spin', 'scratch', 'claim'], true)) {
+            if (!isset($ve['svc']) || !is_array($ve['svc'])) $ve['svc'] = [];
+            $ve['svc'][$sv] = ((int) ($ve['svc'][$sv] ?? 0)) + 1;
+        }
+        unset($ve);
+    }
     unset($pe);
 
     /* --- kırılımlar (view/click sayılır) --- */

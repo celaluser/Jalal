@@ -244,3 +244,55 @@ function st_action_name(string $k): string {
     $m = ['spin' => 'Çark çevrildi', 'scratch' => 'Kart kazındı', 'claim' => 'Kupon alındı', 'coupon' => 'Kupon kopyalandı'];
     return $m[$k] ?? $k;
 }
+
+
+/**
+ * Bir popup'ın içerik sürümleri (otomatik popup'ta kategori değiştikçe ayrı) — kategori/başlık bazında gruplanır.
+ * Yeni kayıtlar popup altında (p[pid].v) tutulur; eski günler için genel v kaydı + versions.json eşlemesi kullanılır.
+ * @return array ['groups'=>[label=>[...]], 'days'=>[day=>[[label,view,click],...]], 'current'=>label]
+ */
+function st_popup_versions(array $stats, array $vhist, string $from, string $to, string $pid): array {
+    $label = function (string $vid) use ($vhist): string {
+        $m = $vhist[$vid] ?? null;
+        if (!$m) return $vid === 'bilinmiyor' ? 'Sürüm bilgisi olmayan' : 'Eski sürüm';
+        $t = trim((string) ($m['category'] ?? '')) !== '' ? (string) $m['category'] : (string) ($m['title'] ?? $vid);
+        return $t !== '' ? $t : $vid;
+    };
+    $groups = []; $days = [];
+    $add = function (string $day, string $vid, array $v) use (&$groups, &$days, $label) {
+        $lb = $label($vid);
+        if (!isset($groups[$lb])) {
+            $groups[$lb] = ['view' => 0, 'click' => 0, 'uniq' => 0, 'close' => 0, 'quick' => 0, 'msSum' => 0, 'svc' => [],
+                            'first' => $day, 'last' => $day, 'days' => [], 'vids' => []];
+        }
+        $g =& $groups[$lb];
+        foreach (['view', 'click', 'uniq', 'close', 'quick', 'msSum'] as $k) $g[$k] += (int) ($v[$k] ?? 0);
+        foreach ((array) ($v['svc'] ?? []) as $sid => $n) $g['svc'][$sid] = ((int) ($g['svc'][$sid] ?? 0)) + (int) $n;
+        if ($day < $g['first']) $g['first'] = $day;
+        if ($day > $g['last'])  $g['last']  = $day;
+        $g['days'][$day] = true; $g['vids'][$vid] = true;
+        unset($g);
+        $days[$day][$lb]['view']  = ($days[$day][$lb]['view']  ?? 0) + (int) ($v['view']  ?? 0);
+        $days[$day][$lb]['click'] = ($days[$day][$lb]['click'] ?? 0) + (int) ($v['click'] ?? 0);
+    };
+    foreach ($stats as $day => $row) {
+        if ($day < $from || $day > $to) continue;
+        $nested = $row['p'][$pid]['v'] ?? null;
+        if (is_array($nested) && $nested) {                       // yeni kayıt: doğrudan bu popup'a ait
+            foreach ($nested as $vid => $v) { if (is_array($v)) $add($day, (string) $vid, $v); }
+        } elseif (isset($row['p'][$pid]) && is_array($row['v'] ?? null)) {   // eski kayıt: genel v + sürüm eşlemesi
+            foreach ($row['v'] as $vid => $v) {
+                if (is_array($v) && (($vhist[$vid]['pid'] ?? '') === $pid)) $add($day, (string) $vid, $v);
+            }
+        }
+    }
+    foreach ($groups as $k => $g) { $groups[$k]['dayCount'] = count($g['days']); unset($groups[$k]['days']); $groups[$k]['versions'] = count($g['vids']); unset($groups[$k]['vids']); }
+    uasort($groups, function ($a, $b) { return $b['last'] === $a['last'] ? strcmp($b['first'], $a['first']) : strcmp($b['last'], $a['last']); });
+    krsort($days);
+    // şu an yayındaki içerik: bu popup'ın sürümleri arasında versions.json'da en son güncellenen
+    $cur = ''; $best = 0;
+    foreach ($vhist as $vid => $m) {
+        if (($m['pid'] ?? '') === $pid && (int) ($m['last'] ?? 0) >= $best) { $best = (int) ($m['last'] ?? 0); $cur = $label((string) $vid); }
+    }
+    return ['groups' => $groups, 'days' => $days, 'current' => $cur];
+}

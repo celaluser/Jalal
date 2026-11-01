@@ -47,6 +47,48 @@ function pstats_html(array $stats, array $vhist, array $names, string $pid, stri
       </div>
     </div>
 
+    <?php $ver = st_popup_versions($stats, $vhist, $from, $to, $pid);
+          if ($ver['groups']): ?>
+    <div class="card" style="margin-top:14px">
+      <h2>İçerik bazında (hangi kategori / başlık)</h2>
+      <p class="hint">Otomatik popup'ta servisler yenilenip kategori değiştikçe her içerik <b>ayrı</b> hesaplanır; yukarıdaki toplamlar hepsinin toplamıdır.</p>
+      <div class="body">
+        <?php foreach ($ver['groups'] as $lb => $g): $isNow = ($lb === $ver['current']); ?>
+          <details class="ver"<?= $isNow ? ' open' : '' ?>>
+            <summary>
+              <span class="ver-name"><?= h($lb) ?>
+                <?php if ($isNow): ?><em class="tag">şu an yayında</em><?php endif; ?>
+                <small><?= h(date('d.m.Y', strtotime($g['first']))) ?><?= $g['first'] !== $g['last'] ? ' — ' . h(date('d.m.Y', strtotime($g['last']))) : '' ?> · <?= (int) $g['dayCount'] ?> gün<?= $g['versions'] > 1 ? ' · ' . (int) $g['versions'] . ' fiyat/servis sürümü' : '' ?></small>
+              </span>
+              <span class="ver-num"><b><?= number_format($g['view'], 0, ',', '.') ?></b><small>gösterim</small></span>
+              <span class="ver-num"><b><?= number_format($g['click'], 0, ',', '.') ?></b><small>tıklama</small></span>
+              <span class="ver-num"><b>%<?= st_ctr($g['view'], $g['click']) ?></b><small>oran</small></span>
+            </summary>
+            <div class="ver-body">
+              <p class="hint" style="margin:0 0 8px">
+                <?= $g['close'] ? 'Ort. açık kalma: <b>' . round($g['msSum'] / $g['close'] / 1000, 1) . 'sn</b> · %' . round($g['quick'] / $g['close'] * 100, 1) . ' hemen kapattı' : 'Açık kalma süresi bu içerik için henüz ölçülmedi.' ?>
+                <?= $g['uniq'] ? ' · Tekil: <b>' . (int) $g['uniq'] . '</b>' : '' ?>
+              </p>
+              <?php if ($g['svc']): arsort($g['svc']); ?>
+                <div class="tbl-wrap"><table><tr><th>ID</th><th>Servis</th><th class="num">Tıklama</th></tr>
+                  <?php foreach (array_slice($g['svc'], 0, 10, true) as $sid => $n): $sn = st_service_name($vhist, (string) $sid); ?>
+                    <tr><td><?= h($sid) ?></td><td><?= $sn ? h($sn) : '<span class="dim">—</span>' ?></td><td class="num"><b><?= (int) $n ?></b></td></tr>
+                  <?php endforeach; ?></table></div>
+              <?php endif; ?>
+            </div>
+          </details>
+        <?php endforeach; ?>
+        <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600">Gün gün hangi içerik gösterildi</summary>
+          <div class="tbl-wrap" style="margin-top:8px"><table><tr><th>Tarih</th><th>İçerik</th><th class="num">Gösterim</th><th class="num">Tıklama</th></tr>
+            <?php foreach (array_slice($ver['days'], 0, 60, true) as $dy => $lst): foreach ($lst as $lb => $x): ?>
+              <tr><td><?= h(date('d.m.Y', strtotime($dy))) ?></td><td><?= h($lb) ?></td><td class="num"><b><?= (int) $x['view'] ?></b></td><td class="num"><?= (int) $x['click'] ?></td></tr>
+            <?php endforeach; endforeach; ?>
+          </table></div>
+        </details>
+      </div>
+    </div>
+    <?php endif; ?>
+
     <?php if (!$d['hasDetail'] && $d['view'] > 0): ?>
       <p class="hint" style="margin:10px 4px 0">Cihaz, kaynak ve sayfa ayrıntısı bu güncellemeden sonraki gösterimler için toplanır; eski kayıtlarda yalnızca günlük toplam vardır.</p>
     <?php endif; ?>

@@ -177,3 +177,13 @@ butonları vardır. Durdurunca popup listeden çıkar. Ana şalter ya da acil du
 Popuplar sekmesinde her popup'ın yanındaki **Arşivle** butonu popup'ı yayından kaldırır ve **Arşiv** bölümüne taşır.
 Arşivdeki popuplar Popuplar, Aktif popuplar ve Katman sırası listelerinde görünmez, sitede gösterilmez; istatistiği
 yine açılabilir. Arşiv bölümünden **Geri al ve yayınla**, **Geri al (kapalı)** ya da kalıcı **Sil** yapılır.
+
+---
+
+## Otomatik popup: kategoriye göre istatistik
+
+Otomatik popup sürekli açık kalıp servisler yenilendikçe kategori değiştiği için (Instagram → TikTok…), popup'ın
+istatistik penceresindeki **"İçerik bazında"** bölümü her kategoriyi/başlığı **ayrı** gösterir: dönemi, gösterim,
+tıklama, oran, açık kalma süresi ve tıklanan servisler. "Gün gün hangi içerik gösterildi" tablosu da vardır.
+Bu güncellemeden sonraki kayıtlar doğrudan popup altında tutulur; eski kayıtlar `versions.json` eşlemesiyle
+(son 300 sürüm) hesaplanır.
