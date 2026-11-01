@@ -315,6 +315,8 @@ body.mdl-open{overflow:hidden}
 #livepv{display:block;width:100%;height:300px;border:0;transition:width .2s}
 .grp{margin:16px 0 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
 .colr{display:flex;gap:8px;align-items:center}.colr input[type=color]{width:42px;height:36px;padding:2px;border-radius:8px;flex:none;cursor:pointer}.colr input[type=text]{flex:1;min-width:0}
+.more .mh{margin:16px 0 6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.more table{font-size:13px}
 </style>
 
 <style>
