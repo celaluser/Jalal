@@ -203,3 +203,14 @@ Rapor: `reports/poptin-karsilastirma.md` (72 eksik madde, 5 faza bölündü).
   - 89 yeni metin 15 dile çevrildi.
 - Doğrulama: 47 senaryo / 1538 kontrol / 0 hata (sqlite); visitors, storedata, integrations33, sitelive MariaDB'de de geçti. Tüm lint'ler, 12 tarayıcı testi (yeni: mağaza müşteri verisi → hedefleme) geçti. YARA 0, temiz kurulum çalıştı.
 - Orijinal 26 maddelik planın durumu: 23 tam, 3 yarım (ekran görüntüsü üstüne bindirme, e-posta şablonu 21/30+, sürükle-bırak otomasyon tuvali).
+
+- Faz 7 — Yarım kalanlar + plan dışı + hatalar (TAMAM, 3.34.0):
+  - Yarım kalan 3 madde bitti:
+    - Görsel otomasyon tuvali: E-posta akışlarında "Harita" görünümü (başlangıç/son düğümleri, bekleme süreleri bağlantılarda, koşullu adım "Eğer" dalı, sürükle-bırak sıralama, bağlantıdaki + ile adım ekleme).
+    - "Kendi sitende gör": şablon sayfasında site adresi yazılınca site çerçevede açılıp popup üstüne biniyor. Adres önce denetleniyor (sunucunun kendi ağı asla, yönlendirmeler tek tek), çerçeve sandbox'lı, frame-src yalnızca o sayfada o adrese açılıyor; çerçevelemeyi reddeden sitelere neden + yer imi.
+    - E-posta şablonları 21 → 40 (SaaS ve bağış kategorileri yeni).
+  - Plan dışı: /help yardım merkezi (bölümler, arama, 8 başlangıç makalesi — yalnızca makale yoksa), /customers müşteri hikâyeleri (hazır hikâye yok, ilk gerçek hikâye yayınlanınca görünür), 11 yeni entegrasyon (toplam 46): EmailOctopus, beehiiv, Sender, Loops, Close, Copper, Insightly, Airtable, Discord, Microsoft Teams, Telegram.
+  - Düzeltilen hatalar: sayılar her dilde İngilizce ayırıcıyla yazılıyordu (artık dile göre); 148 hazır şablon adı çevrilmiyordu; sitemap yardım/hikâye yazılarını /blog/ altında veriyordu; geniş ekranda footer tek dar sütuna sıkışıyordu (tüm açık sayfalar); "kendi sitende gör" sayfasının ilk CSS kuralı düşüyordu ve adres kutusu stilsizdi; paket içindeki documentation/index.html 3.33.0'da güncellenmemişti; sohbet uygulamaları dizinde "imzalı istek" diye anlatılıyordu.
+  - 329 yeni metin 15 dile çevrildi (16 dil %100, 6262 metin). Ana dili konuşan biri tarafından gözden geçirilmedi.
+- Doğrulama: 50 senaryo / 1629 kontrol / 0 hata (sqlite); helpcenter, integrations34, onsite MariaDB'de de geçti. Tüm lint'ler, 12 tarayıcı testi geçti. YARA 0 (7976 dosya). Temiz zip'ten kurulum + migrate/seed; /help, /help/{slug}, /integrations/telegram 200, hikâye yokken /customers 404.
+- Orijinal 26 maddelik plan: 26/26 tam. Bilinen kalan: Almanca gibi uzun dillerde 1440 px'te üst menü iki satıra kayıyor (3.34'te değişmedi); entegrasyonlar gerçek sağlayıcı hesaplarıyla canlı denenmedi; "kendi sitende gör" gerçek dış siteyle denenemedi (ortamda dış ağ kapalı, testler sahte yanıtlarla).
