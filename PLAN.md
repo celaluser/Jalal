@@ -194,3 +194,12 @@ Rapor: `reports/poptin-karsilastirma.md` (72 eksik madde, 5 faza bölündü).
     - "Free" fiyatı Türkçe/Azerice "Boşalt", Almanca "Freigeben", Rusça "Освободить" çıkıyordu; düzeltildi.
   - Panel demo'sundaki Diller ekranı gerçek sayıları gösteriyor (hepsi %100) + satın alanın eklediği yarım bir dil örneği.
 - Doğrulama: 44 senaryo / 1467 kontrol / 0 hata (sqlite). Tüm lint'ler, sdk/builder/admin/site testleri, contrast/long-text/mobile-nav/readability geçti. de/ru/ar/ur/vi/hi açık sayfalarda telefonda yatay taşma yok. YARA 0; temiz zip'ten kurulum çalıştı.
+
+- Faz 6 — Rapordan kalan yarım maddeler (TAMAM, 3.33.0):
+  - Ziyaretçi bazlı plan: yeni limit `visitors` (ayda tekil ziyaretçi, tarayıcı başına ayda bir sayım); dolunca popuplar ayın 1'ine/yükseltmeye kadar durur, hiçbir şey silinmez. Plan & usage, kodlar, fiyat kartları. Fiyat sayfasında "Ayda kaç ziyaretçi?" kaydırıcısı (en ucuz yeten planı işaretler; ziyaretçi limiti yoksa aylık gösterime göre çalışır).
+  - 7 yeni entegrasyon (toplam 35): Keap, Agile CRM, Nutshell, Benchmark Email, Intercom, Crisp, Drift. Dizinde yeni "Canlı sohbet ve destek" grubu.
+  - Fatura/hesap e-postaları sahibe ek olarak 5 adrese daha gidebiliyor. Shopify sipariş webhook'u müşteri etiketlerini Kişiler'e ekliyor.
+  - Düzeltilen eski hatalar: Shopify/WooCommerce'te sipariş sayısı, toplam harcama ve müşteri etiketi hedefleme kuralları hiç veri almıyordu (identify artık besliyor; snippet/eklenti harcama ve etiketleri de gönderiyor). Ziyaretçinin ilk kaynak/UTM/ilk görülme tarihi her ziyarette eziliyordu. Fiyat kartında popup başına limit "ayda" diye yanlış yazıyordu. Plan & usage etiketleri, entegrasyon dizini başlıkları ve entegrasyon alan adları hiç çevrilmiyordu.
+  - 89 yeni metin 15 dile çevrildi.
+- Doğrulama: 47 senaryo / 1538 kontrol / 0 hata (sqlite); visitors, storedata, integrations33, sitelive MariaDB'de de geçti. Tüm lint'ler, 12 tarayıcı testi (yeni: mağaza müşteri verisi → hedefleme) geçti. YARA 0, temiz kurulum çalıştı.
+- Orijinal 26 maddelik planın durumu: 23 tam, 3 yarım (ekran görüntüsü üstüne bindirme, e-posta şablonu 21/30+, sürükle-bırak otomasyon tuvali).
