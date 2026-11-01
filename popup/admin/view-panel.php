@@ -1,4 +1,5 @@
 <?php
+// IGFP-BUILD:10
 if (!defined('IGFP_ADMIN')) { http_response_code(403); exit('Forbidden'); }
 $c   = $cfg;
 $cl  = $cfg['client'];
@@ -249,7 +250,8 @@ $nav = [
     </nav>
     <div class="side-foot">
       <?= $activePopups ?>/<?= $totalPopups ?> popup aktif<br>
-      <?= isset($payload['updated']) ? 'Son veri: ' . date('d.m H:i', $payload['updated']) : 'Veri yok' ?>
+      <?= isset($payload['updated']) ? 'Son veri: ' . date('d.m H:i', $payload['updated']) : 'Veri yok' ?><br>
+      <a href="surum.php" style="color:inherit;opacity:.8">Sürüm <?= defined('IGFP_BUILD') ? (int) IGFP_BUILD : '?' ?> · kontrol</a>
     </div>
   </aside>
 

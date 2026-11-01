@@ -187,3 +187,11 @@ istatistik penceresindeki **"İçerik bazında"** bölümü her kategoriyi/başl
 tıklama, oran, açık kalma süresi ve tıklanan servisler. "Gün gün hangi içerik gösterildi" tablosu da vardır.
 Bu güncellemeden sonraki kayıtlar doğrudan popup altında tutulur; eski kayıtlar `versions.json` eşlemesiyle
 (son 300 sürüm) hesaplanır.
+
+---
+
+## Sürüm kontrolü
+
+`/popup/admin/surum.php` (giriş gerekir) hangi dosyaların güncel, hangilerinin eski ya da eksik olduğunu gösterir ve
+"PHP önbelleğini temizle" butonu içerir. Panelin sol altında da "Sürüm N · kontrol" bağlantısı vardır.
+Panelde "Şimdi güncelle" PHP önbelleğini de temizler.

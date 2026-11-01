@@ -1,4 +1,5 @@
 <?php
+// IGFP-BUILD:10
 define('IGFP_ADMIN', true);
 /**
  * =============================================================
@@ -330,6 +331,7 @@ if ($action === 'newpass') {
 
 /* --- elle güncelle --- */
 if ($action === 'run') {
+    if (function_exists('opcache_reset')) { @opcache_reset(); }   // eski PHP kodu önbellekte kalmasın
     $res = popup_run();
     $runCats = $res['categories'] ?? [];
     $msg = ($res['ok'] ? 'Güncellendi — ' : 'Hata: ') . $res['msg'];

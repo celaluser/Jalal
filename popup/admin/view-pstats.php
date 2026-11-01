@@ -1,4 +1,5 @@
 <?php
+// IGFP-BUILD:10
 if (!defined('IGFP_ADMIN')) { http_response_code(403); exit('Forbidden'); }
 /**
  * Tek popup'ın istatistik bloğu (modal ve İstatistik sekmesi ortak kullanır). HTML döndürür.

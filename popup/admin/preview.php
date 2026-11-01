@@ -1,4 +1,5 @@
 <?php
+// IGFP-BUILD:10
 define('IGFP_ADMIN', true);
 /**
  * Admin panelin sağındaki canlı önizleme çerçevesi.

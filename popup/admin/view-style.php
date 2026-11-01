@@ -1,4 +1,5 @@
 <?php if (!defined('IGFP_ADMIN')) { http_response_code(403); exit('Forbidden'); } ?>
+// IGFP-BUILD:10
 <style>
 :root{
   --bg:#0a0a11; --surface:#13131c; --surface2:#1a1a25; --surface3:#22222f;

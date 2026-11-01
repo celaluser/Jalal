@@ -1,4 +1,5 @@
 <?php
+// IGFP-BUILD:10
 /**
  * Gösterim / tıklama / kapanma sayacı.
  *
