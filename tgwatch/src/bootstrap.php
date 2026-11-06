@@ -26,11 +26,11 @@ final class App
     private static ?Db $db = null;
     private static bool $overlaying = false;
 
-    /** Ayarları yükler. config.php yoksa config.sample.php varsayılanları kullanılır. */
+    /** Ayarları yükler: src/defaults.php (varsayılanlar) + config.php (sunucudaki gizli değerler) + panelden kaydedilenler. */
     public static function config(): array
     {
         if (self::$config === null) {
-            $defaults = require TGWATCH_ROOT . '/config.sample.php';
+            $defaults = require __DIR__ . '/defaults.php';
             $file = TGWATCH_ROOT . '/config.php';
             try {
                 $user = is_file($file) ? require $file : [];
@@ -86,7 +86,7 @@ final class App
     /** Testler için ayarları değiştirir. */
     public static function setConfig(array $config): void
     {
-        $defaults = require TGWATCH_ROOT . '/config.sample.php';
+        $defaults = require __DIR__ . '/defaults.php';
         self::$config = array_merge($defaults, $config);
         self::$config['_has_config_file'] = true;
         self::$db = null;

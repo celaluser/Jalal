@@ -18,7 +18,7 @@ final class Health
         foreach (['curl', 'mbstring', 'dom', 'pdo_sqlite', 'json'] as $ext) {
             $r[] = ["Eklenti: $ext", extension_loaded($ext) ? self::OK : self::FAIL, extension_loaded($ext) ? 'yüklü' : 'YOK — PHP seçicisinden açın'];
         }
-        $r[] = ['config.php', !empty($c['_has_config_file']) ? self::OK : self::FAIL, (!empty($c['_has_config_file']) ? 'okunan dosya: ' : 'yok — config.sample.php dosyasını şu adla kopyalayın: ') . TGWATCH_ROOT . '/config.php'];
+        $r[] = ['config.php', !empty($c['_has_config_file']) ? self::OK : self::FAIL, (!empty($c['_has_config_file']) ? 'okunan dosya: ' : 'yok — şu adla boş bir dosya oluşturup içine <?php return []; yazın: ') . TGWATCH_ROOT . '/config.php'];
         if (!empty($c['_unknown_keys'])) {
             $r[] = ['config.php anahtarları', self::FAIL, 'tanınmayan: ' . implode(', ', $c['_unknown_keys'])
                 . " — değerler sağ tarafa yazılmalı, ör. 'bot_token' => '123:AA...', 'owner_id' => 123"];

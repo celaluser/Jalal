@@ -27,7 +27,7 @@ Onaydan sonra yayın yapar. Her şeyi web panelden izleyebilirsin.
 ```
 tgwatch/                 → zip'i İSTEDİĞİN klasöre aç (public_html içi ya da dışı)
   public/                → web panel (index.php) ve Telegram webhook (bot.php)
-  config.sample.php      → config.php olarak kopyala ve doldur
+  config.php             → sunucuya özel gizli değerler (şifre, bot token); varsayılanlar src/defaults.php'de
   cron.php               → komut satırı cron'u (SSH varsa)
   public/webcron.php     → web cron ucu (cron-job.org)
   src/ tools/ tests/     → kod ve araçlar (web'den erişilemez)
@@ -58,14 +58,17 @@ BotFather → `/newbot` → token'ı al.
    `curl`, `mbstring`, `dom`, `pdo_sqlite` eklentilerini aç.
 
 ### 3. config.php ve panel şifresi
-1. `config.sample.php` dosyasını aynı klasörde **Copy** ile `config.php` adıyla kopyala, izinlerini **600** (ya da 640) yap.
-2. Tarayıcıda paneli aç (`…/tgwatch/public/`). Şifre henüz ayarlı olmadığı için **Kurulum** ekranı gelir:
-   şifreyi iki kez yaz → `admin_password_hash`, `webhook_secret`, `webhook_url` ve `cron_key` satırları üretilir.
-   Bu satırları File Manager → `config.php` → **Edit** ile aynı satırların yerine yapıştır. Bu ekran hiçbir dosyaya yazmaz.
-3. `bot_token` yaz. `owner_id` için şimdilik 0 bırak (adım 4'te öğreneceksin).
-4. Sayfayı yenile → giriş ekranı gelir → giriş yap.
+1. tgwatch klasöründe `config.php` adlı bir dosya oluştur, içine şunu yaz ve izinlerini **600** (ya da 640) yap:
+   ```php
+   <?php
+   return [
+       'bot_token' => 'BOTFATHER_TOKENI',
+   ];
+   ```
+2. Paneli aç (`…/tgwatch/public/`). Şifre yoksa **Panel şifresi yok** ekranı gelir: şifreyi iki kez yaz, çıkan `admin_password_hash` satırını `config.php`'deki `return [` altına ekle. Bu ekran hiçbir dosyaya yazmaz.
+3. Sayfayı yenile, giriş yap. Webhook, cron anahtarı, Telegram ID ve diğer her şey **Ayarlar**'dan yapılır.
 
-Yazım hatası yaparsan panel hangi satırda hata olduğunu söyler.
+Varsayılan değerler `src/defaults.php`'dedir (kodun parçası, silme). `config.php` yalnızca değiştirmek istediğin satırları içerir.
 
 ### 4. Webhook ve Telegram ID
 1. Panel → **Sağlık** → **Webhook'u kur** → **Webhook bilgisi** ("Son hata: yok" görmelisin).

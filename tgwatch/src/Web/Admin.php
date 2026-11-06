@@ -352,28 +352,18 @@ final class Admin
             } else {
                 $algo = defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT;
                 $out = "    'admin_password_hash' => '" . password_hash($pw, $algo) . "',\n";
-                foreach (['webhook_secret' => self::randomKey(), 'webhook_url' => $this->suggestedWebhook(), 'cron_key' => self::randomKey()] as $k => $v) {
-                    if ((string)$this->config[$k] === '') {
-                        $out .= "    '$k' => '$v',\n";
-                    }
-                }
             }
         }
-        $cfg = TGWATCH_ROOT . '/config.php';
-        $steps = '<ol class="stack steps">'
-            . '<li><b>config.sample.php</b> dosyasını aynı klasörde <b>config.php</b> adıyla kopyalayın. ' . (is_file($cfg) ? '<span class="muted">(var)</span>' : '<span class="lvl-error">(henüz yok)</span>') . '</li>'
-            . '<li>Aşağıda şifrenizi belirleyin ve çıkan satırları config.php içindeki aynı satırların yerine yapıştırın.</li>'
-            . '<li>bot_token değerini doldurun, kaydedin ve bu sayfayı yenileyin.</li></ol>';
         if ($out !== '') {
-            $inner = $steps . '<div class="code"><pre id="setup-out">' . Ui::e($out) . '</pre></div><div class="row">' . Ui::copy('setup-out', 'Satırları kopyala') . '</div>'
-                . '<p class="muted">Bu satırlar gizlidir. Yalnızca config.php dosyasına yapıştırın.</p>';
+            $inner = '<div class="code"><pre id="setup-out">' . Ui::e($out) . '</pre></div><div class="row">' . Ui::copy('setup-out', 'Kopyala') . '</div>'
+                . '<p class="muted">Bu satırı sunucudaki config.php dosyasına ekle, sayfayı yenile. Gizlidir, paylaşma.</p>';
         } else {
-            $inner = $steps . '<form method="post" action="?p=setup" class="stack">' . ($msg !== '' ? '<div class="flash bad">' . Ui::e($msg) . '</div>' : '') . $this->ui->csrfField()
+            $inner = '<form method="post" action="?p=setup" class="stack">' . ($msg !== '' ? '<div class="flash bad">' . Ui::e($msg) . '</div>' : '') . $this->ui->csrfField()
                 . '<label>Panel şifresi<input type="password" name="password" required minlength="12" autocomplete="new-password"></label>'
                 . '<label>Şifre tekrar<input type="password" name="password2" required minlength="12" autocomplete="new-password"></label>'
-                . '<button class="btn primary">Satırları oluştur</button></form>';
+                . '<button class="btn primary">Şifre satırını oluştur</button></form>';
         }
-        $this->bare('İlk kurulum', 'Panel şifresi henüz ayarlanmamış. Bu sayfa hiçbir dosyaya yazmaz.', $inner);
+        $this->bare('Panel şifresi yok', 'config.php içinde şifre tanımlı değil. Diğer her şey (bot, cron, anahtarlar) girişten sonra Ayarlar\'dan yapılır.', $inner);
     }
 
     /** Hatalı şifre/kod sayacı: 5 hatada 15 dakika kilit. @return array{0:int,1:int} [deneme sayısı, kilit bitişi] */
@@ -1136,16 +1126,6 @@ final class Admin
             }
             $h .= '</tbody></table></div>';
         }
-        $cronUrl = (string)$this->config['cron_key'] !== '' ? $this->siblingUrl('webcron.php') . '?key=' . ($this->loginOff() ? '••••••••' : $this->config['cron_key']) : '';
-        $h .= '<h2>Kurulum bilgileri</h2><div class="table-wrap"><table><tbody>'
-            . '<tr><td class="tight">tgwatch klasörü</td><td><code>' . Ui::e(TGWATCH_ROOT) . '</code></td></tr>'
-            . '<tr><td class="tight">Webhook adresi</td><td><div class="row"><code id="hook-url">' . Ui::e($this->suggestedWebhook()) . '</code>' . Ui::copy('hook-url')
-            . ((string)$this->config['webhook_url'] === $this->suggestedWebhook() ? '<span class="muted">config.php ile aynı</span>' : '<span class="lvl-warn">config.php’dekinden farklı</span>') . '</div></td></tr>'
-            . '<tr><td class="tight">cron-job.org adresi</td><td>' . ($cronUrl !== ''
-                ? '<div class="row"><code id="cron-url">' . Ui::e($cronUrl) . '</code>' . Ui::copy('cron-url') . '</div><div class="src">Her dakika çağrılacak şekilde ayarlayın. Anahtar içerir, paylaşmayın.</div>'
-                : '<span class="lvl-error">config.php içinde cron_key yok</span>') . '</td></tr>'
-            . '<tr><td class="tight">Sunucu cron komutu</td><td><code>PHP_YOLU ' . Ui::e(TGWATCH_ROOT) . '/cron.php &gt;/dev/null 2&gt;&amp;1</code><div class="src">Yalnızca hosting cron’u kullanırsanız. PHP_YOLU hosting’e göre değişir.</div></td></tr>'
-            . '</tbody></table></div>';
 
         if ($this->config['bot_mode'] === 'webhook') {
             $h .= '<h2>Telegram webhook</h2><div class="row">'

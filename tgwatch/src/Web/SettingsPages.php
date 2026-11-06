@@ -262,6 +262,9 @@ trait SettingsPages
         $zip->open($tmp, \ZipArchive::OVERWRITE);
         $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS));
         foreach ($it as $f) {
+            if (str_starts_with($f->getFilename(), '.')) {
+                continue;
+            }
             $zip->addFile($f->getPathname(), 'tgwatch-eklenti/' . substr($f->getPathname(), strlen($dir) + 1));
         }
         $zip->close();

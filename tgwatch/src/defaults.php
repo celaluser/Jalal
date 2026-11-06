@@ -1,12 +1,12 @@
 <?php
-// tgwatch ayarları. Bu dosyayı config.php adıyla kopyalayıp doldurun.
-// config.php gizli bilgiler içerir: sohbetlere, git'e veya public_html'e koymayın.
+// tgwatch varsayılan ayarları (kodun parçası, silinmemeli). Değerlerin çoğu panelden (Ayarlar) değiştirilir.
+// Sunucuya özel gizli değerler config.php'de durur; config.php yalnızca değiştirmek istediğin satırları içerir.
 return [
     'timezone' => 'Asia/Baku',
     'admin_name' => 'Yönetici',   // profil menüsünde görünen ad
 
     // Veritabanı, log ve kilit dosyalarının klasörü (public_html DIŞINDA olmalı).
-    'data_dir' => __DIR__ . '/data',
+    'data_dir' => TGWATCH_ROOT . '/data',
 
     // BotFather'dan alınan token. Örn: 123456789:AA...
     'bot_token' => '',
