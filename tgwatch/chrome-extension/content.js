@@ -17,7 +17,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const btnText = (b) => norm(b.innerText !== undefined ? b.innerText : b.textContent);
   const visible = (el) => !!el && el.isConnected && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-  const ours = (el) => !!(el.closest && el.closest('.tgw-bar, .tgw-badge'));
+  const ours = (el) => !!(el.closest && el.closest('.tgw-bar, .tgw-badge, .tgw-orig, .tgw-cbar'));
 
   function h(tag, cls, text) {
     const el = document.createElement(tag);
@@ -185,12 +185,43 @@
     row.el.classList.remove('tgw-row-ok', 'tgw-row-warn', 'tgw-row-bad', 'tgw-row-done');
     const b = row.header.el.querySelector(':scope > .tgw-badge');
     if (b) b.remove();
+    const o = row.header.el.querySelector(':scope > .tgw-orig');
+    if (o) o.remove();
     renderCounts();
+  }
+
+  /** Çevrilen adın üstünde gölge gibi orijinal ad; tıklayınca kopyalanır. */
+  function shadow(row) {
+    const st = state.get(row.id);
+    const host = row.header.el;
+    let o = host.querySelector(':scope > .tgw-orig');
+    if (!st || !st.src || lower(st.src) === lower(row.header.name)) {
+      if (o) o.remove();
+      return;
+    }
+    if (o && o.dataset.src === st.src) return;
+    if (!o) {
+      o = h('span', 'tgw-orig');
+      o.title = 'Orijinal ad — tıkla, kopyala';
+      o.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        navigator.clipboard && navigator.clipboard.writeText(o.dataset.src).then(() => {
+          o.classList.add('tgw-copied');
+          setTimeout(() => o.classList.remove('tgw-copied'), 900);
+        });
+      });
+      host.insertBefore(o, host.firstChild);
+    }
+    o.dataset.src = st.src;
+    o.textContent = st.src;
   }
 
   function paint(row) {
     const mk = marks.get(row.id);
     if (!mk) return;
+    shadow(row);
+    row.el.classList.toggle('tgw-hide', !!(bar && bar.classList.contains('tgw-only-issues')) && (mk.kind === 'ok' || mk.kind === 'done'));
     const host = row.header.el;
     let badge = host.querySelector(':scope > .tgw-badge');
     if (row.el.classList.contains('tgw-row-' + mk.kind) && badge && badge.dataset.kind === mk.kind) return;
@@ -255,7 +286,15 @@
     undo.title = 'Eklentinin değiştirdiği tüm adları orijinaline döndür';
     undo.hidden = true;
     undo.addEventListener('click', () => restore(null));
-    acts.append(go, stop, undo);
+    const filter = h('button', 'tgw-btn tgw-ghost tgw-filter', 'Sadece sorunlular');
+    filter.type = 'button';
+    filter.title = 'Yeşil satırları gizle, yalnızca kontrol edilecekleri ve çevrilmeyenleri göster (import edilmeleri etkilenmez)';
+    filter.addEventListener('click', () => {
+      const on = bar.classList.toggle('tgw-only-issues');
+      filter.textContent = on ? 'Hepsini göster' : 'Sadece sorunlular';
+      for (const r of scanRows()) paint(r);
+    });
+    acts.append(go, stop, filter, undo);
     const prog = h('div', 'tgw-progress');
     prog.appendChild(h('i'));
     bar.append(brand, chips, acts, prog);
@@ -317,6 +356,7 @@
       chip.classList.toggle('tgw-zero', !(c[k] + (k === 'ok' ? c.done : 0)));
     }
     bar.querySelector('.tgw-undo').hidden = running || ![...state.values()].some((s) => s.filled && s.src);
+    bar.querySelector('.tgw-filter').hidden = !(c.ok + c.done) || !(c.warn + c.bad);
   }
 
   function goNext(kind) {
@@ -518,6 +558,7 @@
       if (items.length) send({ type: 'api', action: 'learn', payload: { items } });
       state.clear();
       marks.clear();
+      if (bar) bar.classList.remove('tgw-only-issues');
     }
   }, true);
 
@@ -528,16 +569,269 @@
     }
   });
 
+
+  // =====================================================================
+  // KATEGORİ: Services listesinde son kategoriyi ya da açık "Edit category" penceresini çevir + logo seç.
+  // Logo: önce dosya adı/alt yazısı platformla eşleşen "Uploaded" logo; bulunamazsa kullanıcının daha önce
+  // o platform için elle seçtiği logo (hatırlanır). Save'den sonra ad bankaya öğretilir.
+  // =====================================================================
+  const PLATFORMS = {
+    instagram: ['instagram', 'insta', 'ig'], tiktok: ['tiktok', 'tik-tok', 'tik_tok', 'tt'], youtube: ['youtube', 'yt'],
+    telegram: ['telegram', 'tg'], facebook: ['facebook', 'fb'], twitter: ['twitter', 'x-twitter', 'xcom'], threads: ['threads'],
+    spotify: ['spotify'], twitch: ['twitch'], kick: ['kick'], snapchat: ['snapchat', 'snap'], discord: ['discord'],
+    linkedin: ['linkedin'], pinterest: ['pinterest'], whatsapp: ['whatsapp', 'wa'], soundcloud: ['soundcloud'],
+    google: ['google'], reddit: ['reddit'], vk: ['vk', 'vkontakte'], likee: ['likee'], kwai: ['kwai'], trovo: ['trovo'],
+  };
+  function platformOf(name) {
+    const t = ' ' + lower(name).replace(/[^a-z0-9]+/g, ' ') + ' ';
+    if (/\s(x)\s/.test(t) && /(twitter|\sx\s)/.test(t)) return 'twitter';
+    for (const [p, keys] of Object.entries(PLATFORMS)) {
+      if (keys.some((k) => k.length > 2 && t.includes(' ' + k + ' ')) || t.includes(' ' + p)) return p;
+    }
+    return '';
+  }
+
+  const SAVE_WORDS = ['save', 'save changes', 'update', 'kaydet', 'yadda saxla'];
+  function categoryDialog() {
+    const boxes = [...document.querySelectorAll('[role=dialog], .modal, .modal-dialog, .modal-content')].filter((b) => visible(b) && !ours(b));
+    for (const box of boxes) {
+      const title = [...box.querySelectorAll('h1, h2, h3, h4, h5, .modal-title')].find((el) => /(edit|add)\s+category|kateqoriya|kategori/i.test(norm(el.textContent)));
+      if (!title) continue;
+      const inputs = [...box.querySelectorAll('input[type=text], input:not([type])')].filter((i) => visible(i) && !ours(i));
+      if (!inputs.length) continue;
+      const label = [...box.querySelectorAll('label, div, span, strong, b, p')].find((el) => el.children.length === 0 && /^(name|category name|ad|kateqoriya adı)$/i.test(norm(el.textContent)));
+      const input = (label && inputs.find((i) => label.compareDocumentPosition(i) & Node.DOCUMENT_POSITION_FOLLOWING)) || inputs[0];
+      const save = [...box.querySelectorAll('button, a, input[type=submit]')].find((b) => visible(b) && !ours(b) && SAVE_WORDS.includes(lower(b.value || btnText(b))));
+      return { box: box.closest('[role=dialog], .modal') || box, title, input, save };
+    }
+    return null;
+  }
+
+  /** Logo adayları: penceredeki görünür resimler ve arka plan resimli öğeler. */
+  function iconCandidates(box) {
+    const out = [];
+    for (const el of box.querySelectorAll('img, [style*="background-image"]')) {
+      if (!visible(el) || ours(el)) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 12 || r.height < 12 || r.width > 220) continue;
+      let src = el.tagName === 'IMG' ? (el.currentSrc || el.src || '') : ((el.style.backgroundImage || '').match(/url\(["']?(.*?)["']?\)/) || [])[1] || '';
+      if (!src) continue;
+      const label = lower([el.getAttribute('alt'), el.getAttribute('title'), el.getAttribute('data-name'), el.closest('[title]') && el.closest('[title]').getAttribute('title')].filter(Boolean).join(' '));
+      out.push({ el, src, key: src.split('?')[0], text: lower(decodeURIComponent(src.split('/').pop() || '')) + ' ' + label });
+    }
+    return out;
+  }
+
+  function clickIcon(c) {
+    const target = c.el.closest('label, button, a, li, [role=option], [data-id], [data-value]') || c.el;
+    target.click();
+    if (target !== c.el) c.el.click();
+  }
+
+  const getIconMap = () => new Promise((r) => { try { chrome.storage.local.get({ iconMap: {} }, (s) => r(s.iconMap || {})); } catch (e) { r({}); } });
+  const setIconMap = (m) => { try { chrome.storage.local.set({ iconMap: m }); } catch (e) { /* yok */ } };
+
+  let cbar = null;
+  let catRunning = false;
+  let lastIcon = null; // kullanıcının penceredeki son logo tıklaması
+  let catSrc = null;   // pencere açıldığındaki orijinal kategori adı
+  let catFilled = null; // eklentinin yazdığı ad (elle değiştirildi mi anlamak için)
+
+  function catStatus(t, kind) {
+    if (!cbar) return;
+    const s = cbar.querySelector('.tgw-status');
+    s.textContent = t;
+    s.className = 'tgw-status' + (kind ? ' tgw-status-' + kind : '');
+  }
+
+  function buildCatBar() {
+    cbar = h('div', 'tgw-bar tgw-cbar tgw-floating');
+    const brand = h('div', 'tgw-brand');
+    brand.appendChild(logo(26));
+    const txt = h('div', 'tgw-text');
+    txt.appendChild(h('div', 'tgw-title', 'tgwatch kategori'));
+    txt.appendChild(h('div', 'tgw-status'));
+    brand.appendChild(txt);
+    const acts = h('div', 'tgw-actions');
+    const go = h('button', 'tgw-btn tgw-cgo', 'Çevir + logo');
+    go.type = 'button';
+    go.addEventListener('click', () => (categoryDialog() ? runCategory() : runLastCategory()));
+    const close = h('button', 'tgw-btn tgw-ghost tgw-cclose', '×');
+    close.type = 'button';
+    close.title = 'Gizle (sayfa yenilenince geri gelir)';
+    close.addEventListener('click', () => { cbar.dataset.closed = '1'; cbar.remove(); });
+    acts.append(go, close);
+    const prog = h('div', 'tgw-progress');
+    prog.appendChild(h('i'));
+    cbar.append(brand, acts, prog);
+  }
+
+  function editCategoryLinks() {
+    return [...document.querySelectorAll('a, button, li, span, div')].filter((el) => el.children.length === 0 && !ours(el) && /^edit\s+category$/i.test(norm(el.textContent)));
+  }
+
+  function ensureCat() {
+    if (cbar && cbar.dataset.closed) return;
+    const importOpen = !!(findModal() && scanRows().length);
+    const dlg = !importOpen && categoryDialog();
+    if (!dlg && !catRunning) { catSrc = null; catFilled = null; } // pencere kapandı: hatırlanan orijinal ad bir sonraki kategoriye taşınmasın
+    const onList = !importOpen && !dlg && /\/admin\/services/.test(location.pathname) && editCategoryLinks().length > 0;
+    if (!dlg && !onList) {
+      if (cbar && cbar.isConnected && !catRunning) cbar.remove();
+      if (!dlg) catSrc = null;
+      return;
+    }
+    if (!cbar) buildCatBar();
+    // Pencere açıkken çubuk pencerenin içinde (başlığın altında); listede sol altta küçük şerit (sağdaki Actions menülerini kapatmasın).
+    const head = dlg && (dlg.title.closest('.modal-header') || dlg.title.parentElement);
+    if (head && dlg.box.contains(head)) {
+      if (cbar.previousElementSibling !== head) head.insertAdjacentElement('afterend', cbar);
+      cbar.classList.remove('tgw-floating');
+    } else {
+      if (!cbar.classList.contains('tgw-floating') || !cbar.isConnected || cbar.parentElement !== document.body) document.body.appendChild(cbar);
+      cbar.classList.add('tgw-floating');
+    }
+    const go = cbar.querySelector('.tgw-cgo');
+    if (dlg) {
+      if (catSrc === null && dlg.input) catSrc = dlg.input.value;
+      go.textContent = 'Bu kategoriyi çevir + logo';
+      if (!catRunning) catStatus('Kategori: ' + (dlg.input ? dlg.input.value : ''));
+    } else {
+      go.textContent = 'Son kategoriyi çevir';
+      if (!catRunning) catStatus('Import edilen kategori listenin en sonunda');
+    }
+  }
+
+  async function runLastCategory() {
+    if (catRunning) return;
+    catRunning = true;
+    try {
+      catStatus('En sona gidiliyor…');
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+      await sleep(700);
+      const links = editCategoryLinks();
+      const last = links[links.length - 1];
+      if (!last) { catStatus('"Edit category" bulunamadı', 'bad'); return; }
+      last.scrollIntoView({ block: 'center' });
+      last.click();
+      let dlg = await waitFor(categoryDialog, 3000);
+      if (!dlg) { // menü içindeyse önce menüyü aç
+        const row = last.closest('tr, li, .row, [class*=category]') || last.parentElement;
+        const toggle = row && [...row.querySelectorAll('button, a')].find((b) => /^(actions|⋮|…|\.\.\.)$/i.test(lower(btnText(b))) || b.matches('[data-toggle=dropdown], [data-bs-toggle=dropdown]'));
+        if (toggle) { toggle.click(); await sleep(250); last.click(); dlg = await waitFor(categoryDialog, 4000); }
+      }
+      if (!dlg) { catStatus('Edit category penceresi açılmadı', 'bad'); return; }
+      catSrc = dlg.input.value;
+    } finally {
+      catRunning = false;
+    }
+    await runCategory();
+  }
+
+  async function runCategory() {
+    if (catRunning) return;
+    catRunning = true;
+    cbar && cbar.classList.add('tgw-running');
+    const o = await opts();
+    try {
+      let dlg = categoryDialog();
+      if (!dlg || !dlg.input) { catStatus('Kategori penceresi bulunamadı', 'bad'); return; }
+      // Güvenlik: penceredeki ad hatırlanan addan farklıysa ve Azerice değilse başka bir kategori açılmıştır → penceredeki ad esas.
+      if (catSrc === null || (lower(dlg.input.value) !== lower(catSrc) && !AZ_ONLY.test(dlg.input.value))) catSrc = dlg.input.value;
+      const src = catSrc;
+      let az = '';
+      let note = '';
+      if (AZ_ONLY.test(dlg.input.value)) {
+        note = 'ad zaten Azerice';
+      } else {
+        catStatus('Çevriliyor…');
+        const res = await api('translate', { items: [{ id: 'cat', name: src, kind: 'category' }] });
+        const tr = res.ok ? res.items[0] : null;
+        if (tr && tr.az && tr.via !== 'none' && tr.via !== 'already') {
+          az = tr.az;
+          setValue(dlg.input, az);
+          catFilled = az;
+          let o = dlg.input.parentElement.querySelector(':scope > .tgw-orig');
+          if (!o) { o = h('span', 'tgw-orig'); dlg.input.insertAdjacentElement('afterend', o); }
+          o.textContent = src;
+          o.title = 'Orijinal kategori adı';
+          note = tr.via === 'bank' ? 'ad bankadan' : 'ad kurallarla — kontrol et';
+        } else {
+          note = res.ok ? 'ad çevrilemedi' : (res.error || 'tgwatch hatası');
+        }
+      }
+      // Logo
+      const platform = platformOf(src + ' ' + (az || dlg.input.value));
+      let iconNote = '';
+      if (platform) {
+        const tab = [...dlg.box.querySelectorAll('a, button, li, span, label')].find((el) => el.children.length <= 1 && /^uploaded$/i.test(norm(el.textContent)) && !ours(el));
+        if (tab) { tab.click(); await sleep(450); }
+        dlg = categoryDialog() || dlg;
+        const cands = iconCandidates(dlg.box);
+        const map = await getIconMap();
+        let pick = map[platform] ? cands.find((c) => c.key === map[platform]) : null;
+        if (!pick) pick = cands.find((c) => PLATFORMS[platform].some((k) => k.length > 2 && c.text.includes(k)) || c.text.includes(platform));
+        if (pick) { clickIcon(pick); lastIcon = { platform, key: pick.key }; iconNote = platform + ' logosu seçildi'; }
+        else iconNote = platform + ' logosu bulunamadı — elle seç, hatırlayacağım';
+      } else {
+        iconNote = 'platform anlaşılamadı, logoyu elle seç';
+      }
+      catStatus(note + ' · ' + iconNote + (o.dry ? ' · deneme modu: Save\'e basılmadı' : ''), /bulunamadı|anlaşılamadı|çevrilemedi|hata/.test(note + iconNote) ? 'warn' : 'ok');
+      if (!o.dry && iconNote.endsWith('seçildi') && dlg.save) {
+        await sleep(300);
+        rememberCategory(dlg);
+        dlg.save.click();
+        await waitFor(() => !categoryDialog(), 6000);
+        catStatus('Kaydedildi · ' + note + ' · ' + iconNote, 'ok');
+        send({ type: 'stat', translated: az ? 1 : 0 });
+      } else if (!o.dry && !iconNote.endsWith('seçildi')) {
+        catStatus(note + ' · ' + iconNote + ' · logoyu seçip Save\'e sen bas', 'warn');
+      }
+    } finally {
+      catRunning = false;
+      cbar && cbar.classList.remove('tgw-running');
+    }
+  }
+
+  /** Save anında: logo seçimini platforma göre hatırla, değişen adı bankaya öğret. */
+  function rememberCategory(dlg) {
+    const name = dlg.input ? dlg.input.value : '';
+    const platform = platformOf((catSrc || '') + ' ' + name);
+    if (platform && lastIcon && lastIcon.key && (!lastIcon.platform || lastIcon.platform === platform)) {
+      getIconMap().then((m) => { m[platform] = lastIcon.key; setIconMap(m); });
+    }
+    if (catSrc && name && lower(catSrc) !== lower(name) && !AZ_ONLY.test(catSrc)) {
+      send({ type: 'api', action: 'learn', payload: { items: [{ id: 'cat', src: catSrc, az: name, kind: 'category', edited: !catFilled || lower(name) !== lower(catFilled) }] } });
+    }
+  }
+
+  // Kullanıcı kategori penceresinde elle logo seçerse / Save'e basarsa öğren.
+  document.addEventListener('click', (e) => {
+    if (catRunning) return;
+    const dlg = categoryDialog();
+    if (!dlg || !dlg.box.contains(e.target) || ours(e.target)) return;
+    const c = iconCandidates(dlg.box).find((x) => x.el === e.target || x.el.contains(e.target) || (e.target.contains && e.target.contains(x.el)));
+    if (c) { lastIcon = { key: c.key }; return; }
+    const b = e.target.closest && e.target.closest('button, a, input[type=submit]');
+    if (b && SAVE_WORDS.includes(lower(b.value || btnText(b)))) rememberCategory(dlg);
+  }, true);
+
   // ---- mini panelden gelen istekler ----
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (!msg || typeof msg !== 'object') return false;
     if (msg.type === 'tgw-status') {
       const rows = findModal() ? scanRows() : [];
-      sendResponse({ screen: rows.length > 0, rows: rows.length, running, counts: counts(), changed: [...state.values()].filter((s) => s.filled).length });
+      const ctx = rows.length ? 'import' : categoryDialog() ? 'category' : (/\/admin\/services/.test(location.pathname) && editCategoryLinks().length ? 'list' : '');
+      sendResponse({ screen: rows.length > 0, ctx, rows: rows.length, running: running || catRunning, counts: counts(), changed: [...state.values()].filter((s) => s.filled).length });
       return false;
     }
     if (msg.type === 'tgw-run') {
-      if (!(findModal() && scanRows().length)) { sendResponse({ ok: false, error: 'Import ekranında satır yok' }); return false; }
+      if (!(findModal() && scanRows().length)) {
+        if (categoryDialog()) { runCategory(); sendResponse({ ok: true }); return false; }
+        if (editCategoryLinks().length) { runLastCategory(); sendResponse({ ok: true }); return false; }
+        sendResponse({ ok: false, error: 'Import ekranında satır yok' });
+        return false;
+      }
       runAll();
       sendResponse({ ok: true });
       return false;
@@ -555,8 +849,9 @@
   const mo = new MutationObserver(() => {
     if (scheduled) return;
     scheduled = true;
-    setTimeout(() => { scheduled = false; ensureBar(); }, 150);
+    setTimeout(() => { scheduled = false; ensureBar(); ensureCat(); }, 150);
   });
   mo.observe(document.documentElement, { childList: true, subtree: true });
   ensureBar();
+  ensureCat();
 })();

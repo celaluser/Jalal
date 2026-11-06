@@ -257,6 +257,12 @@ Panelde **Services → Import services** ile servisleri sen seçersin. İnceleme
 2. Her satırda Edit → Name kutusuna Azerice ad → Save. Satır rengi: yeşil **bankadan**, sarı **kontrol et** (kurallarla/bilinmeyen kelime), kırmızı **çevrilmedi** (kutuya dokunulmaz).
 3. Gözden geçirip **Import services**'e sen basarsın. O anda son adlar (elle düzelttiklerin "elle", olduğu gibi bıraktıkların "onaylanan" olarak) bankaya öğrenilir; bir dahaki sefere yeşil gelir.
 
+**Gölge orijinal ad:** çevrilen her adın üstünde küçük gri yazıyla orijinal ad durur (tıkla: kopyalanır). **Sadece sorunlular** yeşil satırları gizler (import'u etkilemez). **Geri al** / satırdaki **↺**: orijinal ada döner. Zaten çevrilmiş ve adında **ə** olan satırlar atlanır. Kısayol: Alt+Shift+T.
+
+**Kategori:** import sonrası Services listesinde sol altta **Son kategoriyi çevir** çıkar: en alta kayar, son kategorinin **Edit category** penceresini açar, adı çevirir (kategori bankası), **Uploaded** logolarından platforma uygun olanı seçer (dosya adında tiktok/instagram… geçiyorsa), **Save**'e basar. Logo bulunamazsa sen bir kez elle seçip Save'e basarsın; eklenti o platform için o logoyu hatırlar. Edit category penceresi açıkken aynı iş o kategori için yapılır.
+
+**Mini panel:** eklenti simgesine tıklayınca bulunduğun ekrana göre (import / kategori / liste) düğme, deneme modu, istatistik.
+
 **Kurulum:** Ayarlar → Özellikler → Eklenti anahtarı için "Yeni rastgele anahtar üret" → Kaydet. Aynı sayfadaki **Chrome eklentisi** kartından eklentiyi indir. `chrome://extensions` → Geliştirici modu → Paketlenmemiş öğe yükle. Eklenti simgesi → panel adresi, API adresi, anahtar → Kaydet ve dene → panel sekmesini yenile.
 
 Türkçe kaynak adlar (Takipçi, Beğeni, Telafili, Günde…) için sözlüğe Türkçe terimler eklendi (tahmin; Sözlük'ten düzeltilir).

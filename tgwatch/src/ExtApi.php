@@ -6,8 +6,9 @@ namespace TgWatch;
 /**
  * Chrome eklentisinin konuştuğu küçük API (public/api.php). Anahtar: Ayarlar → Özellikler → Eklenti anahtarı.
  *   ping       → bağlantı testi
- *   translate  → {items:[{id,name}]} → her ad için banka + kurallarla Azerice ad (botun kullandığı motorun aynısı)
- *   learn      → {items:[{id,src,az,edited}]} → Perfect Panel'de import edilen son adlar bankaya öğretilir
+ *   translate  → {items:[{id,name,kind?}]} → her ad için banka + kurallarla Azerice ad (botun kullandığı motorun aynısı);
+ *                kind = "category" ise kategori bankası kullanılır, ad kalıbı uygulanmaz
+ *   learn      → {items:[{id,src,az,edited,kind?}]} → Perfect Panel'de import edilen son adlar (ve kategori adları) bankaya öğretilir
  */
 final class ExtApi
 {
@@ -73,6 +74,14 @@ final class ExtApi
                 $out[] = ['id' => $id, 'az' => '', 'via' => 'already', 'unknown' => []];
                 continue;
             }
+            if (($it['kind'] ?? '') === 'category') { // kategori adı: ad kalıbı uygulanmaz, kategori bankası
+                $clean = Engine::stripBy($dict['remove'] ?? [], $name);
+                $hit = $engine->memory()->lookup('category', $clean);
+                $rr = $hit === null ? $rules->translate($clean) : ['text' => $hit, 'unknown' => []];
+                $none = Learner::same($rr['text'], $clean);
+                $out[] = ['id' => $id, 'az' => $none ? '' : $rr['text'], 'via' => $none ? 'none' : ($hit !== null ? 'bank' : 'rules'), 'unknown' => $rr['unknown']];
+                continue;
+            }
             $r = $engine->translate($name);
             // Kurallar adın kendisine hiç dokunmadıysa (yalnızca ad kalıbı ön/son ek ekledi) çevrilmemiş sayılır.
             $clean = Engine::stripBy($dict['remove'] ?? [], $name);
@@ -103,7 +112,7 @@ final class ExtApi
                 continue;
             }
             // Elle düzelttiğin ad en yüksek öncelik; olduğu gibi onayladığın "onaylanan iş" düzeyinde öğrenilir.
-            $mem->learn('service', $src, $az, !empty($it['edited']) ? 'manual' : 'approved');
+            $mem->learn(($it['kind'] ?? '') === 'category' ? 'category' : 'service', $src, $az, !empty($it['edited']) ? 'manual' : 'approved');
             $learned++;
         }
         if ($learned) {

@@ -44,11 +44,20 @@ function refresh() {
       return;
     }
     if (!r.screen) {
-      $('tab-msg').textContent = 'Services → Import services → servisleri seç → inceleme ekranına geç.';
-      $('tab-actions').hidden = true;
       $('tab-counts').hidden = true;
+      $('undo').hidden = true;
+      if (r.ctx === 'category' || r.ctx === 'list') {
+        $('tab-msg').textContent = r.ctx === 'category' ? 'Edit category penceresi açık.' : 'Services listesi: import edilen kategori en sonda.';
+        $('run').textContent = r.ctx === 'category' ? 'Bu kategoriyi çevir + logo' : 'Son kategoriyi çevir';
+        $('tab-actions').hidden = false;
+        $('run').disabled = r.running;
+      } else {
+        $('tab-msg').textContent = 'Services → Import services → servisleri seç → inceleme ekranına geç.';
+        $('tab-actions').hidden = true;
+      }
       return;
     }
+    $('run').textContent = 'Servisleri çevir';
     $('tab-msg').textContent = r.running ? 'Çeviriyor…' : r.rows + ' servis seçili.';
     $('tab-counts').hidden = !(r.counts.ok + r.counts.warn + r.counts.bad + r.counts.done);
     $('c-ok').textContent = r.counts.ok + r.counts.done;

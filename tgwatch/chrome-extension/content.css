@@ -5,7 +5,7 @@
   background:linear-gradient(180deg,#fbfcfd,#f4f6f9);border-bottom:1px solid var(--tgw-line);
   font:500 13px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--tgw-ink);box-sizing:border-box;text-align:left}
 .tgw-bar *{box-sizing:border-box}
-.tgw-bar.tgw-floating{position:fixed;right:20px;bottom:20px;z-index:2147483647;max-width:min(760px,calc(100vw - 40px));border:1px solid var(--tgw-line);border-radius:14px;box-shadow:0 18px 50px rgba(16,24,40,.22)}
+.tgw-bar.tgw-floating{position:fixed;left:16px;right:auto;bottom:16px;z-index:2147483647;max-width:min(560px,calc(100vw - 32px));padding:10px 12px 12px;border:1px solid var(--tgw-line);border-radius:14px;box-shadow:0 18px 50px rgba(16,24,40,.22)}
 .tgw-brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1 1 220px}
 .tgw-brand svg{flex:none;display:block}
 .tgw-m1{fill:var(--tgw-nila)}.tgw-m2{fill:var(--tgw-rovend)}.tgw-m3{fill:var(--tgw-zefer)}
@@ -48,3 +48,12 @@
 .tgw-undo1{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;padding:0;margin:0;border:0;border-radius:50%;background:rgba(0,0,0,.08);color:inherit;font:700 11px/1 system-ui,sans-serif;cursor:pointer}
 .tgw-undo1:hover{background:rgba(0,0,0,.18)}
 @media (prefers-reduced-motion:reduce){.tgw-running .tgw-brand svg path,.tgw-flash{animation:none}.tgw-progress i{transition:none}}
+/* çevrilen adın üstünde gölge orijinal ad */
+.tgw-orig{display:block;margin:0 0 3px;padding:0;font:400 12px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#7b8794;cursor:copy;max-width:100%;overflow-wrap:anywhere}
+.tgw-orig::before{content:"orijinal";display:inline-block;margin-right:6px;padding:0 5px;border-radius:4px;background:#eef1f4;color:#7b8794;font:600 10px/16px system-ui,sans-serif;vertical-align:1px}
+.tgw-orig:hover{color:#3f4b57}
+.tgw-orig.tgw-copied::after{content:"  ✓ kopyalandı";color:#1f7a45;display:inline-block}
+.tgw-hide{display:none !important}
+.tgw-cbar{flex-wrap:nowrap}
+.tgw-cbar .tgw-status{max-width:52ch;white-space:normal}
+.tgw-cclose{width:32px;padding:0;font-size:18px;line-height:1}

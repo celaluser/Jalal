@@ -1958,6 +1958,11 @@ test('Eklenti API: anahtar, çeviri (banka/kural/yok), öğrenme ve sınırlar',
     eq(['Instagram İzləyici | 30 Gün Qarantili', 'bank'], [$by['15341']['az'], $by['15341']['via']], 'birebir bankadan');
     eq('Instagram İzləyici | 365 Gün Qarantili', $by['15342']['az'], 'sayı şablonuyla bankadan');
     eq(['none', ''], [$by['9']['via'], $by['9']['az']], 'çevrilemeyen ad işaretlenir, boş döner');
+    $cat = $api->handle(['action' => 'translate', 'items' => [['id' => 'c', 'name' => 'TikTok Takipçi', 'kind' => 'category']]])[1]['items'][0];
+    eq(['TikTok İzləyici', 'rules'], [$cat['az'], $cat['via']], 'kategori adı kurallarla');
+    eq(1, $api->handle(['action' => 'learn', 'items' => [['src' => 'TikTok Takipçi', 'az' => 'TikTok İzləyicilər (kat)', 'kind' => 'category', 'edited' => true]]])[1]['learned']);
+    $cat = $api->handle(['action' => 'translate', 'items' => [['id' => 'c', 'name' => 'TikTok Takipçi', 'kind' => 'category']]])[1]['items'][0];
+    eq(['TikTok İzləyicilər (kat)', 'bank'], [$cat['az'], $cat['via']], 'öğrenilen kategori adı bankadan gelir');
     eq('already', $api->handle(['action' => 'translate', 'items' => [['id' => 'z', 'name' => 'TikTok İzləyici | Gündə 50K']]])[1]['items'][0]['via'], 'zaten Azerice ad yeniden çevrilmez');
     $d = Dictionary::load($db);
     $d['options']['suffix'] = '[TG]';
