@@ -702,6 +702,15 @@
    */
   async function collapseAll() {
     if (visibleChecks() <= 1) return true;
+    // Perfect Panel: <span class="far service-table__header-hide-all fa-expand-alt"></span>
+    const exact = [...document.querySelectorAll('.service-table__header-hide-all, [class*="header-hide-all"]')].find((el) => visible(el));
+    if (exact) {
+      const before = visibleChecks();
+      exact.click();
+      const ok = await waitFor(() => visibleChecks() <= 1, 3000, 100);
+      if (!ok && visibleChecks() > before) exact.click(); // ters çalıştı: geri al
+      if (ok) return true;
+    }
     const status = [...document.querySelectorAll('button, a, th, div, span')].find((el) => !ours(el) && el.children.length <= 2 && /^status\b/i.test(btnText(el)));
     let head = status;
     while (head && head !== document.body && !/\bmax\b/i.test(head.textContent || '')) head = head.parentElement;
