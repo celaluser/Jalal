@@ -84,7 +84,7 @@ trait SettingsPages
                 : ($this->loginOff() ? '•••••••• (giriş kapalıyken gösterilmez)' : '<code id="ext-key">' . Ui::e($ek) . '</code>' . Ui::copy('ext-key') . ' <span class="muted">Paylaşma.</span>')) . '</dd></dl>'
             . '<ol class="muted"><li>Eklentiyi indir, zip\'i bir klasöre aç.</li><li>Chrome → <code>chrome://extensions</code> → sağ üstte “Geliştirici modu” aç → “Paketlenmemiş öğe yükle” → klasörü seç.</li><li>Eklenti simgesi → Ayarlar: panel adresi (ör. https://panelbaku.com), yukarıdaki API adresi ve anahtar → Kaydet ve dene.</li></ol>'
             . '<div class="row">' . Ui::link('?p=ext_zip', 'Eklentiyi indir (.zip)', 'quiet', 'download') . '</div></div>';
-        return '<h2 class="first">Yeni servis izleme</h2>' . $watch . '<h2>Öğrenme</h2>' . $learn . '<h2>Chrome eklentisi</h2>' . $ext . '<h2>Görünüm ve ad kalıbı</h2>' . $look . '<h2>Zamanlama</h2>';
+        return '<h2 class="first">Yeni servis izleme</h2>' . $watch . '<h2>Öğrenme</h2>' . $learn . '<h2 id="eklenti">Chrome eklentisi</h2>' . $ext . '<h2>Görünüm ve ad kalıbı</h2>' . $look . '<h2>Zamanlama</h2>';
     }
 
     private function settingsForm(string $tab): string
