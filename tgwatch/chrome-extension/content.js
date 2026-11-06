@@ -59,12 +59,14 @@
   }
 
   /** İnceleme ekranı: "Import services" düğmesi + Edit/Save düğmeli satırlar. */
+  const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   function findModal() {
-    const importBtn = [...document.querySelectorAll('button, a, input[type=submit]')]
-      .find((b) => visible(b) && !ours(b) && lower(b.value || btnText(b)) === 'import services');
+    // Sayfanın üst araç çubuğunda da "Import services" düğmesi var (modal'ı açan); asıl olan modal'ın içindeki.
+    const all = [...document.querySelectorAll('button, a, input[type=submit]')]
+      .filter((b) => visible(b) && !ours(b) && lower(b.value || btnText(b)) === 'import services');
+    const importBtn = all.filter((b) => b.closest(DIALOG)).pop();
     if (!importBtn) return null;
-    const box = importBtn.closest('[role=dialog], .modal, .modal-dialog, .modal-content') || document.body;
-    return { box, importBtn };
+    return { box: importBtn.closest(DIALOG), importBtn };
   }
 
   function actionButtons(box) {
@@ -592,26 +594,9 @@
 
 
   // =====================================================================
-  // KATEGORİ: Services listesinde son kategoriyi ya da açık "Edit category" penceresini çevir + logo seç.
-  // Logo: önce dosya adı/alt yazısı platformla eşleşen "Uploaded" logo; bulunamazsa kullanıcının daha önce
-  // o platform için elle seçtiği logo (hatırlanır). Save'den sonra ad bankaya öğretilir.
+  // KATEGORİ: Services listesinde en sondaki aktif kategoriyi ya da açık "Edit category" penceresinin adını çevir.
+  // Logo ve Save kullanıcıda; Save'e basılınca ad bankaya öğretilir.
   // =====================================================================
-  const PLATFORMS = {
-    instagram: ['instagram', 'insta', 'ig'], tiktok: ['tiktok', 'tik-tok', 'tik_tok', 'tt'], youtube: ['youtube', 'yt'],
-    telegram: ['telegram', 'tg'], facebook: ['facebook', 'fb'], twitter: ['twitter', 'x-twitter', 'xcom'], threads: ['threads'],
-    spotify: ['spotify'], twitch: ['twitch'], kick: ['kick'], snapchat: ['snapchat', 'snap'], discord: ['discord'],
-    linkedin: ['linkedin'], pinterest: ['pinterest'], whatsapp: ['whatsapp', 'wa'], soundcloud: ['soundcloud'],
-    google: ['google'], reddit: ['reddit'], vk: ['vk', 'vkontakte'], likee: ['likee'], kwai: ['kwai'], trovo: ['trovo'],
-  };
-  function platformOf(name) {
-    const t = ' ' + lower(name).replace(/[^a-z0-9]+/g, ' ') + ' ';
-    if (/\s(x)\s/.test(t) && /(twitter|\sx\s)/.test(t)) return 'twitter';
-    for (const [p, keys] of Object.entries(PLATFORMS)) {
-      if (keys.some((k) => k.length > 2 && t.includes(' ' + k + ' ')) || t.includes(' ' + p)) return p;
-    }
-    return '';
-  }
-
   const SAVE_WORDS = ['save', 'save changes', 'update', 'kaydet', 'yadda saxla'];
   function categoryDialog() {
     const boxes = [...document.querySelectorAll('[role=dialog], .modal, .modal-dialog, .modal-content')].filter((b) => visible(b) && !ours(b));
@@ -629,61 +614,8 @@
     return null;
   }
 
-  /** Logo adayları: penceredeki görünür resimler ve arka plan resimli öğeler. */
-  function iconCandidates(box) {
-    const out = [];
-    for (const el of box.querySelectorAll('img, [style*="background-image"]')) {
-      if (!visible(el) || ours(el)) continue;
-      const r = el.getBoundingClientRect();
-      if (r.width < 12 || r.height < 12 || r.width > 220) continue;
-      let src = el.tagName === 'IMG' ? (el.currentSrc || el.src || '') : ((el.style.backgroundImage || '').match(/url\(["']?(.*?)["']?\)/) || [])[1] || '';
-      if (!src) continue;
-      const label = lower([el.getAttribute('alt'), el.getAttribute('title'), el.getAttribute('data-name'), el.closest('[title]') && el.closest('[title]').getAttribute('title')].filter(Boolean).join(' '));
-      out.push({ el, src, key: src.split('?')[0], text: lower(decodeURIComponent(src.split('/').pop() || '')) + ' ' + label });
-    }
-    return out;
-  }
-
-  const uploadedTab = (box) => [...box.querySelectorAll('a, button, li, span, label, div')]
-    .find((el) => visible(el) && !ours(el) && el.children.length <= 2 && /^[^a-z0-9]*uploaded$/i.test(norm(el.textContent)));
-
-  /** Logo seçicisini aç (ad kutusunun solundaki logo kutusu), "Uploaded" sekmesine geç; seçicinin kökünü döndür. */
-  async function openUploaded(dlg) {
-    let tab = uploadedTab(dlg.box);
-    if (!tab) {
-      const opener = [...dlg.box.querySelectorAll('button, a, [role=button], div, span, label')].find((el) => {
-        if (!visible(el) || ours(el) || el.contains(dlg.input)) return false;
-        if (!(el.compareDocumentPosition(dlg.input) & Node.DOCUMENT_POSITION_FOLLOWING)) return false;
-        if (/close|×/i.test(btnText(el) + (el.getAttribute('aria-label') || ''))) return false;
-        const r = el.getBoundingClientRect();
-        return r.width >= 24 && r.width <= 110 && r.height >= 24 && r.height <= 110 && !!el.querySelector('img, svg, i, [style*="background-image"]');
-      });
-      if (opener) {
-        opener.click();
-        tab = await waitFor(() => uploadedTab(dlg.box) || uploadedTab(document.body), 2500);
-      }
-    }
-    if (!tab) return null;
-    tab.click();
-    await sleep(450);
-    // seçicinin kökü: sekmeden yukarı çıkıp en az 4 logo içeren ilk ata
-    let root = tab;
-    while (root.parentElement && root !== dlg.box && root.querySelectorAll('img, [style*="background-image"]').length < 4) root = root.parentElement;
-    return root;
-  }
-
-  function clickIcon(c) {
-    const target = c.el.closest('label, button, a, li, [role=option], [data-id], [data-value]') || c.el;
-    target.click();
-    if (target !== c.el) c.el.click();
-  }
-
-  const getIconMap = () => new Promise((r) => { try { chrome.storage.local.get({ iconMap: {} }, (s) => r(s.iconMap || {})); } catch (e) { r({}); } });
-  const setIconMap = (m) => { try { chrome.storage.local.set({ iconMap: m }); } catch (e) { /* yok */ } };
-
   let cbar = null;
   let catRunning = false;
-  let lastIcon = null; // kullanıcının penceredeki son logo tıklaması
   let catSrc = null;   // pencere açıldığındaki orijinal kategori adı
   let catFilled = null; // eklentinin yazdığı ad (elle değiştirildi mi anlamak için)
 
@@ -703,7 +635,7 @@
     txt.appendChild(h('div', 'tgw-status'));
     brand.appendChild(txt);
     const acts = h('div', 'tgw-actions');
-    const go = h('button', 'tgw-btn tgw-cgo', 'Çevir + logo');
+    const go = h('button', 'tgw-btn tgw-cgo', 'Çevir');
     go.type = 'button';
     go.addEventListener('click', () => (categoryDialog() ? runCategory() : runLastCategory()));
     const close = h('button', 'tgw-btn tgw-ghost tgw-cclose', '×');
@@ -750,6 +682,14 @@
     }
     const nameEl = [...row.el.querySelectorAll('*')].find((e) => e.children.length === 0 && norm(e.textContent) && !/^actions\b/i.test(norm(e.textContent)));
     if (nameEl && parseFloat(getComputedStyle(nameEl).opacity) < 0.75) return true;
+    if (nameEl) { // gri yazı: kapalı kategori (aktifler koyu)
+      const m = getComputedStyle(nameEl).color.match(/(\d+(?:\.\d+)?)/g);
+      if (m && m.length >= 3) {
+        const [r, g, b] = m.map(Number);
+        const a = m.length > 3 ? Number(m[3]) : 1;
+        if (a < 0.75 || (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.55) return true;
+      }
+    }
     return /\bdisabled\b/i.test(row.name);
   }
 
@@ -769,40 +709,19 @@
     for (let i = 0; i < 40 && stable < 3; i++) {
       const rows = categoryRows();
       const box = scroller(rows.length ? rows[rows.length - 1].el : null);
-      // Yalnızca en alta in: bir satıra kaydırmak listeyi yukarı çekip panelin "sonraki sayfayı yükle"sini engeller.
-      if (box) box.scrollTop = box.scrollHeight;
-      window.scrollTo(0, document.documentElement.scrollHeight);
-      await sleep(600);
+      // Yalnızca en alta in (bir satıra kaydırmak listeyi yukarı çekip panelin "sonraki sayfayı yükle"sini engeller). Kayma gözle görülsün.
+      if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+      await waitFor(() => {
+        const atEnd = (!box || box.scrollTop + box.clientHeight >= box.scrollHeight - 4)
+          && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4;
+        return atEnd;
+      }, 4000, 100);
+      await sleep(500);
       const n = categoryRows().length + document.documentElement.scrollHeight / 1e6;
       stable = n === lastCount ? stable + 1 : 0;
       lastCount = n;
     }
-  }
-
-  /** Mevcut kategorilerin logolarından öğren: platform → en çok kullanılan logo. Elle öğretilenler korunur. */
-  async function learnFromList() {
-    const votes = {};
-    for (const r of categoryRows()) {
-      const p = platformOf(r.name);
-      if (!p) continue;
-      const img = r.el.querySelector('img, [style*="background-image"]');
-      if (!img) continue;
-      const src = img.tagName === 'IMG' ? (img.currentSrc || img.src || '') : ((img.style.backgroundImage || '').match(/url\(["']?(.*?)["']?\)/) || [])[1] || '';
-      if (!src || src.startsWith('data:')) continue;
-      const key = src.split('?')[0];
-      votes[p] = votes[p] || {};
-      votes[p][key] = (votes[p][key] || 0) + 1;
-    }
-    const map = await getIconMap();
-    const manual = map.__manual || {};
-    let n = 0;
-    for (const [p, v] of Object.entries(votes)) {
-      if (manual[p]) continue;
-      const best = Object.entries(v).sort((a, b) => b[1] - a[1])[0];
-      if (best && map[p] !== best[0]) { map[p] = best[0]; n++; }
-    }
-    if (n) setIconMap(map);
-    return Object.keys(votes).length;
   }
 
   function ensureCat() {
@@ -810,7 +729,8 @@
     const importOpen = !!(findModal() && scanRows().length);
     const dlg = !importOpen && categoryDialog();
     if (!dlg && !catRunning) { catSrc = null; catFilled = null; } // pencere kapandı: hatırlanan orijinal ad bir sonraki kategoriye taşınmasın
-    const onList = !importOpen && !dlg && /\/admin\/services\/?$/.test(location.pathname); // ağır tarama yalnızca düğmeye basınca
+    const anyModal = [...document.querySelectorAll(DIALOG)].some((m) => visible(m) && !ours(m));
+    const onList = !importOpen && !dlg && !anyModal && /\/admin\/services\/?$/.test(location.pathname); // ağır tarama yalnızca düğmeye basınca
     if (!dlg && !onList) {
       if (cbar && cbar.isConnected && !catRunning) cbar.remove();
       if (!dlg) catSrc = null;
@@ -829,11 +749,11 @@
     const go = cbar.querySelector('.tgw-cgo');
     if (dlg) {
       if (catSrc === null && dlg.input) catSrc = dlg.input.value;
-      go.textContent = 'Bu kategoriyi çevir + logo';
+      go.textContent = 'Bu kategorinin adını çevir';
       if (!catRunning) catStatus('Kategori: ' + (dlg.input ? dlg.input.value : ''));
     } else {
-      go.textContent = 'Son kategoriyi çevir';
-      if (!catRunning) catStatus('Import edilen kategori listenin en sonunda');
+      go.textContent = 'Son kategorinin adını çevir';
+      if (!catRunning) catStatus('En sondaki aktif kategoriyi açıp adını çevirir; logoyu sen seçersin');
     }
   }
 
@@ -843,7 +763,6 @@
     try {
       catStatus('Listenin sonuna gidiliyor…');
       await scrollToEnd();
-      await learnFromList();
       const rows = categoryRows().filter((r) => !isDisabled(r));
       const last = rows[rows.length - 1];
       if (!last) { catStatus('Aktif kategori bulunamadı', 'bad'); return; }
@@ -873,9 +792,8 @@
     if (catRunning) return;
     catRunning = true;
     cbar && cbar.classList.add('tgw-running');
-    const o = await opts();
     try {
-      let dlg = categoryDialog();
+      const dlg = categoryDialog();
       if (!dlg || !dlg.input) { catStatus('Kategori penceresi bulunamadı', 'bad'); return; }
       // Güvenlik: penceredeki ad hatırlanan addan farklıysa ve Azerice değilse başka bir kategori açılmıştır → penceredeki ad esas.
       if (catSrc === null || (lower(dlg.input.value) !== lower(catSrc) && !AZ_ONLY.test(dlg.input.value))) catSrc = dlg.input.value;
@@ -901,67 +819,26 @@
           note = res.ok ? 'ad çevrilemedi' : (res.error || 'tgwatch hatası');
         }
       }
-      // Logo
-      const platform = platformOf(src + ' ' + (az || dlg.input.value));
-      let iconNote = '';
-      if (platform) {
-        const root = await openUploaded(dlg);
-        dlg = categoryDialog() || dlg;
-        const cands = iconCandidates(root || dlg.box);
-        const map = await getIconMap();
-        const base = (u) => (u || '').split('/').pop();
-        let pick = map[platform] ? (cands.find((c) => c.key === map[platform]) || cands.find((c) => base(c.key) === base(map[platform]))) : null;
-        if (!pick) pick = cands.find((c) => PLATFORMS[platform].some((k) => k.length > 2 && c.text.includes(k)) || c.text.includes(platform));
-        if (pick) { clickIcon(pick); lastIcon = { platform, key: pick.key }; iconNote = platform + ' logosu seçildi'; }
-        else iconNote = platform + ' logosu bulunamadı — elle seç, hatırlayacağım';
-      } else {
-        iconNote = 'platform anlaşılamadı, logoyu elle seç';
-      }
-      catStatus(note + ' · ' + iconNote + (o.dry ? ' · deneme modu: Save\'e basılmadı' : ''), /bulunamadı|anlaşılamadı|çevrilemedi|hata/.test(note + iconNote) ? 'warn' : 'ok');
-      if (!o.dry && iconNote.endsWith('seçildi') && dlg.save) {
-        await sleep(300);
-        rememberCategory(dlg);
-        dlg.save.click();
-        await waitFor(() => !categoryDialog(), 6000);
-        catStatus('Kaydedildi · ' + note + ' · ' + iconNote, 'ok');
-        send({ type: 'stat', translated: az ? 1 : 0 });
-      } else if (!o.dry && !iconNote.endsWith('seçildi')) {
-        catStatus(note + ' · ' + iconNote + ' · logoyu seçip Save\'e sen bas', 'warn');
-      }
+      catStatus(note + (az ? ' · logoyu seç, Save\'e bas' : ''), /çevrilemedi|hata/.test(note) ? 'warn' : 'ok');
     } finally {
       catRunning = false;
       cbar && cbar.classList.remove('tgw-running');
     }
   }
 
-  /** Save anında: logo seçimini platforma göre hatırla, değişen adı bankaya öğret. */
+  /** Save anında: değişen adı bankaya öğret. */
   function rememberCategory(dlg) {
     const name = dlg.input ? dlg.input.value : '';
-    const platform = platformOf((catSrc || '') + ' ' + name);
-    if (platform && lastIcon && lastIcon.key && (!lastIcon.platform || lastIcon.platform === platform)) {
-      const manualPick = !lastIcon.platform; // eklentinin değil, kullanıcının seçimi
-      getIconMap().then((m) => {
-        m[platform] = lastIcon.key;
-        if (manualPick) m.__manual = Object.assign({}, m.__manual, { [platform]: true });
-        setIconMap(m);
-      });
-    }
     if (catSrc && name && lower(catSrc) !== lower(name) && !AZ_ONLY.test(catSrc)) {
       send({ type: 'api', action: 'learn', payload: { items: [{ id: 'cat', src: catSrc, az: name, kind: 'category', edited: !catFilled || lower(name) !== lower(catFilled) }] } });
     }
   }
 
-  // Kullanıcı kategori penceresinde elle logo seçerse / Save'e basarsa öğren.
+  // Kullanıcı kategori penceresinde Save'e basınca adı öğren.
   document.addEventListener('click', (e) => {
     if (catRunning) return;
     const dlg = categoryDialog();
-    if (!dlg || ours(e.target)) return;
-    let root = e.target;
-    while (root && root !== document.body && !uploadedTab(root)) root = root.parentElement;
-    const zone = root && root !== document.body ? root : dlg.box;
-    if (!dlg.box.contains(e.target) && zone === dlg.box) return;
-    const c = iconCandidates(zone).find((x) => x.el === e.target || x.el.contains(e.target) || (e.target.contains && e.target.contains(x.el)));
-    if (c) { lastIcon = { key: c.key }; return; }
+    if (!dlg || ours(e.target) || !dlg.box.contains(e.target)) return;
     const b = e.target.closest && e.target.closest('button, a, input[type=submit]');
     if (b && SAVE_WORDS.includes(lower(b.value || btnText(b)))) rememberCategory(dlg);
   }, true);

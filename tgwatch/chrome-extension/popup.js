@@ -47,8 +47,8 @@ function refresh() {
       $('tab-counts').hidden = true;
       $('undo').hidden = true;
       if (r.ctx === 'category' || r.ctx === 'list') {
-        $('tab-msg').textContent = r.ctx === 'category' ? 'Edit category penceresi açık.' : 'Services listesi: import edilen kategori en sonda.';
-        $('run').textContent = r.ctx === 'category' ? 'Bu kategoriyi çevir + logo' : 'Son kategoriyi çevir';
+        $('tab-msg').textContent = r.ctx === 'category' ? 'Edit category penceresi açık.' : 'Services listesi: en sondaki aktif kategori açılır, adı çevrilir; logoyu sen seçersin.';
+        $('run').textContent = r.ctx === 'category' ? 'Bu kategorinin adını çevir' : 'Son kategorinin adını çevir';
         $('tab-actions').hidden = false;
         $('run').disabled = r.running;
       } else {

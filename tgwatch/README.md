@@ -261,7 +261,7 @@ Panelde **Services → Import services** ile servisleri sen seçersin. İnceleme
 
 **Import penceresinde** panelin **Import services** düğmesinin yanında **tgwatch ile çevir** düğmesi de var (eklenti simgesini açmaya gerek yok).
 
-**Kategori:** import sonrası Services listesinde sol altta **Son kategoriyi çevir** çıkar: liste sonuna kadar kaydırılır (yeni satır yüklenmesi durana kadar), devre dışı olanlar atlanıp **en sondaki aktif kategori** seçilir, **Actions → Edit category** açılır, **Category name** çevrilir (kategori bankası), logo kutusundan seçici açılıp **Uploaded**'dan platforma uygun logo seçilir, **Save changes**'e basılır. Logo, listedeki mevcut kategorilerden öğrenilir (TikTok kategorilerinde en çok kullanılan logo → yeni TikTok kategorisine). Öğrenilemezse sen bir kez elle seçip kaydedersin, o platform için hatırlanır (elle seçim listeden öğrenilenden önceliklidir). Edit category penceresi açıkken aynı iş o kategori için yapılır.
+**Kategori:** import sonrası Services listesinde sol altta **Son kategorinin adını çevir** çıkar: liste gözle görülür şekilde sonuna kadar kaydırılır (yeni satır yüklenmesi durana kadar), devre dışı olanlar (soluk/gri) atlanıp **en sondaki aktif kategori** seçilir, **Actions → Edit category** açılır, **Category name** çevrilir (kategori bankası; orijinal ad kutunun altında gölge olarak görünür). Pencere açık kalır: **logoyu sen seçip Save'e sen basarsın**; Save'de ad bankaya öğrenilir. Edit category penceresi açıkken aynı iş o kategori için yapılır.
 
 **Mini panel:** eklenti simgesine tıklayınca bulunduğun ekrana göre (import / kategori / liste) düğme, deneme modu, istatistik.
 
