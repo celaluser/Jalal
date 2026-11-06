@@ -16,7 +16,7 @@ trait SettingsPages
     /** Bunlar değişirse mevcut panel şifresi sorulur: çalınmış bir oturum botu/uyarıları başka yere yönlendiremesin. */
     private static function sensitiveKeys(): array
     {
-        return ['bot_token', 'owner_id', 'telegram_api_base', 'webhook_url', 'webhook_secret', 'cron_key', 'monitor_key',
+        return ['bot_token', 'owner_id', 'telegram_api_base', 'webhook_url', 'webhook_secret', 'cron_key', 'monitor_key', 'ext_key',
             'panel_api_url', 'panel_api_key', 'publisher', 'alert_email', 'alert_email_mode'];
     }
 
@@ -75,7 +75,16 @@ trait SettingsPages
             . '<div class="row">' . $this->ui->action('learn_run', 'Analiz et', [], 'quiet sm', 'play') . Ui::link('?p=learn', 'Önerilere bak', 'quiet sm') . '</div></div></div>';
         $look = '<div class="panel panel-pad stack"><div><h3>Görünüm</h3><p class="muted">Buta, Cam ve İmpuls arasında, açık ve koyu mod arasında seçim. Hızlı değiştirmek için sağ üstteki ☀/☾ düğmesini ya da avatar menüsünü kullan. Herkes için varsayılan aşağıda.</p></div>'
             . '<div class="row">' . Ui::link('?p=settings&tab=appearance', 'Görünüm ayarları', 'quiet sm') . Ui::link('?p=dict', 'Ad kalıbı', 'quiet sm') . '</div></div>';
-        return '<h2 class="first">Yeni servis izleme</h2>' . $watch . '<h2>Öğrenme</h2>' . $learn . '<h2>Görünüm ve ad kalıbı</h2>' . $look . '<h2>Zamanlama</h2>';
+        $ek = (string)($this->config['ext_key'] ?? '');
+        $api = $this->siblingUrl('api.php');
+        $ext = '<div class="panel panel-pad stack"><div><h3>Chrome eklentisi (Perfect Panel import çevirisi)</h3><p class="muted">Perfect Panel → Services → Import services ekranında servis adlarını tgwatch bankasıyla çevirir: her satırda Edit → Azerice ad → Save. Import kararı yine senin. Import\'a basınca son adlar bankaya öğrenilir.</p></div>'
+            . '<dl class="kv"><dt>API adresi</dt><dd><code id="ext-api">' . Ui::e($api) . '</code>' . Ui::copy('ext-api') . '</dd>'
+            . '<dt>Anahtar</dt><dd>' . ($ek === ''
+                ? '<span class="lvl-warn">Henüz yok.</span> Aşağıda “Eklenti anahtarı” için “Yeni rastgele anahtar üret”i işaretleyip kaydet.'
+                : ($this->loginOff() ? '•••••••• (giriş kapalıyken gösterilmez)' : '<code id="ext-key">' . Ui::e($ek) . '</code>' . Ui::copy('ext-key') . ' <span class="muted">Paylaşma.</span>')) . '</dd></dl>'
+            . '<ol class="muted"><li>Eklentiyi indir, zip\'i bir klasöre aç.</li><li>Chrome → <code>chrome://extensions</code> → sağ üstte “Geliştirici modu” aç → “Paketlenmemiş öğe yükle” → klasörü seç.</li><li>Eklenti simgesi → Ayarlar: panel adresi (ör. https://panelbaku.com), yukarıdaki API adresi ve anahtar → Kaydet ve dene.</li></ol>'
+            . '<div class="row">' . Ui::link('?p=ext_zip', 'Eklentiyi indir (.zip)', 'quiet', 'download') . '</div></div>';
+        return '<h2 class="first">Yeni servis izleme</h2>' . $watch . '<h2>Öğrenme</h2>' . $learn . '<h2>Chrome eklentisi</h2>' . $ext . '<h2>Görünüm ve ad kalıbı</h2>' . $look . '<h2>Zamanlama</h2>';
     }
 
     private function settingsForm(string $tab): string
@@ -237,6 +246,30 @@ trait SettingsPages
             . '<tr><td class="tight">Boş disk</td><td>' . (($free = @disk_free_space($dir)) !== false ? round($free / 1048576) . ' MB' : '—') . '</td></tr>'
             . '</tbody></table></div>';
         return $h;
+    }
+
+    /** Chrome eklentisi klasörünü zip olarak indirir. */
+    private function extZip(): void
+    {
+        $dir = TGWATCH_ROOT . '/chrome-extension';
+        if (!class_exists(\ZipArchive::class) || !is_dir($dir)) {
+            $this->say('bad', class_exists(\ZipArchive::class) ? 'Eklenti klasörü bulunamadı (chrome-extension).' : 'Sunucuda ZipArchive yok. Eklenti, tgwatch zip\'inin içindeki chrome-extension klasöründe.');
+            $this->redirect('settings', ['tab' => 'features']);
+            return;
+        }
+        $tmp = tempnam(sys_get_temp_dir(), 'tgwext');
+        $zip = new \ZipArchive();
+        $zip->open($tmp, \ZipArchive::OVERWRITE);
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS));
+        foreach ($it as $f) {
+            $zip->addFile($f->getPathname(), 'tgwatch-eklenti/' . substr($f->getPathname(), strlen($dir) + 1));
+        }
+        $zip->close();
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="tgwatch-eklenti.zip"');
+        header('Content-Length: ' . filesize($tmp));
+        readfile($tmp);
+        @unlink($tmp);
     }
 
     private function exportCsv(): void

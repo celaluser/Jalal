@@ -70,6 +70,20 @@ final class NameTemplate
         };
     }
 
+    /** Ad kalıbının ön/son ekini adın başından/sonundan çıkarır (karşılaştırma için). */
+    public static function stripAffixes(string $s, array $options): string
+    {
+        $o = self::normalize($options);
+        $s = trim($s);
+        if ($o['prefix'] !== '' && str_starts_with($s, $o['prefix'])) {
+            $s = trim(substr($s, strlen($o['prefix'])));
+        }
+        if ($o['suffix'] !== '' && str_ends_with($s, $o['suffix'])) {
+            $s = trim(substr($s, 0, -strlen($o['suffix'])));
+        }
+        return $s;
+    }
+
     public static function stripEmoji(string $s): string
     {
         $s = preg_replace('/[\x{1F000}-\x{1FAFF}\x{2190}-\x{21FF}\x{2300}-\x{23FF}\x{25A0}-\x{25FF}\x{2600}-\x{27BF}\x{2900}-\x{297F}\x{2B00}-\x{2BFF}\x{FE0F}\x{200D}\x{20E3}]/u', '', $s) ?? $s;
@@ -114,6 +128,9 @@ final class NameTemplate
         if ($room > 0 && mb_strlen($text) > $room) {
             $text = rtrim(mb_substr($text, 0, max(1, $room - 1))) . '…';
         }
-        return trim($o['prefix'] . ($o['prefix'] !== '' ? ' ' : '') . $text . ($o['suffix'] !== '' ? ' ' : '') . $o['suffix']);
+        // Bankadan gelen ad eki zaten içeriyorsa ikinci kez ekleme ("… [TG] [TG]" olmasın).
+        $pre = $o['prefix'] !== '' && !str_starts_with($text, $o['prefix']) ? $o['prefix'] . ' ' : '';
+        $suf = $o['suffix'] !== '' && !str_ends_with($text, $o['suffix']) ? ' ' . $o['suffix'] : '';
+        return trim($pre . $text . $suf);
     }
 }

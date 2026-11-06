@@ -87,6 +87,7 @@ return [
     'alert_email' => '',
     'alert_email_mode' => 'fallback',
     'monitor_key' => '',
+    'ext_key' => '', // Chrome eklentisi anahtarı (public/api.php), panelden üretilir
 
     // Otomatik yedek: off | daily | weekly; hedef: telegram | email | both; saat 0-23
     'backup_auto' => 'daily',

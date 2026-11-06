@@ -247,6 +247,19 @@ Menüde **Analiz** bölümü altında: **Rakip kıyası** ve **Rakip listesi** s
 
 Ayarlar → Kanal okuma → **Kurlar** kartı. Açarsan RUB/TRY/AZN/EUR kurları günde bir kez açık bir servisten (open.er-api.com, anahtar gerekmez) otomatik çekilir. Kapalıysa ya da çekilen kur 48 saatten eskiyse, yine Kanal okuma sekmesindeki **manuel kurlar** kullanılır — yani otomatik her zaman bir yedeğe düşer, fiyat çevirisi sessizce durmaz. "Şimdi çek" ile cron'u beklemeden denenir. **Denenmedi:** bu ortamdan dış servise erişilemedi (bağlantı denemesi 403 ile reddedildi); gerçek sunucunda deneyip sonucu görmen gerekir.
 
+## Chrome eklentisi: Perfect Panel import çevirisi
+
+Panelde **Services → Import services** ile servisleri sen seçersin. İnceleme ekranında sol altta **tgwatch → Hepsini çevir** çıkar. Basınca:
+1. Seçtiğin satırların adları tek istekte tgwatch'a gider (`public/api.php`); botla aynı motor (banka → kurallar → ad kalıbı) çevirir.
+2. Her satırda Edit → Name kutusuna Azerice ad → Save. Satır rengi: yeşil **bankadan**, sarı **kontrol et** (kurallarla/bilinmeyen kelime), kırmızı **çevrilmedi** (kutuya dokunulmaz).
+3. Gözden geçirip **Import services**'e sen basarsın. O anda son adlar (elle düzelttiklerin "elle", olduğu gibi bıraktıkların "onaylanan" olarak) bankaya öğrenilir; bir dahaki sefere yeşil gelir.
+
+**Kurulum:** Ayarlar → Özellikler → Eklenti anahtarı için "Yeni rastgele anahtar üret" → Kaydet. Aynı sayfadaki **Chrome eklentisi** kartından eklentiyi indir. `chrome://extensions` → Geliştirici modu → Paketlenmemiş öğe yükle. Eklenti simgesi → panel adresi, API adresi, anahtar → Kaydet ve dene → panel sekmesini yenile.
+
+Türkçe kaynak adlar (Takipçi, Beğeni, Telafili, Günde…) için sözlüğe Türkçe terimler eklendi (tahmin; Sözlük'ten düzeltilir).
+
+**Denenmedi:** gerçek Perfect Panel ekranında. Satırlar panel HTML'ine değil düğme/etiket yazılarına (Edit, Save, Name, Import services) göre bulunur; panel dili İngilizce değilse çalışmaz. Fotoğraflardaki ekranın taklidinde ve gerçek tgwatch API'siyle uçtan uca denendi.
+
 ## Sipariş geçmişinden gerçek sağlayıcıyı öğrenme (tahmin değil)
 
 Perfect Panel'in Admin API v2'sindeki **Orders** uçları (`GET /orders`) zaten yayında ve her siparişte hangi sağlayıcıdan geldiğini (`provider` alanı: sağlayıcı adı/takma adı) veriyor — henüz yayınlanmamış "servis listesinde sağlayıcı ID'si" özelliğini beklemeden, bugün kullanılabilir.

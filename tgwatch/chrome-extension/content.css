@@ -1,0 +1,13 @@
+.tgw-bar{position:fixed;left:16px;bottom:16px;z-index:2147483647;display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:calc(100vw - 32px);
+  padding:10px 14px;border-radius:10px;background:#0b1215;color:#e7f3f1;font:500 13px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.tgw-bar[hidden]{display:none}
+.tgw-bar strong{color:#35e1c6;font-weight:700;letter-spacing:.01em}
+.tgw-bar button{font:600 13px system-ui,sans-serif;border:1px solid #35e1c6;background:#35e1c6;color:#04201c;border-radius:6px;padding:6px 12px;cursor:pointer}
+.tgw-bar button:disabled{opacity:.5;cursor:default}
+.tgw-bar .tgw-stop{background:transparent;color:#f2537d;border-color:#f2537d}
+.tgw-status{color:#9fb3b2}.tgw-status-ok{color:#35e1c6}.tgw-status-warn{color:#e8b23c}.tgw-status-bad{color:#f2537d}
+.tgw-row-ok{box-shadow:inset 4px 0 0 #1b7f3b !important;background-color:rgba(27,127,59,.07) !important}
+.tgw-row-warn{box-shadow:inset 4px 0 0 #c98a00 !important;background-color:rgba(232,178,60,.12) !important}
+.tgw-row-bad{box-shadow:inset 4px 0 0 #c2255f !important;background-color:rgba(194,37,95,.08) !important}
+.tgw-badge{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:4px;font:600 11px system-ui,sans-serif;vertical-align:middle;white-space:nowrap}
+.tgw-badge-ok{background:#1b7f3b;color:#fff}.tgw-badge-warn{background:#e8b23c;color:#231a00}.tgw-badge-bad{background:#c2255f;color:#fff}

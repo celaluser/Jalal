@@ -18,9 +18,39 @@ final class Dictionary
     /** Kullanıcının onayladığı terimler; diğerleri tahmin sayılır. */
     public const CONFIRMED = ['Likes', 'Like', 'Comments', 'Comment', 'Refill', 'Guarantee', 'Guaranteed', 'Fast'];
 
+    /**
+     * Türkçe kaynak adlar (Türk sağlayıcılar: "Garantili Takipçi | 30 Gün Telafili"). Hepsi tahmindir, panelden düzeltilir.
+     * Eski kurulumlara bir kez eklenir (yalnızca eksik olanlar; silinenler geri gelmez).
+     */
+    public const TR_RULES = [
+        ['(\d+)\s*Gün\s*Otomatik\s*(?:Telafi(?:li)?|Garanti(?:li)?)', '$1 Gün Avtomatik Qarantili'],
+        ['(\d+)\s*Gün(?:lük)?\s*(?:Telafi(?:li)?|Garanti(?:li)?)', '$1 Gün Qarantili'],
+        ['(?:Ömür\s*Boyu|Sınırsız|Ömürlük)\s*(?:Telafi(?:li)?|Garanti(?:li)?)', 'Ömürlük Qarantili'],
+        ['Telafisiz|Garantisiz', 'Qarantisiz'],
+        ['Günde\s*(\d[\d.,]*\s*[KkMm]?)', 'Gündə $1'],
+        ['Saatte\s*(\d[\d.,]*\s*[KkMm]?)', 'Saatda $1'],
+        ['(?:Düşüş\s*Yok|Düşmeyen|Düşüşsüz)', 'Azalma olmaz'],
+        ['(?:Anlık|Hızlı)\s*Başla(?:ngıç|r)', 'Dərhal Başlayır'],
+        ['İptal\s*Butonlu', 'Ləğv aktivdir'],
+    ];
+    public const TR_PHRASES = [
+        'Takipçi' => 'İzləyici', 'Takipçiler' => 'İzləyici',
+        'Beğeni' => 'Bəyəni', 'Beğeniler' => 'Bəyəni',
+        'Yorum' => 'Rəy', 'Yorumlar' => 'Rəy', 'Özel Yorum' => 'Özəl Rəy', 'Rastgele Yorum' => 'Təsadüfi Rəy',
+        'İzlenme' => 'Baxış', 'Görüntülenme' => 'Baxış', 'Hikaye İzlenme' => 'Hekayə Baxışı', 'Hikaye' => 'Hekayə',
+        'Kaydetme' => 'Yadda Saxla', 'Kaydet' => 'Yadda Saxla', 'Paylaşım' => 'Paylaşım',
+        'Abone' => 'Abunəçi', 'Aboneler' => 'Abunəçi', 'Üye' => 'Üzv', 'Üyeler' => 'Üzv',
+        'Tepki' => 'Reaksiya', 'Canlı Yayın' => 'Canlı Yayım', 'Oy' => 'Səs',
+        'Garantili' => 'Qarantili', 'Telafili' => 'Qarantili', 'Hızlı' => 'Sürətli', 'Yavaş' => 'Yavaş',
+        'Gerçek' => 'Real', 'Kullanıcılar' => 'İstifadəçilər', 'Kullanıcı' => 'İstifadəçi',
+        'Kadın' => 'Qadın', 'Erkek' => 'Kişi', 'Ekonomik' => 'Ekonom', 'Türk' => 'Türk',
+    ];
+
     public static function defaults(): array
     {
         $d = self::rawDefaults();
+        $d['rules'] = array_merge(self::TR_RULES, $d['rules']);
+        $d['phrases'] += self::TR_PHRASES;
         $d['guesses'] = array_values(array_diff(array_keys($d['phrases']), self::CONFIRMED));
         return $d;
     }
@@ -98,6 +128,19 @@ final class Dictionary
             if (!isset($d[$k]) || !is_array($d[$k])) {
                 $d[$k] = $v;
             }
+        }
+        if ($db->get('dict_tr_v1') !== '1') { // Türkçe terimler: kayıtlı sözlüğe bir kez, yalnızca eksikleri ekle
+            $have = array_change_key_case($d['phrases'], CASE_LOWER);
+            foreach (self::TR_PHRASES as $tr => $az) {
+                if (!isset($have[mb_strtolower($tr)])) {
+                    $d['phrases'][$tr] = $az;
+                    $d['guesses'][] = $tr;
+                }
+            }
+            $pats = array_column($d['rules'], 0);
+            $d['rules'] = array_merge(array_values(array_filter(self::TR_RULES, static fn($r) => !in_array($r[0], $pats, true))), $d['rules']);
+            self::save($db, $d);
+            $db->set('dict_tr_v1', '1');
         }
         $d['options'] = NameTemplate::normalize(array_merge($def['options'], $d['options']));
         return $d;

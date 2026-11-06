@@ -1035,10 +1035,25 @@ test('kurallar: geçersiz regex yakalanır', function () {
 test('veritabanına kaydet/yükle, eksik alanlar varsayılanla dolar', function () {
     [$db] = env();
     Dictionary::save($db, ['phrases' => ['A' => 'B']]);
+    $db->set('dict_tr_v1', '1'); // Türkçe terim eklemesi zaten yapılmış say
     $d = Dictionary::load($db);
     eq(['A' => 'B'], $d['phrases']);
     eq(Dictionary::defaults()['rules'], $d['rules']);
     eq(true, $d['options']['keep_max']);
+});
+test('Türkçe terimler kayıtlı sözlüğe bir kez eklenir; mevcut çeviri ezilmez, silinen geri gelmez', function () {
+    [$db] = env();
+    Dictionary::save($db, ['phrases' => ['Takipçi' => 'Follower (benim)', 'Likes' => 'Bəyəni'], 'rules' => [['X', 'Y']]]);
+    $d = Dictionary::load($db);
+    eq('Follower (benim)', $d['phrases']['Takipçi'], 'kullanıcının terimi korunur');
+    eq('Bəyəni', $d['phrases']['Beğeni'], 'eksik Türkçe terim eklendi');
+    ok(in_array(['X', 'Y'], $d['rules'], true) && count($d['rules']) === 1 + count(Dictionary::TR_RULES));
+    // kullanıcı bir terimi silerse ikinci yüklemede geri gelmez
+    unset($d['phrases']['Beğeni']);
+    Dictionary::save($db, $d);
+    ok(!isset(Dictionary::load($db)['phrases']['Beğeni']));
+    $t = new Translator(Dictionary::defaults());
+    eq('Instagram Qarantili İzləyici | 30 Gün Qarantili | Maks 10M | Ləğv aktivdir | Gündə 10K', $t->translate('Instagram Garantili Takipçi | 30 Gün Telafili | Max 10M | İptal Butonlu | Günde 10K')['text']);
 });
 
 echo "Ayarlar, temizlik, kanal filtresi\n";
@@ -1567,6 +1582,7 @@ test('Ad kalıbı: parça seçimi, sıra, ayraç, emoji, ön/son ek, uzunluk', f
     eq('Instagram Bəyəni • Sürətli', $N(['Instagram Bəyəni', 'Sürətli'], ['separator' => ' • ']));
     eq('x | 30 Gün Qarantili', $N(['x', '30 Gün Qarantili ♻️'], ['emoji' => 'remove']), 'emoji silinir');
     eq('⚡ Instagram Bəyəni | Sürətli [TG]', $N(['Instagram Bəyəni', 'Sürətli'], ['prefix' => '⚡', 'suffix' => '[TG]']));
+    eq('⚡ Instagram Bəyəni | Sürətli [TG]', $N(['⚡ Instagram Bəyəni', 'Sürətli [TG]'], ['prefix' => '⚡', 'suffix' => '[TG]']), 'ek zaten varsa tekrar eklenmez');
     eq('Instagram Bəyəni | Sürətli | Real | 30 Gün Qarantili ♻️', $N($segs, ['order' => 'tidy', 'max_len' => 60]), 'sığmayınca önemsiz parçalar atılır');
     ok(mb_strlen($N(['A' . str_repeat('b', 80)], ['max_len' => 30])) <= 30, 'ana ad kesilir');
     eq("Instagram Bəyəni | Sürətli", $N(['Instagram Bəyəni', 'Sürətli', '', '  '], []), 'boş parçalar atılır');
@@ -1915,6 +1931,56 @@ test('Matcher: sipariş geçmişinden bilinen sağlayıcı, belirsiz min/max eş
     $row = $db->one("SELECT * FROM tm WHERE kind = 'service' AND status = 'ok'");
     eq($b, (int)$row['provider_source'], 'doğru sağlayıcıya bağlandı');
     eq(302, (int)$row['provider_service']);
+});
+
+echo "Chrome eklentisi API\n";
+test('Eklenti API: anahtar, çeviri (banka/kural/yok), öğrenme ve sınırlar', function () {
+    [$db] = env();
+    ok(!TgWatch\ExtApi::authorized(['ext_key' => ''], ''), 'anahtar tanımlı değilse kapalı');
+    ok(!TgWatch\ExtApi::authorized(['ext_key' => 'kisa'], 'kisa'), '16 karakterden kısa anahtar kabul edilmez');
+    ok(!TgWatch\ExtApi::authorized(['ext_key' => str_repeat('a', 20)], str_repeat('b', 20)));
+    ok(TgWatch\ExtApi::authorized(['ext_key' => str_repeat('a', 20)], str_repeat('a', 20)));
+    $api = new TgWatch\ExtApi($db, ['panel_name' => 'test']);
+    eq([200, true], [$api->handle(['action' => 'ping'])[0], $api->handle(['action' => 'ping'])[1]['ok']]);
+    eq(400, $api->handle(['action' => 'yok'])[0]);
+    eq(400, $api->handle(['action' => 'translate', 'items' => 'x'])[0]);
+    eq(400, $api->handle(['action' => 'translate', 'items' => array_fill(0, 1001, ['id' => 1, 'name' => 'a'])])[0], 'en çok 1000');
+
+    (new TgWatch\Memory($db))->learn('service', 'Instagram Garantili Takipçi | 30 Gün Telafili', 'Instagram İzləyici | 30 Gün Qarantili', 'manual');
+    [$code, $body] = $api->handle(['action' => 'translate', 'items' => [
+        ['id' => '15341', 'name' => 'Instagram Garantili Takipçi | 30 Gün Telafili'],
+        ['id' => '15342', 'name' => 'Instagram Garantili Takipçi | 365 Gün Telafili'],
+        ['id' => '9', 'name' => 'Zzqx Wwvb'],
+        ['id' => '10', 'name' => ''],
+    ]]);
+    eq(200, $code);
+    $by = array_column($body['items'], null, 'id');
+    eq(['Instagram İzləyici | 30 Gün Qarantili', 'bank'], [$by['15341']['az'], $by['15341']['via']], 'birebir bankadan');
+    eq('Instagram İzləyici | 365 Gün Qarantili', $by['15342']['az'], 'sayı şablonuyla bankadan');
+    eq(['none', ''], [$by['9']['via'], $by['9']['az']], 'çevrilemeyen ad işaretlenir, boş döner');
+    $d = Dictionary::load($db);
+    $d['options']['suffix'] = '[TG]';
+    Dictionary::save($db, $d);
+    eq('none', $api->handle(['action' => 'translate', 'items' => [['id' => 'x', 'name' => 'Zzqx Wwvb']]])[1]['items'][0]['via'], 'yalnızca son ek eklenmesi çeviri sayılmaz');
+    $d['options']['suffix'] = '';
+    Dictionary::save($db, $d);
+    eq('none', $by['10']['via']);
+
+    [$code, $body] = $api->handle(['action' => 'learn', 'items' => [
+        ['id' => '1', 'src' => 'TikTok Beğeni | Hızlı', 'az' => 'TikTok Bəyəni | Sürətli (elle)', 'edited' => true],
+        ['id' => '2', 'src' => 'Aynı Ad', 'az' => 'Aynı Ad'],
+        ['id' => '3', 'src' => '', 'az' => 'x'],
+    ]]);
+    eq([1, 2], [$body['learned'], $body['skipped']]);
+    $d = Dictionary::load($db);
+    $d['options']['suffix'] = '[TG]';
+    Dictionary::save($db, $d);
+    eq(0, $api->handle(['action' => 'learn', 'items' => [['src' => 'Qwxz Ppqr', 'az' => 'Qwxz Ppqr [TG]']]])[1]['learned'], 'yalnızca son ek farkı öğrenilmez');
+    $d['options']['suffix'] = '';
+    Dictionary::save($db, $d);
+    $row = $db->one("SELECT * FROM tm WHERE en = 'TikTok Beğeni | Hızlı'");
+    eq(['TikTok Bəyəni | Sürətli (elle)', 'manual'], [$row['az'], $row['origin']], 'elle düzeltilen en yüksek öncelikle');
+    eq('TikTok Bəyəni | Sürətli (elle)', $api->handle(['action' => 'translate', 'items' => [['id' => 'x', 'name' => 'TikTok Beğeni | Hızlı']]])[1]['items'][0]['az'], 'öğrenilen ad bir dahaki sefere bankadan gelir');
 });
 
 // temizlik

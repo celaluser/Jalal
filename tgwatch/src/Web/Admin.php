@@ -91,6 +91,7 @@ final class Admin
             'reports' => $this->reportsPage(),
             'settings' => $this->settingsPage(),
             'export' => $this->exportCsv(),
+            'ext_zip' => $this->extZip(),
             'seen_txt' => $this->seenTxt((int)($_GET['id'] ?? 0)),
             'jobs' => $this->jobs(),
             'job' => $this->job((int)($_GET['id'] ?? 0)),
