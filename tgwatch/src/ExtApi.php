@@ -60,6 +60,7 @@ final class ExtApi
         $engine = new Engine($this->db, $dict);
         $rules = new Translator(array_merge($dict, ['options' => []]));
         $out = [];
+        $forAi = []; // Claude'a gidebilecek servis adları: $out indeksi => iş öğesi
         foreach ($items as $it) {
             if (!is_array($it)) {
                 continue;
@@ -88,6 +89,38 @@ final class ExtApi
             $untouched = $r['via'] === 'rules' && Learner::same($rules->translate($clean)['text'], $clean);
             $none = $untouched || Learner::same($r['text'], $name);
             $out[] = ['id' => $id, 'az' => $none ? '' : $r['text'], 'via' => $none ? 'none' : $r['via'], 'unknown' => $r['unknown']];
+            $forAi[count($out) - 1] = ['id' => count($out) - 1, 'name' => $name, 'az' => $none ? $name : $r['text'], 'via' => $none ? 'rules' : $r['via'], 'unknown' => $r['unknown']];
+        }
+        return $this->claude($out, $forAi, $engine, $dict);
+    }
+
+    /**
+     * Çeviri ayarlarında Claude açıksa (Karma / Tüm adlar) botla aynı kuralla Claude'a sorulur:
+     * aynı istem, aynı denetim (sayılar, emojiler, parça sayısı, sözlük terimleri), aynı aylık sınır.
+     * Claude hata verirse ya da sınır dolarsa banka + kural sonucu kalır.
+     */
+    private function claude(array $out, array $forAi, Engine $engine, array $dict): array
+    {
+        $ai = new Ai($this->db, $this->config);
+        if (!$forAi || !$ai->active()) {
+            return $out;
+        }
+        try {
+            $r = $ai->improve(array_values($forAi), $engine, $dict);
+        } catch (\Throwable $e) {
+            $this->db->log('warn', 'ext', 'Eklenti: Claude kullanılamadı, banka + kurallar kullanıldı: ' . $e->getMessage());
+            return $out;
+        }
+        foreach ($r['items'] as $it) {
+            $i = (int)$it['id'];
+            if (($it['via'] ?? '') === 'claude' && isset($out[$i])) {
+                $out[$i]['az'] = (string)$it['az'];
+                $out[$i]['via'] = 'claude';
+                $out[$i]['unknown'] = [];
+            }
+        }
+        if ($r['sent']) {
+            $this->db->log('info', 'ext', "Eklenti: {$r['applied']}/{$r['sent']} ad Claude ile çevrildi" . ($r['rejected'] ? '; denetimden geçmeyen: ' . count($r['rejected']) : ''));
         }
         return $out;
     }

@@ -257,11 +257,13 @@ Panelde **Services → Import services** ile servisleri sen seçersin. İnceleme
 2. Her satırda Edit → Name kutusuna Azerice ad → Save. Satır rengi: yeşil **bankadan**, sarı **kontrol et** (kurallarla/bilinmeyen kelime), kırmızı **çevrilmedi** (kutuya dokunulmaz).
 3. Gözden geçirip **Import services**'e sen basarsın. O anda son adlar (elle düzelttiklerin "elle", olduğu gibi bıraktıkların "onaylanan" olarak) bankaya öğrenilir; bir dahaki sefere yeşil gelir.
 
+**Kurallar:** eklenti botla aynı motoru kullanır: çeviri bankası, kurallar, sözlük, silinecek ifadeler, ad kalıbı ve Çeviri ayarlarında seçiliyse Claude (Karma / Tüm adlar; aynı istem, aynı denetim, aynı aylık sınır; Claude hata verirse banka + kurallar). Kategori adlarına botta olduğu gibi kategori bankası + kurallar + silinecek ifadeler uygulanır (ad kalıbı uygulanmaz).
+
 **Gölge orijinal ad:** çevrilen her adın üstünde küçük gri yazıyla orijinal ad durur (tıkla: kopyalanır). **Sadece sorunlular** yeşil satırları gizler (import'u etkilemez). **Geri al** / satırdaki **↺**: orijinal ada döner. Zaten çevrilmiş ve adında **ə** olan satırlar atlanır. Kısayol: Alt+Shift+T.
 
 **Import penceresinde** panelin **Import services** düğmesinin yanında **tgwatch ile çevir** düğmesi de var (eklenti simgesini açmaya gerek yok).
 
-**Kategori:** import sonrası Services listesinde sol altta **Son kategorinin adını çevir** çıkar: liste gözle görülür şekilde sonuna kadar kaydırılır (yeni satır yüklenmesi durana kadar), devre dışı olanlar (soluk/gri) atlanıp **en sondaki aktif kategori** seçilir, **Actions → Edit category** açılır, **Category name** çevrilir (kategori bankası; orijinal ad kutunun altında gölge olarak görünür). Pencere açık kalır: **logoyu sen seçip Save'e sen basarsın**; Save'de ad bankaya öğrenilir. Edit category penceresi açıkken aynı iş o kategori için yapılır.
+**Kategori:** import sonrası Services listesinde sol altta **Son kategorinin adını çevir** çıkar: önce liste yalnızca kategori adlarına daraltılır (tablo başlığındaki en sağdaki düğme; servisler açıksa), sonra liste gözle görülür şekilde sonuna kadar kaydırılır (yeni satır yüklenmesi durana kadar), devre dışı olanlar (soluk/gri) atlanıp **en sondaki aktif kategori** seçilir, **Actions → Edit category** açılır, **Category name** çevrilir (kategori bankası; orijinal ad kutunun altında gölge olarak görünür). Pencere açık kalır: **logoyu sen seçip Save'e sen basarsın**; Save'de ad bankaya öğrenilir. Edit category penceresi açıkken aynı iş o kategori için yapılır.
 
 **Mini panel:** eklenti simgesine tıklayınca bulunduğun ekrana göre (import / kategori / liste) düğme, deneme modu, istatistik.
 

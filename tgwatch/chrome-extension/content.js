@@ -511,7 +511,7 @@
         const r = findRow(id) || row;
         const why = 'Orijinal: ' + src + (tr.unknown && tr.unknown.length ? '\nBilinmeyen: ' + tr.unknown.join(', ') : '');
         if (tr.via === 'bank') { ok++; mark(r, 'ok', 'Bankadan birebir\n' + why); }
-        else { warn++; mark(r, 'warn', (tr.via === 'mixed' ? 'Kısmen bankadan' : 'Kurallarla') + '\n' + why); }
+        else { warn++; mark(r, 'warn', (tr.via === 'mixed' ? 'Kısmen bankadan' : tr.via === 'claude' ? 'Claude ile (tgwatch denetiminden geçti)' : 'Kurallarla') + '\n' + why); }
         await sleep(Math.max(0, Number(o.delay) || 0));
       }
       progress(rows.length, rows.length);
@@ -693,6 +693,35 @@
     return /\bdisabled\b/i.test(row.name);
   }
 
+  /** Görünen servis satırı sayısı (servis satırlarında kutucuk var; başlıktaki "hepsini seç" de bir tane). */
+  const visibleChecks = () => [...document.querySelectorAll('input[type=checkbox]')].filter((c) => visible(c) && !ours(c)).length;
+
+  /**
+   * Listeyi yalnızca kategori adlarına daralt: tablo başlığındaki (Status, Min, Max satırı) en sağdaki simge düğmesi.
+   * Servisler zaten kapalıysa dokunulmaz; basınca servisler açılırsa geri basılır.
+   */
+  async function collapseAll() {
+    if (visibleChecks() <= 1) return true;
+    const status = [...document.querySelectorAll('button, a, th, div, span')].find((el) => !ours(el) && el.children.length <= 2 && /^status\b/i.test(btnText(el)));
+    let head = status;
+    while (head && head !== document.body && !/\bmax\b/i.test(head.textContent || '')) head = head.parentElement;
+    if (!head || head === document.body) return false;
+    const icons = [...head.querySelectorAll('a, button, [role=button], span, i, div')].filter((el) => {
+      if (!visible(el) || ours(el) || /[a-z]/i.test(el.textContent || '')) return false;
+      if (el.querySelector('input')) return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.width <= 48 && r.height <= 48;
+    });
+    if (!icons.length) return false;
+    icons.sort((a, b) => b.getBoundingClientRect().right - a.getBoundingClientRect().right);
+    const toggle = icons[0].closest('a, button, [role=button]') || icons[0];
+    const before = visibleChecks();
+    toggle.click();
+    const ok = await waitFor(() => visibleChecks() <= 1, 3000, 100);
+    if (!ok && visibleChecks() > before) toggle.click(); // ters çalıştı: geri al
+    return !!ok;
+  }
+
   /** Listenin gerçek kaydırma alanı (pencere ya da iç kutu). */
   function scroller(from) {
     for (let el = from && from.parentElement; el && el !== document.body; el = el.parentElement) {
@@ -761,6 +790,8 @@
     if (catRunning) return;
     catRunning = true;
     try {
+      catStatus('Liste yalnızca kategori adlarına daraltılıyor…');
+      await collapseAll();
       catStatus('Listenin sonuna gidiliyor…');
       await scrollToEnd();
       const rows = categoryRows().filter((r) => !isDisabled(r));

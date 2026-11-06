@@ -1989,6 +1989,40 @@ test('Eklenti API: anahtar, çeviri (banka/kural/yok), öğrenme ve sınırlar',
     eq('TikTok Bəyəni | Sürətli (elle)', $api->handle(['action' => 'translate', 'items' => [['id' => 'x', 'name' => 'TikTok Beğeni | Hızlı']]])[1]['items'][0]['az'], 'öğrenilen ad bir dahaki sefere bankadan gelir');
 });
 
+test('Eklenti API: Çeviri ayarlarında Claude açıksa botla aynı kuralla Claude kullanılır; hata olursa banka + kural kalır', function () {
+    [$db] = env();
+    $db->set('translate_mode', 'hybrid');
+    $db->set('claude_api_key', 'sk-test');
+    App::setConfig(['data_dir' => App::config()['data_dir'], 'owner_id' => OWNER, 'claude_api_key' => 'sk-test']);
+    $cfg = App::config();
+    (new TgWatch\Memory($db))->learn('service', 'TikTok Beğeni | Hızlı', 'TikTok Bəyəni | Sürətli', 'manual');
+    $sent = [];
+    TgWatch\Http::$fake = static function ($m, $url, $h, $body) use (&$sent) {
+        $req = json_decode((string)$body, true);
+        $sent[] = $req['messages'][0]['content'];
+        // Claude: 2. ad (bankada yok) için öneri; sayı ve parça korunuyor
+        return ['status' => 200, 'error' => '', 'body' => json_encode(['model' => 'x', 'stop_reason' => 'end_turn', 'usage' => ['input_tokens' => 10, 'output_tokens' => 5],
+            'content' => [['type' => 'text', 'text' => json_encode(['items' => [['id' => 1, 'az' => 'Instagram İzləyici | Ərəb Hədəfli']]])]]])];
+    };
+    try {
+        $api = new TgWatch\ExtApi($db, $cfg);
+        $items = $api->handle(['action' => 'translate', 'items' => [
+            ['id' => 'a', 'name' => 'TikTok Beğeni | Hızlı'],
+            ['id' => 'b', 'name' => 'Instagram Followers | Arab Targeted'],
+        ]])[1]['items'];
+        eq(['bank', 'TikTok Bəyəni | Sürətli'], [$items[0]['via'], $items[0]['az']], 'bankadan gelen Claude\'a gitmez (karma mod)');
+        eq(['claude', 'Instagram İzləyici | Ərəb Hədəfli'], [$items[1]['via'], $items[1]['az']], 'bankada olmayan Claude ile');
+        eq(1, count($sent), 'tek istek');
+        ok(!str_contains($sent[0], 'TikTok Beğeni'), 'bankadan çevrilen ad istemde yok');
+        // Claude hata verirse banka + kural sonucu döner
+        TgWatch\Http::$fake = static fn() => ['status' => 529, 'error' => '', 'body' => '{"error":{"message":"overloaded"}}'];
+        $items = $api->handle(['action' => 'translate', 'items' => [['id' => 'b', 'name' => 'Instagram Followers | Arab Targeted']]])[1]['items'];
+        eq('rules', $items[0]['via'], 'Claude hata verince kurallar');
+    } finally {
+        TgWatch\Http::$fake = null;
+    }
+});
+
 // temizlik
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($tmp, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 foreach ($it as $f) {

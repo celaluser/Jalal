@@ -10,8 +10,14 @@ final class Http
     /**
      * @return array{status:int, body:string, error:string}
      */
+    /** Testler için: ağ yerine bu fonksiyon çağrılır (method, url, headers, body) → ['status'=>, 'body'=>, 'error'=>]. */
+    public static ?\Closure $fake = null;
+
     public static function request(string $method, string $url, array $headers = [], $body = null, int $timeout = 20): array
     {
+        if (self::$fake !== null) {
+            return (self::$fake)($method, $url, $headers, $body);
+        }
         $ch = curl_init($url);
         $opts = [
             CURLOPT_RETURNTRANSFER => true,
