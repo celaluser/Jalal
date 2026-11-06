@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "tgwatch — Perfect Panel import çevirisi",
   "short_name": "tgwatch",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Perfect Panel'de import edilen servislerin ve kategorilerin adlarını tgwatch çeviri bankasıyla Azericeye çevirir; kategori logosunu seçer. Import kararı sizde kalır.",
   "minimum_chrome_version": "102",
   "permissions": [

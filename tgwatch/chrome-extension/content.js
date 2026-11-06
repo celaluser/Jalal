@@ -17,7 +17,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const btnText = (b) => norm(b.innerText !== undefined ? b.innerText : b.textContent);
   const visible = (el) => !!el && el.isConnected && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-  const ours = (el) => !!(el.closest && el.closest('.tgw-bar, .tgw-badge, .tgw-orig, .tgw-cbar'));
+  const ours = (el) => !!(el.closest && el.closest('.tgw-bar, .tgw-badge, .tgw-orig, .tgw-cbar, .tgw-side'));
 
   function h(tag, cls, text) {
     const el = document.createElement(tag);
@@ -313,15 +313,32 @@
     }
   }
 
+  let sideBtn = null;
+  /** Panelin "Import services" düğmesinin hemen soluna "tgwatch ile çevir". */
+  function placeSideButton(m) {
+    if (!sideBtn) {
+      sideBtn = h('button', 'tgw-side');
+      sideBtn.type = 'button';
+      sideBtn.appendChild(logo(16));
+      sideBtn.appendChild(h('span', '', 'tgwatch ile çevir'));
+      sideBtn.title = 'Seçili servislerin adlarını tgwatch bankasıyla Azericeye çevir (Alt+Shift+T)';
+      sideBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); runAll(); });
+    }
+    if (sideBtn.nextElementSibling !== m.importBtn) m.importBtn.insertAdjacentElement('beforebegin', sideBtn);
+    sideBtn.disabled = running;
+  }
+
   function ensureBar() {
     const m = findModal();
     const rows = m ? scanRows() : [];
     if (!m || !rows.length) {
       if (bar && bar.isConnected) bar.remove();
+      if (sideBtn && sideBtn.isConnected) sideBtn.remove();
       return;
     }
     if (!bar) buildBar();
     placeBar(m);
+    placeSideButton(m);
     for (const r of rows) paint(r);
     renderCounts(rows);
     if (!running && !marks.size) status(rows.length + ' servis seçili · Çevir\'e bas');
@@ -377,6 +394,10 @@
     if (!bar) return;
     bar.classList.toggle('tgw-running', on);
     bar.querySelector('.tgw-go').disabled = on;
+    if (sideBtn) {
+      sideBtn.disabled = on;
+      sideBtn.querySelector('span').textContent = on ? 'Çevriliyor…' : 'tgwatch ile çevir';
+    }
     bar.querySelector('.tgw-stop').hidden = !on;
     renderCounts();
   }
@@ -624,7 +645,7 @@
   }
 
   const uploadedTab = (box) => [...box.querySelectorAll('a, button, li, span, label, div')]
-    .find((el) => visible(el) && !ours(el) && el.children.length <= 2 && /^uploaded$/i.test(norm(el.textContent)));
+    .find((el) => visible(el) && !ours(el) && el.children.length <= 2 && /^[^a-z0-9]*uploaded$/i.test(norm(el.textContent)));
 
   /** Logo seçicisini aç (ad kutusunun solundaki logo kutusu), "Uploaded" sekmesine geç; seçicinin kökünü döndür. */
   async function openUploaded(dlg) {
@@ -699,12 +720,97 @@
     return [...document.querySelectorAll('a, button, li, span, div')].filter((el) => el.children.length === 0 && !ours(el) && /^edit\s+category$/i.test(norm(el.textContent)));
   }
 
+  /**
+   * Kategori satırları: "Actions" düğmesi olan ama kutucuğu (checkbox) olmayan satırlar (servis satırlarında kutucuk var).
+   * Her Actions düğmesinden, başka Actions içermeyen en geniş ataya çıkılır.
+   */
+  function categoryRows() {
+    const btns = [...document.querySelectorAll('button, a')].filter((b) => !ours(b) && /^actions\b/i.test(btnText(b)));
+    const out = [];
+    for (const b of btns) {
+      let row = b;
+      while (row.parentElement && row.parentElement !== document.body) {
+        const p = row.parentElement;
+        if ([...p.querySelectorAll('button, a')].filter((x) => /^actions\b/i.test(btnText(x))).length > 1) break;
+        row = p;
+      }
+      if (row.querySelector('input[type=checkbox]')) continue; // servis satırı
+      const name = norm(textWithAlt(row).replace(/\bActions\b\s*[▾▼⌄]?/g, '')).replace(/\s+NEW$/i, '');
+      if (!name) continue;
+      out.push({ el: row, btn: b, name });
+    }
+    return out;
+  }
+
+  /** Devre dışı kategori: soluk (opacity), "disabled/inactive" sınıfı ya da "Disabled" yazısı. */
+  function isDisabled(row) {
+    for (let el = row.el, i = 0; el && i < 4; el = el.parentElement, i++) {
+      if (/(^|[\s_-])(disabled|inactive|is-disabled|off)($|[\s_-])/i.test(el.className || '')) return true;
+      if (parseFloat(getComputedStyle(el).opacity) < 0.75) return true;
+    }
+    const nameEl = [...row.el.querySelectorAll('*')].find((e) => e.children.length === 0 && norm(e.textContent) && !/^actions\b/i.test(norm(e.textContent)));
+    if (nameEl && parseFloat(getComputedStyle(nameEl).opacity) < 0.75) return true;
+    return /\bdisabled\b/i.test(row.name);
+  }
+
+  /** Listenin gerçek kaydırma alanı (pencere ya da iç kutu). */
+  function scroller(from) {
+    for (let el = from && from.parentElement; el && el !== document.body; el = el.parentElement) {
+      const st = getComputedStyle(el);
+      if (/(auto|scroll)/.test(st.overflowY) && el.scrollHeight > el.clientHeight + 40) return el;
+    }
+    return null;
+  }
+
+  /** Sonuna kadar kaydır; yeni satır yüklenmesi durana kadar tekrarla. */
+  async function scrollToEnd() {
+    let stable = 0;
+    let lastCount = -1;
+    for (let i = 0; i < 40 && stable < 3; i++) {
+      const rows = categoryRows();
+      const box = scroller(rows.length ? rows[rows.length - 1].el : null);
+      // Yalnızca en alta in: bir satıra kaydırmak listeyi yukarı çekip panelin "sonraki sayfayı yükle"sini engeller.
+      if (box) box.scrollTop = box.scrollHeight;
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      await sleep(600);
+      const n = categoryRows().length + document.documentElement.scrollHeight / 1e6;
+      stable = n === lastCount ? stable + 1 : 0;
+      lastCount = n;
+    }
+  }
+
+  /** Mevcut kategorilerin logolarından öğren: platform → en çok kullanılan logo. Elle öğretilenler korunur. */
+  async function learnFromList() {
+    const votes = {};
+    for (const r of categoryRows()) {
+      const p = platformOf(r.name);
+      if (!p) continue;
+      const img = r.el.querySelector('img, [style*="background-image"]');
+      if (!img) continue;
+      const src = img.tagName === 'IMG' ? (img.currentSrc || img.src || '') : ((img.style.backgroundImage || '').match(/url\(["']?(.*?)["']?\)/) || [])[1] || '';
+      if (!src || src.startsWith('data:')) continue;
+      const key = src.split('?')[0];
+      votes[p] = votes[p] || {};
+      votes[p][key] = (votes[p][key] || 0) + 1;
+    }
+    const map = await getIconMap();
+    const manual = map.__manual || {};
+    let n = 0;
+    for (const [p, v] of Object.entries(votes)) {
+      if (manual[p]) continue;
+      const best = Object.entries(v).sort((a, b) => b[1] - a[1])[0];
+      if (best && map[p] !== best[0]) { map[p] = best[0]; n++; }
+    }
+    if (n) setIconMap(map);
+    return Object.keys(votes).length;
+  }
+
   function ensureCat() {
     if (cbar && cbar.dataset.closed) return;
     const importOpen = !!(findModal() && scanRows().length);
     const dlg = !importOpen && categoryDialog();
     if (!dlg && !catRunning) { catSrc = null; catFilled = null; } // pencere kapandı: hatırlanan orijinal ad bir sonraki kategoriye taşınmasın
-    const onList = !importOpen && !dlg && /\/admin\/services/.test(location.pathname) && editCategoryLinks().length > 0;
+    const onList = !importOpen && !dlg && /\/admin\/services\/?$/.test(location.pathname); // ağır tarama yalnızca düğmeye basınca
     if (!dlg && !onList) {
       if (cbar && cbar.isConnected && !catRunning) cbar.remove();
       if (!dlg) catSrc = null;
@@ -735,20 +841,26 @@
     if (catRunning) return;
     catRunning = true;
     try {
-      catStatus('En sona gidiliyor…');
-      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
-      await sleep(700);
-      const links = editCategoryLinks();
-      const last = links[links.length - 1];
-      if (!last) { catStatus('"Edit category" bulunamadı', 'bad'); return; }
-      last.scrollIntoView({ block: 'center' });
-      last.click();
-      let dlg = await waitFor(categoryDialog, 3000);
-      if (!dlg) { // menü içindeyse önce menüyü aç
-        const row = last.closest('tr, li, .row, [class*=category]') || last.parentElement;
-        const toggle = row && [...row.querySelectorAll('button, a')].find((b) => /^(actions|⋮|…|\.\.\.)$/i.test(lower(btnText(b))) || b.matches('[data-toggle=dropdown], [data-bs-toggle=dropdown]'));
-        if (toggle) { toggle.click(); await sleep(250); last.click(); dlg = await waitFor(categoryDialog, 4000); }
-      }
+      catStatus('Listenin sonuna gidiliyor…');
+      await scrollToEnd();
+      await learnFromList();
+      const rows = categoryRows().filter((r) => !isDisabled(r));
+      const last = rows[rows.length - 1];
+      if (!last) { catStatus('Aktif kategori bulunamadı', 'bad'); return; }
+      last.el.scrollIntoView({ block: 'center' });
+      last.el.classList.add('tgw-flash');
+      catStatus('Son aktif kategori: ' + last.name);
+      await sleep(300);
+      // Actions menüsünü aç, "Edit category"ye tıkla (menü sayfanın başka yerine açılabilir: görünen olanı al)
+      const before = new Set(editCategoryLinks().filter(visible));
+      last.btn.click();
+      const item = await waitFor(() => {
+        const vis = editCategoryLinks().filter(visible);
+        return vis.find((e) => last.el.contains(e)) || vis.find((e) => !before.has(e)) || (vis.length === 1 ? vis[0] : null);
+      }, 2500) || [...last.el.querySelectorAll('a, button, li, span')].find((e) => /^edit\s+category$/i.test(norm(e.textContent)));
+      if (!item) { catStatus('"Edit category" menüde bulunamadı', 'bad'); return; }
+      item.click();
+      const dlg = await waitFor(categoryDialog, 5000);
       if (!dlg) { catStatus('Edit category penceresi açılmadı', 'bad'); return; }
       catSrc = dlg.input.value;
     } finally {
@@ -797,7 +909,8 @@
         dlg = categoryDialog() || dlg;
         const cands = iconCandidates(root || dlg.box);
         const map = await getIconMap();
-        let pick = map[platform] ? cands.find((c) => c.key === map[platform]) : null;
+        const base = (u) => (u || '').split('/').pop();
+        let pick = map[platform] ? (cands.find((c) => c.key === map[platform]) || cands.find((c) => base(c.key) === base(map[platform]))) : null;
         if (!pick) pick = cands.find((c) => PLATFORMS[platform].some((k) => k.length > 2 && c.text.includes(k)) || c.text.includes(platform));
         if (pick) { clickIcon(pick); lastIcon = { platform, key: pick.key }; iconNote = platform + ' logosu seçildi'; }
         else iconNote = platform + ' logosu bulunamadı — elle seç, hatırlayacağım';
@@ -826,7 +939,12 @@
     const name = dlg.input ? dlg.input.value : '';
     const platform = platformOf((catSrc || '') + ' ' + name);
     if (platform && lastIcon && lastIcon.key && (!lastIcon.platform || lastIcon.platform === platform)) {
-      getIconMap().then((m) => { m[platform] = lastIcon.key; setIconMap(m); });
+      const manualPick = !lastIcon.platform; // eklentinin değil, kullanıcının seçimi
+      getIconMap().then((m) => {
+        m[platform] = lastIcon.key;
+        if (manualPick) m.__manual = Object.assign({}, m.__manual, { [platform]: true });
+        setIconMap(m);
+      });
     }
     if (catSrc && name && lower(catSrc) !== lower(name) && !AZ_ONLY.test(catSrc)) {
       send({ type: 'api', action: 'learn', payload: { items: [{ id: 'cat', src: catSrc, az: name, kind: 'category', edited: !catFilled || lower(name) !== lower(catFilled) }] } });
@@ -837,8 +955,12 @@
   document.addEventListener('click', (e) => {
     if (catRunning) return;
     const dlg = categoryDialog();
-    if (!dlg || !dlg.box.contains(e.target) || ours(e.target)) return;
-    const c = iconCandidates(dlg.box).find((x) => x.el === e.target || x.el.contains(e.target) || (e.target.contains && e.target.contains(x.el)));
+    if (!dlg || ours(e.target)) return;
+    let root = e.target;
+    while (root && root !== document.body && !uploadedTab(root)) root = root.parentElement;
+    const zone = root && root !== document.body ? root : dlg.box;
+    if (!dlg.box.contains(e.target) && zone === dlg.box) return;
+    const c = iconCandidates(zone).find((x) => x.el === e.target || x.el.contains(e.target) || (e.target.contains && e.target.contains(x.el)));
     if (c) { lastIcon = { key: c.key }; return; }
     const b = e.target.closest && e.target.closest('button, a, input[type=submit]');
     if (b && SAVE_WORDS.includes(lower(b.value || btnText(b)))) rememberCategory(dlg);
@@ -849,14 +971,14 @@
     if (!msg || typeof msg !== 'object') return false;
     if (msg.type === 'tgw-status') {
       const rows = findModal() ? scanRows() : [];
-      const ctx = rows.length ? 'import' : categoryDialog() ? 'category' : (/\/admin\/services/.test(location.pathname) && editCategoryLinks().length ? 'list' : '');
+      const ctx = rows.length ? 'import' : categoryDialog() ? 'category' : (/\/admin\/services\/?$/.test(location.pathname) ? 'list' : '');
       sendResponse({ screen: rows.length > 0, ctx, rows: rows.length, running: running || catRunning, counts: counts(), changed: [...state.values()].filter((s) => s.filled).length });
       return false;
     }
     if (msg.type === 'tgw-run') {
       if (!(findModal() && scanRows().length)) {
         if (categoryDialog()) { runCategory(); sendResponse({ ok: true }); return false; }
-        if (editCategoryLinks().length) { runLastCategory(); sendResponse({ ok: true }); return false; }
+        if (categoryRows().length) { runLastCategory(); sendResponse({ ok: true }); return false; }
         sendResponse({ ok: false, error: 'Import ekranında satır yok' });
         return false;
       }
