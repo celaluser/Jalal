@@ -166,7 +166,7 @@
 
   function opts() {
     return new Promise((resolve) => {
-      const d = { delay: 400, dry: false, skipAz: true };
+      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true };
       try { chrome.storage.local.get(d, (s) => resolve(s || d)); } catch (e) { resolve(d); }
     });
   }
@@ -573,7 +573,8 @@
       const st = state.get(row.id) || {};
       remember(row.id, { final: input.value, edited: st.filled !== undefined ? lower(input.value) !== lower(st.filled) : true });
       if (!st.src) remember(row.id, { src: row.header.name });
-    } else if (t === 'import services' && state.size) {
+    } else if (t === 'import services' && b.closest(DIALOG) && scanRows().length) {
+      markImport(); // import bitince yeni kategori kendiliğinden çevrilip en üste taşınır
       const items = [];
       for (const [id, st] of state) {
         if (st.src && st.final && lower(st.src) !== lower(st.final)) items.push({ id, src: st.src, az: st.final, edited: !!st.edited });
@@ -637,7 +638,7 @@
     const acts = h('div', 'tgw-actions');
     const go = h('button', 'tgw-btn tgw-cgo', 'Çevir');
     go.type = 'button';
-    go.addEventListener('click', () => (categoryDialog() ? runCategory() : runLastCategory()));
+    go.addEventListener('click', () => catFlow());
     const close = h('button', 'tgw-btn tgw-ghost tgw-cclose', '×');
     close.type = 'button';
     close.title = 'Gizle (sayfa yenilenince geri gelir)';
@@ -762,16 +763,44 @@
     }
   }
 
+  const onServicesList = () => /\/admin\/services\/?$/.test(location.pathname);
+  const anyDialog = () => [...document.querySelectorAll(DIALOG)].some((m) => visible(m) && !ours(m));
+
+  // ---- import sonrası otomatik kategori: Import'a basılınca işaret bırakılır (sayfa yenilense de sekmede kalır) ----
+  const AFTER_KEY = 'tgw_after_import';
+  function pendingImport() {
+    try {
+      const v = JSON.parse(sessionStorage.getItem(AFTER_KEY) || 'null');
+      if (!v) return null;
+      if (Date.now() - v.at > 10 * 60 * 1000) { sessionStorage.removeItem(AFTER_KEY); return null; }
+      return v;
+    } catch (e) { return null; }
+  }
+  function markImport() {
+    try { sessionStorage.setItem(AFTER_KEY, JSON.stringify({ at: Date.now(), before: categoryRows().map((r) => r.name) })); } catch (e) { /* depolama kapalı */ }
+  }
+  let autoTimer = null;
+
   function ensureCat() {
-    if (cbar && cbar.dataset.closed) return;
+    if (cbar && cbar.dataset.closed && !catRunning) return;
     const importOpen = !!(findModal() && scanRows().length);
     const dlg = !importOpen && categoryDialog();
     if (!dlg && !catRunning) { catSrc = null; catFilled = null; } // pencere kapandı: hatırlanan orijinal ad bir sonraki kategoriye taşınmasın
-    const anyModal = [...document.querySelectorAll(DIALOG)].some((m) => visible(m) && !ours(m));
-    const onList = !importOpen && !dlg && !anyModal && /\/admin\/services\/?$/.test(location.pathname); // ağır tarama yalnızca düğmeye basınca
-    if (!dlg && !onList) {
-      if (cbar && cbar.isConnected && !catRunning) cbar.remove();
-      if (!dlg) catSrc = null;
+    const onList = !importOpen && !dlg && !anyDialog() && onServicesList(); // ağır tarama yalnızca düğmeye basınca
+    if (onList && !catRunning && !autoTimer && pendingImport()) {
+      // Import bitti, liste geldi: biraz bekle (panel listeyi yeniden çizer), sonra kendiliğinden çalış.
+      autoTimer = setTimeout(async () => {
+        autoTimer = null;
+        const p = pendingImport();
+        if (!p || catRunning || anyDialog() || !onServicesList()) return;
+        try { sessionStorage.removeItem(AFTER_KEY); } catch (e) { /* yok */ }
+        const o = await opts();
+        if (o.autoCat === false) return;
+        catFlow({ auto: true, before: p.before || [] });
+      }, 2000);
+    }
+    if (!dlg && !onList && !catRunning) {
+      if (cbar && cbar.isConnected) cbar.remove();
       return;
     }
     if (!cbar) buildCatBar();
@@ -785,85 +814,298 @@
       cbar.classList.add('tgw-floating');
     }
     const go = cbar.querySelector('.tgw-cgo');
+    go.disabled = catRunning;
     if (dlg) {
       if (catSrc === null && dlg.input) catSrc = dlg.input.value;
       go.textContent = 'Bu kategorinin adını çevir';
       if (!catRunning) catStatus('Kategori: ' + (dlg.input ? dlg.input.value : ''));
     } else {
       go.textContent = 'Son kategorinin adını çevir';
-      if (!catRunning) catStatus('En sondaki aktif kategoriyi açıp adını çevirir; logoyu sen seçersin');
+      if (!catRunning && !cbar.dataset.done) catStatus('En sondaki aktif kategori: çevir → Save → en üste taşı');
     }
   }
 
-  async function runLastCategory() {
-    if (catRunning) return;
-    catRunning = true;
-    try {
-      catStatus('Liste yalnızca kategori adlarına daraltılıyor…');
-      await collapseAll();
-      catStatus('Listenin sonuna gidiliyor…');
-      await scrollToEnd();
-      const rows = categoryRows().filter((r) => !isDisabled(r));
-      const last = rows[rows.length - 1];
-      if (!last) { catStatus('Aktif kategori bulunamadı', 'bad'); return; }
-      last.el.scrollIntoView({ block: 'center' });
-      last.el.classList.add('tgw-flash');
-      catStatus('Son aktif kategori: ' + last.name);
-      await sleep(300);
-      // Actions menüsünü aç, "Edit category"ye tıkla (menü sayfanın başka yerine açılabilir: görünen olanı al)
-      const before = new Set(editCategoryLinks().filter(visible));
-      last.btn.click();
-      const item = await waitFor(() => {
-        const vis = editCategoryLinks().filter(visible);
-        return vis.find((e) => last.el.contains(e)) || vis.find((e) => !before.has(e)) || (vis.length === 1 ? vis[0] : null);
-      }, 2500) || [...last.el.querySelectorAll('a, button, li, span')].find((e) => /^edit\s+category$/i.test(norm(e.textContent)));
-      if (!item) { catStatus('"Edit category" menüde bulunamadı', 'bad'); return; }
-      item.click();
-      const dlg = await waitFor(categoryDialog, 5000);
-      if (!dlg) { catStatus('Edit category penceresi açılmadı', 'bad'); return; }
-      catSrc = dlg.input.value;
-    } finally {
-      catRunning = false;
-    }
-    await runCategory();
+  /** Kategorinin Actions menüsünden "Edit category" penceresini aç. */
+  async function openCategoryEditor(row) {
+    row.el.scrollIntoView({ block: 'center' });
+    row.el.classList.add('tgw-flash');
+    await sleep(300);
+    const before = new Set(editCategoryLinks().filter(visible));
+    row.btn.click();
+    const item = await waitFor(() => {
+      const vis = editCategoryLinks().filter(visible);
+      return vis.find((e) => row.el.contains(e)) || vis.find((e) => !before.has(e)) || (vis.length === 1 ? vis[0] : null);
+    }, 2500) || [...row.el.querySelectorAll('a, button, li, span')].find((e) => /^edit\s+category$/i.test(norm(e.textContent)));
+    if (!item) return { error: '"Edit category" menüde bulunamadı' };
+    item.click();
+    const dlg = await waitFor(categoryDialog, 5000);
+    if (!dlg || !dlg.input) return { error: 'Edit category penceresi açılmadı' };
+    catSrc = dlg.input.value;
+    catFilled = null;
+    return { dlg };
   }
 
-  async function runCategory() {
-    if (catRunning) return;
-    catRunning = true;
-    cbar && cbar.classList.add('tgw-running');
-    try {
-      const dlg = categoryDialog();
-      if (!dlg || !dlg.input) { catStatus('Kategori penceresi bulunamadı', 'bad'); return; }
-      // Güvenlik: penceredeki ad hatırlanan addan farklıysa ve Azerice değilse başka bir kategori açılmıştır → penceredeki ad esas.
-      if (catSrc === null || (lower(dlg.input.value) !== lower(catSrc) && !AZ_ONLY.test(dlg.input.value))) catSrc = dlg.input.value;
-      const src = catSrc;
-      let az = '';
-      let note = '';
-      if (AZ_ONLY.test(dlg.input.value)) {
-        note = 'ad zaten Azerice';
-      } else {
-        catStatus('Çevriliyor…');
-        const res = await api('translate', { items: [{ id: 'cat', name: src, kind: 'category' }] });
-        const tr = res.ok ? res.items[0] : null;
-        if (tr && tr.az && tr.via !== 'none' && tr.via !== 'already') {
-          az = tr.az;
-          setValue(dlg.input, az);
-          catFilled = az;
-          let o = dlg.input.parentElement.querySelector(':scope > .tgw-orig');
-          if (!o) { o = h('span', 'tgw-orig'); dlg.input.insertAdjacentElement('afterend', o); }
-          o.textContent = src;
-          o.title = 'Orijinal kategori adı';
-          note = tr.via === 'bank' ? 'ad bankadan' : 'ad kurallarla — kontrol et';
-        } else {
-          note = res.ok ? 'ad çevrilemedi' : (res.error || 'tgwatch hatası');
-        }
+  /** Açık pencerede adı çevir; save ise Save'e bas ve pencerenin kapanmasını bekle. */
+  async function translateDialog(save) {
+    const dlg = categoryDialog();
+    if (!dlg || !dlg.input) return { ok: false, note: 'Kategori penceresi bulunamadı' };
+    // Güvenlik: penceredeki ad hatırlanan addan farklıysa ve Azerice değilse başka bir kategori açılmıştır → penceredeki ad esas.
+    if (catSrc === null || (lower(dlg.input.value) !== lower(catSrc) && !AZ_ONLY.test(dlg.input.value))) catSrc = dlg.input.value;
+    const src = catSrc;
+    if (AZ_ONLY.test(dlg.input.value)) return { ok: false, already: true, name: dlg.input.value, note: 'ad zaten Azerice' };
+    catStatus('Çevriliyor: ' + src);
+    const res = await api('translate', { items: [{ id: 'cat', name: src, kind: 'category' }] });
+    const tr = res.ok ? res.items[0] : null;
+    if (!tr || !tr.az || tr.via === 'none' || tr.via === 'already') {
+      return { ok: false, note: res.ok ? 'ad çevrilemedi: ' + src + ' — elle yaz, Save\'e bas' : (res.error || 'tgwatch hatası') };
+    }
+    setValue(dlg.input, tr.az);
+    catFilled = tr.az;
+    let o = dlg.input.parentElement.querySelector(':scope > .tgw-orig');
+    if (!o) { o = h('span', 'tgw-orig'); dlg.input.insertAdjacentElement('afterend', o); }
+    o.textContent = src;
+    o.title = 'Orijinal kategori adı';
+    const how = tr.via === 'bank' ? 'bankadan' : tr.via === 'claude' ? 'Claude ile' : 'kurallarla';
+    if (!save) return { ok: true, saved: false, name: tr.az, src, how };
+    await sleep(250);
+    const d2 = categoryDialog();
+    if (!d2 || !d2.save) return { ok: false, note: 'Save düğmesi bulunamadı' };
+    rememberCategory(d2);
+    d2.save.click();
+    const closed = await waitFor(() => !categoryDialog(), 8000, 100);
+    if (!closed) return { ok: false, note: 'Save sonrası pencere kapanmadı — paneli kontrol et' };
+    send({ type: 'stat', translated: 1 });
+    return { ok: true, saved: true, name: tr.az, src, how };
+  }
+
+  // ---- sürükle-bırak: kategoriyi tutamaçından (service-table__handle) tutup listenin en üstüne bırak ----
+  const HANDLE = '.service-table__handle, [class*="__handle"], .handle, .drag-handle, [class*="drag-handle"], .fa-grip-vertical, .fa-grip-lines, .fa-arrows-alt, .fa-bars';
+  const rowHandle = (row) => row.el.querySelector(HANDLE) || null;
+  const indexOf = (name) => categoryRows().findIndex((r) => lower(r.name) === lower(name));
+
+  function fire(el, type, x, y) {
+    const pointer = type.startsWith('pointer');
+    const init = { bubbles: true, cancelable: true, composed: true, view: window, clientX: x, clientY: y, screenX: x, screenY: y, button: 0, buttons: /up$/.test(type) ? 0 : 1 };
+    const ev = pointer && window.PointerEvent
+      ? new PointerEvent(type, Object.assign(init, { pointerId: 1, pointerType: 'mouse', isPrimary: true }))
+      : new MouseEvent(type, init);
+    el.dispatchEvent(ev);
+  }
+  const at = (x, y) => document.elementFromPoint(x, y) || document.body;
+  const center = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+
+  /** Görünür alan: listenin kaydırma kutusu ile pencerenin kesişimi. */
+  function viewport(box) {
+    const r = box ? box.getBoundingClientRect() : { top: 0, bottom: innerHeight };
+    return { top: Math.max(0, r.top), bottom: Math.min(innerHeight, r.bottom) };
+  }
+
+  /** Taşınacak satır görünür alanın altına gelsin; hedef = ondan yukarıdaki, görünen en üstteki kategori. */
+  async function dragPlan(name) {
+    const rows = categoryRows();
+    const i = rows.findIndex((r) => lower(r.name) === lower(name));
+    if (i <= 0) return { i };
+    const me = rows[i];
+    const box = scroller(me.el);
+    let v = viewport(box);
+    const dy = me.el.getBoundingClientRect().bottom - (v.bottom - 60);
+    if (box) box.scrollTop += dy; else window.scrollBy(0, dy);
+    if (box) { const r = me.el.getBoundingClientRect(); if (r.bottom > innerHeight - 40 || r.top < 0) window.scrollBy(0, r.bottom - (innerHeight - 60)); }
+    await sleep(250);
+    v = viewport(box);
+    let j = -1;
+    for (let k = 0; k < i; k++) {
+      const r = rows[k].el.getBoundingClientRect();
+      const p = { x: r.left + Math.min(r.width / 2, 200), y: r.top + Math.min(6, r.height / 4) };
+      if (r.top >= v.top + (k === 0 ? 0 : 50) && r.bottom <= v.bottom && rows[k].el.contains(at(p.x, p.y))) { j = k; break; }
+    }
+    if (j < 0) j = i - 1;
+    return { i, j, me, target: rows[j] };
+  }
+
+  async function dragMouse(plan) {
+    const handle = rowHandle(plan.me) || plan.me.el;
+    const from = center(handle);
+    const tr = plan.target.el.getBoundingClientRect();
+    const to = { x: from.x, y: tr.top + Math.max(2, Math.min(6, tr.height / 4)) };
+    fire(handle, 'pointerover', from.x, from.y);
+    fire(handle, 'mouseover', from.x, from.y);
+    fire(handle, 'pointerdown', from.x, from.y);
+    fire(handle, 'mousedown', from.x, from.y);
+    await sleep(80);
+    const steps = 16;
+    for (let k = 1; k <= steps; k++) {
+      const x = from.x + ((to.x - from.x) * k) / steps;
+      const y = from.y + ((to.y - from.y) * k) / steps;
+      const t = at(x, y);
+      fire(t, 'pointermove', x, y);
+      fire(t, 'mousemove', x, y);
+      await sleep(30);
+    }
+    await sleep(150);
+    const t = at(to.x, to.y);
+    fire(t, 'pointermove', to.x, to.y);
+    fire(t, 'mousemove', to.x, to.y);
+    await sleep(80);
+    fire(t, 'pointerup', to.x, to.y);
+    fire(t, 'mouseup', to.x, to.y);
+  }
+
+  async function dragHtml5(plan) {
+    const handle = rowHandle(plan.me) || plan.me.el;
+    const src = handle.closest('[draggable=true]') || plan.me.el.closest('[draggable=true]') || plan.me.el.querySelector('[draggable=true]') || handle;
+    const from = center(handle);
+    const tr = plan.target.el.getBoundingClientRect();
+    const to = { x: from.x, y: tr.top + Math.max(2, Math.min(6, tr.height / 4)) };
+    const dt = new DataTransfer();
+    const dfire = (el, type, x, y) => el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, composed: true, view: window, clientX: x, clientY: y, screenX: x, screenY: y, dataTransfer: dt }));
+    fire(handle, 'pointerdown', from.x, from.y);
+    fire(handle, 'mousedown', from.x, from.y);
+    await sleep(30);
+    dfire(src, 'dragstart', from.x, from.y);
+    await sleep(60);
+    for (let k = 1; k <= 8; k++) {
+      const y = from.y + ((to.y - from.y) * k) / 8;
+      const t = at(to.x, y);
+      dfire(t, 'dragenter', to.x, y);
+      dfire(t, 'dragover', to.x, y);
+      await sleep(40);
+    }
+    await sleep(120);
+    const t = at(to.x, to.y);
+    dfire(t, 'dragover', to.x, to.y);
+    dfire(t, 'drop', to.x, to.y);
+    dfire(src, 'dragend', to.x, to.y);
+    fire(t, 'pointerup', to.x, to.y);
+    fire(t, 'mouseup', to.x, to.y);
+  }
+
+  async function dragKeys(plan) {
+    const handle = rowHandle(plan.me) || plan.me.el;
+    const key = (type, k, code) => {
+      const ev = new KeyboardEvent(type, { key: k, code: k === ' ' ? 'Space' : k, bubbles: true, cancelable: true });
+      Object.defineProperty(ev, 'keyCode', { get: () => code });
+      Object.defineProperty(ev, 'which', { get: () => code });
+      handle.dispatchEvent(ev);
+    };
+    if (handle.focus) handle.focus();
+    key('keydown', ' ', 32); key('keyup', ' ', 32);
+    await sleep(150);
+    for (let k = 0; k < plan.i; k++) { key('keydown', 'ArrowUp', 38); key('keyup', 'ArrowUp', 38); await sleep(90); }
+    await sleep(150);
+    key('keydown', ' ', 32); key('keyup', ' ', 32);
+  }
+
+  const DRAGS = { mouse: dragMouse, html5: dragHtml5, keys: dragKeys };
+  let dragWay = null; // bu panelde işe yarayan yol (sonraki adımlarda önce o denenir)
+
+  async function moveToTop(name) {
+    await collapseAll();
+    let i = indexOf(name);
+    if (i < 0) { await scrollToEnd(); i = indexOf(name); }
+    if (i < 0) return { ok: false, note: 'kategori listede bulunamadı: ' + name };
+    for (let step = 0; step < 120 && i > 0; step++) {
+      catStatus('En üste taşınıyor… (' + i + ' sıra kaldı)');
+      const ways = dragWay ? [dragWay] : Object.keys(DRAGS);
+      let moved = false;
+      for (const w of ways) {
+        const plan = await dragPlan(name);
+        if (!(plan.i > 0)) { i = plan.i; moved = true; break; }
+        await DRAGS[w](plan);
+        const ni = await waitFor(() => { const n = indexOf(name); return n >= 0 && n < plan.i ? n + 1 : null; }, 1500, 100);
+        if (ni) { i = ni - 1; dragWay = w; moved = true; break; }
       }
-      catStatus(note + (az ? ' · logoyu seç, Save\'e bas' : ''), /çevrilemedi|hata/.test(note) ? 'warn' : 'ok');
+      if (!moved) {
+        if (dragWay) { dragWay = null; continue; } // bildiğimiz yol bu kez olmadı: hepsini bir daha dene
+        return { ok: false, note: 'sürükleme bu panelde çalışmadı — kategoriyi elle en üste taşı' };
+      }
+      if (i < 0) i = indexOf(name);
+      if (i < 0) return { ok: false, note: 'taşırken kategori listede kayboldu' };
+    }
+    const box = scroller(categoryRows()[0] && categoryRows()[0].el);
+    if (box) box.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const first = categoryRows()[0];
+    if (first) { first.el.classList.remove('tgw-flash'); void first.el.offsetWidth; first.el.classList.add('tgw-flash'); }
+    return i === 0 ? { ok: true } : { ok: false, note: 'en üste çıkmadı (' + i + '. sırada kaldı)' };
+  }
+
+  /**
+   * Kategori akışı. Açık pencere varsa: o kategori. Yoksa: listeyi daralt → sona in → son aktif kategori.
+   * Ad çevrilir → Save → kategori en üste sürüklenir. Deneme modunda yalnızca ad yazılır.
+   * auto: import sonrası; yalnızca import'tan önce listede OLMAYAN (yeni) kategorilere dokunulur.
+   */
+  async function catFlow({ auto = false, before = null } = {}) {
+    if (catRunning) return;
+    catRunning = true;
+    if (cbar) { delete cbar.dataset.closed; delete cbar.dataset.done; }
+    ensureCatBar();
+    cbar.classList.add('tgw-running');
+    const done = [];
+    const end = (t, kind) => { catStatus(t, kind); if (cbar) cbar.dataset.done = '1'; };
+    try {
+      const o = await opts();
+      const save = !o.dry;
+      const top = save && o.catTop !== false;
+      if (categoryDialog()) {
+        const r = await translateDialog(save);
+        if (!r.ok) return end(r.note, 'warn');
+        if (!top) return end(r.name + ' · ' + r.how + (save ? ' · kaydedildi' : ' · deneme: Save\'e basılmadı'), 'ok');
+        const m = await moveToTop(r.name);
+        return end(m.ok ? r.name + ' · kaydedildi, en üstte' : r.name + ' · kaydedildi, ama ' + m.note, m.ok ? 'ok' : 'warn');
+      }
+      let max = 1;
+      let left = 0;
+      for (let n = 0; n < max; n++) {
+        catStatus('Liste yalnızca kategori adlarına daraltılıyor…');
+        await collapseAll();
+        catStatus('Listenin sonuna gidiliyor…');
+        await scrollToEnd();
+        const all = categoryRows();
+        const active = all.filter((r) => !isDisabled(r));
+        let pick = active[active.length - 1];
+        if (!pick) return end('Aktif kategori bulunamadı', 'bad');
+        if (auto) {
+          // Sondan geriye: import'tan önce olmayan, Azerice olmayan ardışık kategoriler = yeni import edilenler.
+          const seen = new Set((before || []).map(lower));
+          const fresh = [];
+          for (let j = active.length - 1; j >= 0; j--) {
+            if (seen.has(lower(active[j].name)) || AZ_ONLY.test(active[j].name)) break;
+            fresh.unshift(active[j]);
+          }
+          if (!fresh.length) {
+            return end(n ? done.length + ' yeni kategori hazır' : 'Yeni kategori yok (servisler mevcut kategoriye eklenmiş) — dokunulmadı', 'ok');
+          }
+          // Önceki liste tam sayılabildiyse (önce + yeni = şimdi) hepsi; değilse yalnızca en sondaki.
+          if (n === 0) max = before && before.length && before.length + fresh.length === all.length ? Math.min(fresh.length, 5) : 1;
+          if (n === 0) left = fresh.length - max;
+          pick = fresh[fresh.length - 1];
+        } else if (AZ_ONLY.test(pick.name)) {
+          return end('Son aktif kategori zaten Azerice: ' + pick.name + ' — dokunulmadı', 'ok');
+        }
+        catStatus((auto ? 'Import edilen kategori: ' : 'Son aktif kategori: ') + pick.name);
+        const op = await openCategoryEditor(pick);
+        if (op.error) return end(op.error, 'bad');
+        const r = await translateDialog(save);
+        if (!r.ok) return end(r.note, 'warn');
+        if (!save) return end(r.name + ' · ' + r.how + ' · deneme: Save\'e basılmadı', 'ok');
+        if (top) {
+          const m = await moveToTop(r.name);
+          if (!m.ok) return end(r.name + ' · kaydedildi, ama ' + m.note, 'warn');
+        }
+        done.push(r.name);
+      }
+      const more = left > 0 ? ' · sonda ' + left + ' yeni kategori daha olabilir: düğmeye tekrar bas' : '';
+      end((done.length === 1 ? done[0] + ' · kaydedildi' : done.length + ' kategori kaydedildi') + (top ? ', en üstte' : '') + more, more ? 'warn' : 'ok');
     } finally {
       catRunning = false;
       cbar && cbar.classList.remove('tgw-running');
     }
+  }
+
+  function ensureCatBar() {
+    if (!cbar) buildCatBar();
+    if (!cbar.isConnected) { document.body.appendChild(cbar); cbar.classList.add('tgw-floating'); }
   }
 
   /** Save anında: değişen adı bankaya öğret. */
@@ -894,8 +1136,7 @@
     }
     if (msg.type === 'tgw-run') {
       if (!(findModal() && scanRows().length)) {
-        if (categoryDialog()) { runCategory(); sendResponse({ ok: true }); return false; }
-        if (categoryRows().length) { runLastCategory(); sendResponse({ ok: true }); return false; }
+        if (categoryDialog() || categoryRows().length) { catFlow(); sendResponse({ ok: true }); return false; }
         sendResponse({ ok: false, error: 'Import ekranında satır yok' });
         return false;
       }
