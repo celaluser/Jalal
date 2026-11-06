@@ -69,6 +69,10 @@ final class ExtApi
                 $out[] = ['id' => $id, 'az' => '', 'via' => 'none', 'unknown' => []];
                 continue;
             }
+            if (preg_match('/[əƏ]/u', $name)) { // Azericeye özgü harf: ad zaten çevrilmiş
+                $out[] = ['id' => $id, 'az' => '', 'via' => 'already', 'unknown' => []];
+                continue;
+            }
             $r = $engine->translate($name);
             // Kurallar adın kendisine hiç dokunmadıysa (yalnızca ad kalıbı ön/son ek ekledi) çevrilmemiş sayılır.
             $clean = Engine::stripBy($dict['remove'] ?? [], $name);

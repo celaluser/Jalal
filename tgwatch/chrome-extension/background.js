@@ -2,7 +2,7 @@
 const SCRIPT_ID = 'tgw-import';
 
 async function settings() {
-  return chrome.storage.local.get({ panel: '', api: '', key: '', delay: 400, dry: false });
+  return chrome.storage.local.get({ panel: '', api: '', key: '', delay: 400, dry: false, skipAz: true });
 }
 
 async function callApi(action, payload) {
@@ -25,6 +25,16 @@ async function callApi(action, payload) {
   }
 }
 
+/** Mini paneldeki sayaçlar: bugün / toplam çevrilen, bankaya öğretilen. */
+async function bump(add) {
+  const today = new Date().toISOString().slice(0, 10);
+  const { stats } = await chrome.storage.local.get({ stats: { day: today, today: 0, total: 0, learned: 0, last: 0 } });
+  if (stats.day !== today) { stats.day = today; stats.today = 0; }
+  if (add.translated) { stats.today += add.translated; stats.total += add.translated; stats.last = Date.now(); }
+  if (add.learned) stats.learned += add.learned;
+  await chrome.storage.local.set({ stats });
+}
+
 async function register() {
   const s = await settings();
   try { await chrome.scripting.unregisterContentScripts({ ids: [SCRIPT_ID] }); } catch (e) { /* yoktu */ }
@@ -41,12 +51,18 @@ async function register() {
 
 chrome.runtime.onInstalled.addListener(() => { register(); });
 chrome.runtime.onStartup.addListener(() => { register(); });
-chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== 'object') return false;
   if (msg.type === 'api' && typeof msg.action === 'string') {
-    callApi(msg.action, msg.payload).then(sendResponse);
+    callApi(msg.action, msg.payload).then((res) => {
+      if (msg.action === 'learn' && res && res.ok && res.learned) bump({ learned: res.learned });
+      sendResponse(res);
+    });
+    return true;
+  }
+  if (msg.type === 'stat') {
+    bump({ translated: Number(msg.translated) || 0 }).then(() => sendResponse({ ok: true }));
     return true;
   }
   if (msg.type === 'register') {

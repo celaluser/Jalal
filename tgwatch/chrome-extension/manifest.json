@@ -2,12 +2,34 @@
   "manifest_version": 3,
   "name": "tgwatch — Perfect Panel import çevirisi",
   "short_name": "tgwatch",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Perfect Panel Import services ekranında servis adlarını tgwatch çeviri bankasıyla Azericeye çevirir (Edit → ad → Save). Import kararı sizde kalır.",
   "minimum_chrome_version": "102",
-  "permissions": ["storage", "scripting"],
-  "optional_host_permissions": ["https://*/*"],
-  "background": { "service_worker": "background.js" },
-  "action": { "default_title": "tgwatch ayarları" },
-  "options_page": "options.html"
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab"
+  ],
+  "optional_host_permissions": [
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "tgwatch",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png"
+    }
+  },
+  "options_page": "options.html",
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  }
 }

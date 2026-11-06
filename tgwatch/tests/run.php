@@ -1958,6 +1958,7 @@ test('Eklenti API: anahtar, çeviri (banka/kural/yok), öğrenme ve sınırlar',
     eq(['Instagram İzləyici | 30 Gün Qarantili', 'bank'], [$by['15341']['az'], $by['15341']['via']], 'birebir bankadan');
     eq('Instagram İzləyici | 365 Gün Qarantili', $by['15342']['az'], 'sayı şablonuyla bankadan');
     eq(['none', ''], [$by['9']['via'], $by['9']['az']], 'çevrilemeyen ad işaretlenir, boş döner');
+    eq('already', $api->handle(['action' => 'translate', 'items' => [['id' => 'z', 'name' => 'TikTok İzləyici | Gündə 50K']]])[1]['items'][0]['via'], 'zaten Azerice ad yeniden çevrilmez');
     $d = Dictionary::load($db);
     $d['options']['suffix'] = '[TG]';
     Dictionary::save($db, $d);

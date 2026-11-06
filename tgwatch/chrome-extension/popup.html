@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>tgwatch</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header class="top">
+  <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path class="m1" d="M3.2 28.5V20C3.2 15 6.11 12 8.1 9c1.7 3.2 3.08 6 2.82 11V28.5z"/><path class="m2" d="M12.4 28.5V13.6C12.4 8.6 15.4 5.6 17.6 2.6c1.76 3.2 2.96 6 2.64 11V28.5z"/><path class="m3" d="M21.6 28.5V23.5C21.6 18.5 24.42 15.5 26.2 12.5c1.64 3.2 3.2 6 3 11V28.5z"/></svg>
+  <div class="brand"><b>tgwatch</b><small>Perfect Panel import çevirisi</small></div>
+  <span id="conn" class="pill wait">…</span>
+</header>
+
+<section class="card" id="tab">
+  <div class="card-h"><span>Bu sekme</span></div>
+  <p id="tab-msg" class="muted">Kontrol ediliyor…</p>
+  <div id="tab-counts" class="counts" hidden>
+    <span class="c ok"><i></i><b id="c-ok">0</b> bankadan</span>
+    <span class="c warn"><i></i><b id="c-warn">0</b> kontrol et</span>
+    <span class="c bad"><i></i><b id="c-bad">0</b> çevrilmedi</span>
+  </div>
+  <div class="row" id="tab-actions" hidden>
+    <button id="run" class="btn">Çevir</button>
+    <button id="undo" class="btn ghost" hidden>Geri al</button>
+  </div>
+  <div class="row" id="tab-open" hidden><button id="open-panel" class="btn ghost">Import ekranını aç</button></div>
+</section>
+
+<section class="card">
+  <div class="card-h"><span>Hızlı ayarlar</span></div>
+  <label class="tog"><input type="checkbox" id="dry"><span class="sw"></span><span><b>Deneme modu</b><small>Adları yazar, Save'e basmaz</small></span></label>
+  <label class="tog"><input type="checkbox" id="skipAz"><span class="sw"></span><span><b>Azerice olanları atla</b><small>Adında ə olan satırlara dokunmaz</small></span></label>
+</section>
+
+<section class="stats">
+  <div><b id="s-today">0</b><small>bugün çevrilen</small></div>
+  <div><b id="s-total">0</b><small>toplam</small></div>
+  <div><b id="s-learned">0</b><small>bankaya öğretilen</small></div>
+</section>
+
+<footer class="foot">
+  <a href="#" id="opt">Bağlantı ayarları</a>
+  <a href="#" id="tg" hidden>tgwatch paneli ↗</a>
+  <span class="kbd" title="Import ekranında kısayol">Alt+Shift+T</span>
+</footer>
+<script src="popup.js"></script>
+</body>
+</html>
