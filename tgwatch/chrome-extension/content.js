@@ -599,7 +599,8 @@
       if (!title) continue;
       const inputs = [...box.querySelectorAll('input[type=text], input:not([type])')].filter((i) => visible(i) && !ours(i));
       if (!inputs.length) continue;
-      const label = [...box.querySelectorAll('label, div, span, strong, b, p')].find((el) => el.children.length === 0 && /^(name|category name|ad|kateqoriya adı)$/i.test(norm(el.textContent)));
+      const ownText = (el) => norm([...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.nodeValue).join(' '));
+      const label = [...box.querySelectorAll('label, div, span, strong, b, p, h5, h6')].find((el) => !ours(el) && /^(category name|name|kateqoriya adı|ad)$/i.test(ownText(el)));
       const input = (label && inputs.find((i) => label.compareDocumentPosition(i) & Node.DOCUMENT_POSITION_FOLLOWING)) || inputs[0];
       const save = [...box.querySelectorAll('button, a, input[type=submit]')].find((b) => visible(b) && !ours(b) && SAVE_WORDS.includes(lower(b.value || btnText(b))));
       return { box: box.closest('[role=dialog], .modal') || box, title, input, save };
@@ -620,6 +621,34 @@
       out.push({ el, src, key: src.split('?')[0], text: lower(decodeURIComponent(src.split('/').pop() || '')) + ' ' + label });
     }
     return out;
+  }
+
+  const uploadedTab = (box) => [...box.querySelectorAll('a, button, li, span, label, div')]
+    .find((el) => visible(el) && !ours(el) && el.children.length <= 2 && /^uploaded$/i.test(norm(el.textContent)));
+
+  /** Logo seçicisini aç (ad kutusunun solundaki logo kutusu), "Uploaded" sekmesine geç; seçicinin kökünü döndür. */
+  async function openUploaded(dlg) {
+    let tab = uploadedTab(dlg.box);
+    if (!tab) {
+      const opener = [...dlg.box.querySelectorAll('button, a, [role=button], div, span, label')].find((el) => {
+        if (!visible(el) || ours(el) || el.contains(dlg.input)) return false;
+        if (!(el.compareDocumentPosition(dlg.input) & Node.DOCUMENT_POSITION_FOLLOWING)) return false;
+        if (/close|×/i.test(btnText(el) + (el.getAttribute('aria-label') || ''))) return false;
+        const r = el.getBoundingClientRect();
+        return r.width >= 24 && r.width <= 110 && r.height >= 24 && r.height <= 110 && !!el.querySelector('img, svg, i, [style*="background-image"]');
+      });
+      if (opener) {
+        opener.click();
+        tab = await waitFor(() => uploadedTab(dlg.box) || uploadedTab(document.body), 2500);
+      }
+    }
+    if (!tab) return null;
+    tab.click();
+    await sleep(450);
+    // seçicinin kökü: sekmeden yukarı çıkıp en az 4 logo içeren ilk ata
+    let root = tab;
+    while (root.parentElement && root !== dlg.box && root.querySelectorAll('img, [style*="background-image"]').length < 4) root = root.parentElement;
+    return root;
   }
 
   function clickIcon(c) {
@@ -764,10 +793,9 @@
       const platform = platformOf(src + ' ' + (az || dlg.input.value));
       let iconNote = '';
       if (platform) {
-        const tab = [...dlg.box.querySelectorAll('a, button, li, span, label')].find((el) => el.children.length <= 1 && /^uploaded$/i.test(norm(el.textContent)) && !ours(el));
-        if (tab) { tab.click(); await sleep(450); }
+        const root = await openUploaded(dlg);
         dlg = categoryDialog() || dlg;
-        const cands = iconCandidates(dlg.box);
+        const cands = iconCandidates(root || dlg.box);
         const map = await getIconMap();
         let pick = map[platform] ? cands.find((c) => c.key === map[platform]) : null;
         if (!pick) pick = cands.find((c) => PLATFORMS[platform].some((k) => k.length > 2 && c.text.includes(k)) || c.text.includes(platform));
