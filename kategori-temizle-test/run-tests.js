@@ -182,7 +182,7 @@ const lists = (page) => bar(page, '.list').first().innerText();
     const txt = (await bar(p, '.list').allInnerTexts()).join('\n');
     ok(/Old Telegram[\s\S]*aktif/.test(txt), 'Old Telegram: aktif olduğu için atlandı');
     ok(/Facebook Page[\s\S]*2 servis/.test(txt), 'Facebook Page: dolu olduğu için atlandı');
-    ok(/Spotify Plays[\s\S]*bulunamadı/.test(txt), 'Spotify Plays: ad değişti, bulunamadı');
+    ok(/Spotify Plays[\s\S]*ad değişmiş/.test(txt), 'Spotify Plays: ad değişti, atlandı');
     await p.close();
   }
 
@@ -234,6 +234,9 @@ const lists = (page) => bar(page, '.list').first().innerText();
     const s = await server(p);
     eq(s.deleted, [], 'mini panelde de deneme modu silmedi');
     eq(s.dialogsCancelled.length, 3, '3 kategoride iptal edildi');
+    const dgn = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { kt: true, cmd: 'diag' }, r)), tabId);
+    let dj = null; try { dj = JSON.parse(dgn.text); } catch (e) { /* yok */ }
+    ok(dj && dj.surum === '1.0.0' && dj.satirTurleri && dj.actionsZinciri, 'teşhis metni hatasız üretildi (JSON)');
     await pop.close(); await p.close();
   }
 
@@ -257,6 +260,19 @@ const lists = (page) => bar(page, '.list').first().innerText();
     await scan(p);
     eq(sorted(await bar(p, '.list').first().locator('div').allInnerTexts()), sorted(EXPECT.filter((n) => n !== 'Old Telegram')), 'Old Telegram aday değil');
     ok(/okunamadı/.test(await bar(p, 'small').allInnerTexts().then((a) => a.join(' '))), 'not düşüldü');
+    await p.close();
+  }
+
+  console.log('T14 aynı (normalize) adlı iki boş pasif kategori kimlikle ayrı ayrı silinir; teşhis hatasız üretilir');
+  if (want('T14')) {
+    const base = cats(); base.splice(2, 0, { id: 901, name: 'Dup Cat [ YENİ ]', active: false, services: 0 }, { id: 902, name: 'Dup Cat [ Yeni ]', active: false, services: 0 });
+    const p = await newPage(ctx, { cats: base, virtual: true });
+    await scan(p); await setDry(p, false);
+    ok((await bar(p, '.list').first().locator('div').allInnerTexts()).filter((x) => /Dup Cat/.test(x)).length === 2, 'iki Dup Cat da aday');
+    await bar(p, '[data-a=run]').click(); await done(p);
+    const s = await server(p);
+    ok(s.deleted.includes('Dup Cat [ YENİ ]') && s.deleted.includes('Dup Cat [ Yeni ]'), 'ikisi de silindi');
+    eq(s.violations, [], 'ihlal yok');
     await p.close();
   }
 

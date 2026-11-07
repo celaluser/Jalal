@@ -106,9 +106,10 @@ function App() {
   const catRow = (c, style) => e('div', { key: c.id, id: 'category-' + c.id, style, className: 'cat-row service-table__category' + ((!c.active && !cfg.noDisabledClass) ? ' service-table__category-disabled' : '') + (c.cls ? ' ' + c.cls : ''), 'data-id': c.id },
     e('span', { className: 'service-table__handle' }, '⋮⋮'),
     c.badgeBefore && e('span', { className: 'badge' }, 'ᴺᴱᵂ'),
-    e('span', { className: 'name', style: { color: (c.color && !cfg.dark ? '#3a3a3a' : c.color) || (cfg.dark ? (c.active ? '#ffffff' : '#6b7a99') : (c.active ? '#1d1d1d' : '#c4c4c4')) } }, c.name),
+    e('span', { className: 'name service-table__category-name', style: { color: (c.color && !cfg.dark ? '#3a3a3a' : c.color) || (cfg.dark ? (c.active ? '#ffffff' : '#6b7a99') : (c.active ? '#1d1d1d' : '#c4c4c4')) } }, c.name),
     c.badgeAfter && e('span', { className: 'badge' }, 'ᴺᴱᵂ'),
     e('button', { className: 'actions', onClick: (ev) => { ev.stopPropagation(); openMenu(ev, { type: 'cat', empty: c.services === 0, onDelete: () => { server.dialogsOpened.push(c.name); setConfirm(c); } }); } }, 'Actions ▾'),
+    e('ul', { className: 'dropdown-menu', style: { display: 'none' } }, e('li', null, e('a', null, 'Edit category')), e('li', null, e('a', null, 'Disable category'))),
     e('div', { className: 'service-table__category-collapse hide-category' }, (c.collapseText || c.services > 0) && e('a', { className: 'expand service-table__category-collapse-name' }, c.collapseText || ('Expand (' + c.services + ')'))));
   let list;
   if (expanded) {

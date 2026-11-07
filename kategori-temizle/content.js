@@ -42,7 +42,11 @@
         const tag = n.tagName;
         if (tag === 'IMG') out += n.getAttribute('alt') || '';
         else if (/^(INPUT|TEXTAREA|BUTTON|SELECT|SCRIPT|STYLE)$/.test(tag)) continue;
-        else out += (getComputedStyle(n).display.startsWith('inline') ? '' : ' ') + textWithAlt(n) + ' ';
+        else {
+          const cs = getComputedStyle(n);
+          if (cs.display === 'none' || cs.visibility === 'hidden') continue; // kapalı Actions menüsü vb.
+          out += (cs.display.startsWith('inline') ? '' : ' ') + textWithAlt(n) + ' ';
+        }
       }
     }
     return out;
@@ -127,13 +131,21 @@
     return out;
   }
 
-  /** Kategorinin ad öğesi: en uzun yazılı yaprak öğe ("NEW" rozeti, Actions, simgeler değil). */
+  /** Kategorinin ad öğesi: önce [class*=category-name]; yoksa en uzun yazılı yaprak (menü, gizli öğe, rozet, Actions, Expand hariç). */
   function nameElOf(row) {
+    const named = row.el.querySelector('[class*="category-name"]:not([class*="collapse"])');
+    if (named && norm(named.textContent)) {
+      let leaf = named;
+      while (leaf.children.length === 1) leaf = leaf.children[0];
+      return leaf.children.length ? named : leaf;
+    }
     let best = null;
     for (const e of row.el.querySelectorAll('*')) {
       if (e.children.length) continue;
+      if (e.closest('.dropdown-menu, [role=menu], .dropdown, ul')) continue;
+      if (!visible(e)) continue;
       const t = norm(e.textContent);
-      if (t.length < 2 || /^(actions|new|yeni|expand|collapse)\b/i.test(t)) continue;
+      if (t.length < 2 || /^(actions|new|yeni|expand|collapse)\b/i.test(t) || /^ᴺᴱᵂ$/.test(t)) continue;
       if (!best || t.length > best.t.length) best = { e, t };
     }
     return best ? best.e : null;
@@ -233,30 +245,30 @@
     return false;
   }
 
-  function findByName(name) {
+  /** Kategoriyi bul: id (category-NNN) varsa yalnızca id ile; yoksa ada göre. */
+  function findByName(name, id) {
     const k = catKey(name);
     const rows = categoryRows();
-    return { rows, hits: rows.filter((r) => catKey(r.name) === k) };
+    return { rows, hits: id ? rows.filter((r) => r.id === id) : rows.filter((r) => catKey(r.name) === k) };
   }
 
   /** Kategoriyi bul; DOM'da yoksa (deep) kategori görünümüne geç ve bulana kadar listeyi gez. */
-  async function locate(name, deep) {
-    let f = findByName(name);
+  async function locate(name, id, deep) {
+    let f = findByName(name, id);
     if (f.hits.length || !deep) return f;
     await ensureCategoryView();
-    await walk(() => findByName(name).hits.length > 0);
-    return findByName(name);
+    await walk(() => findByName(name, id).hits.length > 0);
+    return findByName(name, id);
   }
 
   /** Şu an ekranda: kategori hâlâ var mı, tek mi, ad aynı mı, pasif mi, boş mu? (boş = "Expand (N)" yok ya da N=0) */
   function check(name, id) {
-    const { rows, hits } = findByName(name);
-    if (!hits.length) return { ok: false, reason: 'satır bulunamadı' };
-    if (hits.length > 1) return { ok: false, reason: 'aynı adlı birden çok kategori var' };
+    const { rows, hits } = findByName(name, id);
+    if (!hits.length) return { ok: false, reason: 'satır bulunamadı (kimlik ' + (id || '-') + '; ekranda ' + rows.length + ' kategori; ilk: "' + (rows[0] ? rows[0].name.slice(0, 40) : '-') + '")' };
+    if (hits.length > 1) return { ok: false, reason: 'aynı kimlikli birden çok satır' };
     const row = hits[0];
     if (row.special) return { ok: false, reason: 'özel satır (Not Assigned)' };
-    if (norm(row.name) !== norm(name)) return { ok: false, reason: 'ad değişmiş: "' + row.name + '"' };
-    if (id && row.id !== id) return { ok: false, reason: 'kimlik değişmiş (' + row.id + ' ≠ ' + id + ')' };
+    if (catKey(row.name) !== catKey(name)) return { ok: false, reason: 'ad değişmiş: "' + row.name.slice(0, 60) + '" ≠ "' + name.slice(0, 60) + '"' };
     if (checks().length > 1) return { ok: false, reason: 'liste kategori görünümünde değil' };
     const { why } = splitActive(rows, S.refBest);
     if (!why.has(row)) return { ok: false, reason: 'artık pasif görünmüyor (aktif)' };
@@ -357,14 +369,11 @@
       const unclear = real.filter((e) => Number.isNaN(e.count)).length;
       if (unclear) S.notes.push(unclear + ' satırda servis sayısı okunamadı; bunlar boş sayılmaz.');
       if (!S.hasCounts) return fail('Hiçbir satırda "Expand (N)" görünmedi; boşluğu doğrulayamam, hiçbir şey silinmez.');
-      const keyCount = new Map();
-      for (const e of real) keyCount.set(catKey(e.name), (keyCount.get(catKey(e.name)) || 0) + 1);
       let dolu = 0;
       real.forEach((e, i) => {
         if (!whyArr[i]) return;
         if (e.count > 0) { dolu++; return; }
         if (Number.isNaN(e.count)) return; // sayı okunamadı: boş sayılmaz
-        if (keyCount.get(catKey(e.name)) > 1) { S.notes.push('Atlandı (aynı ad birden çok): ' + e.name); return; }
         S.candidates.push({ name: e.name, id: e.id });
       });
       S.stats = { kategori: real.length, aktif: real.length - pasif.length, pasif: pasif.length, pasifDolu: dolu, bos: S.candidates.length };
@@ -385,12 +394,12 @@
   const result = (kind, reason) => ({ kind, reason });
 
   /** Kategoriyi bul + kategori görünümünde olduğundan emin ol; React yeniden çizerse birkaç kez dene. */
-  async function prepare(name) {
+  async function prepare(name, id) {
     for (let a = 0; a < 3; a++) {
       if (!(await ensureCategoryView())) return result('error', 'kategori görünümüne geçilemedi');
-      const f = await locate(name, true);
+      const f = await locate(name, id, true);
       if (!f.hits.length) return result('skip', 'bulunamadı (silinmiş ya da liste yüklenmedi)');
-      if (f.hits.length > 1) return result('skip', 'aynı adlı birden çok kategori var');
+      if (f.hits.length > 1) return result('skip', 'aynı kimlikli birden çok satır');
       if (checks().length <= 1) return { kind: 'ok', row: f.hits[0] };
     }
     return result('skip', 'yeniden çizimden sonra kategori bulunamadı');
@@ -398,9 +407,10 @@
 
   async function processOne(name, id) {
     const k = catKey(name);
-    const p = await prepare(name);
+    const p = await prepare(name, id);
     if (p.kind !== 'ok') return p;
     p.row.el.scrollIntoView({ block: 'center' });
+    await waitFor(() => findByName(name, id).hits.length === 1, 3000, 100);
     await sleep(300);
 
     // 1) silmeden önce yeniden kontrol
@@ -416,7 +426,7 @@
     remember('menu', fresh);
     if (!item) { await closeMenu(); S.diagNeeded = true; return result('error', '"Delete category" menüde bulunamadı'); }
     const owner = categoryRows().find((r) => r.el.contains(item));
-    if (owner && catKey(owner.name) !== k) { await closeMenu(); return result('skip', 'menü başka kategoriye ait (' + owner.name + ')'); }
+    if (owner && (id ? owner.id !== id : catKey(owner.name) !== k)) { await closeMenu(); return result('skip', 'menü başka kategoriye ait (' + owner.name + ')'); }
     (item.closest('a, button, li, [role=menuitem]') || item).click();
 
     // 3) onay penceresi
@@ -456,9 +466,9 @@
     seenToasts.push(...readToasts());
     remember('toast', [...new Set(seenToasts)]);
     const errToast = [...new Set(seenToasts)].find((t) => ERR_WORDS.test(t));
-    await waitFor(() => findByName(name).hits.length === 0, 4000, 150);
-    if (findByName(name).hits.length) return result('error', 'satır silinmedi' + (errToast ? ' — panel: "' + errToast.slice(0, 100) + '"' : ''));
-    const g = await locate(name, true); // listeyi yeniden çizdiyse: tüm liste yüklenip gerçekten yok mu?
+    await waitFor(() => findByName(name, id).hits.length === 0, 4000, 150);
+    if (findByName(name, id).hits.length) return result('error', 'satır silinmedi' + (errToast ? ' — panel: "' + errToast.slice(0, 100) + '"' : ''));
+    const g = await locate(name, id, true); // listeyi yeniden çizdiyse: tüm liste yüklenip gerçekten yok mu?
     if (g.hits.length) return result('error', 'satır hâlâ listede' + (errToast ? ' — panel: "' + errToast.slice(0, 100) + '"' : ''));
     return result('deleted', errToast ? 'silindi (panel bildirimi: ' + errToast.slice(0, 80) + ')' : 'silindi');
   }
@@ -533,8 +543,8 @@
       if (!e.ornek) e.ornek = { kutucuk: el.querySelectorAll('input[type=checkbox]').length, actions: [...el.querySelectorAll('button, a')].filter((x) => /^actions\b/i.test(btnText(x))).length, yazi: norm(el.textContent).slice(0, 60), html: el.outerHTML.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 450) };
       seen.set(cls, e);
     }
-    const sc = scroller(document.querySelector('.service-table__row'));
-    return { turler: Object.fromEntries(seen), kaydirma: { pencereY: Math.round(scrollY), sayfaYuksekligi: document.documentElement.scrollHeight, icKutu: sc ? sc.tagName + '.' + sc.className : 'yok' }, kategoriYaziAday: [...document.querySelectorAll('.service-table__row')].filter((r) => !r.querySelector('input[type=checkbox]')).slice(0, 3).map((r) => r.outerHTML.replace(/\s+/g, ' ').slice(0, 600)) };
+    const sc = getBox();
+    return { turler: Object.fromEntries(seen), kaydirma: { pencereY: Math.round(scrollY), sayfaYuksekligi: document.documentElement.scrollHeight, icKutu: sc ? sc.tagName + '.' + (typeof sc.className === 'string' ? sc.className : '') : 'yok' }, kategoriYaziAday: [...document.querySelectorAll('.service-table__row')].filter((r) => !r.querySelector('input[type=checkbox]')).slice(0, 3).map((r) => r.outerHTML.replace(/\s+/g, ' ').slice(0, 600)) };
   }
 
   function diag() {
