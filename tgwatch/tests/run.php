@@ -1559,7 +1559,7 @@ test('/balans: sağlayıcı yoksa yol gösterir; eski kayıtlı komut listesine 
     $flow->handleUpdate(msg(1, OWNER, '/balans'));
     ok(str_contains(lastText($tg), 'Sağlayıcı yok'));
     $db->setJson('bot_commands', ['on' => true, 'list' => [['name' => 'oz', 'action' => 'summary', 'enabled' => true, 'desc' => '', 'text' => '']]]);
-    eq(['oz', 'balans'], array_column(TgWatch\BotRegistry::load($db), 'name'));
+    eq(['oz', 'balans', 'paylas'], array_column(TgWatch\BotRegistry::load($db), 'name'));
     TgWatch\BotRegistry::save($db, [['name' => 'oz', 'action' => 'summary', 'enabled' => '1']], true);
     eq(['oz'], array_column(TgWatch\BotRegistry::load($db), 'name'), 'kullanıcı silerse geri gelmez');
 });
@@ -2163,6 +2163,23 @@ test('Kanal ayarlı değilken de önizleme ve düğmeler gelir; Paylaş nedenini
     $a = $tg->last('answerCallbackQuery');
     ok(str_contains($a['text'], 'ayarlı değil') && $a['show_alert'] === true, json_encode($a, JSON_UNESCAPED_UNICODE));
     eq('pending', (new TgWatch\ImportShare($db, $tg, $cfg))->find($r['id'])['status'], 'kanal girilince yeniden basılabilir');
+});
+test('/paylas: son importun önizlemesi yeni düğmelerle yeniden gelir; paylaşılmışsa söyler', function () {
+    [$db, $tg, $flow] = env();
+    $flow->handleUpdate(msg(1, OWNER, '/paylas'));
+    ok(str_contains(lastText($tg), 'Kanala hazırlanmış bir import yok'));
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('own','panelim','https://own.example/api/v2','k',1)");
+    TgWatch\SmmApi::$fake = static fn() => json_encode([['service' => 5, 'name' => 'S', 'category' => 'Kat', 'rate' => '1', 'min' => '1', 'max' => '9']]);
+    try {
+        $r = (new TgWatch\ImportShare($db, $tg, App::config()))->report(['categories' => [['name' => 'Kat', 'src' => 'Cat']]]);
+    } finally {
+        TgWatch\SmmApi::$fake = null;
+    }
+    $old = $tg->count('deleteMessage');
+    $flow->handleUpdate(msg(2, OWNER, '/paylas'));
+    $m = $tg->last('sendMessage');
+    eq(['📢 Kanalda paylaş', '✏️ Düzenle', 'Paylaşma'], array_column($m['reply_markup']['inline_keyboard'][0], 'text'));
+    eq(1, $tg->count('deleteMessage') - $old, 'eski önizleme silinir');
 });
 test('Kanal şablonu: platform simgesi paylaşım paneliyle aynı', function () {
     eq(['📸', '🎵', '▶️', '✈️', '🐦', '⭐'], array_map([TgWatch\ImportShare::class, 'icon'], ['Instagram Bəyəni', 'TikTok İzləyici', 'YouTube Baxış', 'Telegram Üzv', 'X Follower', 'Spotify']));

@@ -20,6 +20,7 @@ final class BotRegistry
         'search' => ['İşlerde ara', 'ID/kelime', 'Servis ID ya da kelimeyle işlerde arar'],
         'price' => ['Fiyat önerisi', '0.44', 'Sağlayıcı fiyatından önerilen satış fiyatını hesaplar'],
         'balance' => ['Sağlayıcı bakiyeleri', '', 'Eklediğin sağlayıcıların güncel bakiyesini sorar, hepsini tek mesajda yazar'],
+        'share_last' => ['Son import önizlemesi', '', 'Son importun kanal önizlemesini Paylaş / Düzenle / Paylaşma düğmeleriyle yeniden gönderir'],
         'summary' => ['Özet', '', 'Bugünün ve genel durumun özeti, sorun varsa listeler'],
         'status' => ['İş sayıları', '', 'Duruma göre iş sayıları ve son cron zamanı'],
         'channels' => ['Kanal durumu', '', 'Kanalların okunma durumu'],
@@ -29,6 +30,10 @@ final class BotRegistry
         'help' => ['Komut listesi', '', 'Açık komutları ve ne yaptıklarını listeler'],
         'text' => ['Sabit cevap', '', 'Yazdığın metni cevap olarak gönderir (not, hatırlatma, bağlantı)'],
     ];
+
+    /** Kayıtlı listenin sürümü ve sonradan eklenen komutlar (sürüm => [ad, eylem, açıklama]). */
+    public const LIST_VERSION = 3;
+    private const ADDED = [2 => ['balans', 'balance', 'Sağlayıcı bakiyeleri'], 3 => ['paylas', 'share_last', 'Son importun kanal önizlemesi']];
 
     /** Telegram komut kuralı + sabit komutlarla çakışmayan adlar. */
     public const RESERVED = ['start', 'id', 'iptal'];
@@ -45,6 +50,7 @@ final class BotRegistry
             $d('onayla', 'approve', 'İşi onayla (/onayla 5)'),
             $d('reddet', 'reject', 'İşi reddet (/reddet 5)'),
             $d('balans', 'balance', 'Sağlayıcı bakiyeleri'),
+            $d('paylas', 'share_last', 'Son importun kanal önizlemesi'),
             $d('fiyat', 'price', 'Önerilen satış fiyatı (/fiyat 0.44)'),
             $d('kanallar', 'channels', 'Kanalların durumu'),
             $d('degisiklik', 'notices', 'Fiyat/kapanma bildirimleri'),
@@ -62,12 +68,17 @@ final class BotRegistry
         if (!is_array($v) || !isset($v['list']) || !is_array($v['list'])) {
             return self::defaults();
         }
-        if (($v['v'] ?? 1) < 2) { // yeni komut (/balans) eski kayıtlı listeye bir kez eklenir; silinirse geri gelmez
-            $names = array_column($v['list'], 'name');
-            if (!in_array('balance', array_column($v['list'], 'action'), true) && !in_array('balans', $names, true) && count($v['list']) < 40) {
-                $v['list'][] = ['name' => 'balans', 'action' => 'balance', 'enabled' => true, 'desc' => 'Sağlayıcı bakiyeleri', 'text' => ''];
+        // Sonradan eklenen komutlar eski kayıtlı listeye bir kez eklenir; kullanıcı silerse geri gelmez.
+        if (($v['v'] ?? 1) < self::LIST_VERSION) {
+            foreach (self::ADDED as $ver => [$name, $action, $desc]) {
+                if (($v['v'] ?? 1) >= $ver) {
+                    continue;
+                }
+                if (!in_array($action, array_column($v['list'], 'action'), true) && !in_array($name, array_column($v['list'], 'name'), true) && count($v['list']) < 40) {
+                    $v['list'][] = ['name' => $name, 'action' => $action, 'enabled' => true, 'desc' => $desc, 'text' => ''];
+                }
             }
-            $v['v'] = 2;
+            $v['v'] = self::LIST_VERSION;
             $db->setJson('bot_commands', $v);
         }
         $out = [];
@@ -155,13 +166,13 @@ final class BotRegistry
         if ($errors) {
             return $errors;
         }
-        $db->setJson('bot_commands', ['on' => $masterOn, 'list' => $list, 'v' => 2]);
+        $db->setJson('bot_commands', ['on' => $masterOn, 'list' => $list, 'v' => self::LIST_VERSION]);
         return [];
     }
 
     public static function reset(Db $db): void
     {
-        $db->setJson('bot_commands', ['on' => true, 'list' => self::defaults(), 'v' => 2]);
+        $db->setJson('bot_commands', ['on' => true, 'list' => self::defaults(), 'v' => self::LIST_VERSION]);
     }
 
     /** Telegram "/" menüsü için liste. @return list<array{command:string,description:string}> */

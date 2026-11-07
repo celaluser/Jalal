@@ -473,4 +473,30 @@ final class ImportShare
         }
         return $rec['status'] === 'posted' ? 'Kanalda paylaşıldı' : 'Paylaşılamadı: ' . mb_substr((string)$rec['error'], 0, 150);
     }
+
+    /** /paylas: son importun önizlemesini düğmeleriyle yeniden gönder. @return string hata/bilgi metni ya da '' */
+    public function resendLast(): string
+    {
+        $all = $this->all();
+        $rec = null;
+        foreach (array_reverse($all) as $r) {
+            if (!empty($r['chunks'])) {
+                $rec = $r;
+                break;
+            }
+        }
+        if (!$rec) {
+            return 'Kanala hazırlanmış bir import yok. Eklentiyle import yapınca önizleme gelir.';
+        }
+        if ($rec['status'] === 'posted') {
+            return 'Son import (' . ($rec['categories'][0]['name'] ?? '') . ') zaten kanalda paylaşıldı.';
+        }
+        $rec['aux'] ??= [];
+        $this->cleanup($rec, true);
+        $rec['status'] = 'pending';
+        $m = $this->tg->sendMessage((int)$this->config['owner_id'], $this->summary($rec), self::buttons((int)$rec['id']));
+        $rec['msg'] = (int)($m['message_id'] ?? 0);
+        $this->store($rec);
+        return '';
+    }
 }

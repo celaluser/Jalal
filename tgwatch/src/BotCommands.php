@@ -59,6 +59,12 @@ final class BotCommands
             case 'balance':
                 $this->balance($chat);
                 return true;
+            case 'share_last':
+                $r = (new ImportShare($this->db, $this->tg, $this->config))->resendLast();
+                if ($r !== '') {
+                    $this->say($chat, Telegram::esc($r));
+                }
+                return true;
             case 'summary':
                 $this->summary($chat);
                 return true;
