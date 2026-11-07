@@ -1243,11 +1243,88 @@
   const DRAGS = { mouse: (p) => withHandle(p, dragMouse), html5: (p) => withHandle(p, dragHtml5), keys: (p) => withHandle(p, dragKeys) };
   let dragWay = null; // bu panelde işe yarayan yol (sonraki adımlarda önce o denenir)
 
+  /**
+   * Tek hamlede: tutamaçtan tut, basılı tutarken listeyi yukarı kaydır (imleç listenin üst kenarında, kütüphanenin
+   * kendi kaydırması da çalışsın), en üste varınca ilk kategorinin üstüne gel ve bırak.
+   */
+  async function holdToTop(name, way) {
+    const rows = categoryRows();
+    const i = findCat(rows, name);
+    if (i <= 0) return;
+    const me = rows[i];
+    me.el.scrollIntoView({ block: 'center' });
+    await sleep(200);
+    const box = scroller(me.el);
+    const atTop = () => (box ? box.scrollTop <= 0 : true) && window.scrollY <= 0;
+    await withHandle({ me }, async () => {
+      const hd = rowHandle(me) || me.el;
+      const from = center(hd);
+      const x = from.x;
+      const html5 = way === 'html5';
+      const dt = html5 ? new DataTransfer() : null;
+      const src = html5 ? (hd.closest('[draggable=true]') || me.el.closest('[draggable=true]') || me.el.querySelector('[draggable=true]') || hd) : null;
+      const dfire = (el, type, px, py) => el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, composed: true, view: window, clientX: px, clientY: py, screenX: px, screenY: py, dataTransfer: dt }));
+      const move = (px, py) => {
+        const t = at(px, py);
+        if (html5) { dfire(t, 'dragenter', px, py); dfire(t, 'dragover', px, py); } else { fire(t, 'pointermove', px, py); fire(t, 'mousemove', px, py); }
+      };
+      fire(hd, 'pointerdown', from.x, from.y);
+      fire(hd, 'mousedown', from.x, from.y);
+      await sleep(60);
+      if (html5) { dfire(src, 'dragstart', from.x, from.y); await sleep(40); }
+      for (let k = 1; k <= 4; k++) { move(x, from.y - k * 6); await sleep(25); } // sürüklemeyi başlat (eşik)
+      const v0 = viewport(box);
+      const edge = v0.top + 8;
+      for (let k = 1; k <= 6; k++) { move(x, from.y + ((edge - from.y) * k) / 6); await sleep(20); }
+      // Basılı tutarken yukarı kaydır
+      for (let n = 0; n < 600 && !atTop(); n++) {
+        const step = Math.max(240, (box ? box.clientHeight : innerHeight) * 0.6);
+        if (box && box.scrollTop > 0) box.scrollTop = Math.max(0, box.scrollTop - step);
+        else window.scrollTo(0, Math.max(0, window.scrollY - step));
+        move(x, edge);
+        await sleep(16);
+        if (n % 10 === 9) catStatus('En üste taşınıyor… (basılı)');
+      }
+      move(x, edge);
+      await sleep(150);
+      // İlk kategori (taşınan hariç) üstüne gel, bırak
+      // Son yaklaşma aşağıdan yukarı: önce ikinci kategorinin ortasına, sonra ilkinin üst kenarına (yukarıdan gelince kütüphane "altına" koyar).
+      const others = categoryRows().filter((r) => r.el !== me.el && !r.el.contains(me.el) && !me.el.contains(r.el));
+      const fr = others[0] ? others[0].el.getBoundingClientRect() : { top: edge, height: 20, bottom: edge + 20 };
+      const sr = others[1] ? others[1].el.getBoundingClientRect() : { top: fr.bottom, height: fr.height || 20 };
+      const via = { x, y: Math.min(viewport(box).bottom - 4, sr.top + (sr.height || 20) / 2) };
+      const to = { x, y: Math.max(viewport(box).top + 2, fr.top + Math.max(2, Math.min(6, fr.height / 4))) };
+      for (let k = 1; k <= 4; k++) { move(x, edge + ((via.y - edge) * k) / 4); await sleep(30); }
+      await sleep(80);
+      for (let k = 1; k <= 5; k++) { move(x, via.y + ((to.y - via.y) * k) / 5); await sleep(30); }
+      // Bazı kütüphaneler aynı satırda ikinci bir hareket görmeden yer değiştirmez: üst kenarda küçük kıpırdatma.
+      for (const dy of [3, 0, 2, 0]) { move(x, to.y + dy); await sleep(40); }
+      await sleep(150);
+      const t = at(to.x, to.y);
+      if (html5) { dfire(t, 'dragover', to.x, to.y); dfire(t, 'drop', to.x, to.y); dfire(src, 'dragend', to.x, to.y); }
+      fire(t, 'pointerup', to.x, to.y);
+      fire(t, 'mouseup', to.x, to.y);
+    });
+  }
+
   async function moveToTop(name) {
     await collapseAll();
     let i = indexOf(name);
     if (i < 0) { await scrollToEnd(); i = indexOf(name); }
     if (i < 0) return { ok: false, note: 'kategori listede bulunamadı: ' + name };
+    // Önce tek hamle (tut → yukarı kaydır → bırak); olmazsa adım adım.
+    for (const w of (dragWay && dragWay !== 'keys' ? [dragWay] : ['mouse', 'html5'])) {
+      if (i <= 0) break;
+      catStatus('En üste taşınıyor… (tek hamle)');
+      await holdToTop(name, w);
+      const ni = await waitFor(() => { const n = indexOf(name); return n >= 0 ? n + 1 : null; }, 1500, 100);
+      const n = ni ? ni - 1 : -1;
+      dragLog.push({ yol: 'tek-hamle/' + w, sira: i, sonra: n });
+      dragLog = dragLog.slice(-12);
+      if (n === 0) { dragWay = w; i = 0; break; }
+      if (n > 0 && n < i) { dragWay = w; i = n; } // kısmen çıktı: kalanı adım adım
+      await sleep(200);
+    }
     for (let step = 0; step < 120 && i > 0; step++) {
       catStatus('En üste taşınıyor… (' + i + ' sıra kaldı)');
       const ways = dragWay ? [dragWay] : Object.keys(DRAGS);
