@@ -534,6 +534,7 @@ final class Flow
             return 'Bu iş artık düzenlenemez.';
         }
         $this->db->set('editing_job', (string)$id);
+        $this->db->set('editing_share', ''); // iş düzenlemesi başlayınca kanal mesajı düzenlemesi biter
         $job = $this->db->job($id);
         $this->sendPreview($id);
         $list = '';
@@ -866,9 +867,13 @@ final class Flow
             $this->resolveNotice((int)$nm[2], $nm[1] === 'nd' ? 'done' : 'ignored');
             return;
         }
-        if (preg_match('/^sh:(post|skip):(\d+)$/', (string)($cb['data'] ?? ''), $sm)) {
-            $this->safe(fn() => $this->tg->answerCallback((string)$cb['id'], 'İşleniyor…'));
-            $reply = (new ImportShare($this->db, $this->tg, $this->config))->decide((int)$sm[2], $sm[1]);
+        if (preg_match('/^sh:(post|skip|edit):(\d+)$/', (string)($cb['data'] ?? ''), $sm)) {
+            $this->safe(fn() => $this->tg->answerCallback((string)$cb['id'], $sm[1] === 'edit' ? 'Metin geliyor…' : 'İşleniyor…'));
+            $S = new ImportShare($this->db, $this->tg, $this->config);
+            $reply = '';
+            $this->safe(function () use ($S, $sm, &$reply): void {
+                $reply = $sm[1] === 'edit' ? $S->startEdit((int)$sm[2]) : $S->decide((int)$sm[2], $sm[1]);
+            });
             $this->db->log('info', 'bot', 'Kanal paylaşımı #' . $sm[2] . ': ' . $reply);
             return;
         }
@@ -911,6 +916,16 @@ final class Flow
             return;
         }
         if ($text !== '' && $text[0] === '/' && $text !== '/iptal' && (new BotCommands($this->db, $this->tg, $this, $this->config))->handle($chat, $text)) {
+            return;
+        }
+        $share = (int)$this->db->get('editing_share', '0');
+        if ($share && $text === '/iptal') {
+            (new ImportShare($this->db, $this->tg, $this->config))->cancelEdit();
+            $this->safe(fn() => $this->tg->sendMessage($chat, 'Kanal mesajı düzenlemesi iptal edildi; önceki önizleme geçerli.'));
+            return;
+        }
+        if ($share && $text !== '' && $text[0] !== '/') {
+            $this->safe(fn() => (new ImportShare($this->db, $this->tg, $this->config))->applyEdit($share, $text));
             return;
         }
         $editing = (int)$this->db->get('editing_job', '0');

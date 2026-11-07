@@ -229,7 +229,89 @@ final class ImportShare
 
     private static function buttons(int $id): array
     {
-        return [[['text' => '📢 Kanalda paylaş', 'callback_data' => "sh:post:$id"], ['text' => 'Paylaşma', 'callback_data' => "sh:skip:$id"]]];
+        return [[['text' => '📢 Kanalda paylaş', 'callback_data' => "sh:post:$id"], ['text' => '✏️ Düzenle', 'callback_data' => "sh:edit:$id"], ['text' => 'Paylaşma', 'callback_data' => "sh:skip:$id"]]];
+    }
+
+    /** HTML parçayı düz metne çevir (düzenlemek için kopyalanacak hâl). */
+    private static function plain(string $html): string
+    {
+        return html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+
+    /** Düzenleme başlat: metin düz hâlde gönderilir, sahip değiştirip geri yazar. */
+    public function startEdit(int $id): string
+    {
+        $rec = $this->find($id);
+        if (!$rec || !$rec['chunks']) {
+            return 'Düzenlenecek mesaj yok';
+        }
+        if ($rec['status'] === 'posted') {
+            return 'Zaten paylaşıldı';
+        }
+        $this->db->set('editing_job', '');
+        $this->db->set('editing_share', (string)$id);
+        $owner = (int)$this->config['owner_id'];
+        $n = count($rec['chunks']);
+        $this->tg->sendMessage($owner, "✏️ <b>Kanal mesajını düzenle</b>\nAşağıdaki metni kopyala (uzun bas → Kopyala), değiştir ve bana tek mesaj olarak gönder." . ($n > 1 ? " Metin $n parça; yenisini tek mesajda gönder, gerekirse yeniden bölünür." : '') . "\nVazgeçmek için /iptal");
+        foreach ($rec['chunks'] as $c) {
+            $this->tg->call('sendMessage', ['chat_id' => $owner, 'text' => mb_substr(self::plain($c), 0, 4096), 'link_preview_options' => ['is_disabled' => true]]);
+        }
+        return 'Metni düzenleyip gönder';
+    }
+
+    /** Düzenleme modunda gelen metin: kanal mesajı olur, yeni önizleme + düğmeler. */
+    public function applyEdit(int $id, string $text): void
+    {
+        $this->db->set('editing_share', '');
+        $rec = $this->find($id);
+        $owner = (int)$this->config['owner_id'];
+        if (!$rec) {
+            $this->tg->sendMessage($owner, 'Kayıt bulunamadı, düzenleme bırakıldı.');
+            return;
+        }
+        $text = trim(str_replace(["\r\n", "\r"], "\n", $text));
+        $chunks = [];
+        $cur = '';
+        foreach (preg_split('/\n{2,}/u', $text) ?: [] as $para) {
+            $add = ($cur === '' ? '' : "\n\n") . Telegram::esc($para);
+            if ($cur !== '' && mb_strlen($cur . $add) > 3900) {
+                $chunks[] = $cur;
+                $cur = Telegram::esc($para);
+            } else {
+                $cur .= $add;
+            }
+        }
+        if ($cur !== '') {
+            $chunks[] = $cur;
+        }
+        if ($this->cfg('share_bold', 'on') !== 'off') {
+            $chunks = array_map(static fn($t) => '<b>' . $t . '</b>', $chunks);
+        }
+        $rec['chunks'] = array_values(array_filter($chunks, static fn($t) => trim(strip_tags($t)) !== ''));
+        $rec['edited'] = true;
+        if ($rec['status'] !== 'posted') {
+            $rec['status'] = $rec['chunks'] && $this->channel() !== '' ? 'pending' : $rec['status'];
+        }
+        // Eski bildirimden düğmeleri kaldır, yeni önizlemeyi düğmelerle gönder.
+        if ($rec['msg']) {
+            try {
+                $this->tg->editMessage($owner, (int)$rec['msg'], $this->summary(array_merge($rec, ['status' => 'replaced'])), null);
+            } catch (\Throwable $e) {
+                // eski mesaj silinmiş olabilir
+            }
+        }
+        try {
+            $m = $this->tg->sendMessage($owner, $this->summary($rec), $rec['status'] === 'pending' ? self::buttons($id) : null);
+            $rec['msg'] = (int)($m['message_id'] ?? 0);
+        } catch (\Throwable $e) {
+            $this->db->log('error', 'bot', 'Düzenlenen önizleme gönderilemedi: ' . $e->getMessage());
+        }
+        $this->store($rec);
+    }
+
+    public function cancelEdit(): void
+    {
+        $this->db->set('editing_share', '');
     }
 
     /** Sahibe giden özet. */
@@ -267,13 +349,15 @@ final class ImportShare
         $chan = $this->channel();
         if ($rec['status'] === 'pending' && $rec['chunks']) {
             $prev = $rec['chunks'][0];
-            $s .= "\n\n<b>Kanal önizlemesi</b> (" . Telegram::esc($chan) . (count($rec['chunks']) > 1 ? ', ' . count($rec['chunks']) . ' mesaj' : '') . "):\n<blockquote>" . self::clip($prev, 1500) . '</blockquote>';
+            $s .= "\n\n<b>Kanal önizlemesi</b>" . (!empty($rec['edited']) ? ' ✏️ düzenlendi' : '') . " (" . Telegram::esc($chan) . (count($rec['chunks']) > 1 ? ', ' . count($rec['chunks']) . ' mesaj' : '') . "):\n<blockquote>" . self::clip($prev, 1500) . '</blockquote>';
         } elseif ($rec['status'] === 'posted') {
             $s .= "\n\n📢 Kanalda paylaşıldı: " . Telegram::esc($chan);
         } elseif ($rec['status'] === 'failed') {
             $s .= "\n\n⚠️ Kanalda paylaşılamadı: " . Telegram::esc((string)($rec['error'] ?? ''));
         } elseif ($rec['status'] === 'skipped') {
             $s .= "\n\nKanalda paylaşılmadı.";
+        } elseif ($rec['status'] === 'replaced') {
+            $s .= "\n\n✏️ Mesaj düzenlendi: yeni önizleme aşağıda.";
         } elseif ($this->mode() !== 'off' && $rec['categories'] && !$rec['chunks'] && $rec['own_error'] === '') {
             $s .= "\n\n<i>Kanal mesajı hazırlanamadı: kendi panelinde bu adla kategori bulunamadı (panel henüz güncellenmemiş olabilir).</i>";
         } elseif ($this->mode() !== 'off' && $chan === '' && $rec['categories']) {

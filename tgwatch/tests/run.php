@@ -2103,6 +2103,45 @@ test('Import raporu: otomatik mod, şablon, uzun liste parçalanır; kanal yoksa
     eq('Kayıt bulunamadı', $S->decide(999, 'post'));
     eq(400, (new TgWatch\ExtApi($db, []))->handle(['action' => 'yok'])[0]);
 });
+test('Kanal mesajını Telegram\'dan düzenle: Düzenle → düz metin → yeni metin → yeni önizleme → paylaş; /iptal', function () {
+    [$db, $tg] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('own','panelim','https://own.example/api/v2','k',1)");
+    TgWatch\SmmApi::$fake = static fn() => json_encode([['service' => 77, 'name' => 'Instagram Bəyəni | Sürətli', 'category' => 'Instagram Bəyəni', 'rate' => '0.9', 'min' => '10', 'max' => '5000']]);
+    $cfg = array_merge(App::config(), ['share_mode' => 'ask', 'share_channel' => '@panelbaku']);
+    try {
+        $r = (new TgWatch\ImportShare($db, $tg, $cfg))->report(['categories' => [['name' => 'Instagram Bəyəni', 'src' => 'Instagram Likes', 'moved' => true]]]);
+    } finally {
+        TgWatch\SmmApi::$fake = null;
+    }
+    $kb = $tg->last('sendMessage')['reply_markup']['inline_keyboard'][0];
+    eq(['📢 Kanalda paylaş', '✏️ Düzenle', 'Paylaşma'], array_column($kb, 'text'));
+    $flow = new Flow($db, $tg, $cfg);
+    $flow->handleUpdate(cb(1, OWNER, 'sh:edit:' . $r['id']));
+    $plain = $tg->last('sendMessage');
+    ok(!isset($plain['parse_mode']) && str_starts_with($plain['text'], "📸 Instagram Bəyəni\n\n🆔 77 - Instagram Bəyəni | Sürətli -- 0.90") && !str_contains($plain['text'], '<b>'), 'düz metin, kopyalanabilir: ' . $plain['text']);
+    $flow->handleUpdate(msg(2, OWNER, "📸 Instagram Bəyəni <YENİ>\n\n🆔 77 - Instagram Bəyəni | Sürətli -- 0.85\n\n🔗 https://panelbaku.com"));
+    $new = $tg->last('sendMessage');
+    ok(str_contains($new['text'], 'düzenlendi') && str_contains($new['text'], '&lt;YENİ&gt;') && isset($new['reply_markup']), 'yeni önizleme + düğmeler: ' . $new['text']);
+    ok(str_contains($tg->last('editMessageText')['text'], 'yeni önizleme aşağıda'), 'eski bildirimin düğmeleri kalkar');
+    eq('', $db->get('editing_share'));
+    $flow->handleUpdate(cb(3, OWNER, 'sh:post:' . $r['id']));
+    eq(['@panelbaku', "<b>📸 Instagram Bəyəni &lt;YENİ&gt;\n\n🆔 77 - Instagram Bəyəni | Sürətli -- 0.85\n\n🔗 https://panelbaku.com</b>"], [$tg->last('sendMessage')['chat_id'], $tg->last('sendMessage')['text']], 'kanala düzenlenmiş metin gider');
+
+    $r2 = (new TgWatch\ImportShare($db, $tg, $cfg))->report(['categories' => [['name' => 'Instagram Bəyəni', 'src' => 'x']]]);
+    $flow->handleUpdate(cb(4, OWNER, 'sh:edit:' . $r['id']));
+    eq('', $db->get('editing_share'), 'paylaşılmış mesaj düzenlenmez');
+    TgWatch\SmmApi::$fake = static fn() => json_encode([['service' => 78, 'name' => 'A', 'category' => 'K', 'rate' => '1', 'min' => '1', 'max' => '2']]);
+    try {
+        $r3 = (new TgWatch\ImportShare($db, $tg, $cfg))->report(['categories' => [['name' => 'K', 'src' => 'k']]]);
+    } finally {
+        TgWatch\SmmApi::$fake = null;
+    }
+    $flow->handleUpdate(cb(5, OWNER, 'sh:edit:' . $r3['id']));
+    eq((string)$r3['id'], $db->get('editing_share'));
+    $flow->handleUpdate(msg(6, OWNER, '/iptal'));
+    eq('', $db->get('editing_share'));
+    ok(str_contains(lastText($tg), 'iptal'));
+});
 test('Kanal şablonu: platform simgesi paylaşım paneliyle aynı', function () {
     eq(['📸', '🎵', '▶️', '✈️', '🐦', '⭐'], array_map([TgWatch\ImportShare::class, 'icon'], ['Instagram Bəyəni', 'TikTok İzləyici', 'YouTube Baxış', 'Telegram Üzv', 'X Follower', 'Spotify']));
 });
@@ -2155,6 +2194,7 @@ test('Eklenti API: anahtar, çeviri (banka/kural/yok), öğrenme ve sınırlar',
     ok(TgWatch\ExtApi::authorized(['ext_key' => str_repeat('a', 20)], str_repeat('a', 20)));
     $api = new TgWatch\ExtApi($db, ['panel_name' => 'test']);
     eq([200, true], [$api->handle(['action' => 'ping'])[0], $api->handle(['action' => 'ping'])[1]['ok']]);
+    ok(preg_match('/^\d+\.\d+/', $api->handle(['action' => 'ping'])[1]['ext']) === 1, 'ping sunucudaki eklenti sürümünü söyler');
     eq(400, $api->handle(['action' => 'yok'])[0]);
     eq(400, $api->handle(['action' => 'translate', 'items' => 'x'])[0]);
     eq(400, $api->handle(['action' => 'translate', 'items' => array_fill(0, 1001, ['id' => 1, 'name' => 'a'])])[0], 'en çok 1000');

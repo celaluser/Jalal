@@ -49,14 +49,41 @@ async function register() {
   return { ok: true };
 }
 
-chrome.runtime.onInstalled.addListener(() => { register(); });
-chrome.runtime.onStartup.addListener(() => { register(); });
+// ---- yeni sürüm kontrolü: tgwatch sunucusundaki chrome-extension sürümü bundan yeniyse rozet + mini panelde "İndir" ----
+const newer = (a, b) => {
+  const x = String(a || '').split('.').map(Number);
+  const y = String(b || '').split('.').map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+  }
+  return false;
+};
+async function checkUpdate(known) {
+  const r = known || await callApi('ping');
+  if (!r || !r.ok) return null;
+  const mine = chrome.runtime.getManifest().version;
+  const upd = { latest: r.ext || '', mine, has: !!r.ext && newer(r.ext, mine), at: Date.now() };
+  await chrome.storage.local.set({ upd });
+  try {
+    await chrome.action.setBadgeText({ text: upd.has ? 'YENİ' : '' });
+    if (upd.has) await chrome.action.setBadgeBackgroundColor({ color: '#b3362f' });
+  } catch (e) { /* rozet yok */ }
+  return upd;
+}
+function schedule() {
+  try { chrome.alarms.create('tgw-upd', { periodInMinutes: 360 }); } catch (e) { /* alarms yok */ }
+}
+chrome.alarms && chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'tgw-upd') checkUpdate(); });
+
+chrome.runtime.onInstalled.addListener(() => { register(); schedule(); checkUpdate(); });
+chrome.runtime.onStartup.addListener(() => { register(); schedule(); checkUpdate(); });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== 'object') return false;
   if (msg.type === 'api' && typeof msg.action === 'string') {
     callApi(msg.action, msg.payload).then((res) => {
       if (msg.action === 'learn' && res && res.ok && res.learned) bump({ learned: res.learned });
+      if (msg.action === 'ping' && res && res.ok) checkUpdate(res);
       sendResponse(res);
     });
     return true;
@@ -64,6 +91,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'stat') {
     bump({ translated: Number(msg.translated) || 0, learned: Number(msg.learned) || 0 }).then(() => sendResponse({ ok: true }));
     return true;
+  }
+  if (msg.type === 'reload') {
+    sendResponse({ ok: true });
+    setTimeout(() => chrome.runtime.reload(), 100);
+    return false;
   }
   if (msg.type === 'register') {
     register().then(sendResponse, (e) => sendResponse({ ok: false, error: String(e) }));

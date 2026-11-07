@@ -34,7 +34,7 @@ final class ExtApi
         $action = (string)($req['action'] ?? '');
         try {
             return match ($action) {
-                'ping' => [200, ['ok' => true, 'version' => VERSION, 'panel' => (string)($this->config['panel_name'] ?? 'tgwatch')]],
+                'ping' => [200, ['ok' => true, 'version' => VERSION, 'panel' => (string)($this->config['panel_name'] ?? 'tgwatch'), 'ext' => self::extVersion()]],
                 'translate' => [200, ['ok' => true, 'items' => $this->translate(self::items($req))]],
                 'learn' => [200, ['ok' => true] + $this->learn(self::items($req))],
                 'teach' => [200, ['ok' => true] + $this->teach($req)],
@@ -190,5 +190,13 @@ final class ExtApi
         Dictionary::save($this->db, $dict);
         $this->db->log('info', 'ext', 'Eklenti sözlüğe ekledi: ' . $en . ($keep ? ' (olduğu gibi kalsın)' : ' → ' . $az));
         return ['en' => $en, 'az' => $keep ? $en : $az, 'keep' => $keep];
+    }
+
+    /** Sunucudaki eklenti sürümü (chrome-extension/manifest.json): eklenti kendininkiyle karşılaştırıp "yeni sürüm var" der. */
+    public static function extVersion(): string
+    {
+        $f = (defined('TGWATCH_ROOT') ? TGWATCH_ROOT : dirname(__DIR__)) . '/chrome-extension/manifest.json';
+        $m = is_file($f) ? json_decode((string)file_get_contents($f), true) : null;
+        return is_array($m) && preg_match('/^\d+(\.\d+){0,3}$/', (string)($m['version'] ?? '')) ? (string)$m['version'] : '';
     }
 }

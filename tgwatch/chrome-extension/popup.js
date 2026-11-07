@@ -2,6 +2,7 @@ const $ = (id) => document.getElementById(id);
 const get = (d) => new Promise((r) => chrome.storage.local.get(d, r));
 const today = () => new Date().toISOString().slice(0, 10);
 let tabId = null;
+let tgBase = '';
 
 function conn(text, kind) { const c = $('conn'); c.textContent = text; c.className = 'pill ' + kind; }
 
@@ -16,7 +17,7 @@ async function init() {
   $('s-total').textContent = s.stats.total;
   $('s-learned').textContent = s.stats.learned;
   if (s.api) {
-    try { const u = new URL(s.api); $('tg').href = u.origin + u.pathname.replace(/api\.php$/, ''); $('tg').hidden = false; } catch (e) { /* geçersiz */ }
+    try { const u = new URL(s.api); tgBase = u.origin + u.pathname.replace(/api\.php$/, ''); $('tg').href = tgBase; $('tg').hidden = false; } catch (e) { /* geçersiz */ }
   }
   if (!s.panel || !s.api || !s.key) {
     conn('Ayar yok', 'bad');
@@ -24,7 +25,12 @@ async function init() {
     return;
   }
   balances(false);
+  showUpd((await get({ upd: null })).upd);
   chrome.runtime.sendMessage({ type: 'api', action: 'ping' }, (r) => {
+    if (r && r.ok && r.ext !== undefined) {
+      const mine = chrome.runtime.getManifest().version;
+      showUpd({ latest: r.ext, mine, has: !!r.ext && newerV(r.ext, mine) });
+    }
     if (r && r.ok) conn('Bağlı · ' + r.version, 'ok');
     else { conn('Bağlantı yok', 'bad'); $('conn').title = (r && r.error) || ''; }
   });
@@ -106,6 +112,25 @@ async function balances(force) {
   });
 }
 $('bal-ref').onclick = () => balances(true);
+
+// ---- yeni sürüm ----
+function newerV(a, b) {
+  const x = String(a || '').split('.').map(Number);
+  const y = String(b || '').split('.').map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+  return false;
+}
+function showUpd(u) {
+  const mine = chrome.runtime.getManifest().version;
+  if (!u || !u.has || !newerV(u.latest, mine)) { $('upd').hidden = true; return; }
+  $('upd').hidden = false;
+  $('upd-msg').textContent = 'tgwatch\'ta ' + u.latest + ' var, sende ' + mine + '.';
+}
+$('upd-dl').onclick = () => {
+  if (!tgBase) { $('upd-msg').textContent = 'tgwatch adresi bilinmiyor: Bağlantı ayarlarını kontrol et.'; return; }
+  chrome.tabs.create({ url: tgBase + '?p=ext_zip' });
+};
+$('upd-reload').onclick = () => chrome.runtime.sendMessage({ type: 'reload' }, () => { void chrome.runtime.lastError; window.close(); });
 
 function refresh() {
   if (!tabId) return;
