@@ -12,14 +12,24 @@ Perfect Panel **Services** sayfasında (`https://panelbaku.com/admin/services`) 
 İzin: yalnızca `https://panelbaku.com/*`. Başka izin, ayar, sunucu, token yok. En çok N panel sitesinin `localStorage`'ında hatırlanır; **deneme modu her sayfa yüklenişinde AÇIK başlar** (kalıcı değil).
 
 ## Kullanım
-1. **Boş pasif kategorileri bul** — listeyi "yalnızca kategoriler" görünümüne alır, baştan sona kaydırarak gezer (panel listeyi sanallaştırıyor), adları gösterir. **Hiçbir şey silmez.** Boş = satırda "Expand (N)" bağlantısı yok ya da N=0.
-2. **Sil (N)** — sırayla: Actions → Delete category → onay penceresinde Delete. **Durdur** sıradaki silmeden önce durdurur.
-3. **Dolu pasifleri Not Assigned'a taşı, sonra sil** (varsayılan KAPALI, seçim hatırlanır). Her dolu pasif kategori için:
-   Actions → *Select all category services* → üstteki "N services selected" sayısı = Expand (N) mı? → toplu **Actions → Assign category** →
-   pencerede "Not assi" yaz → **Not Assigned** → **Save changes** → kategori boşaldı mı? → normal silme. Toplu menüdeki **"Delete all"a asla basılmaz.**
-4. **Deneme modu** (varsayılan AÇIK): menüyü ve onay penceresini açar, Delete yerine **Cancel** der. Gerçek silmek için kutuyu kapat.
-5. **En çok N** (varsayılan 50): bir çalıştırmada en çok N kategori.
-6. Bir şey bulunamazsa/takılırsa **Teşhisi kopyala** düğmesi çıkar; panoya kopyalanan metni sohbete yapıştır.
+Çubukta (sol alt) ve eklenti simgesindeki mini panelde iki ayrı mod var; düğmeler ve seçenekler seçili moda göre değişir:
+
+**1. Boş kategori sil**
+- **Boş pasif kategorileri bul** → listeyi "yalnızca kategoriler" görünümüne alır, baştan sona gezer (liste sanallaştırılmış), boş pasifleri listeler. **Hiçbir şey silmez.**
+- **Sil (N)** → her biri için: Actions → (*Enable category* görülmeli = pasif) → *Delete category* → onay penceresinde *Delete*.
+
+**2. Pasif → Not Assigned**
+- **Dolu pasif kategorileri bul** → servisi olan pasif kategorileri servis sayılarıyla listeler.
+- **Taşı + sil (N)** → her biri için: Actions → *Select all category services* → üstteki "N services selected" = Expand (N) mi? →
+  toplu **Actions → Assign category** → "Not assi" yaz → **Not Assigned** → **Save changes** → kategori boşaldı mı? → (seçenek açıksa) boş kategoriyi sil.
+- **Taşıdıktan sonra boş kategoriyi sil** (yalnız bu modda; varsayılan açık). Kapatırsan yalnızca taşır. Düğme "Taşı (N)" olur.
+- Toplu menüdeki **"Delete all"a asla basılmaz**; yalnızca tam "Assign category" yazısına basılır.
+
+**İki modda ortak**
+- Listede her kategorinin yanında kutucuk var: **işaretini kaldırdığın işlenmez** (ör. *PASSİF*, *Təmirdə Olan Servislər* gibi bekletme kategorileri). "hepsi / hiçbiri" kısayolları var.
+- **Deneme modu** (varsayılan AÇIK, her sayfa yüklenişinde yeniden açılır): son düğmeye (Delete / Save changes) kadar gider, onun yerine **Cancel / Close** der, seçimi temizler.
+- **En çok N** (varsayılan 50) · **Durdur** (sıradaki işlemden önce durur) · **Teşhisi kopyala**.
+- Mod, "taşıdıktan sonra sil" ve "en çok N" hatırlanır.
 
 ## Arka planda çalışma
 Başka sekmeye geçsen de iş sürer (panel sekmesi açık kalmalı):
@@ -44,4 +54,4 @@ Başka sekmeye geçsen de iş sürer (panel sekmesi açık kalmalı):
 cd kategori-temizle-test && npm i && node run-tests.js      # tek test: node run-tests.js T3
 HEADED=1 xvfb-run -a node run-tests.js T15                # gerçek pencerede sekme değişimi
 ```
-(Playwright'ın kurulu olması gerekir; gerçek eklenti Chromium'a yüklenir.) 20 test: boş silme, taşıma + silme, deneme, durdur, sunucu hatası, seçim uyuşmazlığı, panelin "Disable category" demesi, sanallaştırma, koyu tema, arka plan sekmesi.
+(Playwright'ın kurulu olması gerekir; gerçek eklenti Chromium'a yüklenir.) 22 test: iki mod, işareti kaldırılan kategori, yalnız taşıma, boş silme, taşıma + silme, deneme, durdur, sunucu hatası, seçim uyuşmazlığı, panelin "Disable category" demesi, sanallaştırma, koyu tema, arka plan sekmesi.

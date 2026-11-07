@@ -97,7 +97,8 @@ function App() {
   const [loaded, setLoaded] = useState(cfg.pageSize);
   const [expanded, setExpanded] = useState(!!cfg.startExpanded);
   const [openCats, setOpenCats] = useState(new Set());
-  const [menu, setMenu] = useState(null);
+  const [menu, setMenu] = useState(null); // portal menü (cfg.portalMenu)
+  const [menuOpen, setMenuOpen] = useState(null); // satır içi menü anahtarı (gerçek panel: bootstrap dropdown)
   const [confirm, setConfirm] = useState(null);
   const [assign, setAssign] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -121,6 +122,14 @@ function App() {
     return () => { el.removeEventListener('scroll', check); el.removeEventListener('scroll', vr); };
   });
 
+  useEffect(() => { const h = () => setMenuOpen(null); document.addEventListener('click', h); return () => document.removeEventListener('click', h); }, []);
+  /** Gerçek panel gibi: Actions düğmesi + satır içinde gizli ul.dropdown-menu; yalnızca tıklanınca açılır. */
+  const dd = (k, items, cls) => cfg.portalMenu
+    ? e('button', { className: 'actions ' + (cls || ''), onClick: (ev) => { ev.stopPropagation(); openMenu(ev, items); } }, 'Actions ▾')
+    : e('div', { className: 'dropdown btn-group btn-group-xs' + (menuOpen === k ? ' open' : ''), style: { position: 'relative', display: 'inline-block' } },
+      e('button', { className: 'actions dropdown-toggle btn btn-xs btn-default ' + (cls || ''), 'aria-expanded': menuOpen === k, onClick: (ev) => { ev.stopPropagation(); setMenuOpen(menuOpen === k ? null : k); } }, 'Actions ', e('span', { className: 'caret' })),
+      e('ul', { role: 'menu', className: 'dropdown-menu', style: { display: menuOpen === k ? 'block' : 'none', position: 'absolute', zIndex: 40, background: '#fff', border: '1px solid #bbb', listStyle: 'none', margin: 0, padding: '4px 0', minWidth: 200, left: 0, top: '100%' } },
+        items.map(([t, fn]) => e('li', { key: t, role: 'presentation' }, e('a', { role: 'menuitem', href: '#', style: { display: 'block', padding: '4px 12px', color: '#222' }, onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); setMenuOpen(null); fn(); } }, t)))));
   const openMenu = (ev, items) => { const r = ev.currentTarget.getBoundingClientRect(); setMenu({ x: Math.max(0, r.left - 100), y: r.bottom, items }); };
   const toggleCat = (c) => setOpenCats((s) => { const n = new Set(s); if (n.has(c.id)) n.delete(c.id); else n.add(c.id); return n; });
 
@@ -188,14 +197,13 @@ function App() {
     c.badgeBefore && e('span', { className: 'badge' }, 'ᴺᴱᵂ'),
     e('span', { className: 'name service-table__category-name', style: { color: color(c) } }, c.name),
     c.badgeAfter && e('span', { className: 'badge' }, 'ᴺᴱᵂ'),
-    e('button', { className: 'actions', onClick: (ev) => { ev.stopPropagation(); openMenu(ev, catMenu(c)); } }, 'Actions ▾'),
-    e('ul', { className: 'dropdown-menu', style: { display: 'none' } }, e('li', null, e('a', null, 'Edit category')), e('li', null, e('a', null, 'Disable category'))),
+    !(isNA(c) && cfg.naNoActions) && e('div', { className: 'service-table__category-actions' }, dd('c' + c.id, catMenu(c))),
     e('div', { className: 'service-table__category-collapse ' + (openCats.has(c.id) || expanded ? 'show-category' : 'hide-category'), onClick: () => toggleCat(c) },
       (c.collapseText || c.services > 0) && e('a', { className: 'expand service-table__category-collapse-name' }, c.collapseText || ((openCats.has(c.id) || expanded ? 'Collapse (' : 'Expand (') + c.services + ')'))));
   const svcRow = (c, i, style) => e('div', { key: 's' + c.id + ':' + i, style, className: 'svc-row service-table__row service-table__row-service' + (c.active ? '' : ' service-table__row-disabled') },
     e('input', { type: 'checkbox', checked: sel.has(c.id + ':' + i), onChange: () => { const k = c.id + ':' + i; if (sel.has(k)) sel.delete(k); else sel.add(k); rerender(); } }),
     e('span', { className: 'sname' }, svcName(c, i)),
-    e('button', { className: 'actions', onClick: (ev) => { ev.stopPropagation(); openMenu(ev, [['Edit service', () => {}], ['Duplicate', () => {}], ['Delete service', () => { server.serviceMenuDeletes++; }]]); } }, 'Actions ▾'));
+    e('div', { className: 'service-table__td service-table__action' }, dd('s' + c.id + ':' + i, [['Edit service', () => {}], ['Duplicate', () => {}], ['Delete service', () => { server.serviceMenuDeletes++; }]])));
 
   // düz liste: kategori + (açıksa) servisleri
   const shown = cfg.virtual ? cats : cats.slice(0, loaded);
@@ -216,7 +224,7 @@ function App() {
   return e('div', null,
     sel.size > 0 && e('div', { className: 'mass' },
       e('label', null, e('input', { type: 'checkbox', checked: true, onChange: () => { sel = new Set(); rerender(); } }), ' ' + sel.size + ' services selected'),
-      e('button', { className: 'actions btn', onClick: (ev) => { ev.stopPropagation(); openMenu(ev, massMenu()); } }, 'Actions ▾')),
+      dd('mass', massMenu(), 'btn')),
     e('div', { className: 'thead service-table__header' }, e('input', { type: 'checkbox' }), e('span', null, 'Service'), e('span', { style: { flex: 1 } }, ' Status  Min  Max'),
       e('span', { className: 'far service-table__header-hide-all ' + (expanded ? 'fa-compress-alt' : 'fa-expand-alt'), onClick: () => { setExpanded((x) => !x); setOpenCats(new Set()); } }, expanded ? '[–]' : '[+]')),
     (cfg.inner || cfg.virtual) ? e('div', { id: 'scroller' }, list) : list,

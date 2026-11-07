@@ -2,6 +2,7 @@
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 let tabId = null;
+let last = '';
 
 async function findTab() {
   const q = new URLSearchParams(location.search).get('tab'); // yalnızca test için
@@ -23,39 +24,50 @@ function paint(s) {
   $('off').hidden = !!(s && s.onPage);
   $('ui').hidden = !(s && s.onPage);
   if (!s || !s.onPage) return;
+  const mv = s.settings.mode === 'move';
   $('ver').textContent = 'v' + s.version;
-  const dry = s.settings.dryRun;
+  $('mDel').className = 'tab' + (mv ? '' : ' on');
+  $('mMove').className = 'tab' + (mv ? ' on' : '');
+  $('mDel').disabled = $('mMove').disabled = s.running;
   if (document.activeElement !== $('max')) $('max').value = s.settings.max;
-  $('dry').checked = dry;
-  $('move').checked = !!s.settings.move;
+  $('dry').checked = s.settings.dryRun;
+  $('moveDelete').checked = s.settings.moveDelete;
+  $('mdRow').hidden = !mv;
+  $('scan').textContent = mv ? 'Dolu pasif kategorileri bul' : 'Boş pasif kategorileri bul';
   $('scan').disabled = s.running;
   const n = s.phase === 'ready' ? Math.min(s.work, s.settings.max) : 0;
-  $('run').textContent = (dry ? 'Dene' : 'Sil') + ' (' + n + ')';
+  $('run').textContent = (s.settings.dryRun ? 'Dene' : mv ? (s.settings.moveDelete ? 'Taşı + sil' : 'Taşı') : 'Sil') + ' (' + n + ')';
   $('run').disabled = s.running || s.phase !== 'ready' || !s.work;
   $('stop').disabled = !s.running;
-  $('stats').textContent = s.stats ? `${s.stats.kategori} kategori · ${s.stats.aktif} aktif · ${s.stats.pasif} pasif (${s.stats.pasifDolu} dolu) · ${s.stats.bos} boş pasif` : '';
-  $('list').hidden = !s.candidates.length;
-  $('list').innerHTML = s.candidates.map((c) => '<div>' + esc(c) + '</div>').join('');
-  $('full').hidden = !s.fulls.length;
-  $('full').innerHTML = '<div><b>Dolu pasif' + (s.settings.move ? ' (taşı + sil)' : ' (taşıma kapalı)') + '</b></div>' + s.fulls.map((f) => '<div>' + esc(f.name) + ' <small>(' + f.count + ')</small></div>').join('');
+  $('stats').textContent = s.stats ? `${s.stats.kategori} kategori · ${s.stats.aktif} aktif · ${s.stats.pasif} pasif · ` + (mv ? `${s.stats.pasifDolu} dolu pasif (${s.stats.servis} servis)` : `${s.stats.bos} boş pasif`) : '';
+  const lst = mv ? s.fulls : s.candidates;
+  const show = s.phase === 'ready' && lst.length;
+  $('list').hidden = !show; $('selrow').hidden = !show;
+  $('listTitle').textContent = mv ? 'Taşınacak' + (s.settings.moveDelete ? ' ve silinecek' : '') + ':' : 'Silinecek:';
+  const html = lst.map((x) => '<label><input type="checkbox" data-k="' + esc(x.key) + '"' + (x.off ? '' : ' checked') + (s.running ? ' disabled' : '') + '> <span>' + esc(x.name) + '</span>' + (mv ? ' <small>(' + x.count + ')</small>' : '') + '</label>').join('');
+  if (html !== last) { $('list').innerHTML = html; last = html; }
   $('st').textContent = s.status;
   $('st').className = /^⚠/.test(s.status) ? 'warn' : '';
   const r = s.res;
   const sec = (a, t) => a.length ? '<div><b>' + t + ' (' + a.length + ')</b></div>' + a.map((x) => '<div>' + esc(x.name) + ' <small>' + esc(x.reason || '') + '</small></div>').join('') : '';
-  const html = sec(r.moved, 'Taşınan') + sec(r.deleted, 'Silinen') + sec(r.dry, 'Deneme') + sec(r.skipped, 'Atlanan') + sec(r.errors, 'Hata');
-  $('res').hidden = !html; $('res').innerHTML = html;
-  $('diag').hidden = false;
+  const rh = sec(r.moved, 'Taşınan') + sec(r.deleted, 'Silinen') + sec(r.dry, 'Deneme') + sec(r.skipped, 'Atlanan') + sec(r.errors, 'Hata');
+  $('res').hidden = !rh; $('res').innerHTML = rh;
 }
 
 async function tick() { paint(await send({ cmd: 'state' })); }
 
 (async () => {
   tabId = await findTab();
+  $('mDel').onclick = async () => paint(await send({ cmd: 'settings', patch: { mode: 'delete' } }));
+  $('mMove').onclick = async () => paint(await send({ cmd: 'settings', patch: { mode: 'move' } }));
   $('scan').onclick = async () => paint(await send({ cmd: 'scan' }));
   $('run').onclick = async () => paint(await send({ cmd: 'run' }));
   $('stop').onclick = async () => paint(await send({ cmd: 'stop' }));
+  $('all').onclick = async () => paint(await send({ cmd: 'exclude', all: false }));
+  $('none').onclick = async () => paint(await send({ cmd: 'exclude', all: true }));
+  $('list').onchange = async (ev) => { const k = ev.target.getAttribute('data-k'); if (k) paint(await send({ cmd: 'exclude', key: k, on: !ev.target.checked })); };
   $('dry').onchange = async () => paint(await send({ cmd: 'settings', patch: { dryRun: $('dry').checked } }));
-  $('move').onchange = async () => paint(await send({ cmd: 'settings', patch: { move: $('move').checked } }));
+  $('moveDelete').onchange = async () => paint(await send({ cmd: 'settings', patch: { moveDelete: $('moveDelete').checked } }));
   $('max').onchange = async () => paint(await send({ cmd: 'settings', patch: { max: $('max').value } }));
   $('diag').onclick = async () => {
     const r = await send({ cmd: 'diag' });

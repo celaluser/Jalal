@@ -6,7 +6,7 @@
   if (window.__katTemizle) return;
   window.__katTemizle = true;
 
-  const VERSION = '1.2.0';
+  const VERSION = '1.3.0';
   const SETTINGS_KEY = 'kt_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const HANDLE = '.service-table__handle, [class*="__handle"], .handle, .drag-handle';
@@ -95,6 +95,7 @@
     candidates: [], // boş pasif: [{name, id}]
     fulls: [], // dolu pasif: [{name, id, count}]
     notAssigned: null,
+    excluded: new Set(), // kullanıcının işaretini kaldırdığı kategoriler (id)
     stats: null,
     notes: [],
     res: { deleted: [], moved: [], dry: [], skipped: [], errors: [], pending: [] },
@@ -104,13 +105,15 @@
     log: [],
     seen: { menu: [], dialog: [], toast: [] },
   };
-  const settings = { dryRun: true, max: 50, move: false };
+  // mode: 'delete' = boş pasifleri sil · 'move' = dolu pasiflerin servislerini Not Assigned'a taşı (moveDelete: sonra kategoriyi sil)
+  const settings = { dryRun: true, max: 50, mode: 'delete', moveDelete: true };
   // Güvenlik: deneme modu kalıcı değil; her sayfa yüklenişinde AÇIK başlar. Yalnızca "en çok N" hatırlanır.
-  try { const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); if (v.max) settings.max = Math.max(1, Math.min(1000, parseInt(v.max, 10) || 50)); settings.move = v.move === true; } catch (e) { /* depolama kapalı */ }
-  const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ max: settings.max, move: settings.move })); } catch (e) { /* yok */ } };
+  try { const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); if (v.max) settings.max = Math.max(1, Math.min(1000, parseInt(v.max, 10) || 50)); if (v.mode === 'move' || v.mode === 'delete') settings.mode = v.mode; if (typeof v.moveDelete === 'boolean') settings.moveDelete = v.moveDelete; } catch (e) { /* depolama kapalı */ }
+  const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ max: settings.max, mode: settings.mode, moveDelete: settings.moveDelete })); } catch (e) { /* yok */ } };
   function patchSettings(p) {
     if (p && typeof p.dryRun === 'boolean') settings.dryRun = p.dryRun;
-    if (p && typeof p.move === 'boolean') settings.move = p.move;
+    if (p && (p.mode === 'move' || p.mode === 'delete') && !S.running) settings.mode = p.mode;
+    if (p && typeof p.moveDelete === 'boolean') settings.moveDelete = p.moveDelete;
     if (p && p.max !== undefined) settings.max = Math.max(1, Math.min(1000, parseInt(p.max, 10) || 50));
     saveSettings();
   }
@@ -417,7 +420,7 @@
   async function scan() {
     if (S.running) return;
     S.running = true; S.stop = false; S.phase = 'scanning'; busy(true);
-    S.candidates = []; S.fulls = []; S.notAssigned = null; S.stats = null; S.notes = []; S.diagNeeded = false;
+    S.candidates = []; S.fulls = []; S.notAssigned = null; S.excluded = new Set(); S.stats = null; S.notes = []; S.diagNeeded = false;
     S.res = { deleted: [], moved: [], dry: [], skipped: [], errors: [], pending: [] };
     try {
       if (!onServicesList()) return fail('Bu özellik yalnızca /admin/services sayfasında çalışır.');
@@ -462,19 +465,25 @@
       });
       const na = all.filter((e) => e.special);
       S.notAssigned = na.length === 1 ? na[0] : null;
-      if (na.length !== 1) S.notes.push(na.length ? 'Birden çok "Not Assigned" satırı var; taşıma yapılmaz.' : '"Not Assigned" kategorisi bulunamadı; taşıma yapılmaz.');
+      // Not Assigned satırının listede görünmesi gerekmez (Actions düğmesi olmayabilir): hedef Assign penceresinde seçilir ve orada tek bir "Not Assigned" seçeneği şarttır.
+      if (na.length > 1) S.notes.push('Listede birden çok "Not Assigned" satırı var.');
       S.stats = { kategori: real.length, aktif: real.length - pasif.length, pasif: pasif.length, pasifDolu: dolu, bos: S.candidates.length, servis: S.fulls.reduce((a, f) => a + f.count, 0) };
       setScroll(box, 0);
       S.phase = 'ready';
-      setStatus(S.candidates.length || S.fulls.length
-        ? S.candidates.length + ' boş pasif kategori bulundu' + (S.fulls.length ? ', ' + S.fulls.length + ' dolu pasif (' + S.stats.servis + ' servis)' : '') + '. Henüz hiçbir şey silinmedi.'
-        : 'Silinecek boş pasif kategori yok.');
+      setStatus(scanSummary());
     } catch (e) {
       log(String(e && e.stack).slice(0, 400)); fail('Tarama hatası: ' + (e && e.message) + ' [' + String((e && e.stack || '').split('\n')[1] || '').trim().slice(-60) + ']');
     } finally {
       S.running = false; busy(false);
       render();
     }
+  }
+
+  function scanSummary() {
+    if (settings.mode === 'move') {
+      return S.fulls.length ? S.fulls.length + ' dolu pasif kategori bulundu (' + S.stats.servis + ' servis). Henüz hiçbir şey taşınmadı.' : 'Taşınacak dolu pasif kategori yok.';
+    }
+    return S.candidates.length ? S.candidates.length + ' boş pasif kategori bulundu. Henüz hiçbir şey silinmedi.' : 'Silinecek boş pasif kategori yok.';
   }
 
   // ---------------------------------------------------------------- silme
@@ -702,7 +711,7 @@
       await ensureCategoryView();
       if (!closed || !cleared) { S.diagNeeded = true; return { kind: 'error', reason: 'deneme: pencere kapanmadı ya da seçim temizlenemedi', fatal: true }; }
       if (S.stop) return result('skip', 'durduruldu (taşımadan önce)');
-      return result('dry', n + ' servis → "Not Assigned" seçildi, Close (sonra kategori silinecekti)');
+      return result('dry', n + ' servis → "Not Assigned" seçildi, Close' + (settings.moveDelete ? ' (sonra kategori silinecekti)' : ''));
     }
 
     // 6) Save changes → pencere kapansın → kategori boşalsın
@@ -728,6 +737,7 @@
     S.res.moved.push({ name, reason: n + ' servis → Not Assigned' });
     render();
     await clearSelection();
+    if (!settings.moveDelete) { await ensureCategoryView(); return result('moved', n + ' servis → Not Assigned (kategori bırakıldı)'); }
     if (S.stop) return result('skip', n + ' servis taşındı; silme durduruldu');
 
     // 7) artık boş: normal silme akışı (yeniden kontrol + Enable category kapısı + Delete)
@@ -736,11 +746,12 @@
     return { kind: r.kind === 'skip' ? 'skip' : 'error', reason: 'taşındı ama silinmedi: ' + r.reason, fatal: r.fatal };
   }
 
-  /** Çalıştırılacak liste: önce boş pasifler, taşıma açıksa ardından dolu pasifler (Not Assigned bulunduysa). */
+  /** Çalıştırılacak liste: seçili moda göre (boş pasifler ya da dolu pasifler), işareti kaldırılanlar hariç. */
+  const keyOf = (x) => x.id || x.name;
   function workList() {
-    const l = S.candidates.map((c) => ({ name: c.name, id: c.id, count: 0 }));
-    if (settings.move && S.notAssigned) for (const f of S.fulls) l.push({ name: f.name, id: f.id, count: f.count });
-    return l;
+    const keep = (x) => !S.excluded.has(keyOf(x));
+    if (settings.mode === 'move') return S.fulls.filter(keep).map((f) => ({ name: f.name, id: f.id, count: f.count }));
+    return S.candidates.filter(keep).map((c) => ({ name: c.name, id: c.id, count: 0 }));
   }
 
   async function run() {
@@ -757,12 +768,13 @@
         if (S.stop) break;
         if (done >= max) { S.notes.push('En çok ' + max + ' sınırına ulaşıldı.'); break; }
         const name = list[i].name;
-        setStatus((settings.dryRun ? '[DENEME] ' : '') + '(' + (i + 1) + '/' + list.length + ') ' + (list[i].count ? 'taşı+sil: ' : 'sil: ') + name);
+        setStatus((settings.dryRun ? '[DENEME] ' : '') + '(' + (i + 1) + '/' + list.length + ') ' + (list[i].count ? (settings.moveDelete ? 'taşı + sil: ' : 'taşı: ') : 'sil: ') + name);
         let r;
         try { r = list[i].count ? await processMove(name, list[i].id) : await processOne(name, list[i].id); } catch (e) { r = result('error', 'beklenmeyen hata: ' + (e && e.message)); }
         log(name + ' → ' + r.kind + (r.reason ? ' (' + r.reason + ')' : ''));
         if (r.kind === 'deleted') { S.res.deleted.push({ name, reason: r.reason }); done++; consecutiveErrors = 0; }
         else if (r.kind === 'dry') { S.res.dry.push({ name, reason: r.reason }); done++; consecutiveErrors = 0; }
+        else if (r.kind === 'moved') { done++; consecutiveErrors = 0; }
         else if (r.kind === 'skip') { S.res.skipped.push({ name, reason: r.reason }); consecutiveErrors = 0; }
         else { S.res.errors.push({ name, reason: r.reason }); consecutiveErrors++; }
         render();
@@ -869,10 +881,13 @@
     button.red{background:#9b2c3a}button.red:hover{background:#b73646}
     .st{white-space:pre-wrap;color:#c9d2e8}.warn{color:#ffb4a8}
     .list{max-height:120px;overflow:auto;background:#121724;border-radius:6px;padding:4px 6px}
-    .list div{padding:1px 0;border-bottom:1px solid #1f2740}
+    .list > div{padding:1px 0;border-bottom:1px solid #1f2740}
     label{display:flex;gap:4px;align-items:center}
     input[type=number]{width:52px;background:#121724;color:#fff;border:1px solid #3a4560;border-radius:4px;padding:2px 4px}
     small{color:#8f9bb8}
+    .tabs{display:flex;gap:4px}.tab{all:unset;cursor:pointer;flex:1;text-align:center;padding:4px 6px;border-radius:6px;background:#121724;color:#aab4cc;font-size:11px}.tab.on{background:#3a4a74;color:#fff}.tab[disabled]{opacity:.5;cursor:default}
+    .it{display:flex;gap:4px;align-items:center;padding:1px 0;border-bottom:1px solid #1f2740}.it span{flex:1}
+    .lk{all:unset;cursor:pointer;color:#8fb0ff;font-size:11px;margin-left:6px}
   `;
 
   function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -909,14 +924,22 @@
     const r = S.res;
     const parts = [];
     parts.push('<div class="hd"><b>🗑 Kategori Temizle' + (settings.dryRun ? ' <small>(deneme)</small>' : '') + '</b><button data-a="min" title="Küçült/Büyüt">' + (minimized ? '▢' : '–') + '</button></div>');
+    const mv = settings.mode === 'move';
+    const work = S.phase === 'ready' ? Math.min(workList().length, settings.max) : 0;
+    const item = (x, extra) => '<label class="it"><input type="checkbox" data-x="' + esc(keyOf(x)) + '"' + (S.excluded.has(keyOf(x)) ? '' : ' checked') + (busy ? ' disabled' : '') + '> <span>' + esc(x.name) + '</span>' + (extra || '') + '</label>';
     parts.push('<div class="body">');
-    parts.push('<div class="row"><button class="b" data-a="scan"' + (busy ? ' disabled' : '') + '>Boş pasif kategorileri bul</button></div>');
-    if (S.stats) parts.push('<small class="sum">' + S.stats.kategori + ' kategori · ' + S.stats.aktif + ' aktif · ' + S.stats.pasif + ' pasif (' + S.stats.pasifDolu + ' dolu) · <b>' + S.stats.bos + ' boş pasif</b></small>');
-    if (S.candidates.length) parts.push('<small>Boş pasif (silinecek):</small><div class="list" id="ktEmpty">' + S.candidates.map((c) => '<div>' + esc(c.name) + '</div>').join('') + '</div>');
-    if (S.fulls.length) parts.push('<small>Dolu pasif (' + (settings.move ? 'Not Assigned\'a taşınıp silinecek' : 'taşıma kapalı, dokunulmaz') + '):</small><div class="list" id="ktFull">' + S.fulls.map((c) => '<div>' + esc(c.name) + ' <small>(' + c.count + ')</small></div>').join('') + '</div>');
-    parts.push('<div class="row"><button class="b red" data-a="run"' + (busy || S.phase !== 'ready' || !workList().length ? ' disabled' : '') + '>' + (settings.dryRun ? 'Dene' : 'Sil') + ' (' + (S.phase === 'ready' ? Math.min(workList().length, settings.max) : 0) + ')</button>'
+    parts.push('<div class="tabs"><button class="tab' + (mv ? '' : ' on') + '" data-a="mode" data-v="delete"' + (busy ? ' disabled' : '') + '>Boş kategori sil</button><button class="tab' + (mv ? ' on' : '') + '" data-a="mode" data-v="move"' + (busy ? ' disabled' : '') + '>Pasif → Not Assigned</button></div>');
+    parts.push('<div class="row"><button class="b" data-a="scan"' + (busy ? ' disabled' : '') + '>' + (mv ? 'Dolu pasif kategorileri bul' : 'Boş pasif kategorileri bul') + '</button></div>');
+    if (S.stats) parts.push('<small class="sum">' + S.stats.kategori + ' kategori · ' + S.stats.aktif + ' aktif · ' + S.stats.pasif + ' pasif · <b>' + (mv ? S.stats.pasifDolu + ' dolu pasif (' + S.stats.servis + ' servis)' : S.stats.bos + ' boş pasif') + '</b></small>');
+    const lst = mv ? S.fulls : S.candidates;
+    if (lst.length && S.phase === 'ready') {
+      parts.push('<div class="row"><small>' + (mv ? 'Taşınacak' + (settings.moveDelete ? ' ve silinecek' : '') : 'Silinecek') + ' (işareti kaldırılan atlanır):</small> <button class="lk" data-a="all">hepsi</button><button class="lk" data-a="none">hiçbiri</button></div>');
+      parts.push('<div class="list" id="' + (mv ? 'ktFull' : 'ktEmpty') + '">' + lst.map((x) => item(x, mv ? ' <small>(' + x.count + ')</small>' : '')).join('') + '</div>');
+    }
+    if (mv) parts.push('<div class="row"><label><input type="checkbox" data-s="moveDelete"' + (settings.moveDelete ? ' checked' : '') + (busy ? ' disabled' : '') + '> Taşıdıktan sonra boş kategoriyi sil</label></div>');
+    const verb = settings.dryRun ? 'Dene' : mv ? (settings.moveDelete ? 'Taşı + sil' : 'Taşı') : 'Sil';
+    parts.push('<div class="row"><button class="b red" data-a="run"' + (busy || S.phase !== 'ready' || !workList().length ? ' disabled' : '') + '>' + verb + ' (' + work + ')</button>'
       + '<button class="b" data-a="stop"' + (busy ? '' : ' disabled') + '>Durdur</button></div>');
-    parts.push('<div class="row"><label><input type="checkbox" data-s="move"' + (settings.move ? ' checked' : '') + '> Dolu pasifleri Not Assigned\'a taşı, sonra sil</label></div>');
     parts.push('<div class="row"><label><input type="checkbox" data-s="dry"' + (settings.dryRun ? ' checked' : '') + '> Deneme modu</label><label>en çok <input type="number" min="1" max="1000" data-s="max" value="' + settings.max + '"></label></div>');
     parts.push('<div class="st' + (/^⚠/.test(S.status) ? ' warn' : '') + '" id="st">' + esc(S.status) + '</div>');
     if (r.deleted.length || r.moved.length || r.dry.length || r.skipped.length || r.errors.length) {
@@ -940,15 +963,23 @@
     const a = t.getAttribute('data-a');
     if (a === 'min') { minimized = !minimized; try { localStorage.setItem('kt_min', minimized ? '1' : '0'); } catch (e) { /* yok */ } render(); }
     else if (a === 'scan') scan();
+    else if (a === 'mode') { patchSettings({ mode: t.getAttribute('data-v') }); if (S.phase === 'ready') S.status = scanSummary(); render(); }
+    else if (a === 'all' || a === 'none') { setAllExcluded(a === 'none'); render(); }
     else if (a === 'run') run();
     else if (a === 'stop') stop();
     else if (a === 'diag') { const ok = await copyText(diag()); S.status = ok ? 'Teşhis panoya kopyalandı; sohbete yapıştır.' : '⚠ Panoya kopyalanamadı (izin yok).'; render(); }
+  }
+  function setAllExcluded(on) {
+    const lst = settings.mode === 'move' ? S.fulls : S.candidates;
+    for (const x of lst) { if (on) S.excluded.add(keyOf(x)); else S.excluded.delete(keyOf(x)); }
   }
   function onBarChange(ev) {
     const t = ev.target;
     const s = t.getAttribute && t.getAttribute('data-s');
     if (s === 'dry') patchSettings({ dryRun: t.checked });
-    if (s === 'move') patchSettings({ move: t.checked });
+    if (s === 'moveDelete') patchSettings({ moveDelete: t.checked });
+    const x = t.getAttribute && t.getAttribute('data-x');
+    if (x) { if (t.checked) S.excluded.delete(x); else S.excluded.add(x); }
     if (s === 'max') patchSettings({ max: t.value });
     render();
   }
@@ -957,7 +988,7 @@
   function publicState() {
     return {
       version: VERSION, onPage: onServicesList(), phase: S.phase, running: S.running, status: S.status,
-      candidates: S.candidates.map((c) => c.name), fulls: S.fulls.map((f) => ({ name: f.name, count: f.count })), work: S.phase === 'ready' ? workList().length : 0, notAssigned: !!S.notAssigned, stats: S.stats, notes: S.notes, res: S.res,
+      candidates: S.candidates.map((c) => ({ name: c.name, key: keyOf(c), off: S.excluded.has(keyOf(c)) })), fulls: S.fulls.map((f) => ({ name: f.name, count: f.count, key: keyOf(f), off: S.excluded.has(keyOf(f)) })), work: S.phase === 'ready' ? workList().length : 0, summary: S.phase === 'ready' ? scanSummary() : '', notAssigned: !!S.notAssigned, stats: S.stats, notes: S.notes, res: S.res,
       settings: Object.assign({}, settings), diagNeeded: S.diagNeeded || S.res.errors.length > 0,
     };
   }
@@ -969,7 +1000,8 @@
         case 'scan': scan(); setTimeout(done, 50); return true;
         case 'run': run(); setTimeout(done, 50); return true;
         case 'stop': stop(); done(); return false;
-        case 'settings': patchSettings(msg.patch); render(); done(); return false;
+        case 'settings': patchSettings(msg.patch); if (S.phase === 'ready' && msg.patch && msg.patch.mode) S.status = scanSummary(); render(); done(); return false;
+        case 'exclude': if (msg.all !== undefined) setAllExcluded(!!msg.all); else if (msg.on) S.excluded.add(msg.key); else S.excluded.delete(msg.key); render(); done(); return false;
         case 'diag': respond({ text: diag() }); return false;
         default: done(); return false;
       }
