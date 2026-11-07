@@ -10,7 +10,7 @@ Perfect Panel **Services** sayfasında (`https://panelbaku.com/admin/services`) 
 İzin: yalnızca `https://panelbaku.com/*`. Başka izin, ayar, sunucu, token yok. En çok N panel sitesinin `localStorage`'ında hatırlanır; **deneme modu her sayfa yüklenişinde AÇIK başlar** (kalıcı değil).
 
 ## Kullanım
-1. **Boş pasif kategorileri bul** — servisleri açar, listeyi sonuna kadar kaydırır, adları gösterir. **Hiçbir şey silmez.**
+1. **Boş pasif kategorileri bul** — listeyi "yalnızca kategoriler" görünümüne alır, baştan sona kaydırarak gezer (panel listeyi sanallaştırıyor), adları gösterir. **Hiçbir şey silmez.** Boş = satırda "Expand (N)" bağlantısı yok ya da N=0.
 2. **Sil (N)** — sırayla: Actions → Delete category → onay penceresinde Delete. **Durdur** sıradaki silmeden önce durdurur.
 3. **Deneme modu** (varsayılan AÇIK): menüyü ve onay penceresini açar, Delete yerine **Cancel** der. Gerçek silmek için kutuyu kapat.
 4. **En çok N** (varsayılan 50): bir çalıştırmada en çok N kategori.
@@ -18,7 +18,7 @@ Perfect Panel **Services** sayfasında (`https://panelbaku.com/admin/services`) 
 
 ## Güvenlik kuralları
 - Her silmeden hemen önce (ve onay penceresi açıkken bir kez daha) kategori adından yeniden bulunur; hâlâ **tek**, **ad aynı**, **pasif** ve **boş** değilse atlanır, nedeni yazılır.
-- Servis satırları açık değilse (boşluk doğrulanamaz) hiçbir şey yapılmaz. Hepsi pasif görünüyorsa renk ayrımına güvenilmez, durur.
+- Hiçbir satırda "Expand (N)" görünmüyorsa (boşluk doğrulanamaz) hiçbir şey yapılmaz. Hepsi pasif görünüyorsa renk ayrımına güvenilmez, durur.
 - `Not Assigned` satırına dokunulmaz. Aynı adlı birden çok kategori atlanır.
 - Onay penceresinde başka bir kategori adı görünürse iptal eder. Üst üste 3 hata → durur.
 - Sunucu hatasında (satır silinmezse / pencere kapanmazsa / hata bildirimi) kategori "hata" sayılır, sıradakine geçilir.

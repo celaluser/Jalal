@@ -1,29 +1,35 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><title>Services (mock)</title>
 <style>
- html,body{margin:0;background:#0e1118;color:#c9d2e8;font:14px system-ui}
- .top{height:40px;background:#0a0d13;display:flex;align-items:center;padding:0 12px}
- .thead{display:flex;gap:10px;align-items:center;padding:6px 12px;background:#151a26;border-bottom:1px solid #222a3c}
+ html,body{margin:0;background:#fff;color:#222;font:14px system-ui}
+ body.dark{background:#0e1118;color:#c9d2e8}
+ body.dark .cat-row{background:#151a26;border-color:#222a3c}
+ body.dark .svc-row{background:#10141e;border-color:#1b2232}
+ .expand{margin-left:auto;color:#2a6fc9;border-bottom:1px dashed #2a6fc9;cursor:pointer;font-size:12px}
+ .vwrap{position:relative}
+ .vwrap .cat-row{position:absolute;left:0;right:0;box-sizing:border-box}
+ .top{height:40px;background:#334;color:#fff;display:flex;align-items:center;padding:0 12px}
+ .thead{display:flex;gap:10px;align-items:center;padding:6px 12px;background:#f3f3f3;border-bottom:1px solid #ddd}
  .service-table__header-hide-all{cursor:pointer;padding:2px 6px}
- .cat-row{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;background:#151a26;border-bottom:1px solid #222a3c}
+ .cat-row{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;background:#f7f7f7;border-bottom:1px solid #ddd}
  .cat-row .name{flex:1}.badge{background:#2a7;color:#fff;font-size:10px;padding:1px 5px;border-radius:4px}
- .svc-row{display:flex;align-items:center;gap:10px;height:30px;padding:0 12px 0 40px;background:#10141e;border-bottom:1px solid #1b2232}
+ .svc-row{display:flex;align-items:center;gap:10px;height:42px;padding:0 12px;background:#fff;border-bottom:1px solid #eee}
  .svc-row .sname{flex:1}
- button.actions{background:#2a3350;color:#fff;border:0;padding:3px 8px;border-radius:4px;cursor:pointer}
- .menu{position:fixed;z-index:50;background:#222a3f;border:1px solid #3a4560;border-radius:6px;min-width:150px}
- .menu a{display:block;padding:6px 12px;color:#fff;cursor:pointer}.menu a:hover{background:#2f3a58}
+ button.actions{background:#fff;color:#222;border:1px solid #bbb;padding:3px 8px;border-radius:4px;cursor:pointer}
+ .menu{position:fixed;z-index:50;background:#fff;border:1px solid #bbb;border-radius:6px;min-width:150px}
+ .menu a{display:block;padding:6px 12px;color:#222;cursor:pointer}.menu a:hover{background:#eee}
  .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60}
- .modal{position:fixed;z-index:61;left:50%;top:30%;transform:translateX(-50%);background:#1d2436;padding:16px;border-radius:8px;width:360px}
+ .modal{position:fixed;z-index:61;left:50%;top:30%;transform:translateX(-50%);background:#fff;color:#222;border:1px solid #999;padding:16px;border-radius:8px;width:360px}
  .modal-content button{margin-right:8px;padding:5px 12px}
  .toast{position:fixed;right:12px;top:12px;z-index:70;padding:8px 12px;border-radius:6px;color:#fff}
  .toast.ok{background:#1f7a4a}.toast.err{background:#a02a2a}
  #scroller{height:440px;overflow:auto}
 </style></head>
 <body><div class="top">Perfect Panel (mock)</div><div id="root"></div>
-<script src="https://panelbaku.com/_react.js"></script><script src="https://panelbaku.com/_react-dom.js"></script>
+<script>if((window.__cfg||{}).dark)document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('dark'));</script><script src="https://panelbaku.com/_react.js"></script><script src="https://panelbaku.com/_react-dom.js"></script>
 <script>
 const e = React.createElement, { useState, useEffect, useRef } = React;
-const cfg = Object.assign({ pageSize: 15, delay: 300, failNames: [], inner: false, dialogShowsName: true, loadDelay: 250, cats: [] }, window.__cfg || {});
+const cfg = Object.assign({ pageSize: 15, dark: false, virtual: false, delay: 300, failNames: [], inner: false, dialogShowsName: true, loadDelay: 250, cats: [] }, window.__cfg || {});
 const server = window.__server = { cats: JSON.parse(JSON.stringify(cfg.cats)), deleted: [], attempts: [], violations: [], dialogsOpened: [], dialogsCancelled: [], serviceMenuDeletes: 0 };
 let rerender = () => {};
 window.__mutate = (name, patch) => { const c = server.cats.find((x) => x.name === name); Object.assign(c, patch); rerender(); };
@@ -53,25 +59,26 @@ function App() {
   const [, force] = useState(0);
   const [key, setKey] = useState(0);
   const [loaded, setLoaded] = useState(cfg.pageSize);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(!!cfg.startExpanded);
   const [menu, setMenu] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
   rerender = () => force((n) => n + 1);
   const cats = server.cats;
-  const scrollEl = () => (cfg.inner ? document.getElementById('scroller') : document.scrollingElement);
+  const scrollEl = () => ((cfg.inner || cfg.virtual) ? document.getElementById('scroller') : document.scrollingElement);
 
   useEffect(() => {
-    const el = cfg.inner ? document.getElementById('scroller') : window;
+    const el = (cfg.inner || cfg.virtual) ? document.getElementById('scroller') : window;
     let pending = false;
     const check = () => {
       const s = scrollEl();
-      if (pending || loaded >= cats.length) return;
+      if (cfg.virtual || pending || loaded >= cats.length) return;
       if (s.scrollTop + s.clientHeight >= s.scrollHeight - 60) { pending = true; setTimeout(() => { setLoaded((n) => n + cfg.pageSize); pending = false; }, cfg.loadDelay); }
     };
-    el.addEventListener('scroll', check); check();
-    return () => el.removeEventListener('scroll', check);
+    const vr = () => { if (cfg.virtual) force((n) => n + 1); };
+    el.addEventListener('scroll', check); el.addEventListener('scroll', vr); check();
+    return () => { el.removeEventListener('scroll', check); el.removeEventListener('scroll', vr); };
   });
 
   const openMenu = (ev, m) => { const r = ev.currentTarget.getBoundingClientRect(); setMenu(Object.assign({ x: r.left - 100, y: r.bottom }, m)); };
@@ -96,22 +103,33 @@ function App() {
     }, cfg.delay);
   };
 
-  const list = e('div', { key: 'L' + key, id: cfg.inner ? undefined : 'list' },
-    cats.slice(0, loaded).map((c) => e(React.Fragment, { key: c.id },
-      e('div', { className: 'cat-row' + (c.cls ? ' ' + c.cls : ''), 'data-id': c.id },
-        e('span', { className: 'service-table__handle' }, '⋮⋮'),
-        c.badgeBefore && e('span', { className: 'badge' }, 'NEW'),
-        e('span', { className: 'name', style: { color: c.color || (c.active ? '#ffffff' : '#6b7a99') } }, c.name),
-        c.badgeAfter && e('span', { className: 'badge' }, 'NEW'),
-        e('button', { className: 'actions', onClick: (ev) => { ev.stopPropagation(); openMenu(ev, { type: 'cat', onDelete: () => { server.dialogsOpened.push(c.name); setConfirm(c); } }); } }, 'Actions ▾')),
-      expanded && Array.from({ length: c.services }, (_, i) => e('div', { className: 'svc-row', key: i },
-        e('input', { type: 'checkbox' }), e('span', { className: 'sname' }, svcName(c, i)),
-        e('button', { className: 'actions', onClick: (ev) => { ev.stopPropagation(); openMenu(ev, { type: 'svc' }); } }, 'Actions ▾'))))));
+  const catRow = (c, style) => e('div', { key: c.id, style, className: 'cat-row' + (c.cls ? ' ' + c.cls : ''), 'data-id': c.id },
+    e('span', { className: 'service-table__handle' }, '⋮⋮'),
+    c.badgeBefore && e('span', { className: 'badge' }, 'NEW'),
+    e('span', { className: 'name', style: { color: (c.color && !cfg.dark ? '#3a3a3a' : c.color) || (cfg.dark ? (c.active ? '#ffffff' : '#6b7a99') : (c.active ? '#1d1d1d' : '#c4c4c4')) } }, c.name),
+    c.badgeAfter && e('span', { className: 'badge' }, 'NEW'),
+    e('button', { className: 'actions', onClick: (ev) => { ev.stopPropagation(); openMenu(ev, { type: 'cat', onDelete: () => { server.dialogsOpened.push(c.name); setConfirm(c); } }); } }, 'Actions ▾'),
+    c.services > 0 && e('a', { className: 'expand' }, 'Expand (' + c.services + ')'));
+  let list;
+  if (expanded) {
+    // gerçek panel gibi: servisler açıkken kategori satırı YOK, yalnızca servis satırları
+    const svcs = [];
+    cats.slice(0, loaded).forEach((c) => { for (let i = 0; i < c.services; i++) svcs.push([c, i]); });
+    list = e('div', { key: 'S' + key }, svcs.map(([c, i]) => e('div', { className: 'svc-row service-table__row-service', key: c.id + '-' + i },
+      e('input', { type: 'checkbox' }), e('span', { className: 'sname' }, svcName(c, i)),
+      e('button', { className: 'actions', onClick: (ev) => { ev.stopPropagation(); openMenu(ev, { type: 'svc' }); } }, 'Actions ▾'))));
+  } else if (cfg.virtual) {
+    const s = document.getElementById('scroller'); const st = s ? s.scrollTop : 0; const first = Math.max(0, Math.floor(st / 40) - 3);
+    list = e('div', { key: 'V' + key, className: 'vwrap', style: { height: cats.length * 40 } },
+      cats.slice(first, first + 18).map((c, i) => catRow(c, { top: (first + i) * 40 })));
+  } else {
+    list = e('div', { key: 'L' + key, id: cfg.inner ? undefined : 'list' }, cats.slice(0, loaded).map((c) => catRow(c)));
+  }
 
   return e('div', null,
     e('div', { className: 'thead' }, e('input', { type: 'checkbox' }), e('span', null, 'Service'), e('span', { style: { flex: 1 } }, ' Status  Min  Max'),
       e('span', { className: 'far service-table__header-hide-all ' + (expanded ? 'fa-compress-alt' : 'fa-expand-alt'), onClick: () => setExpanded((x) => !x) }, expanded ? '[–]' : '[+]')),
-    cfg.inner ? e('div', { id: 'scroller' }, list) : list,
+    (cfg.inner || cfg.virtual) ? e('div', { id: 'scroller' }, list) : list,
     menu && e(Menu, { m: menu, close: () => setMenu(null) }),
     confirm && e(Confirm, { c: confirm, busy, onCancel: () => { server.dialogsCancelled.push(confirm.name); setConfirm(null); }, onDelete: () => doDelete(confirm) }),
     toast && ReactDOM.createPortal(e('div', { className: 'toast ' + toast.k, role: 'alert' }, toast.t), document.body));

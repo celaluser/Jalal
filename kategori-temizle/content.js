@@ -50,7 +50,7 @@
 
   /** Satır yazısından kategori adı: Actions, baştaki/sondaki süs işaretleri (tutamaç) ve NEW/Yeni rozeti atılır; emoji kalır. */
   function cleanName(raw) {
-    let t = norm(raw.replace(/\bActions\b\s*[▾▼⌄]?/g, ''));
+    let t = norm(raw.replace(/\bActions\b\s*[▾▼⌄]?/g, '').replace(/\b(?:Expand|Collapse)\s*\(\s*\d+\s*\)/gi, ''));
     for (let i = 0; i < 3; i++) {
       t = t.replace(/^[^\p{L}\p{N}\p{Extended_Pictographic}]+/u, '').replace(/[^\p{L}\p{N}\p{Extended_Pictographic})\]]+$/u, '');
       t = t.replace(/^(?:NEW|YENİ|Yeni)\s+/, '').replace(/\s+(?:NEW|YENİ|Yeni)$/, '');
@@ -69,6 +69,7 @@
     notes: [],
     res: { deleted: [], dry: [], skipped: [], errors: [], pending: [] },
     refBest: 0,
+    hasCounts: false,
     diagNeeded: false,
     log: [],
     seen: { menu: [], dialog: [], toast: [] },
@@ -112,7 +113,10 @@
       if (row.querySelector('input[type=checkbox]')) continue; // servis satırı
       const name = cleanName(textWithAlt(row));
       if (!name) continue;
-      out.push({ el: row, btn: b, name, special: isSpecial(name) });
+      // "Expand (N)" bağlantısı: N = kategorideki servis sayısı; bağlantı hiç yoksa kategori boştur.
+      const ce = [...row.querySelectorAll('a, button, span, div')].find((e) => e.children.length === 0 && /^(?:expand|collapse)\s*\(\s*\d+\s*\)$/i.test(norm(e.textContent)));
+      const count = ce ? parseInt(norm(ce.textContent).match(/\d+/)[0], 10) : null;
+      out.push({ el: row, btn: b, name, special: isSpecial(name), count });
     }
     return out;
   }
@@ -123,7 +127,7 @@
     for (const e of row.el.querySelectorAll('*')) {
       if (e.children.length) continue;
       const t = norm(e.textContent);
-      if (t.length < 2 || /^(actions|new|yeni)\b/i.test(t)) continue;
+      if (t.length < 2 || /^(actions|new|yeni|expand|collapse)\b/i.test(t)) continue;
       if (!best || t.length > best.t.length) best = { e, t };
     }
     return best ? best.e : null;
@@ -136,93 +140,91 @@
     return { l: (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255, a: m.length > 3 ? Number(m[3]) : 1 };
   };
 
-  /**
-   * Pasif kategoriler: soluk satır (opacity), "disabled/inactive" sınıfı, "Disabled" yazısı ya da adı arka plana göre belirgin SOLUK.
-   * Soluk = yazı/arka plan kontrastı en canlı addan 0.2+ düşük. refBest: tarama sırasında görülen en canlı kontrast
-   * (yeniden kontrolde yalnızca ekrandaki satırlara bakılsa bile karşılaştırma tutarlı kalsın).
-   */
-  function splitActive(rows, refBest = 0) {
-    const why = new Map();
-    const info = rows.map((row) => {
-      for (let el = row.el, i = 0; el && i < 4; el = el.parentElement, i++) {
-        if (/(^|[\s_-])(disabled|inactive|is-disabled|off)($|[\s_-])/i.test(typeof el.className === 'string' ? el.className : '')) return { row, off: 'sınıf: ' + el.className };
-        if (parseFloat(getComputedStyle(el).opacity) < 0.75) return { row, off: 'soluk (opacity)' };
-      }
-      if (/\bdisabled\b/i.test(row.name)) return { row, off: 'adında Disabled' };
-      const ne = nameElOf(row);
-      if (ne && parseFloat(getComputedStyle(ne).opacity) < 0.75) return { row, off: 'ad soluk (opacity)' };
-      const c = ne ? lum(getComputedStyle(ne).color) : null;
-      if (!c) return { row };
-      let bg = { l: 1, a: 1 };
-      for (let el = ne; el; el = el.parentElement) {
-        const b = lum(getComputedStyle(el).backgroundColor);
-        if (b && b.a > 0.5) { bg = b; break; }
-      }
-      return { row, k: Math.abs(c.l - bg.l) * Math.min(1, c.a) };
-    });
-    const ks = info.filter((x) => !x.off && x.k !== undefined).map((x) => x.k);
-    const best = Math.max(refBest, ks.length ? Math.max(...ks) : 0);
-    for (const x of info) {
-      if (!x.off && x.k !== undefined && x.k < best - 0.2) x.off = 'soluk yazı (kontrast ' + x.k.toFixed(2) + ' / ' + best.toFixed(2) + ')';
-      if (x.off) why.set(x.row, x.off);
+  /** Bir satırın pasiflik ölçümü: açık işaret (sınıf/opacity/Disabled) ya da yazı-arka plan kontrastı k. */
+  function measureRow(row) {
+    for (let el = row.el, i = 0; el && i < 4; el = el.parentElement, i++) {
+      if (/(^|[\s_-])(disabled|inactive|is-disabled|off)($|[\s_-])/i.test(typeof el.className === 'string' ? el.className : '')) return { off: 'sınıf: ' + el.className };
+      if (parseFloat(getComputedStyle(el).opacity) < 0.75) return { off: 'soluk (opacity)' };
     }
-    return { why, best };
+    if (/\bdisabled\b/i.test(row.name)) return { off: 'adında Disabled' };
+    const ne = nameElOf(row);
+    if (ne && parseFloat(getComputedStyle(ne).opacity) < 0.75) return { off: 'ad soluk (opacity)' };
+    const c = ne ? lum(getComputedStyle(ne).color) : null;
+    if (!c) return {};
+    let bg = { l: 1, a: 1 };
+    for (let el = ne; el; el = el.parentElement) {
+      const b = lum(getComputedStyle(el).backgroundColor);
+      if (b && b.a > 0.5) { bg = b; break; }
+    }
+    return { k: Math.abs(c.l - bg.l) * Math.min(1, c.a) };
+  }
+  /** Ölçümlerden pasif kararı: açık işaret ya da en canlı addan 0.2+ soluk. refBest: tarama sırasında görülen en canlı kontrast. */
+  function classify(ms, refBest = 0) {
+    const ks = ms.filter((m) => !m.off && m.k !== undefined).map((m) => m.k);
+    const best = Math.max(refBest, ks.length ? Math.max(...ks) : 0);
+    return { best, why: ms.map((m) => m.off || (m.k !== undefined && m.k < best - 0.2 ? 'soluk yazı (kontrast ' + m.k.toFixed(2) + ' / ' + best.toFixed(2) + ')' : '')) };
+  }
+  function splitActive(rows, refBest = 0) {
+    const { best, why } = classify(rows.map(measureRow), refBest);
+    const map = new Map();
+    rows.forEach((r, i) => { if (why[i]) map.set(r, why[i]); });
+    return { why: map, best };
   }
 
   const checks = () => [...document.querySelectorAll('input[type=checkbox]')].filter(visible);
 
-  /** İki kategori satırı arasındaki servis satırları (kutucuklar). b = sonraki kategori (yoksa listenin sonuna kadar). */
-  function servicesBetween(a, b) {
-    return checks().filter((c) => !a.el.contains(c)
-      && (a.el.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING)
-      && (!b || (b.el.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_PRECEDING)));
+  /** Listenin gerçek kaydırma alanı (iç kutu ya da pencere). */
+  function getBox() {
+    const r = categoryRows()[0];
+    let b = r && (function (from) {
+      for (let el = from.parentElement; el && el !== document.body; el = el.parentElement) {
+        if (/(auto|scroll)/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 40) return el;
+      }
+      return null;
+    })(r.el);
+    if (!b) { const c = document.querySelector('.service-table__container'); if (c && c.scrollHeight > c.clientHeight + 40) b = c; }
+    return b || document.scrollingElement;
   }
 
-  /** Listenin gerçek kaydırma alanı (pencere ya da iç kutu). */
-  function scroller(from) {
-    for (let el = from && from.parentElement; el && el !== document.body; el = el.parentElement) {
-      const st = getComputedStyle(el);
-      if (/(auto|scroll)/.test(st.overflowY) && el.scrollHeight > el.clientHeight + 40) return el;
-    }
-    return null;
-  }
-
-  /** Servisleri aç: başlıktaki düğme "yalnızca kategoriler" ile "servisler açık" arasında değiştirir; durumu kutucuk sayısından doğrula. */
-  async function ensureExpanded() {
-    if (checks().length > 1) return true;
+  /**
+   * "Yalnızca kategoriler" görünümü: başlıktaki düğme servisleri açıp kapatır. Servisler açıkken panel kategori satırlarını göstermez.
+   * Servis satırında kutucuk var; başlıkta bir kutucuk (hepsini seç) her zaman var → >1 kutucuk = servisler açık.
+   */
+  async function ensureCategoryView() {
+    if (checks().length <= 1) return true;
     let t = [...document.querySelectorAll(TOGGLE)].find(visible);
-    if (!t) t = [...document.querySelectorAll('.fa-expand-alt, .fa-compress-alt, .fa-expand-arrows-alt')].find(visible);
-    if (!t) { log('açma düğmesi bulunamadı'); return false; }
+    if (!t) t = [...document.querySelectorAll('.fa-compress-alt, .fa-expand-alt')].find(visible);
+    if (!t) { log('aç/kapa düğmesi bulunamadı'); return false; }
     t.click();
-    const ok = await waitFor(() => checks().length > 1, 5000, 100);
-    if (!ok) log('düğmeye basıldı ama servis satırı (kutucuk) görünmedi');
+    const ok = await waitFor(() => checks().length <= 1 && categoryRows().length > 0, 6000, 100);
+    if (!ok) log('düğmeye basıldı ama kategori görünümü gelmedi');
     return !!ok;
   }
 
-  /** Sonuna kadar kaydır; yeni satır yüklenmesi durana kadar tekrarla. */
-  async function scrollToEnd() {
-    const sig = () => {
-      const rows = categoryRows();
-      const box = scroller(rows.length ? rows[rows.length - 1].el : null);
-      return rows.length + '/' + checks().length + '/' + document.documentElement.scrollHeight + '/' + (box ? box.scrollHeight : 0);
-    };
+  /**
+   * Listeyi baştan sona gez (panel listeyi sanallaştırabilir: her an yalnızca ekrandaki satırlar DOM'da).
+   * Her adımda onStep() çağrılır; true dönerse durur. Sona gelince yeni satır yüklenmesini kısa süre bekler.
+   */
+  async function walk(onStep) {
+    const box = getBox();
+    box.scrollTop = 0;
+    await sleep(350);
+    if (onStep()) return true;
     let stable = 0;
-    for (let i = 0; i < 400 && stable < 2 && !S.stop; i++) {
-      const rows = categoryRows();
-      const box = scroller(rows.length ? rows[rows.length - 1].el : null);
-      const before = sig();
-      if (box) box.scrollTop = box.scrollHeight;
-      window.scrollTo(0, document.documentElement.scrollHeight);
-      const changed = await waitFor(() => sig() !== before, 1500, 100);
-      if (changed) { stable = 0; await sleep(120); } else stable++;
+    for (let i = 0; i < 3000 && !S.stop; i++) {
+      const before = box.scrollTop;
+      box.scrollTop = before + Math.max(150, Math.floor(box.clientHeight * 0.7));
+      await sleep(170);
+      if (onStep()) return true;
+      const atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 4 || box.scrollTop === before;
+      if (!atEnd) { stable = 0; continue; }
+      const h = box.scrollHeight;
+      await sleep(700);
+      if (onStep()) return true;
+      if (box.scrollHeight > h) { stable = 0; continue; }
+      if (++stable >= 2) break;
     }
-  }
-
-  function scrollToTop() {
-    const rows = categoryRows();
-    const box = scroller(rows.length ? rows[0].el : null);
-    if (box) box.scrollTop = 0;
-    window.scrollTo(0, 0);
+    return false;
   }
 
   function findByName(name) {
@@ -231,20 +233,16 @@
     return { rows, hits: rows.filter((r) => catKey(r.name) === k) };
   }
 
-  /** Kategoriyi bul; yoksa (deep) servisleri aç + sona kadar kaydır + başa bak. */
+  /** Kategoriyi bul; DOM'da yoksa (deep) kategori görünümüne geç ve bulana kadar listeyi gez. */
   async function locate(name, deep) {
     let f = findByName(name);
     if (f.hits.length || !deep) return f;
-    await ensureExpanded();
-    await scrollToEnd();
-    f = findByName(name);
-    if (f.hits.length) return f;
-    scrollToTop();
-    await sleep(400);
+    await ensureCategoryView();
+    await walk(() => findByName(name).hits.length > 0);
     return findByName(name);
   }
 
-  /** Şu an ekranda: kategori hâlâ var mı, tek mi, ad aynı mı, pasif mi, boş mu? */
+  /** Şu an ekranda: kategori hâlâ var mı, tek mi, ad aynı mı, pasif mi, boş mu? (boş = "Expand (N)" yok ya da N=0) */
   function check(name) {
     const { rows, hits } = findByName(name);
     if (!hits.length) return { ok: false, reason: 'satır bulunamadı' };
@@ -252,11 +250,11 @@
     const row = hits[0];
     if (row.special) return { ok: false, reason: 'özel satır (Not Assigned)' };
     if (norm(row.name) !== norm(name)) return { ok: false, reason: 'ad değişmiş: "' + row.name + '"' };
-    if (checks().length <= 1) return { ok: false, reason: 'servis satırları görünmüyor, boşluk doğrulanamadı' };
+    if (checks().length > 1) return { ok: false, reason: 'liste kategori görünümünde değil' };
     const { why } = splitActive(rows, S.refBest);
     if (!why.has(row)) return { ok: false, reason: 'artık pasif görünmüyor (aktif)' };
-    const n = servicesBetween(row, rows[rows.indexOf(row) + 1] || null).length;
-    if (n > 0) return { ok: false, reason: 'içinde ' + n + ' servis var' };
+    if (row.count > 0) return { ok: false, reason: 'içinde ' + row.count + ' servis var' };
+    if (row.count === null && !S.hasCounts) return { ok: false, reason: 'servis sayısı (Expand) doğrulanamadı' };
     return { ok: true, row, why: why.get(row) };
   }
 
@@ -320,36 +318,52 @@
     try {
       if (!onServicesList()) return fail('Bu özellik yalnızca /admin/services sayfasında çalışır.');
       if (anyDialog()) return fail('Açık bir pencere var; önce kapat.');
-      setStatus('Servis satırları açılıyor…');
-      if (!(await ensureExpanded())) return fail('Servis satırları açılamadı (boşluğu doğrulayamam, hiçbir şey silinmez).');
-      setStatus('Liste sonuna kadar kaydırılıyor…');
-      await scrollToEnd();
+      setStatus('Kategori görünümüne geçiliyor…');
+      if (!(await ensureCategoryView())) return fail('"Yalnızca kategoriler" görünümüne geçilemedi; hiçbir şey silinmez.');
+      setStatus('Liste baştan sona geziliyor…');
+      const col = new Map();
+      let box = null; let boxTop = 0;
+      const collect = () => {
+        box = box || getBox();
+        const bt = box === document.scrollingElement ? 0 : box.getBoundingClientRect().top;
+        boxTop = bt;
+        for (const r of categoryRows()) {
+          const off = Math.round((r.el.getBoundingClientRect().top - bt + box.scrollTop) / 6);
+          const key = catKey(r.name) + '@' + off;
+          if (!col.has(key)) col.set(key, { name: r.name, special: r.special, count: r.count, m: measureRow(r) });
+        }
+        S.status = 'Liste geziliyor… ' + col.size + ' kategori'; render();
+        return false;
+      };
+      await walk(collect);
       if (S.stop) { S.phase = 'idle'; return setStatus('Durduruldu; liste eksik olabilir, tarama iptal.'); }
-      if (!(await ensureExpanded())) return fail('Kaydırma sonrası servis satırları kapandı; yeniden dene.');
-      const rows = categoryRows();
-      const real = rows.filter((r) => !r.special);
+      if (checks().length > 1) return fail('Gezinirken servisler açıldı; yeniden dene.');
+      const all = [...col.values()];
+      const real = all.filter((e) => !e.special);
       if (!real.length) return fail('Kategori satırı bulunamadı.');
-      const { why, best } = splitActive(rows, 0);
+      const { best, why: whyArr } = classify(real.map((e) => e.m), 0);
       S.refBest = best;
-      const pasif = real.filter((r) => why.has(r));
+      const pasif = real.filter((e, i) => whyArr[i]);
       if (real.length >= 3 && pasif.length === real.length) return fail('Hepsi pasif görünüyor; renk ayrımına güvenemedim, hiçbir şey silinmez.');
+      S.hasCounts = real.some((e) => e.count > 0);
+      if (!S.hasCounts) return fail('Hiçbir satırda "Expand (N)" görünmedi; boşluğu doğrulayamam, hiçbir şey silinmez.');
       const keyCount = new Map();
-      for (const r of real) keyCount.set(catKey(r.name), (keyCount.get(catKey(r.name)) || 0) + 1);
+      for (const e of real) keyCount.set(catKey(e.name), (keyCount.get(catKey(e.name)) || 0) + 1);
       let dolu = 0;
-      for (const r of pasif) {
-        const n = servicesBetween(r, rows[rows.indexOf(r) + 1] || null).length;
-        if (n > 0) { dolu++; continue; }
-        if (keyCount.get(catKey(r.name)) > 1) { S.notes.push('Atlandı (aynı ad birden çok): ' + r.name); continue; }
-        S.candidates.push({ name: r.name });
-      }
-      S.stats = { kategori: real.length, aktif: real.length - pasif.length, pasif: pasif.length, pasifDolu: dolu, bos: S.candidates.length, servis: checks().length - 1 };
-      scrollToTop();
+      real.forEach((e, i) => {
+        if (!whyArr[i]) return;
+        if (e.count > 0) { dolu++; return; }
+        if (keyCount.get(catKey(e.name)) > 1) { S.notes.push('Atlandı (aynı ad birden çok): ' + e.name); return; }
+        S.candidates.push({ name: e.name });
+      });
+      S.stats = { kategori: real.length, aktif: real.length - pasif.length, pasif: pasif.length, pasifDolu: dolu, bos: S.candidates.length };
+      box.scrollTop = 0;
       S.phase = 'ready';
       setStatus(S.candidates.length
         ? S.candidates.length + ' boş pasif kategori bulundu. Henüz hiçbir şey silinmedi.'
         : 'Silinecek boş pasif kategori yok.');
     } catch (e) {
-      fail('Tarama hatası: ' + (e && e.message));
+      log(String(e && e.stack).slice(0, 400)); fail('Tarama hatası: ' + (e && e.message) + ' [' + String((e && e.stack || '').split('\n')[1] || '').trim().slice(-60) + ']');
     } finally {
       S.running = false;
       render();
@@ -359,15 +373,14 @@
   // ---------------------------------------------------------------- silme
   const result = (kind, reason) => ({ kind, reason });
 
-  /** Kategoriyi bul + servisleri aç; React yeniden çizerse birkaç kez dene. */
+  /** Kategoriyi bul + kategori görünümünde olduğundan emin ol; React yeniden çizerse birkaç kez dene. */
   async function prepare(name) {
     for (let a = 0; a < 3; a++) {
+      if (!(await ensureCategoryView())) return result('error', 'kategori görünümüne geçilemedi');
       const f = await locate(name, true);
       if (!f.hits.length) return result('skip', 'bulunamadı (silinmiş ya da liste yüklenmedi)');
       if (f.hits.length > 1) return result('skip', 'aynı adlı birden çok kategori var');
-      if (!(await ensureExpanded())) return result('error', 'servis satırları açılamadı');
-      const g = findByName(name);
-      if (g.hits.length === 1) return { kind: 'ok', row: g.hits[0] };
+      if (checks().length <= 1) return { kind: 'ok', row: f.hits[0] };
     }
     return result('skip', 'yeniden çizimden sonra kategori bulunamadı');
   }
@@ -377,7 +390,7 @@
     const p = await prepare(name);
     if (p.kind !== 'ok') return p;
     p.row.el.scrollIntoView({ block: 'center' });
-    await sleep(200);
+    await sleep(300);
 
     // 1) silmeden önce yeniden kontrol
     const c1 = check(name);
@@ -518,17 +531,16 @@
     const { why } = splitActive(rows, S.refBest);
     const tail = rows.slice(-8).map((r, i, a) => {
       const ne = nameElOf(r);
-      const next = rows[rows.indexOf(r) + 1] || null;
       return {
         ad: r.name.slice(0, 80), pasif: why.get(r) || '', renk: ne ? getComputedStyle(ne).color : '',
         sinif: (typeof r.el.className === 'string' ? r.el.className : '').slice(0, 80),
-        kutucuk: servicesBetween(r, next).length, tutamac: !!r.el.querySelector(HANDLE),
+        servisSayisi: r.count, tutamac: !!r.el.querySelector(HANDLE),
         html: r.el.outerHTML.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 500),
       };
     });
     return JSON.stringify({
       surum: VERSION, adres: location.pathname, tema: getComputedStyle(document.body).backgroundColor,
-      kategoriSayisi: rows.length, gorunenKutucuk: checks().length, acmaDugmesi: !![...document.querySelectorAll(TOGGLE)].find(visible),
+      kategoriSayisi: rows.length, gorunenKutucuk: checks().length, servisSayisiVar: S.hasCounts, acmaDugmesi: !![...document.querySelectorAll(TOGGLE)].find(visible),
       durum: S.status, istatistik: S.stats, aday: S.candidates.map((c) => c.name), sonuc: S.res, notlar: S.notes,
       actionsZinciri: actionsChains(), satirTurleri: rowKinds(), sonKategoriler: tail, menuYazilari: S.seen.menu, pencereYazilari: S.seen.dialog, bildirimler: S.seen.toast, adimGunlugu: S.log.slice(-40),
     }, null, 1);

@@ -111,11 +111,11 @@ const lists = (page) => bar(page, '.list').first().innerText();
 
   console.log('T3 gerçek silme: yalnızca boş+pasif silinir; aktif/dolu/Not Assigned dokunulmaz');
   if (want('T3')) {
-    const p = await newPage(ctx, {});
+    const p = await newPage(ctx, { startExpanded: true });
     await scan(p); await setDry(p, false);
     await bar(p, '[data-a=run]').click(); await done(p);
     const s = await server(p);
-    eq(sorted(s.deleted), sorted(EXPECT), 'silinenler tam beklenen küme');
+    eq(sorted(s.deleted), sorted(EXPECT), 'silinenler tam beklenen küme (servisler açık başladı)');
     eq(s.violations, [], 'aktif/dolu kategoriye silme isteği gitmedi');
     eq(sorted(s.attempts), sorted(EXPECT), 'yalnızca aday olanlara istek gitti');
     ok(s.cats.some((c) => c.name === 'Not Assigned'), 'Not Assigned duruyor');
@@ -158,7 +158,7 @@ const lists = (page) => bar(page, '.list').first().innerText();
 
   console.log('T6 en çok N=2 + iç kutuda kayan liste');
   if (want('T6')) {
-    const p = await newPage(ctx, { inner: true });
+    const p = await newPage(ctx, { virtual: true, startExpanded: true });
     await scan(p);
     eq(sorted(await bar(p, '.list').first().locator('div').allInnerTexts()), sorted(EXPECT), 'iç kaydırmalı listede de aynı adaylar');
     await setDry(p, false);
@@ -235,6 +235,19 @@ const lists = (page) => bar(page, '.list').first().innerText();
     eq(s.deleted, [], 'mini panelde de deneme modu silmedi');
     eq(s.dialogsCancelled.length, 3, '3 kategoride iptal edildi');
     await pop.close(); await p.close();
+  }
+
+  console.log('T12 koyu tema + sanallaştırılmış liste: tam silme');
+  if (want('T12')) {
+    const p = await newPage(ctx, { dark: true, virtual: true });
+    await scan(p); await setDry(p, false);
+    eq(sorted(await bar(p, '.list').first().locator('div').allInnerTexts()), sorted(EXPECT), 'koyu temada da aynı adaylar');
+    await bar(p, '[data-a=run]').click(); await done(p);
+    const s = await server(p);
+    eq(sorted(s.deleted), sorted(EXPECT), 'silinenler');
+    eq(s.violations, [], 'ihlal yok');
+    ok(s.cats.some((c) => c.name === 'Not Assigned'), 'Not Assigned duruyor');
+    await p.close();
   }
 
   console.log('T11 Services dışı sayfada çubuk yok');
