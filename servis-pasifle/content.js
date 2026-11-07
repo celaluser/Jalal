@@ -8,7 +8,7 @@
   if (window.__servisPasifle) return;
   window.__servisPasifle = true;
 
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
   const SETTINGS_KEY = 'sp_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const TOGGLE = '.service-table__header-hide-all, [class*="header-hide-all"]';
@@ -24,7 +24,10 @@
     if (port) return port;
     try {
       port = chrome.runtime.connect({ name: 'sp' });
-      port.onMessage.addListener((m) => { const f = m && m.t === 'wake' && waiters.get(m.id); if (f) f(); });
+      port.onMessage.addListener((m) => {
+        if (m && m.t === 'autoInfo') { S.autoInfo = m.info; render(); return; }
+        const f = m && m.t === 'wake' && waiters.get(m.id); if (f) f();
+      });
       port.onDisconnect.addListener(() => { void chrome.runtime.lastError; port = null; });
     } catch (e) { port = null; }
     return port;
@@ -94,16 +97,17 @@
     notes: [],
     res: { done: [], dry: [], skipped: [], errors: [], pending: [] },
     naOff: null, // Not Assigned başlığının liste içi konumu (geçerli çizimde)
+    autoInfo: null, // service worker'dan: { next, every }
     diagNeeded: false,
     log: [],
     seen: { menu: [], dialog: [], toast: [] },
   };
   // Güvenlik: deneme modu kalıcı değil; her sayfa yüklenişinde AÇIK başlar. "En çok N" hatırlanır.
-  const settings = { dryRun: true, max: 100 };
-  try { const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); if (v.max) settings.max = Math.max(1, Math.min(5000, parseInt(v.max, 10) || 100)); } catch (e) { /* yok */ }
-  const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ max: settings.max })); } catch (e) { /* yok */ } };
+  const settings = { dryRun: true, max: 100, every: 5 };
+  try { const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); if (v.max) settings.max = Math.max(1, Math.min(5000, parseInt(v.max, 10) || 100)); if (v.every) settings.every = Math.max(1, Math.min(120, parseInt(v.every, 10) || 5)); } catch (e) { /* yok */ }
+  const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ max: settings.max, every: settings.every })); } catch (e) { /* yok */ } };
   function patchSettings(p) {
-    if (p && typeof p.dryRun === 'boolean') settings.dryRun = p.dryRun;
+    if (p && typeof p.dryRun === 'boolean') { settings.dryRun = p.dryRun; const a = autoGet(); if (a && a.on) { a.real = !p.dryRun; autoSet(a); } }
     if (p && p.max !== undefined) settings.max = Math.max(1, Math.min(5000, parseInt(p.max, 10) || 100));
     saveSettings();
   }
@@ -480,6 +484,106 @@
 
   function stop() { if (!S.running) return; S.stop = true; setStatus('Durdurma istendi; sıradaki servisten önce duracak…'); }
 
+  // ---------------------------------------------------------------- otomatik mod (her N dk yenile + kontrol et)
+  // Durum sekmeye bağlı (sessionStorage): yalnızca açıldığı sekmede çalışır, sayfa yenilense de sürer, sekme kapanınca biter.
+  const AUTO_KEY = 'sp_auto';
+  function autoGet() { try { return JSON.parse(sessionStorage.getItem(AUTO_KEY) || 'null'); } catch (e) { return null; } }
+  function autoSet(a) { try { sessionStorage.setItem(AUTO_KEY, JSON.stringify(a)); } catch (e) { /* yok */ } }
+  function swAuto(on, every, restart) { const p = getPort(); if (p) { try { p.postMessage({ t: 'auto', on, every, restart: !!restart }); } catch (e) { port = null; } } }
+  function swAutoInfo() { const p = getPort(); if (p) { try { p.postMessage({ t: 'autoInfo' }); } catch (e) { port = null; } } }
+
+  // Kullanıcı panelde çalışıyorsa yenileme: gerçek (isTrusted) tıklama/tuş, eklentinin kendi çubuğu hariç.
+  let lastUserInput = 0;
+  const markUser = (e) => { if (!e.isTrusted) return; if (host && e.composedPath && e.composedPath().includes(host)) return; lastUserInput = Date.now(); };
+  document.addEventListener('pointerdown', markUser, true);
+  document.addEventListener('keydown', markUser, true);
+
+  function autoEnable(on) {
+    const prev = autoGet() || {};
+    if (on) {
+      const every = Math.max(1, Math.min(120, parseInt(prev.every || settings.every || 5, 10) || 5));
+      autoSet({ on: true, real: !settings.dryRun, every, history: prev.history || [], bad: 0, startedAt: Date.now() });
+      swAuto(true, every, true);
+      autoCycle('açıldı'); // ilk kontrol hemen
+    } else {
+      autoSet(Object.assign(prev, { on: false, offReason: 'elle kapatıldı' }));
+      swAuto(false);
+    }
+    render();
+  }
+  function autoEvery(v) {
+    const every = Math.max(1, Math.min(120, parseInt(v, 10) || 5));
+    settings.every = every; saveSettings();
+    const a = autoGet();
+    if (a) { a.every = every; autoSet(a); if (a.on) swAuto(true, every, true); }
+    render();
+  }
+
+  let autoBusy = false;
+  /** Bir otomatik tur: tara → aktif varsa pasife al → geçmişe yaz. 3 tur üst üste hata/uyarı → otomatik kapanır. */
+  async function autoCycle(why) {
+    const a0 = autoGet();
+    if (!a0 || !a0.on || autoBusy || S.running) return;
+    autoBusy = true;
+    const rec = { at: Date.now(), neden: why, gercek: !!a0.real };
+    try {
+      settings.dryRun = !a0.real;
+      await scan();
+      rec.bulunan = S.phase === 'ready' ? workList().length : 0;
+      if (S.phase === 'ready' && workList().length) await run();
+      rec.yapilan = S.res.done.length; rec.deneme = S.res.dry.length; rec.atlanan = S.res.skipped.length; rec.hata = S.res.errors.length;
+      rec.durum = S.status.slice(0, 140);
+    } catch (e) {
+      rec.hata = (rec.hata || 0) + 1; rec.durum = 'hata: ' + (e && e.message);
+    } finally {
+      const a = autoGet() || a0;
+      const bad = /^⚠/.test(rec.durum || '') || rec.hata > 0;
+      a.history = [rec].concat(a.history || []).slice(0, 30);
+      a.lastAt = rec.at;
+      a.bad = bad ? (a.bad || 0) + 1 : 0;
+      if (a.on && a.bad >= 3) { a.on = false; a.offReason = '3 tur üst üste hata/uyarı — otomatik kapatıldı. Teşhisi kopyala.'; swAuto(false); S.diagNeeded = true; }
+      autoSet(a);
+      autoBusy = false;
+      swAutoInfo();
+      render();
+    }
+  }
+
+  /** Alarm geldi: uygunsa sayfayı yenile (yenilenen sayfa turu kendisi başlatır), değilse bu turu atla. */
+  function autoTick() {
+    const a = autoGet();
+    if (!a || !a.on) return { skip: true, off: true };
+    const skip = (why) => { a.lastSkip = { at: Date.now(), why }; autoSet(a); log('otomatik tur atlandı: ' + why); render(); return { skip: true, why }; };
+    if (!onServicesList()) return skip('Services sayfasında değil');
+    if (S.running || autoBusy) return skip('önceki iş sürüyor');
+    if (anyDialog()) return skip('panelde açık pencere var');
+    const ae = document.activeElement;
+    if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return skip('panelde yazı alanı odakta');
+    if (Date.now() - lastUserInput < 60000) return skip('son 1 dakikada panelde işlem yapıldı');
+    setTimeout(() => location.reload(), 150);
+    return { reloading: true };
+  }
+
+  /** Sayfa yüklendi: otomatik açıksa panel çizilince turu başlat. */
+  async function autoBoot() {
+    const a = autoGet();
+    if (!a || !a.on || !onServicesList()) { if (a && a.on) swAutoInfo(); return; }
+    swAuto(true, a.every); // alarm yoksa kur (varsa takvimi bozma)
+    setStatus('Otomatik: panelin yüklenmesi bekleniyor…');
+    const ok = await waitFor(() => document.querySelector('.service-table__category, .service-table__body'), 90000, 300);
+    if (!ok) {
+      const b = autoGet() || a;
+      b.history = [{ at: Date.now(), neden: 'yenileme', durum: '⚠ panel 90 sn içinde yüklenmedi', hata: 1 }].concat(b.history || []).slice(0, 30);
+      b.bad = (b.bad || 0) + 1;
+      if (b.bad >= 3) { b.on = false; b.offReason = '3 tur üst üste hata — otomatik kapatıldı.'; swAuto(false); }
+      autoSet(b); render();
+      return;
+    }
+    await sleep(1500);
+    await autoCycle('yenileme');
+  }
+  const hhmm = (t) => (t ? new Date(t).toTimeString().slice(0, 5) : '--:--');
+
   // ---------------------------------------------------------------- teşhis
   function diag() {
     const strip = (h) => h.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>');
@@ -487,7 +591,7 @@
     const rows = serviceRows().slice(-6).map((r) => ({ id: r.sid, ad: r.name.slice(0, 60), durum: r.state, yazi: r.st, sinifPasif: r.clsOff, actions: !!r.btn, html: strip(r.row.outerHTML).slice(0, 500) }));
     const lastHeads = catHeaders().slice(-4).map((h) => ({ ad: h.name.slice(0, 50), na: h.na, html: strip(h.el.outerHTML).slice(0, 400) }));
     return JSON.stringify({
-      surum: VERSION, adres: location.pathname, durum: S.status, istatistik: S.stats, notlar: S.notes, sonuc: S.res,
+      surum: VERSION, adres: location.pathname, durum: S.status, otomatik: (() => { const a = autoGet(); return a ? { acik: a.on, gercek: a.real, her: a.every, son: a.lastAt && new Date(a.lastAt).toTimeString().slice(0, 8), sonraki: S.autoInfo && new Date(S.autoInfo.next).toTimeString().slice(0, 8), atlanan: a.lastSkip, kapanma: a.offReason, gecmis: (a.history || []).slice(0, 8) } : null; })(), istatistik: S.stats, notlar: S.notes, sonuc: S.res,
       notAssignedBasligi: na ? strip(na.el.outerHTML).slice(0, 600) : 'ekranda yok', naKonum: S.naOff,
       sonBasliklar: lastHeads, sonServisler: rows, menuYazilari: S.seen.menu, pencereYazilari: S.seen.dialog, bildirimler: S.seen.toast,
       adimGunlugu: S.log.slice(-40),
@@ -527,6 +631,7 @@
     label{display:flex;gap:4px;align-items:center}
     input[type=number]{width:56px;background:#121a16;color:#fff;border:1px solid #3c5a4a;border-radius:4px;padding:2px 4px}
     small{color:#9fb3a8}
+    .auto{color:#8fe0b0}.warn{color:#ffb4a8}
   `;
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function ensureBar() {
@@ -569,6 +674,16 @@
     }
     p.push('<div class="row"><button class="b red" data-a="run"' + (busyNow || S.phase !== 'ready' || !workList().length ? ' disabled' : '') + '>' + (settings.dryRun ? 'Dene' : 'Pasife al') + ' (' + work + ')</button><button class="b" data-a="stop"' + (busyNow ? '' : ' disabled') + '>Durdur</button></div>');
     p.push('<div class="row"><label><input type="checkbox" data-s="dry"' + (settings.dryRun ? ' checked' : '') + '> Deneme modu</label><label>en çok <input type="number" min="1" max="5000" data-s="max" value="' + settings.max + '"></label></div>');
+    const a = autoGet();
+    const every = (a && a.every) || settings.every || 5;
+    p.push('<div class="row"><label><input type="checkbox" data-s="auto"' + (a && a.on ? ' checked' : '') + '> Otomatik: her</label><input type="number" min="1" max="120" data-s="every" value="' + every + '"><label>dk yenile + kontrol et</label></div>');
+    if (a && a.on) {
+      const h = (a.history || [])[0];
+      p.push('<small class="auto" id="spAuto">● Otomatik AÇIK (' + (a.real ? '<b>GERÇEK</b>' : 'DENEME') + ') · sonraki: ' + hhmm(S.autoInfo && S.autoInfo.next) + (h ? ' · son ' + hhmm(h.at) + ': ' + (h.bulunan || 0) + ' bulundu, ' + (a.real ? (h.yapilan || 0) + ' pasife alındı' : (h.deneme || 0) + ' deneme') + (h.hata ? ', ' + h.hata + ' hata' : '') : '') + (a.lastSkip && (!h || a.lastSkip.at > h.at) ? '<br>son tur atlandı (' + hhmm(a.lastSkip.at) + '): ' + esc(a.lastSkip.why) : '') + '</small>');
+    } else if (a && a.offReason && a.offReason !== 'elle kapatıldı') {
+      p.push('<small class="warn">' + esc(a.offReason) + '</small>');
+    }
+    if (a && (a.history || []).length) p.push('<div class="list" id="spHist">' + a.history.slice(0, 5).map((h) => '<div>' + hhmm(h.at) + ' · ' + (h.bulunan || 0) + ' bulundu · ' + (h.gercek ? (h.yapilan || 0) + ' pasife alındı' : (h.deneme || 0) + ' deneme') + (h.hata ? ' · ' + h.hata + ' hata' : '') + (/^⚠/.test(h.durum || '') ? ' · <small>' + esc(h.durum) + '</small>' : '') + '</div>').join('') + '</div>');
     p.push('<div class="st' + (/^⚠/.test(S.status) ? ' warn' : '') + '" id="st">' + esc(S.status) + '</div>');
     if (r.done.length || r.dry.length || r.skipped.length || r.errors.length) {
       const sec = (a, t) => a.length ? '<div><b>' + t + ' (' + a.length + ')</b></div>' + a.map((x) => '<div>' + esc(x.name) + ' <small>' + esc(x.reason || '') + '</small></div>').join('') : '';
@@ -597,6 +712,8 @@
     const s = t.getAttribute && t.getAttribute('data-s');
     if (s === 'dry') patchSettings({ dryRun: t.checked });
     if (s === 'max') patchSettings({ max: t.value });
+    if (s === 'auto') autoEnable(t.checked);
+    if (s === 'every') autoEvery(t.value);
     const x = t.getAttribute && t.getAttribute('data-x');
     if (x) { if (t.checked) S.excluded.delete(x); else S.excluded.add(x); }
     render();
@@ -608,6 +725,7 @@
       version: VERSION, onPage: onServicesList(), phase: S.phase, running: S.running, status: S.status, stats: S.stats, notes: S.notes, res: S.res,
       targets: S.targets.map((t) => ({ key: t.sid, name: t.sid + ' — ' + t.name, off: S.excluded.has(t.sid) })), work: S.phase === 'ready' ? workList().length : 0,
       settings: Object.assign({}, settings),
+      auto: (() => { const a = autoGet(); return a ? { on: a.on, real: a.real, every: a.every, next: S.autoInfo && S.autoInfo.next, last: (a.history || [])[0] || null, skip: a.lastSkip || null, off: a.offReason || '' } : null; })(),
     };
   }
   try {
@@ -621,6 +739,8 @@
         case 'settings': patchSettings(msg.patch); render(); done(); return false;
         case 'exclude': if (msg.all !== undefined) setAll(!!msg.all); else if (msg.on) S.excluded.add(msg.key); else S.excluded.delete(msg.key); render(); done(); return false;
         case 'diag': respond({ text: diag() }); return false;
+        case 'autoTick': respond(autoTick()); return false;
+        case 'auto': if (msg.every !== undefined) autoEvery(msg.every); if (msg.on !== undefined) autoEnable(!!msg.on); done(); return false;
         default: done(); return false;
       }
     });
@@ -632,4 +752,7 @@
     throttle = setTimeout(() => { throttle = null; ensureBar(); }, 800);
   }).observe(document.documentElement, { childList: true, subtree: true });
   ensureBar();
+  // otomatik mod: sayaç görünsün diye ara ara yenile; açıksa turu başlat
+  setInterval(() => { const a = autoGet(); if (a && a.on && !S.running) { swAutoInfo(); } }, 20000);
+  autoBoot();
 })();

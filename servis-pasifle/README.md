@@ -8,7 +8,7 @@ Perfect Panel **Services** sayfasında (`https://panelbaku.com/admin/services`) 
 2. Panelde `/admin/services` sayfasını yenile. Sol altta "⏻ Servis Pasifle" çubuğu çıkar (Kategori Temizle de yüklüyse onun yanına oturur).
    Eklenti simgesindeki mini panel aynı işi yapar.
 
-İzin: yalnızca `https://panelbaku.com/*`. Ayar, token, sunucu yok.
+İzinler: `https://panelbaku.com/*` ve **alarms** (yalnızca zamanlayıcı; otomatik mod için, hiçbir siteye erişim vermez). Ayar, token, sunucu yok.
 
 ## Kullanım
 1. **Not Assigned'daki aktif servisleri bul** → kategorileri kapatır, listeyi sona kadar gezer, **Not Assigned** başlığını bulup açar
@@ -18,6 +18,17 @@ Perfect Panel **Services** sayfasında (`https://panelbaku.com/admin/services`) 
    Actions → yalnızca tam **Disable service** → (onay penceresi çıkarsa *Disable/Yes*) → satır **Disabled** oldu mu?
 4. **Deneme modu** (varsayılan AÇIK, her sayfa yüklenişinde yeniden açılır): menüyü açar, *Disable service*'i görür, **basmadan** kapatır.
 5. **En çok N** (varsayılan 100, hatırlanır) · **Durdur** (sıradaki servisten önce durur) · **Teşhisi kopyala**.
+
+## Otomatik mod (her N dakikada yenile + kontrol et)
+- Çubukta ya da mini panelde **Otomatik: her [5] dk yenile + kontrol et** kutusunu işaretle. İlk kontrol hemen yapılır;
+  sonra her 5 dakikada (Chrome **alarms**) sayfa yenilenir, Not Assigned yeniden taranır, aktif servis varsa pasife alınır.
+- Açarken **deneme modu kapalıysa GERÇEK**, açıksa DENEME çalışır (çubukta "Otomatik AÇIK (GERÇEK)" yazar).
+- Yalnızca açtığın **sekmede** çalışır (sekme kapanınca biter; başka panel sekmelerini etkilemez). Sayfa yenilense de sürer.
+- **O tur atlanır, sayfa yenilenmez:** sekme Services sayfasında değilse, önceki iş sürüyorsa, panelde açık pencere ya da
+  odakta yazı alanı varsa, **son 1 dakikada panelde tıklama/tuş** olduysa (senin işini bölmesin).
+- Çubukta sonraki kontrol saati, son turun sonucu ve son 5 turun geçmişi görünür.
+- **3 tur üst üste hata/uyarı** (ör. Not Assigned bulunamadı) → otomatik kendini kapatır, nedenini yazar.
+- Otomatik açıkken sekme Bellek Tasarrufu ile kapatılmaz. Tarayıcı kapanınca biter; yeniden açman gerekir.
 
 ## Güvenlik kuralları
 - Yalnızca **Not Assigned** altındaki servisler: servisin üstündeki en yakın kategori başlığı Not Assigned değilse atlanır.
@@ -35,4 +46,5 @@ Başka sekmeye geçsen de iş sürer: beklemeler service worker'da, kaydırma ol
 ```bash
 cd servis-pasifle-test && npm i && node run-tests.js     # tek test: node run-tests.js S3
 HEADED=1 xvfb-run -a node run-tests.js S12               # gerçek pencerede sekme değişimi
+HEADED=1 xvfb-run -a node run-tests.js S18               # otomatik mod, sekme arka plandayken
 ```

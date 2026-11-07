@@ -12,7 +12,7 @@
  #list,#res{max-height:170px;overflow:auto;background:#121a16;border-radius:6px;padding:4px 6px}
  #list label,#res div{display:flex;gap:4px;padding:1px 0;border-bottom:1px solid #20302a}#list label span{flex:1}
  input[type=number]{width:60px;background:#121a16;color:#fff;border:1px solid #3c5a4a;border-radius:4px;padding:2px 4px}
- #st{white-space:pre-wrap;color:#c9d8d0}small{color:#9fb3a8}.warn{color:#ffb4a8}
+ #st{white-space:pre-wrap;color:#c9d8d0}small{color:#9fb3a8}.warn{color:#ffb4a8}.auto{color:#8fe0b0}
  label{display:flex;gap:4px;align-items:center}
 </style></head>
 <body><main>
@@ -25,6 +25,8 @@
   <div id="list" hidden></div>
   <div class="row"><button id="run" disabled>Pasife al (0)</button><button id="stop" disabled>Durdur</button></div>
   <div class="row"><label><input id="dry" type="checkbox"> Deneme modu</label><label>en çok <input id="max" type="number" min="1" max="5000"></label></div>
+  <div class="row"><label><input id="auto" type="checkbox"> Otomatik: her</label><input id="every" type="number" min="1" max="120"><label>dk yenile + kontrol et</label></div>
+  <small id="autoInfo" class="auto"></small>
   <div id="st"></div>
   <div id="res" hidden></div>
   <div class="row"><button id="diag">Teşhisi kopyala</button></div>

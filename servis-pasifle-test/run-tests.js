@@ -224,7 +224,7 @@ const onState = (page) => page.evaluate(() => Object.fromEntries(window.__server
     eq(s.disabled, [], 'deneme: pasife alınan yok'); eq(s.menuOpens.length, 6, '6 menü açıldı');
     const d = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { sp: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(d.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.0.0' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
+    ok(dj && dj.surum === '1.1.0' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
     await pop.close(); await p.close();
   }
 
@@ -245,6 +245,145 @@ const onState = (page) => page.evaluate(() => Object.fromEntries(window.__server
     eq(s.disabled, ON, 'arka planda hepsi pasif'); eq(s.violations, [], 'ihlal yok');
     const ticks = (await sw.evaluate(() => self.__ticks)) - t0sw;
     ok(ticks > 20, 'beklemeler service worker üzerinden (' + ticks + ' uyanış)');
+    await other.close(); await p.close();
+  }
+
+  const autoState = (page) => page.evaluate(() => JSON.parse(sessionStorage.getItem('sp_auto') || 'null'));
+const loads = (page) => page.evaluate(() => +sessionStorage.getItem('__loads') || 0);
+const waitHist = (page, n) => page.waitForFunction((k) => { const a = JSON.parse(sessionStorage.getItem('sp_auto') || 'null'); return a && (a.history || []).length >= k; }, n, { timeout: 120000, polling: 250 });
+async function getSw(ctx) { return ctx.serviceWorkers()[0] || ctx.waitForEvent('serviceworker'); }
+async function tabIdOf(sw) { return sw.evaluate(async () => { const t = await chrome.tabs.query({ url: 'https://panelbaku.com/admin/services*' }); return t.length ? t[t.length - 1].id : null; }); }
+
+console.log('S14 otomatik mod: hemen bir tur + her 5 dk alarm; alarmda sayfa yenilenir, yeni aktif servis pasife alınır');
+  if (want('S14')) {
+    const sw = await getSw(ctx);
+    const p = await newPage(ctx, {});
+    await setDry(p, false);
+    await bar(p, '[data-s=auto]').check();
+    await waitHist(p, 1);
+    let s = await server(p);
+    eq(s.disabled, ON, 'ilk tur: 6 aktif servis pasife alındı');
+    const tabId = await tabIdOf(sw);
+    const al = await sw.evaluate(async () => (await chrome.alarms.getAll()).map((a) => ({ name: a.name, p: a.periodInMinutes })));
+    ok(al.some((a) => a.name === 'sp-auto:' + tabId && a.p === 5), 'alarm kuruldu: her 5 dk (' + JSON.stringify(al) + ')');
+    ok(/Otomatik AÇIK \(GERÇEK\)/.test(await bar(p, '#spAuto').innerText()), 'çubuk: Otomatik AÇIK (GERÇEK)');
+    // panelde yeniden aktif servis belirsin, sonra alarm çalsın
+    await p.evaluate(() => { window.__mutate(9002, { on: true }); window.__mutate(9005, { on: true }); });
+    const l0 = await loads(p);
+    eq(await sw.evaluate((n) => self.__autoTick(n), 'sp-auto:' + tabId), 'yenilendi', 'alarm: sayfa yenilendi');
+    await p.waitForFunction((l) => (+sessionStorage.getItem('__loads') || 0) > l, l0, { timeout: 20000, polling: 200 });
+    await p.waitForSelector('#sp-host', { state: 'attached' });
+    await waitHist(p, 2);
+    s = await server(p);
+    ok(s.disabled.includes(9002) && s.disabled.includes(9005), 'yenilemeden sonra 9002 ve 9005 pasife alındı');
+    eq(s.violations, [], 'ihlal yok'); eq([s.deletes, s.enables, s.hides], [0, 0, 0], 'Delete/Enable/Hide yok');
+    let a = await autoState(p);
+    eq([a.on, a.history[0].bulunan, a.history[0].yapilan], [true, 2, 2], 'geçmiş: 2 bulundu, 2 pasife alındı; otomatik hâlâ açık');
+    // aktif yokken tur: hiçbir şeye basılmaz
+    const l1 = await loads(p);
+    eq(await sw.evaluate((n) => self.__autoTick(n), 'sp-auto:' + tabId), 'yenilendi', 'alarm 3');
+    await p.waitForFunction((l) => (+sessionStorage.getItem('__loads') || 0) > l, l1, { timeout: 20000, polling: 200 });
+    await waitHist(p, 3);
+    a = await autoState(p);
+    eq([a.history[0].bulunan, a.history[0].hata || 0], [0, 0], 'aktif yok: 0 bulundu, hata yok');
+    // kullanıcı panelde çalışıyorsa (son 1 dk tıklama) yenileme yapılmaz
+    await p.mouse.click(600, 300);
+    const l2 = await loads(p);
+    eq(await sw.evaluate((n) => self.__autoTick(n), 'sp-auto:' + tabId), 'atla-icerik', 'kullanıcı tıkladı → tur atlandı');
+    await p.waitForTimeout(800);
+    eq(await loads(p), l2, 'sayfa yenilenmedi');
+    ok(/son 1 dakikada/.test((await autoState(p)).lastSkip.why), 'neden yazıldı');
+    // otomatiği kapat → alarm silinir
+    await bar(p, '[data-s=auto]').uncheck();
+    await p.waitForTimeout(500);
+    const al2 = await sw.evaluate(async () => (await chrome.alarms.getAll()).map((x) => x.name));
+    ok(!al2.includes('sp-auto:' + tabId), 'kapatınca alarm silindi');
+    eq(await sw.evaluate((n) => self.__autoTick(n), 'sp-auto:' + tabId), 'kapali', 'eski alarm gelirse: kapalı, yenileme yok');
+    await p.close();
+  }
+
+  console.log('S15 otomatik: tur sürerken alarm gelirse atlanır; başka sayfadaysa yenilenmez');
+  if (want('S15')) {
+    const sw = await getSw(ctx);
+    const p = await newPage(ctx, { delay: 1500 });
+    await setDry(p, false);
+    await bar(p, '[data-s=auto]').check();
+    await p.waitForFunction(() => window.__server.disabled.length >= 1, null, { timeout: 60000, polling: 100 });
+    const tabId = await tabIdOf(sw);
+    const l0 = await loads(p);
+    eq(await sw.evaluate((n) => self.__autoTick(n), 'sp-auto:' + tabId), 'atla-icerik', 'iş sürerken alarm → atlandı');
+    await waitHist(p, 1);
+    eq(await loads(p), l0, 'yenileme yok (iş yarıda kesilmedi)');
+    eq((await server(p)).disabled, ON, 'tur tamamlandı: 6 pasif');
+    await p.goto('https://panelbaku.com/admin/orders');
+    eq(await sw.evaluate((n) => self.__autoTick(n), 'sp-auto:' + tabId), 'atla-adres', 'Orders sayfasındayken alarm → yenileme yok');
+    ok(/\/admin\/orders$/.test(p.url()), 'sekme Orders\'ta kaldı');
+    await p.close();
+    eq(await sw.evaluate((n) => self.__autoTick(n), 'sp-auto:' + tabId), 'sekme-yok', 'sekme kapandıysa alarm silinir');
+  }
+
+  console.log('S16 otomatik: 3 tur üst üste hata → otomatik kendini kapatır');
+  if (want('S16')) {
+    const sw = await getSw(ctx);
+    const p = await newPage(ctx, { cats: cats().filter((c) => c.name !== 'Not Assigned') });
+    await bar(p, '[data-s=auto]').check();
+    await waitHist(p, 1);
+    const tabId = await tabIdOf(sw);
+    for (let k = 2; k <= 3; k++) {
+      const l = await loads(p);
+      await sw.evaluate((n) => self.__autoTick(n), 'sp-auto:' + tabId);
+      await p.waitForFunction((x) => (+sessionStorage.getItem('__loads') || 0) > x, l, { timeout: 20000, polling: 200 });
+      await waitHist(p, k);
+    }
+    const a = await autoState(p);
+    eq(a.on, false, 'otomatik kapandı');
+    ok(/3 tur üst üste/.test(a.offReason), 'neden: ' + a.offReason);
+    ok(/Not Assigned/.test(a.history[0].durum), 'tur hatası: ' + a.history[0].durum);
+    const al = await sw.evaluate(async () => (await chrome.alarms.getAll()).map((x) => x.name));
+    ok(!al.includes('sp-auto:' + tabId), 'alarm silindi');
+    await p.close();
+  }
+
+  console.log('S17 gerçek alarm (kanca yok): her 1 dk → ~1 dk sonra sayfa kendiliğinden yenilenir ve yeni aktif servis pasife alınır');
+  if (want('S17')) {
+    const p = await newPage(ctx, {});
+    await setDry(p, false);
+    await bar(p, '[data-s=every]').fill('1'); await bar(p, '[data-s=every]').press('Tab');
+    await bar(p, '[data-s=auto]').check();
+    await waitHist(p, 1);
+    await p.evaluate(() => window.__mutate(9006, { on: true }));
+    const l0 = await loads(p);
+    const t1 = Date.now();
+    await p.waitForFunction((l) => (+sessionStorage.getItem('__loads') || 0) > l, l0, { timeout: 100000, polling: 500 });
+    const sec = Math.round((Date.now() - t1) / 1000);
+    ok(sec >= 40 && sec <= 95, 'alarm ~1 dk sonra kendiliğinden çaldı (' + sec + ' sn)');
+    await waitHist(p, 2);
+    ok((await server(p)).disabled.includes(9006), '9006 pasife alındı');
+    await bar(p, '[data-s=auto]').uncheck();
+    await p.close();
+  }
+
+  console.log('S18 otomatik mod, panel sekmesi arka plandayken: alarm → yenile → tur tamamlanır');
+  if (want('S18')) {
+    const sw = await getSw(ctx);
+    const p = await newPage(ctx, { delay: 400 });
+    await setDry(p, false);
+    await p.evaluate(() => window.__mutate(9001, { on: false })); // ilk turda 5 aktif
+    const otherP = ctx.waitForEvent('page');
+    await sw.evaluate(async () => { const [t] = await chrome.tabs.query({ url: 'https://panelbaku.com/admin/services*' }); await chrome.tabs.create({ url: 'about:blank', active: true, windowId: t.windowId }); });
+    const other = await otherP;
+    await p.evaluate(() => document.querySelector('#sp-host').shadowRoot.querySelector('[data-s=auto]').click());
+    await waitHist(p, 1);
+    eq((await server(p)).disabled.length, 5, 'arka planda ilk tur: 5 pasif');
+    await p.evaluate(() => window.__mutate(9008, { on: true }));
+    const tabId = await tabIdOf(sw);
+    const l0 = await loads(p);
+    eq(await sw.evaluate((n) => self.__autoTick(n), 'sp-auto:' + tabId), 'yenilendi', 'arka planda alarm → yenilendi');
+    await p.waitForFunction((l) => (+sessionStorage.getItem('__loads') || 0) > l, l0, { timeout: 30000, polling: 300 });
+    await waitHist(p, 2);
+    ok((await server(p)).disabled.includes(9008), 'arka planda yenilenen sayfada 9008 pasife alındı');
+    eq((await server(p)).violations, [], 'ihlal yok');
+    await p.evaluate(() => document.querySelector('#sp-host').shadowRoot.querySelector('[data-s=auto]').click());
     await other.close(); await p.close();
   }
 

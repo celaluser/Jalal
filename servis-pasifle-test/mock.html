@@ -31,11 +31,16 @@
 // - liste sanallaştırılmış (yalnızca ekrandaki satırlar DOM'da)
 const e = React.createElement, { useState, useEffect } = React;
 const cfg = Object.assign({ virtual: true, delay: 300, disableFail: [], disableConfirm: false, resetAfter: false, naNoCollapse: false, naHasActions: false, naPlain: false, cats: [] }, window.__cfg || {});
-const server = window.__server = { cats: JSON.parse(JSON.stringify(cfg.cats)), disabled: [], violations: [], deletes: 0, enables: 0, hides: 0, other: [], menuOpens: [], confirmOpens: 0, confirmCancels: 0 };
+// "Sunucu" verisi sayfa yenilense de kalsın (gerçek panel gibi): sekmeye bağlı sessionStorage
+const saved = sessionStorage.getItem('__mockServer');
+const server = window.__server = saved ? JSON.parse(saved) : { cats: JSON.parse(JSON.stringify(cfg.cats)), disabled: [], violations: [], deletes: 0, enables: 0, hides: 0, other: [], menuOpens: [], confirmOpens: 0, confirmCancels: 0 };
+const persist = () => { try { sessionStorage.setItem('__mockServer', JSON.stringify(server)); } catch (e) { /* yok */ } };
+sessionStorage.setItem('__loads', String((+sessionStorage.getItem('__loads') || 0) + 1));
+setInterval(persist, 150); window.addEventListener('pagehide', persist);
 let rerender = () => {};
 const isNA = (c) => /^not assigned$/i.test(c.name);
 const catOf = (sid) => server.cats.find((c) => c.svcs.some((s) => s.id === sid));
-window.__mutate = (sid, patch) => { for (const c of server.cats) for (const s of c.svcs) if (s.id === sid) Object.assign(s, patch); rerender(); };
+window.__mutate = (sid, patch) => { for (const c of server.cats) for (const s of c.svcs) if (s.id === sid) Object.assign(s, patch); persist(); rerender(); };
 window.__moveSvc = (sid, toName) => { const from = catOf(sid); const s = from.svcs.find((x) => x.id === sid); from.svcs = from.svcs.filter((x) => x.id !== sid); server.cats.find((c) => c.name === toName).svcs.push(s); rerender(); };
 window.__onCount = (name) => server.cats.find((c) => c.name === name).svcs.filter((s) => s.on).length;
 
@@ -69,7 +74,7 @@ function App() {
       const c = catOf(s.id);
       if (!isNA(c)) server.violations.push('not-na:' + s.id);
       if (!s.on) server.violations.push('already-off:' + s.id);
-      s.on = false; server.disabled.push(s.id);
+      s.on = false; server.disabled.push(s.id); persist();
       flash('Service disabled', 'ok');
       if (cfg.resetAfter) { setKey((x) => x + 1); setExpanded(false); setOpenCats(new Set()); const sc = scroller(); if (sc) sc.scrollTop = 0; } else rerender();
     }, cfg.delay);
