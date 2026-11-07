@@ -498,6 +498,21 @@
     }) };
   }
 
+  /** Panelin satır türleri: service-table__* sınıfları, sayıları ve her türün ilk örneğinin kısa HTML'i (kutucuk sayısı, Actions sayısı). */
+  function rowKinds() {
+    const seen = new Map();
+    for (const el of document.querySelectorAll('[class*="service-table__"]')) {
+      const cls = (typeof el.className === 'string' ? el.className : '').split(/\s+/).filter((c) => /^service-table__(row|body|head|header|category|group|cat)/.test(c)).sort().join(' ');
+      if (!cls) continue;
+      const e = seen.get(cls) || { sayi: 0, ornek: null };
+      e.sayi++;
+      if (!e.ornek) e.ornek = { kutucuk: el.querySelectorAll('input[type=checkbox]').length, actions: [...el.querySelectorAll('button, a')].filter((x) => /^actions\b/i.test(btnText(x))).length, yazi: norm(el.textContent).slice(0, 60), html: el.outerHTML.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 450) };
+      seen.set(cls, e);
+    }
+    const sc = scroller(document.querySelector('.service-table__row'));
+    return { turler: Object.fromEntries(seen), kaydirma: { pencereY: Math.round(scrollY), sayfaYuksekligi: document.documentElement.scrollHeight, icKutu: sc ? sc.tagName + '.' + sc.className : 'yok' }, kategoriYaziAday: [...document.querySelectorAll('.service-table__row')].filter((r) => !r.querySelector('input[type=checkbox]')).slice(0, 3).map((r) => r.outerHTML.replace(/\s+/g, ' ').slice(0, 600)) };
+  }
+
   function diag() {
     const rows = categoryRows();
     const { why } = splitActive(rows, S.refBest);
@@ -515,7 +530,7 @@
       surum: VERSION, adres: location.pathname, tema: getComputedStyle(document.body).backgroundColor,
       kategoriSayisi: rows.length, gorunenKutucuk: checks().length, acmaDugmesi: !![...document.querySelectorAll(TOGGLE)].find(visible),
       durum: S.status, istatistik: S.stats, aday: S.candidates.map((c) => c.name), sonuc: S.res, notlar: S.notes,
-      actionsZinciri: actionsChains(), sonKategoriler: tail, menuYazilari: S.seen.menu, pencereYazilari: S.seen.dialog, bildirimler: S.seen.toast, adimGunlugu: S.log.slice(-40),
+      actionsZinciri: actionsChains(), satirTurleri: rowKinds(), sonKategoriler: tail, menuYazilari: S.seen.menu, pencereYazilari: S.seen.dialog, bildirimler: S.seen.toast, adimGunlugu: S.log.slice(-40),
     }, null, 1);
   }
 
@@ -602,7 +617,7 @@
       parts.push('<div class="list">' + line(r.deleted, 'Silinen') + line(r.dry, 'Deneme') + line(r.skipped, 'Atlanan') + line(r.errors, 'Hata') + '</div>');
     }
     if (S.notes.length) parts.push('<small>' + S.notes.map(esc).join('<br>') + '</small>');
-    if (S.diagNeeded || (r.errors.length)) parts.push('<div class="row"><button class="b" data-a="diag">Teşhisi kopyala</button></div>');
+    if (true) parts.push('<div class="row"><button class="b" data-a="diag">Teşhisi kopyala</button></div>');
     parts.push('</div>');
     bar.className = 'bar' + (minimized ? ' min' : '');
     bar.innerHTML = parts.join('');

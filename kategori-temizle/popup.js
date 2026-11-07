@@ -41,7 +41,7 @@ function paint(s) {
   const sec = (a, t) => a.length ? '<div><b>' + t + ' (' + a.length + ')</b></div>' + a.map((x) => '<div>' + esc(x.name) + ' <small>' + esc(x.reason || '') + '</small></div>').join('') : '';
   const html = sec(r.deleted, 'Silinen') + sec(r.dry, 'Deneme') + sec(r.skipped, 'Atlanan') + sec(r.errors, 'Hata');
   $('res').hidden = !html; $('res').innerHTML = html;
-  $('diag').hidden = !s.diagNeeded;
+  $('diag').hidden = false;
 }
 
 async function tick() { paint(await send({ cmd: 'state' })); }
