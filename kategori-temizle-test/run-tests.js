@@ -21,7 +21,7 @@ function cats() {
   return [
     C('Instagram Followers', { active: true, services: 4 }),
     C('TikTok Likes', { services: 3 }),                               // pasif DOLU → kalır
-    C('Old Telegram', { badgeBefore: true }),                         // SİL
+    C('Old Telegram', { badgeBefore: true }),                         // NEW rozeti üst simge harflerle (ᴺᴱᵂ)                         // SİL
     C('Youtube Views', { active: true }),                             // aktif boş → kalır
     C('Facebook Page', { badgeAfter: true }),                         // SİL
     C('Twitter Soft', { active: true, color: '#cfd6e4' }),            // aktif ama biraz soluk → kalır
@@ -239,7 +239,7 @@ const lists = (page) => bar(page, '.list').first().innerText();
 
   console.log('T12 koyu tema + sanallaştırılmış liste: tam silme');
   if (want('T12')) {
-    const p = await newPage(ctx, { dark: true, virtual: true });
+    const p = await newPage(ctx, { dark: true, virtual: true, noDisabledClass: true });
     await scan(p); await setDry(p, false);
     eq(sorted(await bar(p, '.list').first().locator('div').allInnerTexts()), sorted(EXPECT), 'koyu temada da aynı adaylar');
     await bar(p, '[data-a=run]').click(); await done(p);
@@ -247,6 +247,16 @@ const lists = (page) => bar(page, '.list').first().innerText();
     eq(sorted(s.deleted), sorted(EXPECT), 'silinenler');
     eq(s.violations, [], 'ihlal yok');
     ok(s.cats.some((c) => c.name === 'Not Assigned'), 'Not Assigned duruyor');
+    await p.close();
+  }
+
+  console.log('T13 servis sayısı okunamayan kategori boş sayılmaz');
+  if (want('T13')) {
+    const base = cats(); base.find((c) => c.name === 'Old Telegram').collapseText = 'Genişlet';
+    const p = await newPage(ctx, { cats: base });
+    await scan(p);
+    eq(sorted(await bar(p, '.list').first().locator('div').allInnerTexts()), sorted(EXPECT.filter((n) => n !== 'Old Telegram')), 'Old Telegram aday değil');
+    ok(/okunamadı/.test(await bar(p, 'small').allInnerTexts().then((a) => a.join(' '))), 'not düşüldü');
     await p.close();
   }
 

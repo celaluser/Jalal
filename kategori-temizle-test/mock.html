@@ -39,7 +39,7 @@ function svcName(c, i) { return (c.id * 100 + i) + ' - ' + c.name + ' service ' 
 function Menu({ m, close }) {
   useEffect(() => { const h = () => close(); setTimeout(() => document.addEventListener('click', h), 0); return () => document.removeEventListener('click', h); }, []);
   const items = m.type === 'cat'
-    ? [['Edit category', () => {}], ['Disable category', () => {}], ['Delete category', () => m.onDelete()]]
+    ? [['Edit category', () => {}], ['Disable category', () => {}], ['Select all category services', () => {}]].concat(m.empty ? [['Delete category', () => m.onDelete()]] : [])
     : [['Edit service', () => {}], ['Duplicate', () => {}], ['Delete service', () => { server.serviceMenuDeletes++; }]];
   return ReactDOM.createPortal(e('div', { className: 'menu', role: 'menu', style: { left: m.x, top: m.y } },
     items.map(([t, fn]) => e('a', { key: t, onClick: () => { fn(); close(); } }, e('i', { className: 'far fa-x' }), ' ' + t))), document.body);
@@ -103,21 +103,21 @@ function App() {
     }, cfg.delay);
   };
 
-  const catRow = (c, style) => e('div', { key: c.id, style, className: 'cat-row' + (c.cls ? ' ' + c.cls : ''), 'data-id': c.id },
+  const catRow = (c, style) => e('div', { key: c.id, id: 'category-' + c.id, style, className: 'cat-row service-table__category' + ((!c.active && !cfg.noDisabledClass) ? ' service-table__category-disabled' : '') + (c.cls ? ' ' + c.cls : ''), 'data-id': c.id },
     e('span', { className: 'service-table__handle' }, '⋮⋮'),
-    c.badgeBefore && e('span', { className: 'badge' }, 'NEW'),
+    c.badgeBefore && e('span', { className: 'badge' }, 'ᴺᴱᵂ'),
     e('span', { className: 'name', style: { color: (c.color && !cfg.dark ? '#3a3a3a' : c.color) || (cfg.dark ? (c.active ? '#ffffff' : '#6b7a99') : (c.active ? '#1d1d1d' : '#c4c4c4')) } }, c.name),
-    c.badgeAfter && e('span', { className: 'badge' }, 'NEW'),
-    e('button', { className: 'actions', onClick: (ev) => { ev.stopPropagation(); openMenu(ev, { type: 'cat', onDelete: () => { server.dialogsOpened.push(c.name); setConfirm(c); } }); } }, 'Actions ▾'),
-    c.services > 0 && e('a', { className: 'expand' }, 'Expand (' + c.services + ')'));
+    c.badgeAfter && e('span', { className: 'badge' }, 'ᴺᴱᵂ'),
+    e('button', { className: 'actions', onClick: (ev) => { ev.stopPropagation(); openMenu(ev, { type: 'cat', empty: c.services === 0, onDelete: () => { server.dialogsOpened.push(c.name); setConfirm(c); } }); } }, 'Actions ▾'),
+    e('div', { className: 'service-table__category-collapse hide-category' }, (c.collapseText || c.services > 0) && e('a', { className: 'expand service-table__category-collapse-name' }, c.collapseText || ('Expand (' + c.services + ')'))));
   let list;
   if (expanded) {
-    // gerçek panel gibi: servisler açıkken kategori satırı YOK, yalnızca servis satırları
-    const svcs = [];
-    cats.slice(0, loaded).forEach((c) => { for (let i = 0; i < c.services; i++) svcs.push([c, i]); });
-    list = e('div', { key: 'S' + key }, svcs.map(([c, i]) => e('div', { className: 'svc-row service-table__row-service', key: c.id + '-' + i },
-      e('input', { type: 'checkbox' }), e('span', { className: 'sname' }, svcName(c, i)),
-      e('button', { className: 'actions', onClick: (ev) => { ev.stopPropagation(); openMenu(ev, { type: 'svc' }); } }, 'Actions ▾'))));
+    // gerçek panel gibi: servisler açıkken kategori satırları da, altlarında servis satırları da çizilir
+    list = e('div', { key: 'S' + key },
+      cats.slice(0, loaded).map((c) => e(React.Fragment, { key: c.id }, catRow(c),
+        Array.from({ length: c.services }, (_, i) => e('div', { className: 'svc-row service-table__row-service', key: i },
+          e('input', { type: 'checkbox' }), e('span', { className: 'sname' }, svcName(c, i)),
+          e('button', { className: 'actions', onClick: (ev) => { ev.stopPropagation(); openMenu(ev, { type: 'svc' }); } }, 'Actions ▾'))))));
   } else if (cfg.virtual) {
     const s = document.getElementById('scroller'); const st = s ? s.scrollTop : 0; const first = Math.max(0, Math.floor(st / 40) - 3);
     list = e('div', { key: 'V' + key, className: 'vwrap', style: { height: cats.length * 40 } },

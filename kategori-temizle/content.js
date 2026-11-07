@@ -50,7 +50,7 @@
 
   /** Satır yazısından kategori adı: Actions, baştaki/sondaki süs işaretleri (tutamaç) ve NEW/Yeni rozeti atılır; emoji kalır. */
   function cleanName(raw) {
-    let t = norm(raw.replace(/\bActions\b\s*[▾▼⌄]?/g, '').replace(/\b(?:Expand|Collapse)\s*\(\s*\d+\s*\)/gi, ''));
+    let t = norm(raw.replace(/ᴺᴱᵂ/g, ' NEW ').replace(/\bActions\b\s*[▾▼⌄]?/g, '').replace(/\b(?:Expand|Collapse)\s*\(\s*\d+\s*\)/gi, ''));
     for (let i = 0; i < 3; i++) {
       t = t.replace(/^[^\p{L}\p{N}\p{Extended_Pictographic}]+/u, '').replace(/[^\p{L}\p{N}\p{Extended_Pictographic})\]]+$/u, '');
       t = t.replace(/^(?:NEW|YENİ|Yeni)\s+/, '').replace(/\s+(?:NEW|YENİ|Yeni)$/, '');
@@ -113,10 +113,16 @@
       if (row.querySelector('input[type=checkbox]')) continue; // servis satırı
       const name = cleanName(textWithAlt(row));
       if (!name) continue;
-      // "Expand (N)" bağlantısı: N = kategorideki servis sayısı; bağlantı hiç yoksa kategori boştur.
-      const ce = [...row.querySelectorAll('a, button, span, div')].find((e) => e.children.length === 0 && /^(?:expand|collapse)\s*\(\s*\d+\s*\)$/i.test(norm(e.textContent)));
-      const count = ce ? parseInt(norm(ce.textContent).match(/\d+/)[0], 10) : null;
-      out.push({ el: row, btn: b, name, special: isSpecial(name), count });
+      // "Expand (N)": N = kategorideki servis sayısı. Yazı yoksa: collapse öğesi boşsa kategori boş (null);
+      // öğede başka bir yazı varsa sayı okunamadı = belirsiz (NaN → asla boş sayılmaz).
+      const mm = norm(row.textContent).match(/(?:expand|collapse)\s*\(\s*(\d+)\s*\)/i);
+      let count;
+      if (mm) count = parseInt(mm[1], 10);
+      else {
+        const ce = row.querySelector('[class*="category-collapse"]');
+        count = ce && norm(ce.textContent) ? NaN : null;
+      }
+      out.push({ el: row, btn: b, name, special: isSpecial(name), count, id: row.id || '' });
     }
     return out;
   }
@@ -243,17 +249,19 @@
   }
 
   /** Şu an ekranda: kategori hâlâ var mı, tek mi, ad aynı mı, pasif mi, boş mu? (boş = "Expand (N)" yok ya da N=0) */
-  function check(name) {
+  function check(name, id) {
     const { rows, hits } = findByName(name);
     if (!hits.length) return { ok: false, reason: 'satır bulunamadı' };
     if (hits.length > 1) return { ok: false, reason: 'aynı adlı birden çok kategori var' };
     const row = hits[0];
     if (row.special) return { ok: false, reason: 'özel satır (Not Assigned)' };
     if (norm(row.name) !== norm(name)) return { ok: false, reason: 'ad değişmiş: "' + row.name + '"' };
+    if (id && row.id !== id) return { ok: false, reason: 'kimlik değişmiş (' + row.id + ' ≠ ' + id + ')' };
     if (checks().length > 1) return { ok: false, reason: 'liste kategori görünümünde değil' };
     const { why } = splitActive(rows, S.refBest);
     if (!why.has(row)) return { ok: false, reason: 'artık pasif görünmüyor (aktif)' };
     if (row.count > 0) return { ok: false, reason: 'içinde ' + row.count + ' servis var' };
+    if (Number.isNaN(row.count)) return { ok: false, reason: 'servis sayısı okunamadı' };
     if (row.count === null && !S.hasCounts) return { ok: false, reason: 'servis sayısı (Expand) doğrulanamadı' };
     return { ok: true, row, why: why.get(row) };
   }
@@ -329,8 +337,8 @@
         boxTop = bt;
         for (const r of categoryRows()) {
           const off = Math.round((r.el.getBoundingClientRect().top - bt + box.scrollTop) / 6);
-          const key = catKey(r.name) + '@' + off;
-          if (!col.has(key)) col.set(key, { name: r.name, special: r.special, count: r.count, m: measureRow(r) });
+          const key = r.id || (catKey(r.name) + '@' + off);
+          if (!col.has(key)) col.set(key, { name: r.name, id: r.id, special: r.special, count: r.count, m: measureRow(r) });
         }
         S.status = 'Liste geziliyor… ' + col.size + ' kategori'; render();
         return false;
@@ -346,6 +354,8 @@
       const pasif = real.filter((e, i) => whyArr[i]);
       if (real.length >= 3 && pasif.length === real.length) return fail('Hepsi pasif görünüyor; renk ayrımına güvenemedim, hiçbir şey silinmez.');
       S.hasCounts = real.some((e) => e.count > 0);
+      const unclear = real.filter((e) => Number.isNaN(e.count)).length;
+      if (unclear) S.notes.push(unclear + ' satırda servis sayısı okunamadı; bunlar boş sayılmaz.');
       if (!S.hasCounts) return fail('Hiçbir satırda "Expand (N)" görünmedi; boşluğu doğrulayamam, hiçbir şey silinmez.');
       const keyCount = new Map();
       for (const e of real) keyCount.set(catKey(e.name), (keyCount.get(catKey(e.name)) || 0) + 1);
@@ -353,8 +363,9 @@
       real.forEach((e, i) => {
         if (!whyArr[i]) return;
         if (e.count > 0) { dolu++; return; }
+        if (Number.isNaN(e.count)) return; // sayı okunamadı: boş sayılmaz
         if (keyCount.get(catKey(e.name)) > 1) { S.notes.push('Atlandı (aynı ad birden çok): ' + e.name); return; }
-        S.candidates.push({ name: e.name });
+        S.candidates.push({ name: e.name, id: e.id });
       });
       S.stats = { kategori: real.length, aktif: real.length - pasif.length, pasif: pasif.length, pasifDolu: dolu, bos: S.candidates.length };
       box.scrollTop = 0;
@@ -385,7 +396,7 @@
     return result('skip', 'yeniden çizimden sonra kategori bulunamadı');
   }
 
-  async function processOne(name) {
+  async function processOne(name, id) {
     const k = catKey(name);
     const p = await prepare(name);
     if (p.kind !== 'ok') return p;
@@ -393,7 +404,7 @@
     await sleep(300);
 
     // 1) silmeden önce yeniden kontrol
-    const c1 = check(name);
+    const c1 = check(name, id);
     if (!c1.ok) return result('skip', c1.reason);
 
     // 2) Actions → Delete category
@@ -420,7 +431,7 @@
     }
 
     // 4) pencere açıkken son kontrol (arka plan hâlâ DOM'da)
-    const c2 = check(name);
+    const c2 = check(name, id);
     if (!c2.ok) { await closeDialog(conf); return result('skip', 'son anda değişti: ' + c2.reason); }
 
     // 5) deneme modu: iptal et
@@ -467,7 +478,7 @@
         const name = list[i].name;
         setStatus((settings.dryRun ? '[DENEME] ' : '') + '(' + (i + 1) + '/' + list.length + ') ' + name);
         let r;
-        try { r = await processOne(name); } catch (e) { r = result('error', 'beklenmeyen hata: ' + (e && e.message)); }
+        try { r = await processOne(name, list[i].id); } catch (e) { r = result('error', 'beklenmeyen hata: ' + (e && e.message)); }
         log(name + ' → ' + r.kind + (r.reason ? ' (' + r.reason + ')' : ''));
         if (r.kind === 'deleted') { S.res.deleted.push({ name, reason: r.reason }); done++; consecutiveErrors = 0; }
         else if (r.kind === 'dry') { S.res.dry.push({ name, reason: r.reason }); done++; consecutiveErrors = 0; }
