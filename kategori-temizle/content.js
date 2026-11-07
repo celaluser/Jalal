@@ -6,7 +6,7 @@
   if (window.__katTemizle) return;
   window.__katTemizle = true;
 
-  const VERSION = '1.3.1';
+  const VERSION = '1.3.2';
   const SETTINGS_KEY = 'kt_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const HANDLE = '.service-table__handle, [class*="__handle"], .handle, .drag-handle';
@@ -946,6 +946,7 @@
     root.innerHTML = '<style>' + CSS + '</style><div class="bar" id="bar"></div>';
     root.addEventListener('click', onBarClick);
     root.addEventListener('change', onBarChange);
+    root.addEventListener('focusout', () => setTimeout(render, 0)); // sayı kutusundan çıkınca düğme etiketini güncelle
     document.documentElement.appendChild(host);
     render();
   }
