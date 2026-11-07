@@ -1318,10 +1318,31 @@
     });
   }
 
+  /**
+   * Kategoriyi yeniden bul. Panel bırakmadan sonra listeyi yeniden çizebilir (servisler açılır, sayfa başa döner):
+   * bekle → yeniden daralt → en üste bak → gerekirse sona kadar in.
+   */
+  async function refind(name) {
+    let i = indexOf(name);
+    if (i >= 0) return i;
+    await sleep(800);
+    if ((i = indexOf(name)) >= 0) return i;
+    await collapseAll();
+    await sleep(300);
+    if ((i = indexOf(name)) >= 0) return i;
+    const rows = categoryRows();
+    const box = scroller(rows[0] && rows[0].el);
+    if (box) box.scrollTop = 0;
+    window.scrollTo(0, 0);
+    await sleep(600);
+    if ((i = indexOf(name)) >= 0) return i;
+    await scrollToEnd();
+    return indexOf(name);
+  }
+
   async function moveToTop(name) {
     await collapseAll();
-    let i = indexOf(name);
-    if (i < 0) { await scrollToEnd(); i = indexOf(name); }
+    let i = await refind(name);
     if (i < 0) return { ok: false, note: 'kategori listede bulunamadı: ' + name };
     // Önce tek hamle (tut → yukarı kaydır → bırak); olmazsa adım adım.
     for (const w of (dragWay && dragWay !== 'keys' ? [dragWay] : ['mouse', 'html5'])) {
@@ -1329,7 +1350,7 @@
       catStatus('En üste taşınıyor… (tek hamle)');
       await holdToTop(name, w);
       const ni = await waitFor(() => { const n = indexOf(name); return n >= 0 ? n + 1 : null; }, 1500, 100);
-      const n = ni ? ni - 1 : -1;
+      const n = ni ? ni - 1 : await refind(name);
       dragLog.push({ yol: 'tek-hamle/' + w, sira: i, sonra: n });
       dragLog = dragLog.slice(-12);
       if (n === 0) { dragWay = w; i = 0; break; }
@@ -1341,7 +1362,8 @@
       const ways = dragWay ? [dragWay] : Object.keys(DRAGS);
       let moved = false;
       for (const w of ways) {
-        const plan = await dragPlan(name);
+        let plan = await dragPlan(name);
+        if (plan.i < 0) { await refind(name); plan = await dragPlan(name); }
         if (!(plan.i > 0)) { i = plan.i; moved = true; break; }
         const hd = rowHandle(plan.me);
         const hr = hd ? hd.getBoundingClientRect() : null;
@@ -1356,8 +1378,8 @@
         showDiag();
         return { ok: false, note: 'sürükleme bu panelde çalışmadı — kategoriyi elle taşı; "Teşhisi kopyala"ya basıp bana gönder' };
       }
-      if (i < 0) i = indexOf(name);
-      if (i < 0) return { ok: false, note: 'taşırken kategori listede kayboldu' };
+      if (i < 0) i = await refind(name);
+      if (i < 0) return { ok: false, note: 'en üste taşındı mı doğrulanamadı (panel listeyi yeniledi); listeye bir bak' };
     }
     const box = scroller(categoryRows()[0] && categoryRows()[0].el);
     if (box) box.scrollTo({ top: 0, behavior: 'smooth' });

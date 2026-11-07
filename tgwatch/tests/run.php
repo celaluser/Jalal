@@ -2098,7 +2098,9 @@ test('Import raporu: otomatik mod, şablon, uzun liste parçalanır; kanal yoksa
         TgWatch\SmmApi::$fake = null;
     }
     eq('pending', $r['status']);
-    eq('Tamam, paylaşılmadı', $S->decide($r['id'], 'skip'));
+    $sumId = $tg->last('sendMessage') ? 0 : 0;
+    eq('Paylaşılmadı, mesaj silindi', $S->decide($r['id'], 'skip'));
+    ok($tg->count('deleteMessage') >= 1, 'Paylaşma: bildirim ekrandan silinir');
     eq('skipped', $S->find($r['id'])['status']);
     eq('Kayıt bulunamadı', $S->decide(999, 'post'));
     eq(400, (new TgWatch\ExtApi($db, []))->handle(['action' => 'yok'])[0]);
@@ -2118,11 +2120,12 @@ test('Kanal mesajını Telegram\'dan düzenle: Düzenle → düz metin → yeni 
     $flow = new Flow($db, $tg, $cfg);
     $flow->handleUpdate(cb(1, OWNER, 'sh:edit:' . $r['id']));
     $plain = $tg->last('sendMessage');
-    ok(!isset($plain['parse_mode']) && str_starts_with($plain['text'], "📸 Instagram Bəyəni\n\n🆔 77 - Instagram Bəyəni | Sürətli -- 0.90") && !str_contains($plain['text'], '<b>'), 'düz metin, kopyalanabilir: ' . $plain['text']);
+    ok(str_starts_with($plain['text'], "<pre>📸 Instagram Bəyəni\n\n🆔 77 - Instagram Bəyəni | Sürətli -- 0.90") && !str_contains($plain['text'], '<b>'), 'kod bloğunda, dokununca kopyalanır: ' . $plain['text']);
+    $before = $tg->count('deleteMessage');
     $flow->handleUpdate(msg(2, OWNER, "📸 Instagram Bəyəni <YENİ>\n\n🆔 77 - Instagram Bəyəni | Sürətli -- 0.85\n\n🔗 https://panelbaku.com"));
     $new = $tg->last('sendMessage');
     ok(str_contains($new['text'], 'düzenlendi') && str_contains($new['text'], '&lt;YENİ&gt;') && isset($new['reply_markup']), 'yeni önizleme + düğmeler: ' . $new['text']);
-    ok(str_contains($tg->last('editMessageText')['text'], 'yeni önizleme aşağıda'), 'eski bildirimin düğmeleri kalkar');
+    eq(3, $tg->count('deleteMessage') - $before, 'talimat, kopyalanan metin ve eski önizleme silinir');
     eq('', $db->get('editing_share'));
     $flow->handleUpdate(cb(3, OWNER, 'sh:post:' . $r['id']));
     eq(['@panelbaku', "<b>📸 Instagram Bəyəni &lt;YENİ&gt;\n\n🆔 77 - Instagram Bəyəni | Sürətli -- 0.85\n\n🔗 https://panelbaku.com</b>"], [$tg->last('sendMessage')['chat_id'], $tg->last('sendMessage')['text']], 'kanala düzenlenmiş metin gider');
@@ -2141,6 +2144,25 @@ test('Kanal mesajını Telegram\'dan düzenle: Düzenle → düz metin → yeni 
     $flow->handleUpdate(msg(6, OWNER, '/iptal'));
     eq('', $db->get('editing_share'));
     ok(str_contains(lastText($tg), 'iptal'));
+});
+test('Kanal ayarlı değilken de önizleme ve düğmeler gelir; Paylaş nedenini söyler', function () {
+    [$db, $tg] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('own','panelim','https://own.example/api/v2','k',1)");
+    TgWatch\SmmApi::$fake = static fn() => json_encode([['service' => 9, 'name' => 'YouTube Baxış | Stabil', 'category' => 'YouTube Baxış | Stabil Server', 'rate' => '1.2', 'min' => '100', 'max' => '1000']]);
+    $cfg = array_merge(App::config(), ['share_mode' => 'ask', 'share_channel' => '']);
+    try {
+        $r = (new TgWatch\ImportShare($db, $tg, $cfg))->report(['categories' => [['name' => 'YouTube Baxış | Stabil Server', 'src' => 'YouTube Views | Stable Server', 'moved' => true]]]);
+    } finally {
+        TgWatch\SmmApi::$fake = null;
+    }
+    eq('pending', $r['status']);
+    $m = $tg->last('sendMessage');
+    ok(str_contains($m['text'], '▶️ YouTube Baxış | Stabil Server') && str_contains($m['text'], 'Paylaşım kanalı ayarlı değil'), $m['text']);
+    eq(3, count($m['reply_markup']['inline_keyboard'][0]));
+    (new Flow($db, $tg, $cfg))->handleUpdate(cb(1, OWNER, 'sh:post:' . $r['id']));
+    $a = $tg->last('answerCallbackQuery');
+    ok(str_contains($a['text'], 'ayarlı değil') && $a['show_alert'] === true, json_encode($a, JSON_UNESCAPED_UNICODE));
+    eq('pending', (new TgWatch\ImportShare($db, $tg, $cfg))->find($r['id'])['status'], 'kanal girilince yeniden basılabilir');
 });
 test('Kanal şablonu: platform simgesi paylaşım paneliyle aynı', function () {
     eq(['📸', '🎵', '▶️', '✈️', '🐦', '⭐'], array_map([TgWatch\ImportShare::class, 'icon'], ['Instagram Bəyəni', 'TikTok İzləyici', 'YouTube Baxış', 'Telegram Üzv', 'X Follower', 'Spotify']));

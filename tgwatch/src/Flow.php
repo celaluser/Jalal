@@ -868,12 +868,13 @@ final class Flow
             return;
         }
         if (preg_match('/^sh:(post|skip|edit):(\d+)$/', (string)($cb['data'] ?? ''), $sm)) {
-            $this->safe(fn() => $this->tg->answerCallback((string)$cb['id'], $sm[1] === 'edit' ? 'Metin geliyor…' : 'İşleniyor…'));
             $S = new ImportShare($this->db, $this->tg, $this->config);
-            $reply = '';
+            $reply = 'Hata oluştu, Kayıtlar\'a bak';
             $this->safe(function () use ($S, $sm, &$reply): void {
                 $reply = $sm[1] === 'edit' ? $S->startEdit((int)$sm[2]) : $S->decide((int)$sm[2], $sm[1]);
             });
+            $alert = str_contains($reply, 'ayarlı değil') || str_starts_with($reply, 'Paylaşılamadı');
+            $this->safe(fn() => $this->tg->answerCallback((string)$cb['id'], $reply, $alert));
             $this->db->log('info', 'bot', 'Kanal paylaşımı #' . $sm[2] . ': ' . $reply);
             return;
         }
@@ -925,7 +926,7 @@ final class Flow
             return;
         }
         if ($share && $text !== '' && $text[0] !== '/') {
-            $this->safe(fn() => (new ImportShare($this->db, $this->tg, $this->config))->applyEdit($share, $text));
+            $this->safe(fn() => (new ImportShare($this->db, $this->tg, $this->config))->applyEdit($share, $text, (int)($msg['message_id'] ?? 0)));
             return;
         }
         $editing = (int)$this->db->get('editing_job', '0');

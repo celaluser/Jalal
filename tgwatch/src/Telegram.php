@@ -111,9 +111,14 @@ class Telegram
         $this->call('setMyCommands', ['commands' => $commands]);
     }
 
-    public function answerCallback(string $callbackId, string $text = ''): void
+    public function answerCallback(string $callbackId, string $text = '', bool $alert = false): void
     {
-        $this->call('answerCallbackQuery', ['callback_query_id' => $callbackId, 'text' => $text]);
+        $this->call('answerCallbackQuery', ['callback_query_id' => $callbackId, 'text' => mb_substr($text, 0, 190), 'show_alert' => $alert]);
+    }
+
+    public function deleteMessage(int|string $chatId, int $messageId): void
+    {
+        $this->call('deleteMessage', ['chat_id' => $chatId, 'message_id' => $messageId]);
     }
 
     /** Metin dosyası gönderir (multipart). */
