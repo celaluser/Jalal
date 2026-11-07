@@ -56,6 +56,9 @@ final class BotCommands
             case 'price':
                 $this->price($chat, $arg);
                 return true;
+            case 'balance':
+                $this->balance($chat);
+                return true;
             case 'summary':
                 $this->summary($chat);
                 return true;
@@ -194,6 +197,43 @@ final class BotCommands
         $this->say($chat, $s === null
             ? 'Fiyat formülü yok. Panel → Çeviri bankası → Eşleştirmeyi çalıştır ya da Çeviri ayarları → Fiyat önerisi.'
             : '💲 Sağlayıcı $' . Telegram::esc($n) . ' → önerilen satış <b>$' . rtrim(rtrim(number_format($s, 4, '.', ''), '0'), '.') . '</b>' . "\n" . Telegram::esc((string)$e->formula()));
+    }
+
+    /** Sağlayıcı bakiyeleri: her sağlayıcının API'sine action=balance; para birimine göre toplam. */
+    private function balance(int|string $chat): void
+    {
+        $list = $this->db->all("SELECT * FROM sources WHERE kind = 'provider' ORDER BY name COLLATE NOCASE");
+        if (!$list) {
+            $this->say($chat, 'Sağlayıcı yok. Panelde <b>Kaynaklar</b> bölümünden sağlayıcı (API adresi + anahtar) ekle.');
+            return;
+        }
+        $lines = [];
+        $sum = [];
+        $bad = 0;
+        foreach ($list as $p) {
+            $name = '<b>' . Telegram::esc($p['name']) . '</b>';
+            try {
+                $b = SmmApi::balance($p['api_url'], $p['api_key']);
+                $cur = $b['currency'];
+                $sum[$cur] = ($sum[$cur] ?? 0) + $b['balance'];
+                $lines[] = ($b['balance'] <= 0 ? '🔴' : '🟢') . " $name: <code>" . self::money($b['balance']) . ($cur !== '' ? ' ' . Telegram::esc($cur) : '') . '</code>';
+            } catch (\Throwable $e) {
+                $bad++;
+                $lines[] = "⚠️ $name: " . Telegram::esc(mb_substr($e->getMessage(), 0, 120));
+                $this->db->log('warn', 'bot', 'Bakiye (' . $p['name'] . '): ' . $e->getMessage());
+            }
+        }
+        $s = "💰 <b>Sağlayıcı bakiyeleri</b>\n" . implode("\n", $lines);
+        if (count($list) - $bad > 1) {
+            ksort($sum);
+            $s .= "\n\n<b>Toplam:</b> " . implode(' · ', array_map(static fn($c, $v) => '<code>' . self::money($v) . ($c !== '' ? ' ' . Telegram::esc($c) : '') . '</code>', array_keys($sum), $sum));
+        }
+        $this->say($chat, $s . "\n<i>" . date('d.m.Y H:i') . '</i>');
+    }
+
+    private static function money(float $v): string
+    {
+        return number_format($v, abs($v) < 1 ? 4 : 2, '.', ' ');
     }
 
     private function summary(int|string $chat): void

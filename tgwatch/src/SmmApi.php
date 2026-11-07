@@ -32,6 +32,43 @@ final class SmmApi
         return self::parse($r['body'], $r['status']);
     }
 
+    /**
+     * Sağlayıcıdaki bakiye: POST key=…&action=balance → {"balance":"100.84","currency":"USD"}.
+     * @return array{balance:float,currency:string}
+     */
+    public static function balance(string $url, string $key, int $timeout = 12): array
+    {
+        if (!preg_match('~^https://~i', $url)) {
+            throw new \InvalidArgumentException('API adresi https:// ile başlamalı');
+        }
+        if (self::$fake !== null) {
+            return self::parseBalance((string)(self::$fake)($url, $key, 'balance'));
+        }
+        $r = Http::request('POST', $url, ['Content-Type: application/x-www-form-urlencoded', 'Accept: application/json'],
+            http_build_query(['key' => $key, 'action' => 'balance']), $timeout);
+        if ($r['error'] !== '') {
+            throw new \RuntimeException('Bağlantı hatası: ' . $r['error']);
+        }
+        return self::parseBalance($r['body'], $r['status']);
+    }
+
+    public static function parseBalance(string $body, int $status = 200): array
+    {
+        $d = json_decode($body, true);
+        if (is_array($d) && isset($d['error'])) {
+            throw new \RuntimeException('Panel hatası: ' . (is_string($d['error']) ? $d['error'] : json_encode($d['error'])));
+        }
+        $b = is_array($d) ? ($d['balance'] ?? null) : null;
+        if (is_string($b)) {
+            $b = str_replace([',', ' '], ['.', ''], $b);
+        }
+        if ($status !== 200 || !is_numeric($b)) {
+            throw new \RuntimeException('Beklenmeyen cevap (HTTP ' . $status . '): ' . mb_substr(trim(strip_tags($body)), 0, 120));
+        }
+        $cur = strtoupper(trim((string)($d['currency'] ?? '')));
+        return ['balance' => (float)$b, 'currency' => preg_match('/^[A-Z$€₺₼]{1,5}$/u', $cur) ? $cur : ''];
+    }
+
     /** API cevabını okur (ağdan bağımsız, test edilebilir). */
     public static function parse(string $body, int $status = 200): array
     {

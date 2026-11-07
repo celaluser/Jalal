@@ -19,6 +19,7 @@ final class BotRegistry
         'reject' => ['İşi reddet', 'NO', 'İş numarasını reddeder'],
         'search' => ['İşlerde ara', 'ID/kelime', 'Servis ID ya da kelimeyle işlerde arar'],
         'price' => ['Fiyat önerisi', '0.44', 'Sağlayıcı fiyatından önerilen satış fiyatını hesaplar'],
+        'balance' => ['Sağlayıcı bakiyeleri', '', 'Eklediğin sağlayıcıların güncel bakiyesini sorar, hepsini tek mesajda yazar'],
         'summary' => ['Özet', '', 'Bugünün ve genel durumun özeti, sorun varsa listeler'],
         'status' => ['İş sayıları', '', 'Duruma göre iş sayıları ve son cron zamanı'],
         'channels' => ['Kanal durumu', '', 'Kanalların okunma durumu'],
@@ -43,6 +44,7 @@ final class BotRegistry
             $d('is', 'job_show', 'İş numarasını onay butonlarıyla göster'),
             $d('onayla', 'approve', 'İşi onayla (/onayla 5)'),
             $d('reddet', 'reject', 'İşi reddet (/reddet 5)'),
+            $d('balans', 'balance', 'Sağlayıcı bakiyeleri'),
             $d('fiyat', 'price', 'Önerilen satış fiyatı (/fiyat 0.44)'),
             $d('kanallar', 'channels', 'Kanalların durumu'),
             $d('degisiklik', 'notices', 'Fiyat/kapanma bildirimleri'),
@@ -59,6 +61,14 @@ final class BotRegistry
         $v = $db->getJson('bot_commands');
         if (!is_array($v) || !isset($v['list']) || !is_array($v['list'])) {
             return self::defaults();
+        }
+        if (($v['v'] ?? 1) < 2) { // yeni komut (/balans) eski kayıtlı listeye bir kez eklenir; silinirse geri gelmez
+            $names = array_column($v['list'], 'name');
+            if (!in_array('balance', array_column($v['list'], 'action'), true) && !in_array('balans', $names, true) && count($v['list']) < 40) {
+                $v['list'][] = ['name' => 'balans', 'action' => 'balance', 'enabled' => true, 'desc' => 'Sağlayıcı bakiyeleri', 'text' => ''];
+            }
+            $v['v'] = 2;
+            $db->setJson('bot_commands', $v);
         }
         $out = [];
         foreach ($v['list'] as $c) {
@@ -145,13 +155,13 @@ final class BotRegistry
         if ($errors) {
             return $errors;
         }
-        $db->setJson('bot_commands', ['on' => $masterOn, 'list' => $list]);
+        $db->setJson('bot_commands', ['on' => $masterOn, 'list' => $list, 'v' => 2]);
         return [];
     }
 
     public static function reset(Db $db): void
     {
-        $db->setJson('bot_commands', ['on' => true, 'list' => self::defaults()]);
+        $db->setJson('bot_commands', ['on' => true, 'list' => self::defaults(), 'v' => 2]);
     }
 
     /** Telegram "/" menüsü için liste. @return list<array{command:string,description:string}> */

@@ -1528,6 +1528,41 @@ test('Kayıt defteri: varsayılanlar, doğrulama, takma ad, kapatma, sabit cevap
     eq('Beklenenler', $menu[0]['description']);
     eq('Sabit cevap', $menu[2]['description']);
 });
+test('/balans: her sağlayıcının bakiyesi tek mesajda, hatalı olan ayrı satırda, para birimine göre toplam', function () {
+    [$db, $tg, $flow] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('own','panelim','https://own','k',1),('provider','Bprov','https://b.example/api/v2','kb',1),('provider','aprov','https://a.example/api/v2','ka',1),('provider','Cprov','https://c.example/api/v2','kc',1),('provider','Dprov','https://d.example/api/v2','kd',1)");
+    $asked = [];
+    TgWatch\SmmApi::$fake = static function (string $url, string $key, string $action = 'services') use (&$asked) {
+        $asked[] = $action . ':' . $key;
+        return match ($url) {
+            'https://a.example/api/v2' => '{"balance":"12.5","currency":"USD"}',
+            'https://b.example/api/v2' => '{"balance":"1 250,75","currency":"try"}',
+            'https://c.example/api/v2' => '{"error":"Incorrect API key"}',
+            default => '{"balance":3,"currency":"USD"}',
+        };
+    };
+    try {
+        $flow->handleUpdate(msg(1, OWNER, '/balans'));
+    } finally {
+        TgWatch\SmmApi::$fake = null;
+    }
+    $t = lastText($tg);
+    eq(['balance:ka', 'balance:kb', 'balance:kc', 'balance:kd'], $asked, 'yalnızca sağlayıcılar, ada göre sıralı; kendi panel sorulmaz');
+    ok(str_contains($t, 'aprov</b>: <code>12.50 USD</code>'), $t);
+    ok(str_contains($t, 'Bprov</b>: <code>1 250.75 TRY</code>'), $t);
+    ok(str_contains($t, '⚠️ <b>Cprov</b>: Panel hatası: Incorrect API key'), $t);
+    ok(str_contains($t, 'Toplam:</b> <code>1 250.75 TRY</code> · <code>15.50 USD</code>'), $t);
+    ok(!str_contains($t, 'panelim'));
+});
+test('/balans: sağlayıcı yoksa yol gösterir; eski kayıtlı komut listesine bir kez eklenir', function () {
+    [$db, $tg, $flow] = env();
+    $flow->handleUpdate(msg(1, OWNER, '/balans'));
+    ok(str_contains(lastText($tg), 'Sağlayıcı yok'));
+    $db->setJson('bot_commands', ['on' => true, 'list' => [['name' => 'oz', 'action' => 'summary', 'enabled' => true, 'desc' => '', 'text' => '']]]);
+    eq(['oz', 'balans'], array_column(TgWatch\BotRegistry::load($db), 'name'));
+    TgWatch\BotRegistry::save($db, [['name' => 'oz', 'action' => 'summary', 'enabled' => '1']], true);
+    eq(['oz'], array_column(TgWatch\BotRegistry::load($db), 'name'), 'kullanıcı silerse geri gelmez');
+});
 test('Ana anahtar kapalıyken hiçbir komut çalışmaz; /yardim yalnızca açık olanları sayar; varsayılana dönülür', function () {
     [$db, $tg, $flow] = env();
     TgWatch\BotRegistry::save($db, [['name' => 'yardim', 'action' => 'help', 'enabled' => '1'], ['name' => 'oz', 'action' => 'summary']], true);
