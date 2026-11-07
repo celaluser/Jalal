@@ -49,3 +49,12 @@ p{margin:0}
 .upd{border-color:color-mix(in srgb,var(--rovend) 45%,var(--line))}
 .upd .card-h{color:var(--rovend)}
 .steps{margin:6px 0 0;padding-left:18px;color:var(--mut);font-size:12px}.steps li{margin:2px 0}.steps b{color:var(--ink)}
+.tabs{display:flex;gap:2px;margin:0 0 10px;border-bottom:1px solid var(--line)}
+.tabs button{position:relative;flex:1;height:32px;padding:0 4px;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;background:transparent;color:var(--mut);font:600 12.5px system-ui,sans-serif;cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--rovend)}
+.tabs button:hover{color:var(--ink)}
+.tabs button:focus-visible{outline:2px solid var(--zefer);outline-offset:-2px;border-radius:6px}
+.tabs .dot{position:absolute;top:3px;right:0;width:7px;height:7px;border-radius:50%;background:var(--rovend)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0 0 6px;font-size:12.5px}.kv dt{color:var(--mut)}.kv dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
+.kv dd.new{color:var(--rovend)}
+.muted.small a,.foot a{color:var(--nila)}

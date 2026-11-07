@@ -2195,6 +2195,10 @@ test('Eklenti API: anahtar, çeviri (banka/kural/yok), öğrenme ve sınırlar',
     $api = new TgWatch\ExtApi($db, ['panel_name' => 'test']);
     eq([200, true], [$api->handle(['action' => 'ping'])[0], $api->handle(['action' => 'ping'])[1]['ok']]);
     ok(preg_match('/^\d+\.\d+/', $api->handle(['action' => 'ping'])[1]['ext']) === 1, 'ping sunucudaki eklenti sürümünü söyler');
+    [$c, $x] = $api->handle(['action' => 'ext_files']);
+    $paths = array_column($x['files'], 'path');
+    ok($c === 200 && in_array('manifest.json', $paths, true) && in_array('icons/16.png', $paths, true) && !in_array('.htaccess', $paths, true), 'eklenti dosyaları: ' . implode(',', $paths));
+    eq($x['version'], json_decode(base64_decode($x['files'][array_search('manifest.json', $paths, true)]['b64']), true)['version']);
     eq(400, $api->handle(['action' => 'yok'])[0]);
     eq(400, $api->handle(['action' => 'translate', 'items' => 'x'])[0]);
     eq(400, $api->handle(['action' => 'translate', 'items' => array_fill(0, 1001, ['id' => 1, 'name' => 'a'])])[0], 'en çok 1000');

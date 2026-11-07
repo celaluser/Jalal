@@ -24,7 +24,6 @@ async function init() {
     $('tab-msg').textContent = 'Önce bağlantı ayarlarını gir (aşağıda).';
     return;
   }
-  balances(false);
   showUpd((await get({ upd: null })).upd);
   chrome.runtime.sendMessage({ type: 'api', action: 'ping' }, (r) => {
     if (r && r.ok && r.ext !== undefined) {
@@ -58,7 +57,6 @@ function ago(t) {
 function drawBal(b) {
   const list = $('bal-list');
   list.textContent = '';
-  $('bal').hidden = false;
   if (!b.items.length) {
     $('bal-msg').textContent = 'tgwatch\'ta sağlayıcı yok (Ayarlar → Kaynaklar).';
     $('bal-tot').hidden = true;
@@ -96,7 +94,6 @@ async function balances(force) {
   const { bal } = await get({ bal: null });
   if (bal && bal.items) drawBal(bal);
   if (!force && bal && Date.now() - bal.at * 1000 < 10 * 60000) return;
-  $('bal').hidden = false;
   $('bal-ref').disabled = true;
   $('bal-msg').textContent = 'Bakiyeler soruluyor…';
   chrome.runtime.sendMessage({ type: 'api', action: 'balance' }, (r) => {
@@ -122,15 +119,45 @@ function newerV(a, b) {
 }
 function showUpd(u) {
   const mine = chrome.runtime.getManifest().version;
-  if (!u || !u.has || !newerV(u.latest, mine)) { $('upd').hidden = true; return; }
-  $('upd').hidden = false;
-  $('upd-msg').textContent = 'tgwatch\'ta ' + u.latest + ' var, sende ' + mine + '.';
+  $('v-mine').textContent = mine;
+  if (u && u.latest !== undefined) $('v-server').textContent = u.latest || 'bilinmiyor';
+  const has = !!(u && u.has && newerV(u.latest, mine));
+  $('upd-dot').hidden = !has;
+  $('v-server').className = has ? 'new' : '';
+  $('upd-msg').textContent = has ? 'Yeni sürüm hazır: ' + u.latest + '.' : (u && u.latest ? 'Eklenti güncel.' : '');
 }
-$('upd-dl').onclick = () => {
+$('upd-go').onclick = () => { chrome.tabs.create({ url: chrome.runtime.getURL('update.html') }); window.close(); };
+$('upd-dl').onclick = (e) => {
+  e.preventDefault();
   if (!tgBase) { $('upd-msg').textContent = 'tgwatch adresi bilinmiyor: Bağlantı ayarlarını kontrol et.'; return; }
   chrome.tabs.create({ url: tgBase + '?p=ext_zip' });
 };
-$('upd-reload').onclick = () => chrome.runtime.sendMessage({ type: 'reload' }, () => { void chrome.runtime.lastError; window.close(); });
+$('upd-reload').onclick = (e) => { e.preventDefault(); chrome.runtime.sendMessage({ type: 'reload' }, () => { void chrome.runtime.lastError; window.close(); }); };
+
+$('v-mine').textContent = chrome.runtime.getManifest().version;
+
+// ---- sekmeler (son açılan hatırlanır) ----
+let balLoaded = false;
+function showTab(name) {
+  for (const b of document.querySelectorAll('.tabs [role=tab]')) {
+    const on = b.dataset.tab === name;
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+    b.tabIndex = on ? 0 : -1;
+    $(b.getAttribute('aria-controls')).hidden = !on;
+  }
+  if (name === 'bal' && !balLoaded) { balLoaded = true; balances(false); }
+  try { chrome.storage.local.set({ popTab: name }); } catch (e) { /* yok */ }
+}
+for (const b of document.querySelectorAll('.tabs [role=tab]')) {
+  b.addEventListener('click', () => showTab(b.dataset.tab));
+  b.addEventListener('keydown', (e) => {
+    const all = [...document.querySelectorAll('.tabs [role=tab]')];
+    const i = all.indexOf(b);
+    const j = e.key === 'ArrowRight' ? (i + 1) % all.length : e.key === 'ArrowLeft' ? (i + all.length - 1) % all.length : -1;
+    if (j >= 0) { e.preventDefault(); all[j].focus(); showTab(all[j].dataset.tab); }
+  });
+}
+get({ popTab: 'panel' }).then((s) => showTab(['panel', 'bal', 'set', 'upd'].includes(s.popTab) ? s.popTab : 'panel'));
 
 function refresh() {
   if (!tabId) return;

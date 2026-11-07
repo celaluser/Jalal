@@ -12,6 +12,7 @@ namespace TgWatch;
  *   teach      → {en, az} → sözlüğe terim ekler (bilinmeyen kelimeyi satırda düzeltme); {en, keep:true} → "olduğu gibi kalsın" listesine
  *   balance    → sağlayıcı bakiyeleri (bot /balans ile aynı)
  *   imported   → import bitti: bota özet, kanal paylaşımı (ImportShare)
+ *   ext_files  → sunucudaki chrome-extension dosyaları (base64): eklenti kendi klasörünü bunlarla günceller
  */
 final class ExtApi
 {
@@ -40,6 +41,7 @@ final class ExtApi
                 'teach' => [200, ['ok' => true] + $this->teach($req)],
                 'balance' => [200, ['ok' => true] + Balances::check($this->db)],
                 'imported' => [200, ['ok' => true] + (new ImportShare($this->db, $this->tg ?? App::telegram(), $this->config))->report($req)],
+                'ext_files' => [200, ['ok' => true] + self::extFiles()],
                 default => [400, ['ok' => false, 'error' => 'Bilinmeyen işlem']],
             };
         } catch (\InvalidArgumentException $e) {
@@ -198,5 +200,27 @@ final class ExtApi
         $f = (defined('TGWATCH_ROOT') ? TGWATCH_ROOT : dirname(__DIR__)) . '/chrome-extension/manifest.json';
         $m = is_file($f) ? json_decode((string)file_get_contents($f), true) : null;
         return is_array($m) && preg_match('/^\d+(\.\d+){0,3}$/', (string)($m['version'] ?? '')) ? (string)$m['version'] : '';
+    }
+
+    /** Eklentinin güncelleme sayfası için sunucudaki eklenti dosyaları (yalnızca eklenti dosya türleri). */
+    public static function extFiles(): array
+    {
+        $dir = (defined('TGWATCH_ROOT') ? TGWATCH_ROOT : dirname(__DIR__)) . '/chrome-extension';
+        if (!is_dir($dir)) {
+            throw new \InvalidArgumentException('Sunucuda chrome-extension klasörü yok: tgwatch-guncelleme.zip\'i tgwatch klasörüne aç.');
+        }
+        $files = [];
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS));
+        foreach ($it as $f) {
+            $rel = str_replace('\\', '/', substr($f->getPathname(), strlen($dir) + 1));
+            if (str_starts_with($f->getFilename(), '.') || !preg_match('~^[A-Za-z0-9_\-/]+\.(js|css|html|json|png|svg)$~', $rel) || $f->getSize() > 2_000_000) {
+                continue;
+            }
+            $files[] = ['path' => $rel, 'b64' => base64_encode((string)file_get_contents($f->getPathname()))];
+        }
+        if (count($files) > 200) {
+            throw new \InvalidArgumentException('Eklenti klasöründe beklenmeyen kadar çok dosya var');
+        }
+        return ['version' => self::extVersion(), 'files' => $files];
     }
 }
