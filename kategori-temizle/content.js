@@ -6,7 +6,7 @@
   if (window.__katTemizle) return;
   window.__katTemizle = true;
 
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
   const SETTINGS_KEY = 'kt_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const HANDLE = '.service-table__handle, [class*="__handle"], .handle, .drag-handle';
@@ -16,7 +16,30 @@
   // ---------------------------------------------------------------- yardımcılar
   const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
   const lower = (s) => norm(s).toLowerCase().replace(/i̇/g, 'i');
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Arka plan sekmesi: sayfanın zamanlayıcıları kısılır. Her bekleme hem burada hem service worker'da başlar;
+  // hangisi önce biterse o sayılır (önde: sayfa, arkada: service worker). Bağlantı koparsa sayfa zamanlayıcısı yeter.
+  let port = null; let seq = 0;
+  const waiters = new Map();
+  function getPort() {
+    if (port) return port;
+    try {
+      port = chrome.runtime.connect({ name: 'kt' });
+      port.onMessage.addListener((m) => { const f = m && m.t === 'wake' && waiters.get(m.id); if (f) f(); });
+      port.onDisconnect.addListener(() => { void chrome.runtime.lastError; port = null; });
+    } catch (e) { port = null; }
+    return port;
+  }
+  const sleep = (ms) => new Promise((resolve) => {
+    const id = ++seq;
+    let h = null;
+    const fin = () => { if (!waiters.has(id)) return; waiters.delete(id); clearTimeout(h); resolve(); };
+    waiters.set(id, fin);
+    h = setTimeout(fin, ms);
+    const p = getPort();
+    if (p) { try { p.postMessage({ t: 'sleep', id, ms }); } catch (e) { port = null; } }
+  });
+  /** İş sürerken sekme otomatik kapatılmasın (Bellek Tasarrufu). */
+  function busy(on) { const p = getPort(); if (p) { try { p.postMessage({ t: 'busy', on }); } catch (e) { port = null; } } }
   const btnText = (b) => norm(b.innerText !== undefined ? b.innerText : b.textContent);
   const visible = (el) => !!el && el.isConnected && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
   const catKey = (s) => lower(s).replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/(^| )(new|yeni)(?= |$)/g, ' ').replace(/\s+/g, ' ').trim();
@@ -205,6 +228,17 @@
   }
 
   /**
+   * Kaydır ve "scroll" olayını hemen tetikle: arka plandaki sekmede Chrome scroll olayını bir sonraki çizime kadar
+   * geciktirir; sanallaştırılmış liste bu olayla yeni satırları çizdiği için beklemeden haber verilir.
+   */
+  function setScroll(box, top) {
+    box.scrollTop = top;
+    const target = box === document.scrollingElement ? window : box;
+    try { target.dispatchEvent(new Event('scroll')); } catch (e) { /* yok */ }
+  }
+  function nudgeScroll() { const b = getBox(); try { (b === document.scrollingElement ? window : b).dispatchEvent(new Event('scroll')); } catch (e) { /* yok */ } }
+
+  /**
    * "Yalnızca kategoriler" görünümü: başlıktaki düğme servisleri açıp kapatır. Servisler açıkken panel kategori satırlarını göstermez.
    * Servis satırında kutucuk var; başlıkta bir kutucuk (hepsini seç) her zaman var → >1 kutucuk = servisler açık.
    */
@@ -225,13 +259,13 @@
    */
   async function walk(onStep) {
     const box = getBox();
-    box.scrollTop = 0;
+    setScroll(box, 0);
     await sleep(350);
     if (onStep()) return true;
     let stable = 0;
     for (let i = 0; i < 3000 && !S.stop; i++) {
       const before = box.scrollTop;
-      box.scrollTop = before + Math.max(150, Math.floor(box.clientHeight * 0.7));
+      setScroll(box, before + Math.max(150, Math.floor(box.clientHeight * 0.7)));
       await sleep(170);
       if (onStep()) return true;
       const atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 4 || box.scrollTop === before;
@@ -332,7 +366,7 @@
 
   async function scan() {
     if (S.running) return;
-    S.running = true; S.stop = false; S.phase = 'scanning';
+    S.running = true; S.stop = false; S.phase = 'scanning'; busy(true);
     S.candidates = []; S.stats = null; S.notes = []; S.diagNeeded = false;
     S.res = { deleted: [], dry: [], skipped: [], errors: [], pending: [] };
     try {
@@ -377,7 +411,7 @@
         S.candidates.push({ name: e.name, id: e.id });
       });
       S.stats = { kategori: real.length, aktif: real.length - pasif.length, pasif: pasif.length, pasifDolu: dolu, bos: S.candidates.length };
-      box.scrollTop = 0;
+      setScroll(box, 0);
       S.phase = 'ready';
       setStatus(S.candidates.length
         ? S.candidates.length + ' boş pasif kategori bulundu. Henüz hiçbir şey silinmedi.'
@@ -385,7 +419,7 @@
     } catch (e) {
       log(String(e && e.stack).slice(0, 400)); fail('Tarama hatası: ' + (e && e.message) + ' [' + String((e && e.stack || '').split('\n')[1] || '').trim().slice(-60) + ']');
     } finally {
-      S.running = false;
+      S.running = false; busy(false);
       render();
     }
   }
@@ -410,6 +444,7 @@
     const p = await prepare(name, id);
     if (p.kind !== 'ok') return p;
     p.row.el.scrollIntoView({ block: 'center' });
+    nudgeScroll();
     await waitFor(() => findByName(name, id).hits.length === 1, 3000, 100);
     await sleep(300);
 
@@ -476,7 +511,7 @@
   async function run() {
     if (S.running || S.phase !== 'ready' || !S.candidates.length) return;
     if (anyDialog()) return fail('Açık bir pencere var; önce kapat.');
-    S.running = true; S.stop = false; S.phase = 'deleting'; S.diagNeeded = false;
+    S.running = true; S.stop = false; S.phase = 'deleting'; S.diagNeeded = false; busy(true);
     S.res = { deleted: [], dry: [], skipped: [], errors: [], pending: [] };
     const list = S.candidates.slice();
     const max = settings.max;
@@ -506,7 +541,7 @@
     } catch (e) {
       fail('Silme hatası: ' + (e && e.message));
     } finally {
-      S.running = false; S.stop = false;
+      S.running = false; S.stop = false; busy(false);
       render();
     }
   }

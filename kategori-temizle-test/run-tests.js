@@ -66,9 +66,9 @@ const bar = (page, sel) => page.locator('#kt-host >> ' + sel);
 const status = (page) => bar(page, '#st').innerText();
 async function scan(page) {
   await bar(page, '[data-a=scan]').click();
-  await page.waitForFunction(() => { const s = document.querySelector('#kt-host').shadowRoot.querySelector('#st'); return s && /bulundu|yok|⚠/.test(s.textContent); }, null, { timeout: 60000 });
+  await page.waitForFunction(() => { const s = document.querySelector('#kt-host').shadowRoot.querySelector('#st'); return s && /bulundu|yok|⚠/.test(s.textContent); }, null, { timeout: 60000, polling: 200 });
 }
-const done = (page) => page.waitForFunction(() => /Bitti|Durduruldu\./.test(document.querySelector('#kt-host').shadowRoot.querySelector('#st').textContent), null, { timeout: 120000 }).catch(async (e) => { console.log('--- ZAMAN AŞIMI, çubuk:\n' + await page.locator('#kt-host >> #bar').innerText().catch(() => '?') + '\nsunucu: ' + JSON.stringify(await page.evaluate(() => ({ d: window.__server.deleted, a: window.__server.attempts, o: window.__server.dialogsOpened }))) ); throw e; });
+const done = (page) => page.waitForFunction(() => /Bitti|Durduruldu\./.test(document.querySelector('#kt-host').shadowRoot.querySelector('#st').textContent), null, { timeout: 120000, polling: 200 }).catch(async (e) => { console.log('--- ZAMAN AŞIMI, çubuk:\n' + await page.locator('#kt-host >> #bar').innerText().catch(() => '?') + '\nsunucu: ' + JSON.stringify(await page.evaluate(() => ({ d: window.__server.deleted, a: window.__server.attempts, o: window.__server.dialogsOpened }))) ); throw e; });
 const server = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__server)));
 const setDry = async (page, v) => { const cb = bar(page, '[data-s=dry]'); if ((await cb.isChecked()) !== v) await cb.click(); };
 const lists = (page) => bar(page, '.list').first().innerText();
@@ -76,8 +76,10 @@ const lists = (page) => bar(page, '.list').first().innerText();
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kt-'));
   const ctx = await chromium.launchPersistentContext(dir, {
-    channel: 'chromium', headless: true, viewport: { width: 1100, height: 520 },
+    channel: 'chromium', headless: !process.env.HEADED, viewport: { width: 1100, height: 520 },
     args: ['--disable-extensions-except=' + EXT, '--load-extension=' + EXT, '--no-sandbox'],
+    // HEADED: Playwright'ın arka plan kısıtlamasını kapatan bayrakları kaldır (gerçek Chrome gibi kısılsın)
+    ignoreDefaultArgs: process.env.HEADED ? ['--disable-background-timer-throttling', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding'] : [],
   });
   const t0 = Date.now();
 
@@ -236,7 +238,7 @@ const lists = (page) => bar(page, '.list').first().innerText();
     eq(s.dialogsCancelled.length, 3, '3 kategoride iptal edildi');
     const dgn = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { kt: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(dgn.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.0.0' && dj.satirTurleri && dj.actionsZinciri, 'teşhis metni hatasız üretildi (JSON)');
+    ok(dj && dj.surum === '1.1.0' && dj.satirTurleri && dj.actionsZinciri, 'teşhis metni hatasız üretildi (JSON)');
     await pop.close(); await p.close();
   }
 
@@ -274,6 +276,32 @@ const lists = (page) => bar(page, '.list').first().innerText();
     ok(s.deleted.includes('Dup Cat [ YENİ ]') && s.deleted.includes('Dup Cat [ Yeni ]'), 'ikisi de silindi');
     eq(s.violations, [], 'ihlal yok');
     await p.close();
+  }
+
+  console.log('T15 sekme arka plandayken (başka sekme önde) tarama + silme sürer; beklemeler service worker ile');
+  if (want('T15')) {
+    const sw = ctx.serviceWorkers()[0] || await ctx.waitForEvent('serviceworker');
+    const t0sw = await sw.evaluate(() => self.__ticks);
+    const p = await newPage(ctx, { virtual: true, delay: 500 });
+    // aynı pencerede yeni sekme aç ve öne getir (gerçek sekme değişimi)
+    const otherP = ctx.waitForEvent('page');
+    await sw.evaluate(async () => { const [t] = await chrome.tabs.query({ url: 'https://panelbaku.com/*' }); await chrome.tabs.create({ url: 'about:blank', active: true, windowId: t.windowId }); });
+    const other = await otherP;
+    await p.waitForFunction(() => document.visibilityState === 'hidden', null, { timeout: 5000, polling: 100 }).catch(() => {});
+    console.log('    (bilgi) panel sekmesi visibilityState: ' + await p.evaluate(() => document.visibilityState) + ' — Playwright sayfaları görünür gösterir; gerçek gizlilik burada ölçülemez)');
+    // düğmelere arka plandayken bas (mini panelin yaptığı gibi): tıklama yerine DOM click
+    await p.evaluate(() => document.querySelector('#kt-host').shadowRoot.querySelector('[data-a=scan]').click());
+    await p.waitForFunction(() => /bulundu|yok|⚠/.test(document.querySelector('#kt-host').shadowRoot.querySelector('#st').textContent), null, { timeout: 120000, polling: 300 });
+    await p.evaluate(() => { const r = document.querySelector('#kt-host').shadowRoot; const cb = r.querySelector('[data-s=dry]'); cb.click(); });
+    await p.evaluate(() => document.querySelector('#kt-host').shadowRoot.querySelector('[data-a=run]').click());
+    await done(p);
+    const s = await server(p);
+    eq(sorted(s.deleted), sorted(EXPECT), 'arka planda da tam küme silindi');
+    if (s.deleted.length !== EXPECT.length) console.log(await p.evaluate(() => document.querySelector('#kt-host').shadowRoot.querySelector('#bar').innerText));
+    eq(s.violations, [], 'ihlal yok');
+    const ticks = (await sw.evaluate(() => self.__ticks)) - t0sw;
+    ok(ticks > 50, 'beklemeler service worker üzerinden (' + ticks + ' uyanış)');
+    await other.close(); await p.close();
   }
 
   console.log('T11 Services dışı sayfada çubuk yok');

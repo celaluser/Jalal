@@ -16,6 +16,13 @@ Perfect Panel **Services** sayfasında (`https://panelbaku.com/admin/services`) 
 4. **En çok N** (varsayılan 50): bir çalıştırmada en çok N kategori.
 5. Bir şey bulunamazsa/takılırsa **Teşhisi kopyala** düğmesi çıkar; panoya kopyalanan metni sohbete yapıştır.
 
+## Arka planda çalışma
+Başka sekmeye geçsen de iş sürer (panel sekmesi açık kalmalı):
+- Chrome arka plandaki sekmenin zamanlayıcılarını kısar; eklentinin beklemeleri bu yüzden arka plan service worker'ında yapılır.
+- Arka planda geciken kaydırma olayı elle tetiklenir (sanallaştırılmış liste satırları çizsin).
+- İş sürerken sekmenin Bellek Tasarrufu ile otomatik kapatılması engellenir; bitince eski hâline döner.
+- Sekmeyi kapatırsan ya da sayfayı yenilersen iş durur.
+
 ## Güvenlik kuralları
 - Her silmeden hemen önce (ve onay penceresi açıkken bir kez daha) kategori adından yeniden bulunur; hâlâ **tek**, **ad aynı**, **pasif** ve **boş** değilse atlanır, nedeni yazılır.
 - Hiçbir satırda "Expand (N)" görünmüyorsa (boşluk doğrulanamaz) hiçbir şey yapılmaz. Hepsi pasif görünüyorsa renk ayrımına güvenilmez, durur.
@@ -28,5 +35,6 @@ Perfect Panel **Services** sayfasında (`https://panelbaku.com/admin/services`) 
 
 ```bash
 cd kategori-temizle-test && npm i && node run-tests.js      # tek test: node run-tests.js T3
+HEADED=1 xvfb-run -a node run-tests.js T15                # gerçek pencerede sekme değişimi
 ```
 (Playwright'ın kurulu olması gerekir; gerçek eklenti Chromium'a yüklenir.)
