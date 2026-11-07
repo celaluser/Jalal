@@ -62,7 +62,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
   if (msg.type === 'stat') {
-    bump({ translated: Number(msg.translated) || 0 }).then(() => sendResponse({ ok: true }));
+    bump({ translated: Number(msg.translated) || 0, learned: Number(msg.learned) || 0 }).then(() => sendResponse({ ok: true }));
     return true;
   }
   if (msg.type === 'register') {

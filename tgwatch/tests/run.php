@@ -2014,6 +2014,37 @@ test('Rakipten öğren: sağlayıcı ya da rakip yoksa açık hata; reddedilen �
     eq(0, $L->readiness()['rivals']);
 });
 echo "Chrome eklentisi API\n";
+test('Eklenti API: teach bilinmeyen kelimeyi sözlüğe ekler (eski karşılığı değiştirir, ya da olduğu gibi bırakır); balance sağlayıcı bakiyeleri', function () {
+    [$db] = env();
+    $api = new TgWatch\ExtApi($db, []);
+    [, $b] = $api->handle(['action' => 'translate', 'items' => [['id' => 1, 'name' => 'Instagram Followers | Zorbly Quality']]]);
+    ok(in_array('Zorbly', $b['items'][0]['unknown'], true) || in_array('zorbly', array_map('mb_strtolower', $b['items'][0]['unknown']), true), json_encode($b['items'][0], JSON_UNESCAPED_UNICODE));
+    eq(400, $api->handle(['action' => 'teach', 'en' => '', 'az' => 'x'])[0]);
+    eq(400, $api->handle(['action' => 'teach', 'en' => 'Zorbly', 'az' => ''])[0], 'boş karşılık');
+    [$c, $t] = $api->handle(['action' => 'teach', 'en' => '  zorbly   quality ', 'az' => 'Zorbli  Keyfiyyət']);
+    eq([200, 'zorbly quality', 'Zorbli Keyfiyyət'], [$c, $t['en'], $t['az']]);
+    [, $b] = $api->handle(['action' => 'translate', 'items' => [['id' => 1, 'name' => 'Instagram Followers | Zorbly Quality']]]);
+    ok(str_contains($b['items'][0]['az'], 'Zorbli Keyfiyyət') && !$b['items'][0]['unknown'], json_encode($b['items'][0], JSON_UNESCAPED_UNICODE));
+    $api->handle(['action' => 'teach', 'en' => 'Zorbly Quality', 'az' => 'Yeni Karşılık']);
+    $ph = array_filter(TgWatch\Dictionary::load($db)['phrases'], static fn($k) => mb_strtolower((string)$k) === 'zorbly quality', ARRAY_FILTER_USE_KEY);
+    eq(['Zorbly Quality' => 'Yeni Karşılık'], $ph, 'aynı kelimenin eski karşılığı değişir, çift kayıt olmaz');
+    $api->handle(['action' => 'teach', 'en' => 'Qwopz', 'keep' => true]);
+    ok(in_array('Qwopz', TgWatch\Dictionary::load($db)['keep'], true));
+    [, $b] = $api->handle(['action' => 'translate', 'items' => [['id' => 1, 'name' => 'Instagram Qwopz Followers']]]);
+    ok(!in_array('Qwopz', $b['items'][0]['unknown'], true), 'olduğu gibi kalsın: artık bilinmeyen sayılmaz');
+
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('provider','P1','https://p1','k',1),('provider','P2','https://p2','k',1)");
+    TgWatch\SmmApi::$fake = static fn(string $url) => $url === 'https://p1' ? '{"balance":"4.5","currency":"USD"}' : 'oops';
+    try {
+        [$c, $b] = $api->handle(['action' => 'balance']);
+    } finally {
+        TgWatch\SmmApi::$fake = null;
+    }
+    eq(200, $c);
+    eq([4.5, 'USD', ''], [$b['items'][0]['balance'], $b['items'][0]['currency'], $b['items'][0]['error']]);
+    ok($b['items'][1]['balance'] === null && $b['items'][1]['error'] !== '');
+    eq(['USD' => 4.5], $b['totals']);
+});
 test('Eklenti API: anahtar, çeviri (banka/kural/yok), öğrenme ve sınırlar', function () {
     [$db] = env();
     ok(!TgWatch\ExtApi::authorized(['ext_key' => ''], ''), 'anahtar tanımlı değilse kapalı');

@@ -17,7 +17,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const btnText = (b) => norm(b.innerText !== undefined ? b.innerText : b.textContent);
   const visible = (el) => !!el && el.isConnected && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-  const ours = (el) => !!(el.closest && el.closest('.tgw-bar, .tgw-badge, .tgw-orig, .tgw-cbar, .tgw-side'));
+  const ours = (el) => !!(el.closest && el.closest('.tgw-bar, .tgw-badge, .tgw-orig, .tgw-cbar, .tgw-side, .tgw-word, .tgw-pop'));
 
   function h(tag, cls, text) {
     const el = document.createElement(tag);
@@ -226,7 +226,10 @@
     row.el.classList.toggle('tgw-hide', !!(bar && bar.classList.contains('tgw-only-issues')) && (mk.kind === 'ok' || mk.kind === 'done'));
     const host = row.header.el;
     let badge = host.querySelector(':scope > .tgw-badge');
-    if (row.el.classList.contains('tgw-row-' + mk.kind) && badge && badge.dataset.kind === mk.kind) return;
+    const st0 = state.get(row.id) || {};
+    const words = (mk.kind === 'warn' || mk.kind === 'bad') ? (st0.unknown || []).slice(0, 5) : [];
+    const sig = mk.kind + '|' + words.join('|') + '|' + (st0.filled ? 1 : 0);
+    if (row.el.classList.contains('tgw-row-' + mk.kind) && badge && badge.dataset.sig === sig) return;
     row.el.classList.remove('tgw-row-ok', 'tgw-row-warn', 'tgw-row-bad', 'tgw-row-done');
     row.el.classList.add('tgw-row-' + mk.kind);
     if (!badge) {
@@ -235,6 +238,7 @@
     }
     badge.textContent = '';
     badge.dataset.kind = mk.kind;
+    badge.dataset.sig = sig;
     badge.className = 'tgw-badge tgw-badge-' + mk.kind;
     badge.title = mk.title;
     badge.appendChild(h('span', '', KIND_TEXT[mk.kind]));
@@ -245,6 +249,104 @@
       undo.title = 'Bu satırı orijinal ada döndür: ' + st.src;
       undo.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); restore([row.id]); });
       badge.appendChild(undo);
+    }
+    for (const w of words) {
+      const c = h('button', 'tgw-word', w);
+      c.type = 'button';
+      c.title = '“' + w + '” bilinmiyor — tıkla, Azericesini yaz: satır düzelir, kelime tgwatch sözlüğüne girer';
+      c.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openTeach(row.id, w, c); });
+      host.appendChild(c);
+    }
+    host.querySelectorAll(':scope > .tgw-word').forEach((c) => { if (!words.includes(c.textContent)) c.remove(); });
+  }
+
+  // ---- bilinmeyen kelimeyi satırda düzelt: kelime sözlüğe girer, aynı kelimeli satırlar yeniden çevrilir ----
+  let pop = null;
+  function closeTeach() { if (pop) { pop.remove(); pop = null; } }
+
+  function openTeach(id, word, anchor) {
+    closeTeach();
+    pop = h('div', 'tgw-pop');
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-label', 'Kelimeyi öğret');
+    const f = h('form', 'tgw-pop-f');
+    const l1 = h('label', '', 'Kaynak');
+    const en = h('input');
+    en.value = word;
+    en.title = 'Gerekirse ifadeyi uzat: “Low” yerine “Low Quality”';
+    l1.appendChild(en);
+    const l2 = h('label', '', 'Azerice');
+    const az = h('input');
+    az.placeholder = 'Azerice karşılığı';
+    l2.appendChild(az);
+    const msg = h('div', 'tgw-pop-msg');
+    const acts = h('div', 'tgw-pop-a');
+    const ok = h('button', 'tgw-btn', 'Öğret ve düzelt');
+    ok.type = 'submit';
+    const keep = h('button', 'tgw-btn tgw-ghost', 'Aynen kalsın');
+    keep.type = 'button';
+    keep.title = 'Marka/özel ad: çevrilmesin, bir daha bilinmeyen sayılmasın';
+    const x = h('button', 'tgw-btn tgw-ghost tgw-pop-x', '×');
+    x.type = 'button';
+    x.title = 'Kapat (Esc)';
+    acts.append(ok, keep, x);
+    f.append(l1, l2, acts, msg);
+    pop.appendChild(f);
+    for (const ev of ['click', 'mousedown', 'keydown', 'keyup', 'keypress', 'input']) pop.addEventListener(ev, (e) => e.stopPropagation());
+    pop.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTeach(); });
+    x.addEventListener('click', closeTeach);
+    const go = async (asKeep) => {
+      const src = en.value.trim();
+      const dst = az.value.trim();
+      if (!src || (!asKeep && !dst)) { msg.textContent = asKeep ? 'Kaynak kelimeyi yaz' : 'Azerice karşılığı yaz'; (asKeep ? en : az).focus(); return; }
+      ok.disabled = keep.disabled = true;
+      msg.textContent = 'tgwatch\'a öğretiliyor…';
+      const res = await api('teach', asKeep ? { en: src, keep: true } : { en: src, az: dst });
+      if (!res.ok) { msg.textContent = res.error || 'tgwatch hatası'; ok.disabled = keep.disabled = false; return; }
+      send({ type: 'stat', learned: 1 });
+      closeTeach();
+      await retranslate(id, src);
+    };
+    f.addEventListener('submit', (e) => { e.preventDefault(); go(false); });
+    keep.addEventListener('click', () => go(true));
+    document.body.appendChild(pop);
+    const r = anchor.getBoundingClientRect();
+    const w = 320;
+    pop.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left)) + 'px';
+    pop.style.top = (r.bottom + 6 + 170 > innerHeight ? Math.max(8, r.top - 176) : r.bottom + 6) + 'px';
+    setTimeout(() => az.focus(), 0);
+  }
+
+  /** Öğretilen kelimeyi içeren (bilinmeyen listesinde olan) tüm satırları yeniden çevirip yaz. */
+  async function retranslate(firstId, word) {
+    if (running) return;
+    const parts = lower(word).split(' ');
+    const ids = [...state.entries()].filter(([rid, st]) => st.src && (rid === firstId || (st.unknown || []).some((u) => parts.includes(lower(u))))).map(([rid]) => rid);
+    ids.sort((a, b) => (a === firstId ? -1 : b === firstId ? 1 : 0));
+    setRunning(true);
+    const o = await opts();
+    let fixed = 0;
+    try {
+      const res = await api('translate', { items: ids.map((rid) => ({ id: rid, name: state.get(rid).src })) });
+      if (!res.ok) { status(res.error || 'tgwatch hatası', 'bad'); return; }
+      for (let k = 0; k < ids.length; k++) {
+        const rid = ids[k];
+        const tr = res.items[k];
+        if (!tr || !tr.az || tr.via === 'none' || tr.via === 'already') continue;
+        status('Düzeltiliyor · #' + rid);
+        const row = await openRow(rid);
+        if (!row) continue;
+        setValue(nameInput(row), tr.az);
+        remember(rid, { filled: tr.az, final: tr.az, edited: false, unknown: tr.via === 'bank' || tr.via === 'claude' ? [] : (tr.unknown || []) });
+        if (!o.dry) await saveRow(rid);
+        const r = findRow(rid) || row;
+        const left = state.get(rid).unknown;
+        mark(r, tr.via === 'bank' || !left.length ? 'ok' : 'warn', 'Orijinal: ' + state.get(rid).src + (left.length ? '\nBilinmeyen: ' + left.join(', ') : '\nKelime öğretildi'));
+        fixed++;
+      }
+      status('“' + word + '” öğretildi · ' + fixed + ' satır düzeltildi', 'ok');
+    } finally {
+      setRunning(false);
     }
   }
 
@@ -497,11 +599,12 @@
           bad++;
           if (!o.dry) await saveRow(id);
           const r = findRow(id) || row;
+          remember(id, { unknown: tr ? (tr.unknown || []) : [] });
           mark(r, 'bad', tr ? 'Bankada da kurallarda da karşılığı yok: ' + src : 'tgwatch cevap vermedi');
           continue;
         }
         setValue(input, tr.az);
-        remember(id, { filled: tr.az, final: tr.az, edited: false });
+        remember(id, { filled: tr.az, final: tr.az, edited: false, unknown: tr.via === 'bank' || tr.via === 'claude' ? [] : (tr.unknown || []) });
         if (!o.dry && !(await saveRow(id))) {
           bad++;
           const r = findRow(id);

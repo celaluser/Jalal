@@ -9,6 +9,8 @@ namespace TgWatch;
  *   translate  → {items:[{id,name,kind?}]} → her ad için banka + kurallarla Azerice ad (botun kullandığı motorun aynısı);
  *                kind = "category" ise kategori bankası kullanılır, ad kalıbı uygulanmaz
  *   learn      → {items:[{id,src,az,edited,kind?}]} → Perfect Panel'de import edilen son adlar (ve kategori adları) bankaya öğretilir
+ *   teach      → {en, az} → sözlüğe terim ekler (bilinmeyen kelimeyi satırda düzeltme); {en, keep:true} → "olduğu gibi kalsın" listesine
+ *   balance    → sağlayıcı bakiyeleri (bot /balans ile aynı)
  */
 final class ExtApi
 {
@@ -34,6 +36,8 @@ final class ExtApi
                 'ping' => [200, ['ok' => true, 'version' => VERSION, 'panel' => (string)($this->config['panel_name'] ?? 'tgwatch')]],
                 'translate' => [200, ['ok' => true, 'items' => $this->translate(self::items($req))]],
                 'learn' => [200, ['ok' => true] + $this->learn(self::items($req))],
+                'teach' => [200, ['ok' => true] + $this->teach($req)],
+                'balance' => [200, ['ok' => true] + Balances::check($this->db)],
                 default => [400, ['ok' => false, 'error' => 'Bilinmeyen işlem']],
             };
         } catch (\InvalidArgumentException $e) {
@@ -152,5 +156,37 @@ final class ExtApi
             $this->db->log('info', 'ext', "Eklenti: Perfect Panel import'undan $learned ad bankaya öğrenildi");
         }
         return ['learned' => $learned, 'skipped' => $skipped];
+    }
+
+    /** Sözlüğe tek terim: aynı kelimenin eski karşılığı (büyük/küçük harf fark etmez) değiştirilir, tahmin işareti kalkar. */
+    private function teach(array $req): array
+    {
+        $clean = static fn($v): string => trim(preg_replace('/\s+/u', ' ', (string)$v) ?? '');
+        $en = $clean($req['en'] ?? '');
+        $az = $clean($req['az'] ?? '');
+        $keep = !empty($req['keep']);
+        if ($en === '' || mb_strlen($en) > 80 || !preg_match('/\p{L}/u', $en)) {
+            throw new \InvalidArgumentException('Kaynak kelime 1–80 karakter olmalı');
+        }
+        if (!$keep && ($az === '' || mb_strlen($az) > 120)) {
+            throw new \InvalidArgumentException('Azerice karşılık 1–120 karakter olmalı');
+        }
+        $dict = Dictionary::load($this->db);
+        $low = mb_strtolower($en);
+        foreach (array_keys($dict['phrases']) as $k) {
+            if (mb_strtolower((string)$k) === $low) {
+                unset($dict['phrases'][$k]);
+            }
+        }
+        $dict['guesses'] = array_values(array_filter($dict['guesses'] ?? [], static fn($g) => mb_strtolower((string)$g) !== $low));
+        $dict['keep'] = array_values(array_filter($dict['keep'] ?? [], static fn($g) => mb_strtolower((string)$g) !== $low));
+        if ($keep) {
+            $dict['keep'][] = $en;
+        } else {
+            $dict['phrases'][$en] = $az;
+        }
+        Dictionary::save($this->db, $dict);
+        $this->db->log('info', 'ext', 'Eklenti sözlüğe ekledi: ' . $en . ($keep ? ' (olduğu gibi kalsın)' : ' → ' . $az));
+        return ['en' => $en, 'az' => $keep ? $en : $az, 'keep' => $keep];
     }
 }

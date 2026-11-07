@@ -22,6 +22,7 @@ async function init() {
     $('tab-msg').textContent = 'Önce bağlantı ayarlarını gir (aşağıda).';
     return;
   }
+  balances(false);
   chrome.runtime.sendMessage({ type: 'api', action: 'ping' }, (r) => {
     if (r && r.ok) conn('Bağlı · ' + r.version, 'ok');
     else { conn('Bağlantı yok', 'bad'); $('conn').title = (r && r.error) || ''; }
@@ -37,6 +38,73 @@ async function init() {
   }
   refresh();
 }
+
+// ---- sağlayıcı bakiyeleri: 10 dakikadan eskiyse kendiliğinden yenilenir, "Yenile" ile hemen ----
+const money = (v) => {
+  const [i, d] = (v !== 0 && Math.abs(v) < 1 ? v.toFixed(4) : v.toFixed(2)).split('.');
+  return i.replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + '.' + d;
+};
+function ago(t) {
+  const m = Math.round((Date.now() - t) / 60000);
+  return m < 1 ? 'az önce' : m < 60 ? m + ' dk önce' : Math.round(m / 60) + ' sa önce';
+}
+function drawBal(b) {
+  const list = $('bal-list');
+  list.textContent = '';
+  $('bal').hidden = false;
+  if (!b.items.length) {
+    $('bal-msg').textContent = 'tgwatch\'ta sağlayıcı yok (Çeviri bankası → Kaynaklar).';
+    $('bal-tot').hidden = true;
+    return;
+  }
+  for (const it of b.items) {
+    const li = document.createElement('li');
+    const n = document.createElement('span');
+    n.className = 'n';
+    n.textContent = it.name;
+    const v = document.createElement('span');
+    v.className = 'v';
+    if (it.error) {
+      li.className = 'err';
+      v.textContent = '⚠ ' + it.error;
+      v.title = it.error;
+    } else {
+      if (it.balance <= 0) li.className = 'zero';
+      v.textContent = money(it.balance) + (it.currency ? ' ' + it.currency : '');
+    }
+    li.append(n, v);
+    list.appendChild(li);
+  }
+  const tot = Object.entries(b.totals || {});
+  const okN = b.items.filter((i) => !i.error).length;
+  $('bal-tot').hidden = okN < 2;
+  $('bal-tot').innerHTML = '';
+  if (okN >= 2) {
+    $('bal-tot').append('Toplam: ');
+    tot.forEach(([c, v], i) => { const e = document.createElement('b'); e.textContent = money(v) + (c ? ' ' + c : ''); if (i) $('bal-tot').append(' · '); $('bal-tot').append(e); });
+  }
+  $('bal-msg').textContent = 'Son kontrol: ' + ago(b.at * 1000);
+}
+async function balances(force) {
+  const { bal } = await get({ bal: null });
+  if (bal && bal.items) drawBal(bal);
+  if (!force && bal && Date.now() - bal.at * 1000 < 10 * 60000) return;
+  $('bal').hidden = false;
+  $('bal-ref').disabled = true;
+  $('bal-msg').textContent = 'Bakiyeler soruluyor…';
+  chrome.runtime.sendMessage({ type: 'api', action: 'balance' }, (r) => {
+    $('bal-ref').disabled = false;
+    if (chrome.runtime.lastError || !r || !r.ok) {
+      $('bal-msg').textContent = (r && r.error) || 'tgwatch cevap vermedi';
+      if (r && /Bilinmeyen işlem/.test(r.error || '')) $('bal-msg').textContent = 'tgwatch eski sürüm: sunucudaki src klasörünü güncelle.';
+      return;
+    }
+    const b = { items: r.items, totals: r.totals, at: r.at };
+    chrome.storage.local.set({ bal: b });
+    drawBal(b);
+  });
+}
+$('bal-ref').onclick = () => balances(true);
 
 function refresh() {
   if (!tabId) return;
