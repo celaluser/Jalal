@@ -304,21 +304,33 @@
       const res = await api('teach', asKeep ? { en: src, keep: true } : { en: src, az: dst });
       if (!res.ok) { msg.textContent = res.error || 'tgwatch hatası'; ok.disabled = keep.disabled = false; return; }
       send({ type: 'stat', learned: 1 });
+      msg.className = 'tgw-pop-msg tgw-pop-ok';
+      msg.textContent = asKeep ? '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” çevrilmeyecek' : '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” → “' + res.az + '”';
+      status(msg.textContent.slice(2) + ' · satırlar düzeltiliyor…', 'ok');
+      await sleep(900);
       closeTeach();
-      await retranslate(id, src);
+      await retranslate(id, src, asKeep ? src : res.az);
     };
     f.addEventListener('submit', (e) => { e.preventDefault(); go(false); });
     keep.addEventListener('click', () => go(true));
-    document.body.appendChild(pop);
+    // Kutu import penceresinin İÇİNE konur: panel penceresi odağı ve tıklamaları kendi içinde tutuyor (dışarıdaki kutuya yazılamaz).
+    const host = anchor.closest('.modal') || anchor.closest('[role=dialog]') || anchor.closest('.modal-content') || document.body;
+    host.appendChild(pop);
     const r = anchor.getBoundingClientRect();
     const w = 320;
-    pop.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left)) + 'px';
-    pop.style.top = (r.bottom + 6 + 170 > innerHeight ? Math.max(8, r.top - 176) : r.bottom + 6) + 'px';
+    const want = { x: Math.max(8, Math.min(innerWidth - w - 8, r.left)), y: r.bottom + 6 + 190 > innerHeight ? Math.max(8, r.top - 196) : r.bottom + 6 };
+    pop.style.left = want.x + 'px';
+    pop.style.top = want.y + 'px';
+    // Pencerede transform varsa "fixed" konum pencereye göre olur: farkı düzelt.
+    const got = pop.getBoundingClientRect();
+    pop.style.left = (want.x + (want.x - got.left)) + 'px';
+    pop.style.top = (want.y + (want.y - got.top)) + 'px';
     setTimeout(() => az.focus(), 0);
+    setTimeout(() => { if (pop && document.activeElement !== az && document.activeElement !== en) az.focus(); }, 120);
   }
 
   /** Öğretilen kelimeyi içeren (bilinmeyen listesinde olan) tüm satırları yeniden çevirip yaz. */
-  async function retranslate(firstId, word) {
+  async function retranslate(firstId, word, az) {
     if (running) return;
     const parts = lower(word).split(' ');
     const ids = [...state.entries()].filter(([rid, st]) => st.src && (rid === firstId || (st.unknown || []).some((u) => parts.includes(lower(u))))).map(([rid]) => rid);
@@ -344,7 +356,7 @@
         mark(r, tr.via === 'bank' || !left.length ? 'ok' : 'warn', 'Orijinal: ' + state.get(rid).src + (left.length ? '\nBilinmeyen: ' + left.join(', ') : '\nKelime öğretildi'));
         fixed++;
       }
-      status('“' + word + '” öğretildi · ' + fixed + ' satır düzeltildi', 'ok');
+      status('✓ Sözlüğe eklendi: “' + word + '”' + (az && az !== word ? ' → “' + az + '”' : ' (çevrilmeyecek)') + ' · ' + fixed + ' satır düzeltildi. tgwatch → Çeviri → Sözlük\'te görünür.', 'ok');
     } finally {
       setRunning(false);
     }
@@ -452,6 +464,7 @@
     if (!bar) return;
     const s = bar.querySelector('.tgw-status');
     s.textContent = t;
+    s.title = t;
     s.className = 'tgw-status' + (kind ? ' tgw-status-' + kind : '');
   }
 
@@ -690,6 +703,7 @@
   }, true);
 
   document.addEventListener('keydown', (e) => {
+    if (e.altKey && e.shiftKey && (e.key === 'D' || e.key === 'd') && typeof showDiag === 'function') { e.preventDefault(); showDiag(); return; }
     if (e.altKey && e.shiftKey && (e.key === 'T' || e.key === 't') && bar && bar.isConnected) {
       e.preventDefault();
       runAll();
@@ -746,10 +760,28 @@
     close.type = 'button';
     close.title = 'Gizle (sayfa yenilenince geri gelir)';
     close.addEventListener('click', () => { cbar.dataset.closed = '1'; cbar.remove(); });
-    acts.append(go, close);
+    const diag = h('button', 'tgw-btn tgw-ghost tgw-diag', 'Teşhisi kopyala');
+    diag.type = 'button';
+    diag.hidden = true;
+    diag.title = 'Kategori satırlarının yapısını panoya kopyalar (kategori adları ve sayfa yapısı; şifre/anahtar yok). Sohbete yapıştır.';
+    diag.addEventListener('click', async () => {
+      const txt = catDiag();
+      try { await navigator.clipboard.writeText(txt); } catch (e) {
+        const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+      }
+      diag.textContent = 'Kopyalandı ✓';
+      setTimeout(() => { diag.textContent = 'Teşhisi kopyala'; }, 1500);
+    });
+    acts.append(go, diag, close);
     const prog = h('div', 'tgw-progress');
     prog.appendChild(h('i'));
     cbar.append(brand, acts, prog);
+  }
+
+  function showDiag() {
+    ensureCatBar();
+    const d = cbar.querySelector('.tgw-diag');
+    if (d) d.hidden = false;
   }
 
   function editCategoryLinks() {
@@ -771,30 +803,83 @@
         row = p;
       }
       if (row.querySelector('input[type=checkbox]')) continue; // servis satırı
-      const name = norm(textWithAlt(row).replace(/\bActions\b\s*[▾▼⌄]?/g, '')).replace(/\s+NEW$/i, '');
+      // "NEW"/"Yeni" rozeti adın başında ya da sonunda olabilir: addan sayılmaz.
+      const name = norm(norm(textWithAlt(row).replace(/\bActions\b\s*[▾▼⌄]?/g, '')).replace(/^(?:NEW|YENİ|Yeni)\s+/, '').replace(/\s+(?:NEW|YENİ|Yeni)$/, ''));
       if (!name) continue;
       out.push({ el: row, btn: b, name });
     }
     return out;
   }
 
-  /** Devre dışı kategori: soluk (opacity), "disabled/inactive" sınıfı ya da "Disabled" yazısı. */
-  function isDisabled(row) {
-    for (let el = row.el, i = 0; el && i < 4; el = el.parentElement, i++) {
-      if (/(^|[\s_-])(disabled|inactive|is-disabled|off)($|[\s_-])/i.test(el.className || '')) return true;
-      if (parseFloat(getComputedStyle(el).opacity) < 0.75) return true;
+  /** Kategorinin ad öğesi: en uzun yazılı yaprak öğe ("NEW" rozeti, Actions, simgeler değil). */
+  function nameElOf(row) {
+    let best = null;
+    for (const e of row.el.querySelectorAll('*')) {
+      if (e.children.length || ours(e)) continue;
+      const t = norm(e.textContent);
+      if (t.length < 2 || /^(actions|new|yeni)\b/i.test(t)) continue;
+      if (!best || t.length > best.t.length) best = { e, t };
     }
-    const nameEl = [...row.el.querySelectorAll('*')].find((e) => e.children.length === 0 && norm(e.textContent) && !/^actions\b/i.test(norm(e.textContent)));
-    if (nameEl && parseFloat(getComputedStyle(nameEl).opacity) < 0.75) return true;
-    if (nameEl) { // gri yazı: kapalı kategori (aktifler koyu)
-      const m = getComputedStyle(nameEl).color.match(/(\d+(?:\.\d+)?)/g);
-      if (m && m.length >= 3) {
-        const [r, g, b] = m.map(Number);
-        const a = m.length > 3 ? Number(m[3]) : 1;
-        if (a < 0.75 || (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.55) return true;
+    return best ? best.e : null;
+  }
+
+  const lum = (color) => {
+    const m = (color || '').match(/(\d+(?:\.\d+)?)/g);
+    if (!m || m.length < 3) return null;
+    const [r, g, b] = m.map(Number);
+    const a = m.length > 3 ? Number(m[3]) : 1;
+    return { l: (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255, a };
+  };
+
+  /**
+   * Kapalı kategoriler: soluk satır (opacity), "disabled/inactive" sınıfı, "Disabled" yazısı ya da adı diğerlerinden belirgin AÇIK renk.
+   * Renk karşılaştırması görecelidir (en koyu ada göre): rozet ya da tema rengi tüm satırları kapalı göstermesin.
+   * @return {{active: Array, why: Map}}
+   */
+  function splitActive(rows) {
+    const why = new Map();
+    const info = rows.map((row) => {
+      for (let el = row.el, i = 0; el && i < 4; el = el.parentElement, i++) {
+        if (/(^|[\s_-])(disabled|inactive|is-disabled|off)($|[\s_-])/i.test(typeof el.className === 'string' ? el.className : '')) return { row, off: 'sınıf: ' + el.className };
+        if (parseFloat(getComputedStyle(el).opacity) < 0.75) return { row, off: 'soluk (opacity)' };
       }
+      if (/\bdisabled\b/i.test(row.name)) return { row, off: 'adında Disabled' };
+      const ne = nameElOf(row);
+      if (ne && parseFloat(getComputedStyle(ne).opacity) < 0.75) return { row, off: 'ad soluk (opacity)' };
+      const c = ne ? lum(getComputedStyle(ne).color) : null;
+      return { row, c };
+    });
+    const ls = info.filter((x) => !x.off && x.c).map((x) => x.c.l);
+    const darkest = ls.length ? Math.min(...ls) : 0;
+    for (const x of info) {
+      if (!x.off && x.c && (x.c.a < 0.6 || (x.c.l > darkest + 0.2 && x.c.l > 0.45))) x.off = 'gri yazı';
+      if (x.off) why.set(x.row, x.off);
     }
-    return /\bdisabled\b/i.test(row.name);
+    return { active: info.filter((x) => !x.off).map((x) => x.row), why };
+  }
+
+  /** Teşhis: son kategorilerin durumu (panoya kopyalanır, destek için). */
+  function catDiag() {
+    const rows = categoryRows();
+    const { why } = splitActive(rows);
+    const tail = rows.slice(-8).map((r) => {
+      const ne = nameElOf(r);
+      return { ad: r.name.slice(0, 80), kapali: why.get(r) || '', renk: ne ? getComputedStyle(ne).color : '', sinif: (typeof r.el.className === 'string' ? r.el.className : '').slice(0, 80), tutamac: !!rowHandle(r) };
+    });
+    const last = rows[rows.length - 1];
+    const html = last ? last.el.outerHTML.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 1500) : '';
+    const hd = last && rowHandle(last);
+    const hcs = hd && getComputedStyle(hd);
+    const box = last && last.el.parentElement;
+    const lib = {
+      jquiSortable: !!document.querySelector('.ui-sortable'), sortableAttr: !!document.querySelector('[class*="sortable"]'),
+      draggableAttr: !!document.querySelector('[draggable=true]'), rbd: !!document.querySelector('[data-rbd-drag-handle-draggable-id], [data-rfd-drag-handle-draggable-id]'),
+      dndkit: !!document.querySelector('[aria-roledescription="sortable"]'), vue: !!document.querySelector('[data-v-app], [data-v-]') || !!window.__VUE__, react: !!document.querySelector('[data-reactroot]') || !!(document.getElementById('root') || {})._reactRootContainer,
+      angular: !!document.querySelector('[ng-app], [ng-version], .ng-scope'),
+    };
+    return JSON.stringify({ surum: chrome.runtime.getManifest ? chrome.runtime.getManifest().version : '', adres: location.pathname, kategori: rows.length, kutucuk: visibleChecks(), son: tail,
+      tutamac: hd ? { boyut: Math.round(hd.getBoundingClientRect().width) + 'x' + Math.round(hd.getBoundingClientRect().height), display: hcs.display, visibility: hcs.visibility, opacity: hcs.opacity, cursor: hcs.cursor } : 'yok',
+      liste: box ? (box.tagName + '.' + (typeof box.className === 'string' ? box.className : '')).slice(0, 120) : '', kutuphane: lib, surukleme: dragLog, satirHtml: html }, null, 1);
   }
 
   /** Görünen servis satırı sayısı (servis satırlarında kutucuk var; başlıktaki "hepsini seç" de bir tane). */
@@ -984,7 +1069,16 @@
   // ---- sürükle-bırak: kategoriyi tutamaçından (service-table__handle) tutup listenin en üstüne bırak ----
   const HANDLE = '.service-table__handle, [class*="__handle"], .handle, .drag-handle, [class*="drag-handle"], .fa-grip-vertical, .fa-grip-lines, .fa-arrows-alt, .fa-bars';
   const rowHandle = (row) => row.el.querySelector(HANDLE) || null;
-  const indexOf = (name) => categoryRows().findIndex((r) => lower(r.name) === lower(name));
+  /** Ad karşılaştırması: büyük/küçük harf, boşluk, emoji ve rozet farkı sayılmaz; tam eşleşme yoksa adı içeren tek satır. */
+  const catKey = (s) => lower(s).replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/(^| )(new|yeni)(?= |$)/g, ' ').replace(/\s+/g, ' ').trim();
+  function findCat(rows, name) {
+    const k = catKey(name);
+    const i = rows.findIndex((r) => catKey(r.name) === k);
+    if (i >= 0 || !k) return i;
+    const hits = rows.map((r, n) => (catKey(r.name).includes(k) ? n : -1)).filter((n) => n >= 0);
+    return hits.length === 1 ? hits[0] : -1;
+  }
+  const indexOf = (name) => findCat(categoryRows(), name);
 
   function fire(el, type, x, y) {
     const pointer = type.startsWith('pointer');
@@ -996,6 +1090,7 @@
   }
   const at = (x, y) => document.elementFromPoint(x, y) || document.body;
   const center = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+  let dragLog = []; // teşhis: hangi yol denendi, ne oldu
 
   /** Görünür alan: listenin kaydırma kutusu ile pencerenin kesişimi. */
   function viewport(box) {
@@ -1006,7 +1101,7 @@
   /** Taşınacak satır görünür alanın altına gelsin; hedef = ondan yukarıdaki, görünen en üstteki kategori. */
   async function dragPlan(name) {
     const rows = categoryRows();
-    const i = rows.findIndex((r) => lower(r.name) === lower(name));
+    const i = findCat(rows, name);
     if (i <= 0) return { i };
     const me = rows[i];
     const box = scroller(me.el);
@@ -1099,7 +1194,35 @@
     key('keydown', ' ', 32); key('keyup', ' ', 32);
   }
 
-  const DRAGS = { mouse: dragMouse, html5: dragHtml5, keys: dragKeys };
+  /** Tutamaç yalnızca fare üstündeyken görünüyorsa (CSS :hover) sürükleme süresince görünür yap; sonra eski haline döndür. */
+  async function withHandle(plan, fn) {
+    const hd = rowHandle(plan.me);
+    const fixes = [];
+    if (hd) {
+      for (let el = hd; el && el !== plan.me.el.parentElement; el = el.parentElement) {
+        const r = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        if (r.width === 0 || r.height === 0 || cs.visibility === 'hidden' || parseFloat(cs.opacity) < 0.1) {
+          fixes.push([el, el.getAttribute('style')]);
+          if (cs.display === 'none') el.style.setProperty('display', el === hd ? 'inline-block' : 'block', 'important');
+          el.style.setProperty('visibility', 'visible', 'important');
+          el.style.setProperty('opacity', '1', 'important');
+        }
+        if (el === plan.me.el) break;
+      }
+      for (const t of ['pointerenter', 'mouseenter', 'pointerover', 'mouseover']) {
+        const c = center(hd.getBoundingClientRect().width ? hd : plan.me.el);
+        fire(hd, t, c.x, c.y);
+      }
+    }
+    try {
+      await fn(plan);
+    } finally {
+      for (const [el, st] of fixes.reverse()) { if (st === null) el.removeAttribute('style'); else el.setAttribute('style', st); }
+    }
+  }
+
+  const DRAGS = { mouse: (p) => withHandle(p, dragMouse), html5: (p) => withHandle(p, dragHtml5), keys: (p) => withHandle(p, dragKeys) };
   let dragWay = null; // bu panelde işe yarayan yol (sonraki adımlarda önce o denenir)
 
   async function moveToTop(name) {
@@ -1114,13 +1237,18 @@
       for (const w of ways) {
         const plan = await dragPlan(name);
         if (!(plan.i > 0)) { i = plan.i; moved = true; break; }
+        const hd = rowHandle(plan.me);
+        const hr = hd ? hd.getBoundingClientRect() : null;
         await DRAGS[w](plan);
+        dragLog.push({ yol: w, sira: plan.i, hedef: plan.j, tutamac: hd ? Math.round(hr.width) + 'x' + Math.round(hr.height) : 'yok', sonra: indexOf(name) });
+        dragLog = dragLog.slice(-12);
         const ni = await waitFor(() => { const n = indexOf(name); return n >= 0 && n < plan.i ? n + 1 : null; }, 1500, 100);
         if (ni) { i = ni - 1; dragWay = w; moved = true; break; }
       }
       if (!moved) {
         if (dragWay) { dragWay = null; continue; } // bildiğimiz yol bu kez olmadı: hepsini bir daha dene
-        return { ok: false, note: 'sürükleme bu panelde çalışmadı — kategoriyi elle en üste taşı' };
+        showDiag();
+        return { ok: false, note: 'sürükleme bu panelde çalışmadı — kategoriyi elle taşı; "Teşhisi kopyala"ya basıp bana gönder' };
       }
       if (i < 0) i = indexOf(name);
       if (i < 0) return { ok: false, note: 'taşırken kategori listede kayboldu' };
@@ -1165,9 +1293,12 @@
         catStatus('Listenin sonuna gidiliyor…');
         await scrollToEnd();
         const all = categoryRows();
-        const active = all.filter((r) => !isDisabled(r));
+        const { active } = splitActive(all);
         let pick = active[active.length - 1];
-        if (!pick) return end('Aktif kategori bulunamadı', 'bad');
+        if (!pick) {
+          showDiag();
+          return end(all.length ? all.length + ' kategori bulundu ama hepsi kapalı görünüyor — "Teşhisi kopyala"ya basıp bana gönder' : 'Kategori satırı bulunamadı — "Teşhisi kopyala"ya basıp bana gönder', 'bad');
+        }
         if (auto) {
           // Sondan geriye: import'tan önce olmayan, Azerice olmayan ardışık kategoriler = yeni import edilenler.
           const seen = new Set((before || []).map(lower));
