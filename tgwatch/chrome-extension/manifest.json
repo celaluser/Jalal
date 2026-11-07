@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "tgwatch — Perfect Panel import çevirisi",
+  "short_name": "tgwatch",
+  "version": "1.10.1",
+  "description": "Perfect Panel'de import edilen servislerin ve kategorilerin adlarını tgwatch ile Azericeye çevirir, kategoriyi en üste taşır, import sonrası Telegram'a bildirir.",
+  "minimum_chrome_version": "103",
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab",
+    "alarms"
+  ],
+  "optional_host_permissions": [
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "tgwatch",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png"
+    }
+  },
+  "options_page": "options.html",
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  }
+}
