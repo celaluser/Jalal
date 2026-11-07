@@ -741,6 +741,8 @@
     if (!cbar) return;
     const s = cbar.querySelector('.tgw-status');
     s.textContent = t;
+    s.title = t;
+    if (kind === 'bad' || kind === 'warn') setCatMin(false);
     s.className = 'tgw-status' + (kind ? ' tgw-status-' + kind : '');
   }
 
@@ -756,10 +758,11 @@
     const go = h('button', 'tgw-btn tgw-cgo', 'Çevir');
     go.type = 'button';
     go.addEventListener('click', () => catFlow());
-    const close = h('button', 'tgw-btn tgw-ghost tgw-cclose', '×');
+    const close = h('button', 'tgw-btn tgw-ghost tgw-cclose', '–');
     close.type = 'button';
-    close.title = 'Gizle (sayfa yenilenince geri gelir)';
-    close.addEventListener('click', () => { cbar.dataset.closed = '1'; cbar.remove(); });
+    close.title = 'Küçült (logoya tıklayınca açılır)';
+    close.addEventListener('click', () => setCatMin(true));
+    brand.addEventListener('click', () => { if (cbar.classList.contains('tgw-min')) setCatMin(false); });
     const diag = h('button', 'tgw-btn tgw-ghost tgw-diag', 'Teşhisi kopyala');
     diag.type = 'button';
     diag.hidden = true;
@@ -776,6 +779,14 @@
     const prog = h('div', 'tgw-progress');
     prog.appendChild(h('i'));
     cbar.append(brand, acts, prog);
+    try { if (localStorage.getItem('tgw_cat_min')) setCatMin(true); } catch (e) { /* yok */ }
+  }
+
+  function setCatMin(on) {
+    if (!cbar) return;
+    cbar.classList.toggle('tgw-min', on);
+    cbar.title = on ? 'tgwatch kategori — aç' : '';
+    try { localStorage.setItem('tgw_cat_min', on ? '1' : ''); } catch (e) { /* depolama kapalı */ }
   }
 
   function showDiag() {
@@ -832,8 +843,8 @@
   };
 
   /**
-   * Kapalı kategoriler: soluk satır (opacity), "disabled/inactive" sınıfı, "Disabled" yazısı ya da adı diğerlerinden belirgin AÇIK renk.
-   * Renk karşılaştırması görecelidir (en koyu ada göre): rozet ya da tema rengi tüm satırları kapalı göstermesin.
+   * Kapalı kategoriler: soluk satır (opacity), "disabled/inactive" sınıfı, "Disabled" yazısı ya da adı arka plana göre belirgin SOLUK.
+   * Soluk = yazı/arka plan kontrastı en canlı addan 0.2+ düşük. Açık ve koyu temada aynı çalışır (koyu temada aktifler parlak).
    * @return {{active: Array, why: Map}}
    */
   function splitActive(rows) {
@@ -847,12 +858,19 @@
       const ne = nameElOf(row);
       if (ne && parseFloat(getComputedStyle(ne).opacity) < 0.75) return { row, off: 'ad soluk (opacity)' };
       const c = ne ? lum(getComputedStyle(ne).color) : null;
-      return { row, c };
+      if (!c) return { row };
+      // Yazı ile arka plan arasındaki fark (kontrast): açık temada kapalı = gri yazı, koyu temada kapalı = soluk/koyu yazı.
+      let bg = { l: 1, a: 1 };
+      for (let el = ne; el; el = el.parentElement) {
+        const b = lum(getComputedStyle(el).backgroundColor);
+        if (b && b.a > 0.5) { bg = b; break; }
+      }
+      return { row, k: Math.abs(c.l - bg.l) * Math.min(1, c.a) };
     });
-    const ls = info.filter((x) => !x.off && x.c).map((x) => x.c.l);
-    const darkest = ls.length ? Math.min(...ls) : 0;
+    const ks = info.filter((x) => !x.off && x.k !== undefined).map((x) => x.k);
+    const best = ks.length ? Math.max(...ks) : 0;
     for (const x of info) {
-      if (!x.off && x.c && (x.c.a < 0.6 || (x.c.l > darkest + 0.2 && x.c.l > 0.45))) x.off = 'gri yazı';
+      if (!x.off && x.k !== undefined && x.k < best - 0.2) x.off = 'soluk yazı (kontrast ' + x.k.toFixed(2) + ' / ' + best.toFixed(2) + ')';
       if (x.off) why.set(x.row, x.off);
     }
     return { active: info.filter((x) => !x.off).map((x) => x.row), why };
@@ -1005,11 +1023,11 @@
     go.disabled = catRunning;
     if (dlg) {
       if (catSrc === null && dlg.input) catSrc = dlg.input.value;
-      go.textContent = 'Bu kategorinin adını çevir';
+      go.textContent = 'Bu kategoriyi çevir';
       if (!catRunning) catStatus('Kategori: ' + (dlg.input ? dlg.input.value : ''));
     } else {
-      go.textContent = 'Son kategorinin adını çevir';
-      if (!catRunning && !cbar.dataset.done) catStatus('En sondaki aktif kategori: çevir → Save → en üste taşı');
+      go.textContent = 'Son kategoriyi çevir';
+      if (!catRunning && !cbar.dataset.done) catStatus('Son aktif kategori: çevir → Save → en üste');
     }
   }
 

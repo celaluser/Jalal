@@ -81,3 +81,19 @@
 .tgw-pop-msg{min-height:0;font-size:12px;color:#b8244b}
 .tgw-pop-msg:empty{display:none}
 .tgw-pop-ok{color:#1f7a45 !important;font-weight:600}
+/* Services listesindeki kategori çubuğu: küçük hap; küçültülünce yalnızca logo */
+.tgw-cbar.tgw-floating{left:12px;bottom:12px;gap:8px;padding:4px 4px 4px 10px;border-radius:999px;max-width:min(470px,calc(100vw - 24px));
+  background:rgba(255,255,255,.96);box-shadow:0 8px 28px rgba(16,24,40,.28);font-size:12px}
+.tgw-cbar.tgw-floating .tgw-brand{flex:1 1 auto;gap:8px}
+.tgw-cbar.tgw-floating .tgw-brand svg{width:20px;height:20px}
+.tgw-cbar.tgw-floating .tgw-title{display:none}
+.tgw-cbar.tgw-floating .tgw-status{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30ch}
+.tgw-cbar.tgw-floating .tgw-actions{gap:4px;flex:none}
+.tgw-cbar.tgw-floating .tgw-btn{height:30px;padding:0 12px;font-size:12.5px;border-radius:999px;white-space:nowrap}
+.tgw-cbar.tgw-floating .tgw-cclose,.tgw-cbar.tgw-floating .tgw-diag{border-color:transparent}
+.tgw-cbar.tgw-floating .tgw-cclose{width:30px;padding:0;font-size:16px}
+.tgw-cbar.tgw-floating .tgw-progress{left:16px;right:16px;bottom:1px}
+.tgw-cbar.tgw-floating.tgw-min{padding:0;width:40px;height:40px;gap:0;justify-content:center;cursor:pointer}
+.tgw-cbar.tgw-min .tgw-text,.tgw-cbar.tgw-min .tgw-actions,.tgw-cbar.tgw-min .tgw-progress{display:none}
+.tgw-cbar.tgw-min .tgw-brand{flex:none;justify-content:center;cursor:pointer}
+.tgw-cbar.tgw-min .tgw-brand svg{width:22px;height:22px}
