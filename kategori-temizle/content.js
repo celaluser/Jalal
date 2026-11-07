@@ -6,11 +6,12 @@
   if (window.__katTemizle) return;
   window.__katTemizle = true;
 
-  const VERSION = '1.1.0';
+  const VERSION = '1.2.0';
   const SETTINGS_KEY = 'kt_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const HANDLE = '.service-table__handle, [class*="__handle"], .handle, .drag-handle';
   const TOGGLE = '.service-table__header-hide-all, [class*="header-hide-all"]';
+  const SEL_RE = /(\d+)\s+services?\s+selected/i;
   const ERR_WORDS = /error|fail|hata|cannot|can't|couldn't|unable|denied|not allowed|invalid|xəta|alınmadı|olmadı/i;
 
   // ---------------------------------------------------------------- yardımcılar
@@ -91,22 +92,25 @@
     status: 'Hazır. "Boş pasif kategorileri bul"a bas.',
     running: false,
     stop: false,
-    candidates: [], // [{name}]
+    candidates: [], // boş pasif: [{name, id}]
+    fulls: [], // dolu pasif: [{name, id, count}]
+    notAssigned: null,
     stats: null,
     notes: [],
-    res: { deleted: [], dry: [], skipped: [], errors: [], pending: [] },
+    res: { deleted: [], moved: [], dry: [], skipped: [], errors: [], pending: [] },
     refBest: 0,
     hasCounts: false,
     diagNeeded: false,
     log: [],
     seen: { menu: [], dialog: [], toast: [] },
   };
-  const settings = { dryRun: true, max: 50 };
+  const settings = { dryRun: true, max: 50, move: false };
   // Güvenlik: deneme modu kalıcı değil; her sayfa yüklenişinde AÇIK başlar. Yalnızca "en çok N" hatırlanır.
-  try { const m = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}').max; if (m) settings.max = Math.max(1, Math.min(1000, parseInt(m, 10) || 50)); } catch (e) { /* depolama kapalı */ }
-  const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ max: settings.max })); } catch (e) { /* yok */ } };
+  try { const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); if (v.max) settings.max = Math.max(1, Math.min(1000, parseInt(v.max, 10) || 50)); settings.move = v.move === true; } catch (e) { /* depolama kapalı */ }
+  const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ max: settings.max, move: settings.move })); } catch (e) { /* yok */ } };
   function patchSettings(p) {
     if (p && typeof p.dryRun === 'boolean') settings.dryRun = p.dryRun;
+    if (p && typeof p.move === 'boolean') settings.move = p.move;
     if (p && p.max !== undefined) settings.max = Math.max(1, Math.min(1000, parseInt(p.max, 10) || 50));
     saveSettings();
   }
@@ -213,6 +217,12 @@
   }
 
   const checks = () => [...document.querySelectorAll('input[type=checkbox]')].filter(visible);
+  /** Servis satırı kutucukları (başlıktaki "hepsini seç" ve üstteki "N services selected" kutucuğu hariç). */
+  const svcChecks = () => checks().filter((c) => c.closest('.service-table__row-service, .service-table__body')
+    || (!c.closest('thead, .service-table__header, .service-table__header-wrapper, .mass-actions') && !c.closest('.service-table__category')
+      && !SEL_RE.test(norm((c.closest('label') || c.parentElement || c).textContent))));
+  /** "Yalnızca kategoriler" görünümü: ekranda hiç servis satırı yok. */
+  const inCatView = () => svcChecks().length === 0;
 
   /** Listenin gerçek kaydırma alanı (iç kutu ya da pencere). */
   function getBox() {
@@ -243,13 +253,27 @@
    * Servis satırında kutucuk var; başlıkta bir kutucuk (hepsini seç) her zaman var → >1 kutucuk = servisler açık.
    */
   async function ensureCategoryView() {
-    if (checks().length <= 1) return true;
-    let t = [...document.querySelectorAll(TOGGLE)].find(visible);
-    if (!t) t = [...document.querySelectorAll('.fa-compress-alt, .fa-expand-alt')].find(visible);
+    if (inCatView()) return true;
+    const t = [...document.querySelectorAll(TOGGLE)].find(visible) || [...document.querySelectorAll('.fa-compress-alt, .fa-expand-alt')].find(visible);
+    const globalOpen = t && /fa-compress/.test(typeof t.className === 'string' ? t.className : '');
+    // 1) Tümü kapalıyken tek tek açılmış kategoriler ("Select all category services" kategoriyi açar): kendi Collapse öğesine bas.
+    if (!globalOpen) {
+      const opened = [...document.querySelectorAll('[class*="category-collapse"].show-category')].filter(visible);
+      for (const o of opened) (o.querySelector('[class*="collapse-name"], a') || o).click();
+      if (opened.length && await waitFor(inCatView, 3000, 100)) return true;
+    }
+    // 2) Başlıktaki tümünü aç/kapa düğmesi; ters çalışırsa geri al.
     if (!t) { log('aç/kapa düğmesi bulunamadı'); return false; }
+    const before = svcChecks().length;
     t.click();
-    const ok = await waitFor(() => checks().length <= 1 && categoryRows().length > 0, 6000, 100);
-    if (!ok) log('düğmeye basıldı ama kategori görünümü gelmedi');
+    let ok = await waitFor(() => inCatView() && categoryRows().length > 0, 6000, 100);
+    if (!ok && svcChecks().length > before) { t.click(); await sleep(400); }
+    if (!ok) {
+      const opened = [...document.querySelectorAll('[class*="category-collapse"].show-category')].filter(visible);
+      for (const o of opened) (o.querySelector('[class*="collapse-name"], a') || o).click();
+      ok = await waitFor(() => inCatView() && categoryRows().length > 0, 3000, 100);
+    }
+    if (!ok) log('kategori görünümüne geçilemedi');
     return !!ok;
   }
 
@@ -296,27 +320,53 @@
   }
 
   /** Şu an ekranda: kategori hâlâ var mı, tek mi, ad aynı mı, pasif mi, boş mu? (boş = "Expand (N)" yok ya da N=0) */
-  function check(name, id) {
+  /** full=true: taşınacak dolu kategori (servis sayısı > 0 olmalı); değilse boş olmalı. */
+  function check(name, id, full) {
     const { rows, hits } = findByName(name, id);
     if (!hits.length) return { ok: false, reason: 'satır bulunamadı (kimlik ' + (id || '-') + '; ekranda ' + rows.length + ' kategori; ilk: "' + (rows[0] ? rows[0].name.slice(0, 40) : '-') + '")' };
     if (hits.length > 1) return { ok: false, reason: 'aynı kimlikli birden çok satır' };
     const row = hits[0];
     if (row.special) return { ok: false, reason: 'özel satır (Not Assigned)' };
     if (catKey(row.name) !== catKey(name)) return { ok: false, reason: 'ad değişmiş: "' + row.name.slice(0, 60) + '" ≠ "' + name.slice(0, 60) + '"' };
-    if (checks().length > 1) return { ok: false, reason: 'liste kategori görünümünde değil' };
+    if (!full && !inCatView()) return { ok: false, reason: 'liste kategori görünümünde değil' };
     const { why } = splitActive(rows, S.refBest);
     if (!why.has(row)) return { ok: false, reason: 'artık pasif görünmüyor (aktif)' };
-    if (row.count > 0) return { ok: false, reason: 'içinde ' + row.count + ' servis var' };
     if (Number.isNaN(row.count)) return { ok: false, reason: 'servis sayısı okunamadı' };
+    if (full) return row.count > 0 ? { ok: true, row, why: why.get(row) } : { ok: false, reason: 'kategori artık dolu değil' };
+    if (row.count > 0) return { ok: false, reason: 'içinde ' + row.count + ' servis var' };
     if (row.count === null && !S.hasCounts) return { ok: false, reason: 'servis sayısı (Expand) doğrulanamadı' };
     return { ok: true, row, why: why.get(row) };
   }
 
   // ---------------------------------------------------------------- menü / pencere / bildirim
-  /** Görünür, en derin "Delete category" yazılı öğeler (menü portal ile body sonunda olabilir). */
-  function deleteItems() {
-    const all = [...document.querySelectorAll('a, button, li, span, div, p, [role=menuitem]')].filter((e) => visible(e) && /^delete\s+category$/i.test(norm(e.textContent)));
+  /** Görünür, en derin, yazısı re'ye tam uyan öğeler (menüler portal ile body sonunda ya da satır içinde olabilir). */
+  function itemsByText(re) {
+    const all = [...document.querySelectorAll('a, button, li, span, div, p, [role=menuitem], [role=option]')].filter((e) => visible(e) && re.test(norm(e.textContent)));
     return all.filter((e) => !all.some((o) => o !== e && e.contains(o)));
+  }
+  const deleteItems = () => itemsByText(/^delete\s+category$/i);
+  const MENU_ANY = /^(edit category|enable category|disable category|select all category services|delete category|assign category|edit rates|delete all)$/i;
+  const STATUS_RE = /^(enable|disable)\s+category$/i;
+  const click = (el) => (el.closest('a, button, li, [role=menuitem], [role=option]') || el).click();
+
+  /**
+   * Kategorinin Actions menüsünü aç ve want yazılı öğeyi bul. Menüdeki "Enable/Disable category" yazısı panelin kendi
+   * durum bilgisidir: pasif kategoride "Enable category" yazar. status: 'enable' | 'disable' | null.
+   */
+  async function openRowMenu(row, want, id) {
+    const before = new Set(itemsByText(want));
+    const stBefore = new Set(itemsByText(STATUS_RE));
+    const bodyBefore = new Set(document.body.children);
+    row.btn.click();
+    const item = await waitFor(() => { const v = itemsByText(want).filter((x) => !before.has(x)); return v.length ? v[v.length - 1] : null; }, 2500, 60);
+    const fresh = [...document.body.children].filter((x) => !bodyBefore.has(x) && visible(x)).map((x) => norm(x.textContent).slice(0, 200));
+    const sts = itemsByText(STATUS_RE).filter((x) => !stBefore.has(x));
+    // durum öğesi aynı menüde olmalı
+    const menuOf = (el) => el && (el.closest('ul, [role=menu], .dropdown-menu') || el.parentElement);
+    const st = item ? sts.find((x) => menuOf(x) && menuOf(x).contains(item)) || (sts.length === 1 ? sts[0] : null) : (sts[sts.length - 1] || null);
+    remember('menu', fresh.length ? fresh : (item ? [norm(menuOf(item).textContent).slice(0, 200)] : []));
+    const owner = item ? categoryRows().find((r) => r.el.contains(item)) : null;
+    return { item, status: st ? lower(norm(st.textContent)).split(' ')[0] : null, wrongOwner: owner && id && owner.id !== id ? owner.name : null };
   }
 
   /** Onay penceresi: pencere içinde yalnızca "Delete" yazılı düğme. */
@@ -344,10 +394,10 @@
     }
   }
   async function closeMenu() {
-    if (!deleteItems().length) return;
+    if (!itemsByText(MENU_ANY).length) return;
     pressEscape();
     await sleep(150);
-    if (deleteItems().length) document.body.click();
+    if (itemsByText(MENU_ANY).length) document.body.click();
     await sleep(150);
   }
   async function closeDialog(conf) {
@@ -367,8 +417,8 @@
   async function scan() {
     if (S.running) return;
     S.running = true; S.stop = false; S.phase = 'scanning'; busy(true);
-    S.candidates = []; S.stats = null; S.notes = []; S.diagNeeded = false;
-    S.res = { deleted: [], dry: [], skipped: [], errors: [], pending: [] };
+    S.candidates = []; S.fulls = []; S.notAssigned = null; S.stats = null; S.notes = []; S.diagNeeded = false;
+    S.res = { deleted: [], moved: [], dry: [], skipped: [], errors: [], pending: [] };
     try {
       if (!onServicesList()) return fail('Bu özellik yalnızca /admin/services sayfasında çalışır.');
       if (anyDialog()) return fail('Açık bir pencere var; önce kapat.');
@@ -391,7 +441,7 @@
       };
       await walk(collect);
       if (S.stop) { S.phase = 'idle'; return setStatus('Durduruldu; liste eksik olabilir, tarama iptal.'); }
-      if (checks().length > 1) return fail('Gezinirken servisler açıldı; yeniden dene.');
+      if (!inCatView()) return fail('Gezinirken servisler açıldı; yeniden dene.');
       const all = [...col.values()];
       const real = all.filter((e) => !e.special);
       if (!real.length) return fail('Kategori satırı bulunamadı.');
@@ -406,15 +456,18 @@
       let dolu = 0;
       real.forEach((e, i) => {
         if (!whyArr[i]) return;
-        if (e.count > 0) { dolu++; return; }
+        if (e.count > 0) { dolu++; S.fulls.push({ name: e.name, id: e.id, count: e.count }); return; }
         if (Number.isNaN(e.count)) return; // sayı okunamadı: boş sayılmaz
         S.candidates.push({ name: e.name, id: e.id });
       });
-      S.stats = { kategori: real.length, aktif: real.length - pasif.length, pasif: pasif.length, pasifDolu: dolu, bos: S.candidates.length };
+      const na = all.filter((e) => e.special);
+      S.notAssigned = na.length === 1 ? na[0] : null;
+      if (na.length !== 1) S.notes.push(na.length ? 'Birden çok "Not Assigned" satırı var; taşıma yapılmaz.' : '"Not Assigned" kategorisi bulunamadı; taşıma yapılmaz.');
+      S.stats = { kategori: real.length, aktif: real.length - pasif.length, pasif: pasif.length, pasifDolu: dolu, bos: S.candidates.length, servis: S.fulls.reduce((a, f) => a + f.count, 0) };
       setScroll(box, 0);
       S.phase = 'ready';
-      setStatus(S.candidates.length
-        ? S.candidates.length + ' boş pasif kategori bulundu. Henüz hiçbir şey silinmedi.'
+      setStatus(S.candidates.length || S.fulls.length
+        ? S.candidates.length + ' boş pasif kategori bulundu' + (S.fulls.length ? ', ' + S.fulls.length + ' dolu pasif (' + S.stats.servis + ' servis)' : '') + '. Henüz hiçbir şey silinmedi.'
         : 'Silinecek boş pasif kategori yok.');
     } catch (e) {
       log(String(e && e.stack).slice(0, 400)); fail('Tarama hatası: ' + (e && e.message) + ' [' + String((e && e.stack || '').split('\n')[1] || '').trim().slice(-60) + ']');
@@ -434,7 +487,7 @@
       const f = await locate(name, id, true);
       if (!f.hits.length) return result('skip', 'bulunamadı (silinmiş ya da liste yüklenmedi)');
       if (f.hits.length > 1) return result('skip', 'aynı kimlikli birden çok satır');
-      if (checks().length <= 1) return { kind: 'ok', row: f.hits[0] };
+      if (inCatView()) return { kind: 'ok', row: f.hits[0] };
     }
     return result('skip', 'yeniden çizimden sonra kategori bulunamadı');
   }
@@ -452,17 +505,13 @@
     const c1 = check(name, id);
     if (!c1.ok) return result('skip', c1.reason);
 
-    // 2) Actions → Delete category
-    const before = new Set(deleteItems());
-    const bodyBefore = new Set(document.body.children);
-    c1.row.btn.click();
-    const item = await waitFor(() => { const v = deleteItems().filter((x) => !before.has(x)); return v.length ? v[v.length - 1] : null; }, 2500, 60);
-    const fresh = [...document.body.children].filter((x) => !bodyBefore.has(x) && visible(x)).map((x) => norm(x.textContent).slice(0, 200));
-    remember('menu', fresh);
-    if (!item) { await closeMenu(); S.diagNeeded = true; return result('error', '"Delete category" menüde bulunamadı'); }
-    const owner = categoryRows().find((r) => r.el.contains(item));
-    if (owner && (id ? owner.id !== id : catKey(owner.name) !== k)) { await closeMenu(); return result('skip', 'menü başka kategoriye ait (' + owner.name + ')'); }
-    (item.closest('a, button, li, [role=menuitem]') || item).click();
+    // 2) Actions → (panel "Enable category" diyorsa = pasif) → Delete category
+    const m = await openRowMenu(c1.row, /^delete\s+category$/i, id);
+    if (m.status === 'disable') { await closeMenu(); return result('skip', 'panel menüsü kategoriyi AKTİF gösteriyor ("Disable category")'); }
+    if (!m.status) { await closeMenu(); S.diagNeeded = true; return result('skip', 'menüde "Enable category" görülmedi; pasif olduğu doğrulanamadı'); }
+    if (!m.item) { await closeMenu(); S.diagNeeded = true; return result('error', '"Delete category" menüde bulunamadı'); }
+    if (m.wrongOwner) { await closeMenu(); return result('skip', 'menü başka kategoriye ait (' + m.wrongOwner + ')'); }
+    click(m.item);
 
     // 3) onay penceresi
     const conf = await waitFor(findConfirm, 4000, 60);
@@ -508,12 +557,199 @@
     return result('deleted', errToast ? 'silindi (panel bildirimi: ' + errToast.slice(0, 80) + ')' : 'silindi');
   }
 
+  // ---------------------------------------------------------------- dolu pasif: servisleri Not Assigned'a taşı, sonra sil
+  /** Üstteki "N services selected" çubuğu: sayı, toplu Actions düğmesi (kategori/servis satırında olmayan), kutucuk. */
+  function selection() {
+    const labs = [...document.querySelectorAll('label, span, div, b, strong, p')].filter((e) => visible(e) && e.children.length <= 3 && SEL_RE.test(norm(e.textContent)) && norm(e.textContent).length < 40);
+    const deep = labs.filter((e) => !labs.some((o) => o !== e && e.contains(o)));
+    if (!deep.length) return null;
+    const el = deep[0];
+    const n = parseInt(norm(el.textContent).match(SEL_RE)[1], 10);
+    let box = el; let btn = null; let cb = null;
+    for (let i = 0; i < 6 && box && box !== document.body; i++, box = box.parentElement) {
+      btn = [...box.querySelectorAll('button, a')].find((b) => visible(b) && /^actions\b/i.test(btnText(b)) && !b.closest('.service-table__category, .service-table__row, .service-table__body, [id^="category-"]'));
+      if (btn) { cb = el.querySelector('input[type=checkbox]') || box.querySelector('input[type=checkbox]'); break; }
+    }
+    return { n, el, btn, cb };
+  }
+
+  /** Seçimi temizle (önce çubuktaki kutucuk; olmazsa işaretli servis kutucukları tek tek). */
+  async function clearSelection() {
+    let s = selection();
+    if (!s) return true;
+    if (s.cb) { s.cb.click(); if (await waitFor(() => !selection(), 3000, 100)) return true; }
+    for (const c of svcChecks()) if (c.checked) c.click();
+    if (await waitFor(() => !selection(), 3000, 100)) return true;
+    s = selection();
+    log('seçim temizlenemedi: ' + (s ? s.n : '?'));
+    return false;
+  }
+
+  /** "Assign category" penceresi: başlık + Save changes düğmesi. */
+  function findAssign() {
+    for (const d of [...document.querySelectorAll(DIALOG)].filter(visible)) {
+      const t = norm(d.textContent);
+      if (!/assign category/i.test(t)) continue;
+      const save = [...d.querySelectorAll('button, a, input[type=submit]')].find((b) => visible(b) && /^save changes$/i.test(norm(b.value || btnText(b))));
+      if (!save) continue;
+      const close = [...d.querySelectorAll('button, a')].find((b) => visible(b) && /^(close|cancel)$/i.test(btnText(b)))
+        || d.querySelector('.close, [aria-label=close], [aria-label=Close]');
+      return { dlg: d, save, close, text: t };
+    }
+    return null;
+  }
+  const enabled = (b) => !!b && !b.disabled && !b.classList.contains('disabled') && b.getAttribute('aria-disabled') !== 'true';
+
+  function fire(el, type) {
+    const r = el.getBoundingClientRect();
+    const init = { bubbles: true, cancelable: true, composed: true, view: window, clientX: r.left + 5, clientY: r.top + 5, button: 0 };
+    el.dispatchEvent(type.startsWith('pointer') && window.PointerEvent ? new PointerEvent(type, Object.assign(init, { pointerId: 1, pointerType: 'mouse', isPrimary: true })) : new MouseEvent(type, init));
+  }
+  /** React kontrollü input'a yaz (yerel value setter + input olayı; blur yok ki açılır liste kapanmasın). */
+  function typeInto(input, text) {
+    const proto = input.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value').set.call(input, text);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  /** Pencerede "Not Assigned"ı seç: native <select> ya da aramalı kutu (yaz → tek "Not Assigned" seçeneğine tıkla). */
+  async function pickNotAssigned(a) {
+    const native = a.dlg.querySelector('select');
+    if (native) {
+      const opt = [...native.options].filter((o) => isSpecial(o.textContent));
+      if (opt.length !== 1) return 'seçim listesinde tek bir "Not Assigned" yok';
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(native, opt[0].value);
+      native.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+      const input = [...a.dlg.querySelectorAll('input')].find((i) => !/^(hidden|checkbox|radio|submit|button)$/i.test(i.type));
+      if (!input) return 'pencerede arama kutusu bulunamadı';
+      const control = input.closest('[class*="control"], [class*="container"], [class*="select"]') || input.parentElement;
+      fire(control, 'mousedown'); input.focus();
+      typeInto(input, 'Not assi');
+      const opt = await waitFor(() => {
+        const os = itemsByText(/^not assigned$/i).filter((o) => !o.closest('.service-table__category, .service-table__row, #kt-host')
+          && (o.closest('[role=option], [class*="option"], [role=listbox], [class*="menu"], .select2-results, .chosen-results') || a.dlg.contains(o)));
+        return os.length === 1 ? os[0] : null;
+      }, 4000, 100);
+      if (!opt) return 'arama sonucunda tek bir "Not Assigned" seçeneği çıkmadı';
+      const target = opt.closest('[role=option], [class*="option"], li') || opt;
+      fire(target, 'mousedown'); fire(target, 'mouseup'); target.click();
+    }
+    const ok = await waitFor(() => { const d = findAssign(); return d && /not assigned/i.test(d.text) && !/choose category/i.test(d.text) && enabled(d.save) ? d : null; }, 3000, 100);
+    return ok ? null : '"Not Assigned" seçildikten sonra Save changes etkinleşmedi';
+  }
+
+  async function closeAssign() {
+    const a = findAssign();
+    if (!a) return true;
+    if (a.close) a.close.click(); else pressEscape();
+    return !!(await waitFor(() => !findAssign(), 4000, 100));
+  }
+
+  /** Dolu pasif kategori: tüm servislerini seç → toplu Actions → Assign category → Not Assigned → Save → doğrula → boş kategoriyi sil. */
+  async function processMove(name, id) {
+    const p = await prepare(name, id);
+    if (p.kind !== 'ok') return p;
+    p.row.el.scrollIntoView({ block: 'center' });
+    nudgeScroll();
+    await waitFor(() => findByName(name, id).hits.length === 1, 3000, 100);
+    await sleep(300);
+    const c1 = check(name, id, true);
+    if (!c1.ok) return result('skip', c1.reason);
+    const n = c1.row.count;
+    if (!(await clearSelection())) return { kind: 'error', reason: 'önceki seçim temizlenemedi', fatal: true };
+
+    // 1) kategori Actions: panel "Enable category" demeli; "Select all category services"
+    const m = await openRowMenu(c1.row, /^select all category services$/i, id);
+    if (m.status === 'disable') { await closeMenu(); return result('skip', 'panel menüsü kategoriyi AKTİF gösteriyor ("Disable category")'); }
+    if (!m.status) { await closeMenu(); S.diagNeeded = true; return result('skip', 'menüde "Enable category" görülmedi; pasif olduğu doğrulanamadı'); }
+    if (!m.item) { await closeMenu(); S.diagNeeded = true; return result('error', '"Select all category services" menüde bulunamadı'); }
+    if (m.wrongOwner) { await closeMenu(); return result('skip', 'menü başka kategoriye ait (' + m.wrongOwner + ')'); }
+    click(m.item);
+
+    // 2) seçilen sayı = kategorideki servis sayısı
+    const sel = await waitFor(() => { const x = selection(); return x && x.n > 0 ? x : null; }, 5000, 100);
+    if (!sel) { await clearSelection(); S.diagNeeded = true; return result('error', '"N services selected" çubuğu görünmedi'); }
+    await sleep(300);
+    const sel2 = selection();
+    if (!sel2 || sel2.n !== n) { await clearSelection(); await ensureCategoryView(); return result('skip', 'seçilen servis sayısı (' + (sel2 ? sel2.n : '?') + ') ≠ kategorideki (' + n + ')'); }
+    if (!sel2.btn) { await clearSelection(); S.diagNeeded = true; return result('error', 'seçim çubuğunda Actions düğmesi bulunamadı'); }
+    if (S.stop) { await clearSelection(); await ensureCategoryView(); return result('skip', 'durduruldu (taşımadan önce)'); }
+
+    // 3) toplu Actions → yalnızca tam "Assign category" (asla "Delete all")
+    const before = new Set(itemsByText(/^assign category$/i));
+    sel2.btn.click();
+    const item = await waitFor(() => { const v = itemsByText(/^assign category$/i).filter((x) => !before.has(x) && !x.closest('.service-table__category, .service-table__row')); return v.length ? v[v.length - 1] : null; }, 2500, 60);
+    if (!item) { await closeMenu(); await clearSelection(); S.diagNeeded = true; return result('error', '"Assign category" toplu menüde bulunamadı'); }
+    remember('menu', [norm((item.closest('ul, [role=menu], .dropdown-menu') || item.parentElement).textContent).slice(0, 200)]);
+    click(item);
+
+    // 4) pencere: Not Assigned seç
+    const a = await waitFor(findAssign, 4000, 80);
+    if (!a) { await closeMenu(); await clearSelection(); S.diagNeeded = true; return result('error', '"Assign category" penceresi açılmadı'); }
+    remember('dialog', [a.text.slice(0, 200)]);
+    const perr = await pickNotAssigned(a);
+    if (perr) { await closeAssign(); await clearSelection(); await ensureCategoryView(); S.diagNeeded = true; return result('error', perr); }
+    const sel3 = selection();
+    if (sel3 && sel3.n !== n) { await closeAssign(); await clearSelection(); await ensureCategoryView(); return result('skip', 'pencere açıkken seçim değişti (' + sel3.n + ' ≠ ' + n + ')'); }
+    const c2 = check(name, id, true);
+    if (!c2.ok) { await closeAssign(); await clearSelection(); await ensureCategoryView(); return result('skip', 'son anda değişti: ' + c2.reason); }
+
+    // 5) deneme: Close
+    if (settings.dryRun || S.stop) {
+      const closed = await closeAssign();
+      const cleared = await clearSelection();
+      await ensureCategoryView();
+      if (!closed || !cleared) { S.diagNeeded = true; return { kind: 'error', reason: 'deneme: pencere kapanmadı ya da seçim temizlenemedi', fatal: true }; }
+      if (S.stop) return result('skip', 'durduruldu (taşımadan önce)');
+      return result('dry', n + ' servis → "Not Assigned" seçildi, Close (sonra kategori silinecekti)');
+    }
+
+    // 6) Save changes → pencere kapansın → kategori boşalsın
+    const seen = [];
+    const fa = findAssign();
+    if (!fa || !enabled(fa.save)) { await closeAssign(); await clearSelection(); return result('error', 'Save changes etkin değil'); }
+    fa.save.click();
+    const closed = await waitFor(() => { seen.push(...readToasts()); return !findAssign(); }, 15000, 120);
+    if (!closed) { await closeAssign(); await clearSelection(); S.diagNeeded = true; return result('error', 'Assign penceresi kapanmadı (sunucu cevap vermedi?)'); }
+    await sleep(500);
+    seen.push(...readToasts());
+    remember('toast', [...new Set(seen)]);
+    const errToast = [...new Set(seen)].find((t) => ERR_WORDS.test(t));
+    const emptied = () => { const f = findByName(name, id); return f.hits.length === 1 && f.hits[0].count === null; };
+    let ok = await waitFor(emptied, 6000, 200);
+    if (!ok) {
+      await clearSelection();
+      await ensureCategoryView();
+      const g = await locate(name, id, true);
+      ok = g.hits.length === 1 && g.hits[0].count === null;
+      if (!ok) return result('error', 'taşıma doğrulanamadı' + (g.hits[0] && g.hits[0].count > 0 ? ' (hâlâ ' + g.hits[0].count + ' servis)' : '') + (errToast ? ' — panel: "' + errToast.slice(0, 100) + '"' : ''));
+    }
+    S.res.moved.push({ name, reason: n + ' servis → Not Assigned' });
+    render();
+    await clearSelection();
+    if (S.stop) return result('skip', n + ' servis taşındı; silme durduruldu');
+
+    // 7) artık boş: normal silme akışı (yeniden kontrol + Enable category kapısı + Delete)
+    const r = await processOne(name, id);
+    if (r.kind === 'deleted') return result('deleted', n + ' servis Not Assigned\'a taşındı, sonra silindi');
+    return { kind: r.kind === 'skip' ? 'skip' : 'error', reason: 'taşındı ama silinmedi: ' + r.reason, fatal: r.fatal };
+  }
+
+  /** Çalıştırılacak liste: önce boş pasifler, taşıma açıksa ardından dolu pasifler (Not Assigned bulunduysa). */
+  function workList() {
+    const l = S.candidates.map((c) => ({ name: c.name, id: c.id, count: 0 }));
+    if (settings.move && S.notAssigned) for (const f of S.fulls) l.push({ name: f.name, id: f.id, count: f.count });
+    return l;
+  }
+
   async function run() {
-    if (S.running || S.phase !== 'ready' || !S.candidates.length) return;
+    if (S.running || S.phase !== 'ready' || !workList().length) return;
     if (anyDialog()) return fail('Açık bir pencere var; önce kapat.');
     S.running = true; S.stop = false; S.phase = 'deleting'; S.diagNeeded = false; busy(true);
-    S.res = { deleted: [], dry: [], skipped: [], errors: [], pending: [] };
-    const list = S.candidates.slice();
+    S.res = { deleted: [], moved: [], dry: [], skipped: [], errors: [], pending: [] };
+    if (selection() && !(await clearSelection())) return fail('Panelde seçili servisler var ve temizlenemedi; önce seçimi kaldır.');
+    const list = workList();
     const max = settings.max;
     let done = 0; let consecutiveErrors = 0; let i = 0;
     try {
@@ -521,9 +757,9 @@
         if (S.stop) break;
         if (done >= max) { S.notes.push('En çok ' + max + ' sınırına ulaşıldı.'); break; }
         const name = list[i].name;
-        setStatus((settings.dryRun ? '[DENEME] ' : '') + '(' + (i + 1) + '/' + list.length + ') ' + name);
+        setStatus((settings.dryRun ? '[DENEME] ' : '') + '(' + (i + 1) + '/' + list.length + ') ' + (list[i].count ? 'taşı+sil: ' : 'sil: ') + name);
         let r;
-        try { r = await processOne(name, list[i].id); } catch (e) { r = result('error', 'beklenmeyen hata: ' + (e && e.message)); }
+        try { r = list[i].count ? await processMove(name, list[i].id) : await processOne(name, list[i].id); } catch (e) { r = result('error', 'beklenmeyen hata: ' + (e && e.message)); }
         log(name + ' → ' + r.kind + (r.reason ? ' (' + r.reason + ')' : ''));
         if (r.kind === 'deleted') { S.res.deleted.push({ name, reason: r.reason }); done++; consecutiveErrors = 0; }
         else if (r.kind === 'dry') { S.res.dry.push({ name, reason: r.reason }); done++; consecutiveErrors = 0; }
@@ -535,8 +771,9 @@
       S.res.pending = list.slice(i).map((c) => c.name);
       const r = S.res;
       const bits = [r.deleted.length + ' silindi', r.dry.length + ' deneme', r.skipped.length + ' atlandı', r.errors.length + ' hata'];
+      if (r.moved.length) bits.splice(1, 0, r.moved.length + ' taşındı');
       if (r.pending.length) bits.push(r.pending.length + ' işlenmedi');
-      S.phase = 'idle'; S.candidates = [];
+      S.phase = 'idle'; S.candidates = []; S.fulls = [];
       setStatus((S.stop ? 'Durduruldu. ' : 'Bitti. ') + bits.join(', ') + '.');
     } catch (e) {
       fail('Silme hatası: ' + (e && e.message));
@@ -597,7 +834,7 @@
     return JSON.stringify({
       surum: VERSION, adres: location.pathname, tema: getComputedStyle(document.body).backgroundColor,
       kategoriSayisi: rows.length, gorunenKutucuk: checks().length, servisSayisiVar: S.hasCounts, acmaDugmesi: !![...document.querySelectorAll(TOGGLE)].find(visible),
-      durum: S.status, istatistik: S.stats, aday: S.candidates.map((c) => c.name), sonuc: S.res, notlar: S.notes,
+      durum: S.status, istatistik: S.stats, aday: S.candidates.map((c) => c.name), dolu: S.fulls.map((f) => f.name + ' (' + f.count + ')'), secim: (() => { const x = selection(); return x ? { n: x.n, actions: !!x.btn, kutucuk: !!x.cb } : null; })(), sonuc: S.res, notlar: S.notes,
       actionsZinciri: actionsChains(), satirTurleri: rowKinds(), sonKategoriler: tail, menuYazilari: S.seen.menu, pencereYazilari: S.seen.dialog, bildirimler: S.seen.toast, adimGunlugu: S.log.slice(-40),
     }, null, 1);
   }
@@ -674,15 +911,17 @@
     parts.push('<div class="hd"><b>🗑 Kategori Temizle' + (settings.dryRun ? ' <small>(deneme)</small>' : '') + '</b><button data-a="min" title="Küçült/Büyüt">' + (minimized ? '▢' : '–') + '</button></div>');
     parts.push('<div class="body">');
     parts.push('<div class="row"><button class="b" data-a="scan"' + (busy ? ' disabled' : '') + '>Boş pasif kategorileri bul</button></div>');
-    if (S.stats) parts.push('<small>' + S.stats.kategori + ' kategori · ' + S.stats.aktif + ' aktif · ' + S.stats.pasif + ' pasif (' + S.stats.pasifDolu + ' dolu) · <b>' + S.stats.bos + ' boş pasif</b></small>');
-    if (S.candidates.length) parts.push('<div class="list">' + S.candidates.map((c) => '<div>' + esc(c.name) + '</div>').join('') + '</div>');
-    parts.push('<div class="row"><button class="b red" data-a="run"' + (busy || S.phase !== 'ready' || !S.candidates.length ? ' disabled' : '') + '>' + (settings.dryRun ? 'Dene' : 'Sil') + ' (' + (S.phase === 'ready' ? Math.min(S.candidates.length, settings.max) : 0) + ')</button>'
+    if (S.stats) parts.push('<small class="sum">' + S.stats.kategori + ' kategori · ' + S.stats.aktif + ' aktif · ' + S.stats.pasif + ' pasif (' + S.stats.pasifDolu + ' dolu) · <b>' + S.stats.bos + ' boş pasif</b></small>');
+    if (S.candidates.length) parts.push('<small>Boş pasif (silinecek):</small><div class="list" id="ktEmpty">' + S.candidates.map((c) => '<div>' + esc(c.name) + '</div>').join('') + '</div>');
+    if (S.fulls.length) parts.push('<small>Dolu pasif (' + (settings.move ? 'Not Assigned\'a taşınıp silinecek' : 'taşıma kapalı, dokunulmaz') + '):</small><div class="list" id="ktFull">' + S.fulls.map((c) => '<div>' + esc(c.name) + ' <small>(' + c.count + ')</small></div>').join('') + '</div>');
+    parts.push('<div class="row"><button class="b red" data-a="run"' + (busy || S.phase !== 'ready' || !workList().length ? ' disabled' : '') + '>' + (settings.dryRun ? 'Dene' : 'Sil') + ' (' + (S.phase === 'ready' ? Math.min(workList().length, settings.max) : 0) + ')</button>'
       + '<button class="b" data-a="stop"' + (busy ? '' : ' disabled') + '>Durdur</button></div>');
+    parts.push('<div class="row"><label><input type="checkbox" data-s="move"' + (settings.move ? ' checked' : '') + '> Dolu pasifleri Not Assigned\'a taşı, sonra sil</label></div>');
     parts.push('<div class="row"><label><input type="checkbox" data-s="dry"' + (settings.dryRun ? ' checked' : '') + '> Deneme modu</label><label>en çok <input type="number" min="1" max="1000" data-s="max" value="' + settings.max + '"></label></div>');
     parts.push('<div class="st' + (/^⚠/.test(S.status) ? ' warn' : '') + '" id="st">' + esc(S.status) + '</div>');
-    if (r.deleted.length || r.dry.length || r.skipped.length || r.errors.length) {
+    if (r.deleted.length || r.moved.length || r.dry.length || r.skipped.length || r.errors.length) {
       const line = (arr, t) => arr.length ? '<div><b>' + t + ' (' + arr.length + ')</b></div>' + arr.map((x) => '<div>' + esc(x.name) + ' <small>' + esc(x.reason || '') + '</small></div>').join('') : '';
-      parts.push('<div class="list">' + line(r.deleted, 'Silinen') + line(r.dry, 'Deneme') + line(r.skipped, 'Atlanan') + line(r.errors, 'Hata') + '</div>');
+      parts.push('<div class="list" id="ktRes">' + line(r.moved, 'Taşınan') + line(r.deleted, 'Silinen') + line(r.dry, 'Deneme') + line(r.skipped, 'Atlanan') + line(r.errors, 'Hata') + '</div>');
     }
     if (S.notes.length) parts.push('<small>' + S.notes.map(esc).join('<br>') + '</small>');
     if (true) parts.push('<div class="row"><button class="b" data-a="diag">Teşhisi kopyala</button></div>');
@@ -709,6 +948,7 @@
     const t = ev.target;
     const s = t.getAttribute && t.getAttribute('data-s');
     if (s === 'dry') patchSettings({ dryRun: t.checked });
+    if (s === 'move') patchSettings({ move: t.checked });
     if (s === 'max') patchSettings({ max: t.value });
     render();
   }
@@ -717,7 +957,7 @@
   function publicState() {
     return {
       version: VERSION, onPage: onServicesList(), phase: S.phase, running: S.running, status: S.status,
-      candidates: S.candidates.map((c) => c.name), stats: S.stats, notes: S.notes, res: S.res,
+      candidates: S.candidates.map((c) => c.name), fulls: S.fulls.map((f) => ({ name: f.name, count: f.count })), work: S.phase === 'ready' ? workList().length : 0, notAssigned: !!S.notAssigned, stats: S.stats, notes: S.notes, res: S.res,
       settings: Object.assign({}, settings), diagNeeded: S.diagNeeded || S.res.errors.length > 0,
     };
   }

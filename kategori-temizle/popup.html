@@ -8,8 +8,8 @@
  button{cursor:pointer;border:0;border-radius:6px;padding:6px 10px;background:#2d3a5c;color:#fff;font:inherit}
  button:hover{background:#3a4a74}button:disabled{opacity:.4;cursor:default}
  #run{background:#9b2c3a}#run:hover{background:#b73646}
- #list,#res{max-height:140px;overflow:auto;background:#121724;border-radius:6px;padding:4px 6px}
- #list div,#res div{padding:1px 0;border-bottom:1px solid #1f2740}
+ #list,#res,#full{max-height:140px;overflow:auto;background:#121724;border-radius:6px;padding:4px 6px}
+ #list div,#res div,#full div{padding:1px 0;border-bottom:1px solid #1f2740}
  input[type=number]{width:56px;background:#121724;color:#fff;border:1px solid #3a4560;border-radius:4px;padding:2px 4px}
  #st{white-space:pre-wrap;color:#c9d2e8}small{color:#8f9bb8}.warn{color:#ffb4a8}
  label{display:flex;gap:4px;align-items:center}
@@ -21,7 +21,9 @@
   <div class="row"><button id="scan">Boş pasif kategorileri bul</button></div>
   <small id="stats"></small>
   <div id="list" hidden></div>
+  <div id="full" hidden></div>
   <div class="row"><button id="run" disabled>Sil (0)</button><button id="stop" disabled>Durdur</button></div>
+  <div class="row"><label><input id="move" type="checkbox"> Dolu pasifleri Not Assigned'a taşı, sonra sil</label></div>
   <div class="row"><label><input id="dry" type="checkbox"> Deneme modu</label><label>en çok <input id="max" type="number" min="1" max="1000"></label></div>
   <div id="st"></div>
   <div id="res" hidden></div>

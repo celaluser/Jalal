@@ -71,6 +71,9 @@ async function scan(page) {
 const done = (page) => page.waitForFunction(() => /Bitti|Durduruldu\./.test(document.querySelector('#kt-host').shadowRoot.querySelector('#st').textContent), null, { timeout: 120000, polling: 200 }).catch(async (e) => { console.log('--- ZAMAN AŞIMI, çubuk:\n' + await page.locator('#kt-host >> #bar').innerText().catch(() => '?') + '\nsunucu: ' + JSON.stringify(await page.evaluate(() => ({ d: window.__server.deleted, a: window.__server.attempts, o: window.__server.dialogsOpened }))) ); throw e; });
 const server = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__server)));
 const setDry = async (page, v) => { const cb = bar(page, '[data-s=dry]'); if ((await cb.isChecked()) !== v) await cb.click(); };
+const setMove = async (page, v) => { const cb = bar(page, '[data-s=move]'); if ((await cb.isChecked()) !== v) await cb.click(); };
+const FULL = ['TikTok Likes', 'Pinterest', 'Late Full Inactive']; // pasif + dolu
+const resText = (page) => bar(page, '#ktRes').innerText().catch(() => '');
 const lists = (page) => bar(page, '.list').first().innerText();
 
 (async () => {
@@ -238,7 +241,7 @@ const lists = (page) => bar(page, '.list').first().innerText();
     eq(s.dialogsCancelled.length, 3, '3 kategoride iptal edildi');
     const dgn = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { kt: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(dgn.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.1.0' && dj.satirTurleri && dj.actionsZinciri, 'teşhis metni hatasız üretildi (JSON)');
+    ok(dj && dj.surum === '1.2.0' && dj.satirTurleri && dj.actionsZinciri, 'teşhis metni hatasız üretildi (JSON)');
     await pop.close(); await p.close();
   }
 
@@ -282,7 +285,7 @@ const lists = (page) => bar(page, '.list').first().innerText();
   if (want('T15')) {
     const sw = ctx.serviceWorkers()[0] || await ctx.waitForEvent('serviceworker');
     const t0sw = await sw.evaluate(() => self.__ticks);
-    const p = await newPage(ctx, { virtual: true, delay: 500 });
+    const p = await newPage(ctx, { virtual: true, delay: 500, moveDelay: 600 });
     // aynı pencerede yeni sekme aç ve öne getir (gerçek sekme değişimi)
     const otherP = ctx.waitForEvent('page');
     await sw.evaluate(async () => { const [t] = await chrome.tabs.query({ url: 'https://panelbaku.com/*' }); await chrome.tabs.create({ url: 'about:blank', active: true, windowId: t.windowId }); });
@@ -292,16 +295,96 @@ const lists = (page) => bar(page, '.list').first().innerText();
     // düğmelere arka plandayken bas (mini panelin yaptığı gibi): tıklama yerine DOM click
     await p.evaluate(() => document.querySelector('#kt-host').shadowRoot.querySelector('[data-a=scan]').click());
     await p.waitForFunction(() => /bulundu|yok|⚠/.test(document.querySelector('#kt-host').shadowRoot.querySelector('#st').textContent), null, { timeout: 120000, polling: 300 });
-    await p.evaluate(() => { const r = document.querySelector('#kt-host').shadowRoot; const cb = r.querySelector('[data-s=dry]'); cb.click(); });
+    await p.evaluate(() => { const r = document.querySelector('#kt-host').shadowRoot; r.querySelector('[data-s=dry]').click(); r.querySelector('[data-s=move]').click(); });
     await p.evaluate(() => document.querySelector('#kt-host').shadowRoot.querySelector('[data-a=run]').click());
     await done(p);
     const s = await server(p);
-    eq(sorted(s.deleted), sorted(EXPECT), 'arka planda da tam küme silindi');
-    if (s.deleted.length !== EXPECT.length) console.log(await p.evaluate(() => document.querySelector('#kt-host').shadowRoot.querySelector('#bar').innerText));
+    eq(sorted(s.deleted), sorted(EXPECT.concat(FULL)), 'arka planda da tam küme silindi (taşıma dahil)');
+    eq(s.moves.length, 3, 'arka planda 3 taşıma');
+    if (s.deleted.length !== EXPECT.length + FULL.length) console.log(await p.evaluate(() => document.querySelector('#kt-host').shadowRoot.querySelector('#bar').innerText));
     eq(s.violations, [], 'ihlal yok');
     const ticks = (await sw.evaluate(() => self.__ticks)) - t0sw;
     ok(ticks > 50, 'beklemeler service worker üzerinden (' + ticks + ' uyanış)');
     await other.close(); await p.close();
+  }
+
+  console.log('T16 taşıma: dolu pasiflerin servisleri Not Assigned\'a, sonra kategori silinir (sanallaştırılmış liste)');
+  if (want('T16')) {
+    const p = await newPage(ctx, { virtual: true });
+    await scan(p);
+    eq(sorted(await bar(p, '#ktFull div').allInnerTexts()), sorted(['TikTok Likes (3)', 'Pinterest (1)', 'Late Full Inactive (2)']), 'dolu pasif listesi (sayılarıyla)');
+    await setMove(p, true); await setDry(p, false);
+    ok((await bar(p, '[data-a=run]').innerText()).includes('(9)'), 'düğme: 6 boş + 3 dolu = (9)');
+    await bar(p, '[data-a=run]').click(); await done(p);
+    const s = await server(p);
+    eq(sorted(s.deleted), sorted(EXPECT.concat(FULL)), 'boşlar + taşınanlar silindi');
+    eq(sorted(s.moves.map((m) => m.from + '>' + m.to + ':' + m.n)), sorted(['TikTok Likes>Not Assigned:3', 'Pinterest>Not Assigned:1', 'Late Full Inactive>Not Assigned:2']), 'taşımalar doğru hedefe, doğru sayıda');
+    eq(s.violations, [], 'ihlal yok (aktiften taşıma / dolu silme yok)');
+    eq(s.massDeleteAll, 0, '"Delete all"a hiç basılmadı');
+    eq(s.cats.find((c) => c.name === 'Not Assigned').services, 6, 'Not Assigned 6 servis aldı');
+    ok(['Instagram Followers', 'Snapchat', 'Twitch', 'LinkedIn', 'Late Active'].every((n) => s.cats.find((c) => c.name === n)), 'aktif dolu kategoriler duruyor');
+    eq(await p.evaluate(() => window.__selCount()), 0, 'sonda seçili servis yok');
+    ok(/3 taşındı/.test(await status(p)), 'özet: ' + await status(p));
+    await p.close();
+  }
+
+  console.log('T17 taşıma deneme modu: Assign penceresine kadar gider, Close; hiçbir şey taşınmaz/silinmez');
+  if (want('T17')) {
+    const p = await newPage(ctx, {});
+    await scan(p); await setMove(p, true);
+    await bar(p, '[data-a=run]').click(); await done(p);
+    const s = await server(p);
+    eq(s.moves, [], 'taşıma yok'); eq(s.deleted, [], 'silme yok'); eq(s.attempts, [], 'silme isteği yok');
+    eq(s.assignOpened, 3, '3 kez Assign penceresi açıldı'); eq(s.assignClosed, 3, '3 kez Close');
+    eq(sorted(s.selectAllClicks), sorted(FULL), '"Select all category services" yalnızca dolu pasiflere');
+    eq(await p.evaluate(() => window.__selCount()), 0, 'seçim temizlendi');
+    eq(s.massDeleteAll, 0, '"Delete all" yok');
+    ok(/9 deneme/.test(await status(p)), 'özet: ' + await status(p));
+    await p.close();
+  }
+
+  console.log('T18 seçilen sayı ≠ Expand (N) → atla, taşıma yok');
+  if (want('T18')) {
+    const p = await newPage(ctx, { selectShort: ['TikTok Likes'] });
+    await scan(p); await setMove(p, true); await setDry(p, false);
+    await bar(p, '[data-a=run]').click(); await done(p);
+    const s = await server(p);
+    ok(!s.moves.some((m) => m.from === 'TikTok Likes') && !s.deleted.includes('TikTok Likes'), 'TikTok Likes taşınmadı/silinmedi');
+    ok(/TikTok Likes[^\n]*seçilen servis sayısı \(2\) ≠ kategorideki \(3\)/.test(await resText(p)), 'neden yazıldı');
+    eq(sorted(s.moves.map((m) => m.from)), ['Late Full Inactive', 'Pinterest'], 'diğerleri taşındı');
+    eq(await p.evaluate(() => window.__selCount()), 0, 'seçim temizlendi');
+    eq(s.violations, [], 'ihlal yok');
+    await p.close();
+  }
+
+  console.log('T19 taşıma sunucu hatası → hata, kategori silinmez, sıradakine geçilir');
+  if (want('T19')) {
+    const p = await newPage(ctx, { moveFail: ['Pinterest'] });
+    await scan(p); await setMove(p, true); await setDry(p, false);
+    await bar(p, '[data-a=run]').click(); await done(p);
+    const s = await server(p);
+    ok(!s.deleted.includes('Pinterest') && s.cats.find((c) => c.name === 'Pinterest').services === 1, 'Pinterest duruyor, servisi yerinde');
+    ok(/Hata[\s\S]*Pinterest/.test(await resText(p)), 'hata listesinde Pinterest');
+    ok(s.deleted.includes('TikTok Likes') && s.deleted.includes('Late Full Inactive'), 'diğer dolu pasifler taşınıp silindi');
+    eq(s.violations, [], 'ihlal yok');
+    await p.close();
+  }
+
+  console.log('T20 soluk görünse de panel menüsü "Disable category" diyorsa (aktif) dokunulmaz');
+  if (want('T20')) {
+    const base = cats();
+    base.find((c) => c.name === 'Late Full Inactive').menuActive = true;
+    base.find((c) => c.name === 'Spotify Plays').menuActive = true;
+    const p = await newPage(ctx, { cats: base });
+    await scan(p); await setMove(p, true); await setDry(p, false);
+    await bar(p, '[data-a=run]').click(); await done(p);
+    const s = await server(p);
+    ok(!s.deleted.includes('Spotify Plays') && !s.deleted.includes('Late Full Inactive'), 'ikisi de silinmedi');
+    ok(!s.moves.some((m) => m.from === 'Late Full Inactive'), 'Late Full Inactive taşınmadı');
+    const rt = await resText(p);
+    ok(/Spotify Plays[^\n]*AKTİF/.test(rt) && /Late Full Inactive[^\n]*AKTİF/.test(rt), 'neden: panel AKTİF gösteriyor');
+    eq(s.violations, [], 'ihlal yok');
+    await p.close();
   }
 
   console.log('T11 Services dışı sayfada çubuk yok');

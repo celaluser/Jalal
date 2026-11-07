@@ -27,19 +27,22 @@ function paint(s) {
   const dry = s.settings.dryRun;
   if (document.activeElement !== $('max')) $('max').value = s.settings.max;
   $('dry').checked = dry;
+  $('move').checked = !!s.settings.move;
   $('scan').disabled = s.running;
-  const n = s.phase === 'ready' ? Math.min(s.candidates.length, s.settings.max) : 0;
+  const n = s.phase === 'ready' ? Math.min(s.work, s.settings.max) : 0;
   $('run').textContent = (dry ? 'Dene' : 'Sil') + ' (' + n + ')';
-  $('run').disabled = s.running || s.phase !== 'ready' || !s.candidates.length;
+  $('run').disabled = s.running || s.phase !== 'ready' || !s.work;
   $('stop').disabled = !s.running;
   $('stats').textContent = s.stats ? `${s.stats.kategori} kategori · ${s.stats.aktif} aktif · ${s.stats.pasif} pasif (${s.stats.pasifDolu} dolu) · ${s.stats.bos} boş pasif` : '';
   $('list').hidden = !s.candidates.length;
   $('list').innerHTML = s.candidates.map((c) => '<div>' + esc(c) + '</div>').join('');
+  $('full').hidden = !s.fulls.length;
+  $('full').innerHTML = '<div><b>Dolu pasif' + (s.settings.move ? ' (taşı + sil)' : ' (taşıma kapalı)') + '</b></div>' + s.fulls.map((f) => '<div>' + esc(f.name) + ' <small>(' + f.count + ')</small></div>').join('');
   $('st').textContent = s.status;
   $('st').className = /^⚠/.test(s.status) ? 'warn' : '';
   const r = s.res;
   const sec = (a, t) => a.length ? '<div><b>' + t + ' (' + a.length + ')</b></div>' + a.map((x) => '<div>' + esc(x.name) + ' <small>' + esc(x.reason || '') + '</small></div>').join('') : '';
-  const html = sec(r.deleted, 'Silinen') + sec(r.dry, 'Deneme') + sec(r.skipped, 'Atlanan') + sec(r.errors, 'Hata');
+  const html = sec(r.moved, 'Taşınan') + sec(r.deleted, 'Silinen') + sec(r.dry, 'Deneme') + sec(r.skipped, 'Atlanan') + sec(r.errors, 'Hata');
   $('res').hidden = !html; $('res').innerHTML = html;
   $('diag').hidden = false;
 }
@@ -52,6 +55,7 @@ async function tick() { paint(await send({ cmd: 'state' })); }
   $('run').onclick = async () => paint(await send({ cmd: 'run' }));
   $('stop').onclick = async () => paint(await send({ cmd: 'stop' }));
   $('dry').onchange = async () => paint(await send({ cmd: 'settings', patch: { dryRun: $('dry').checked } }));
+  $('move').onchange = async () => paint(await send({ cmd: 'settings', patch: { move: $('move').checked } }));
   $('max').onchange = async () => paint(await send({ cmd: 'settings', patch: { max: $('max').value } }));
   $('diag').onclick = async () => {
     const r = await send({ cmd: 'diag' });
