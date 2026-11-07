@@ -1968,6 +1968,51 @@ test('Matcher: sipariş geçmişinden bilinen sağlayıcı, belirsiz min/max eş
     eq(302, (int)$row['provider_service']);
 });
 
+echo "Rakipten öğrenme\n";
+test('Rakipten öğren: rakip Azerice adlar sağlayıcı servisleriyle eşleşir, tekrar eden ifade öneri olur, uygulanınca sözlüğe girer', function () {
+    [$db] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('provider','prov','https://p','k',1),('rival','rakip','https://r','k',1),('own','panelim','https://o','k',1)");
+    for ($i = 1; $i <= 8; $i++) {
+        $db->run('INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max,refill) VALUES(1,?,?,?,?,?,?,1)',
+            [100 + $i, "Instagram Followers | Zorbly Quick Kickoff | Max {$i}0K", 'Instagram', 1 + $i * 0.25, 10, $i * 10000]);
+        $db->run('INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max,refill) VALUES(1,?,?,?,?,?,?,1)',
+            [200 + $i, "TikTok Likes | Max {$i}0K", 'TikTok', 0.1 * $i, 10, $i * 10000]); // aynı min/max, başka platform
+        $db->run('INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max,refill) VALUES(2,?,?,?,?,?,?,1)',
+            [500 + $i, "Instagram İzləyici | Zorbli Tez Başlanğıc | Maks {$i}0K", 'Instagram', round(1.7 * (1 + $i * 0.25), 4), 10, $i * 10000]);
+    }
+    $db->run("INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max) VALUES(2,999,'Facebook Bəyəni','FB',2,77,7777)"); // sağlayıcıda yok
+    $L = new TgWatch\RivalLearn($db);
+    $r = $L->run();
+    eq(8, $r['pairs'], json_encode($r['sample'], JSON_UNESCAPED_UNICODE));
+    eq(1, $r['none']);
+    foreach ($r['sample'] as $p) {
+        ok(str_starts_with($p['en'], 'Instagram') && preg_match('/Max (\d+)0K/', $p['en'], $a) && preg_match('/Maks (\d+)0K/', $p['az'], $b) && $a[1] === $b[1], 'doğru servisle eşleşir: ' . $p['en'] . ' ↔ ' . $p['az']);
+    }
+    $sug = array_values(array_filter($r['suggestions'], static fn($s) => $s['kind'] === 'phrase' && $s['payload']['en'] === 'zorbly quick kickoff'));
+    eq(1, count($sug), json_encode(array_column($r['suggestions'], 'title'), JSON_UNESCAPED_UNICODE));
+    eq('Zorbli Tez Başlanğıc', $sug[0]['payload']['az']);
+    ok(str_contains($sug[0]['detail'], 'rakip böyle çevirmiş'), $sug[0]['detail']);
+    ok(!array_filter($r['suggestions'], static fn($s) => !in_array($s['kind'], ['phrase', 'rule'], true)), 'ad biçimi / silme önerisi yok');
+    eq([], TgWatch\Dictionary::load($db)['phrases']['zorbly quick kickoff'] ?? [], 'uygulanmadan sözlüğe girmez');
+    $L->apply($sug[0]);
+    eq('Zorbli Tez Başlanğıc', TgWatch\Dictionary::load($db)['phrases']['zorbly quick kickoff']);
+    $r2 = $L->run();
+    ok(!array_filter($r2['suggestions'], static fn($s) => ($s['payload']['en'] ?? '') === 'zorbly quick kickoff'), 'sözlükte olan ifade bir daha önerilmez');
+    eq('applied', $L->decided()[$sug[0]['id']]);
+});
+test('Rakipten öğren: sağlayıcı ya da rakip yoksa açık hata; reddedilen öneri kayıtlı kalır', function () {
+    [$db] = env();
+    $L = new TgWatch\RivalLearn($db);
+    try {
+        $L->run();
+        ok(false, 'hata bekleniyordu');
+    } catch (RuntimeException $e) {
+        ok(str_contains($e->getMessage(), 'sağlayıcı'), $e->getMessage());
+    }
+    $L->decide('abc', 'rejected');
+    eq(['abc' => 'rejected'], $L->decided());
+    eq(0, $L->readiness()['rivals']);
+});
 echo "Chrome eklentisi API\n";
 test('Eklenti API: anahtar, çeviri (banka/kural/yok), öğrenme ve sınırlar', function () {
     [$db] = env();

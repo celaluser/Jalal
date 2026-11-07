@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace TgWatch\Web;
 
+use TgWatch\RivalLearn;
 use TgWatch\Rivals;
 
 /** Rakipler bölümü: fiyat kıyası ve rakip listesi (Admin içinde kullanılır). */
@@ -186,5 +187,112 @@ trait RivalPages
                 return true;
         }
         return false;
+    }
+
+    private function rivalLearnPage(): void
+    {
+        $L = new RivalLearn($this->db);
+        $rd = $L->readiness();
+        $rep = $L->report();
+        $decided = $L->decided();
+        $sub = 'Rakip panelin Azerice adlarından kelime ve ifade önerisi çıkarır. Sen onaylamadan hiçbir şey değişmez.';
+        $h = '<div class="panel panel-pad stack"><p class="muted">Rakibin servisleri, eklediğin sağlayıcıların servisleriyle eşleştirilir: aynı min/max, addaki sayılar, platform, refill/cancel, emoji ve fiyat oranı (rakip fiyatı ≈ a × sağlayıcı fiyatı + b). '
+            . 'Sağlayıcının adı mevcut kurallarla çevrilip rakibin adıyla da karşılaştırılır. Yalnızca emin olunan eşleşmelerden öneri çıkar; tam ad kopyalanmaz, yalnızca tekrar eden kelime ve ifadeler önerilir. '
+            . 'Sözlüğünde karşılığı olan ifadeye öneri yapılmaz, bankandaki çeviriler her zaman önce gelir.</p>'
+            . '<dl class="kv"><dt>Rakip</dt><dd>' . $rd['rivals'] . ' panel, ' . $rd['rival_services'] . ' servis</dd>'
+            . '<dt>Sağlayıcı</dt><dd>' . $rd['providers'] . ' kaynak, ' . $rd['provider_services'] . ' servis</dd>'
+            . ($rep ? '<dt>Son analiz</dt><dd>' . Ui::ago((int)$rep['at']) . '</dd>' : '') . '</dl>';
+        if (!$rd['rivals'] || !$rd['rival_services']) {
+            $h .= '<p>' . Ui::link('?p=rival_list', 'Rakip ekle', 'primary', 'plus') . '</p></div>';
+            $this->render('Rakipten öğren', $h, ['active' => 'rival_learn', 'sub' => $sub]);
+            return;
+        }
+        if (!$rd['provider_services']) {
+            $h .= '<p class="muted">Eşleştirme için sağlayıcı servisleri gerekli: Çeviri bankası → Kaynaklar\'dan sağlayıcıyı ekle ve senkronize et.</p><p>' . Ui::link('?p=bank', 'Kaynaklara git', 'primary', 'link') . '</p></div>';
+            $this->render('Rakipten öğren', $h, ['active' => 'rival_learn', 'sub' => $sub]);
+            return;
+        }
+        $h .= '<div class="row">' . $this->ui->action('rlearn_run', $rep ? 'Yeniden analiz et' : 'Analizi çalıştır', [], 'primary', 'play') . '</div></div>';
+        if (!$rep) {
+            $this->render('Rakipten öğren', $h, ['active' => 'rival_learn', 'sub' => $sub]);
+            return;
+        }
+
+        $h .= '<section class="strip" aria-label="Özet"><div><div class="k">' . Ui::dot($rep['pairs'] ? 'ok' : 'warn') . 'Emin olunan eşleşme</div><div class="v">' . (int)$rep['pairs'] . '</div></div>'
+            . '<div><div class="k">' . Ui::dot('warn') . 'Emin olunamayan (kullanılmadı)</div><div class="v">' . (int)$rep['unsure'] . '</div></div>'
+            . '<div><div class="k">' . Ui::dot('ok') . 'Sağlayıcında karşılığı yok</div><div class="v">' . (int)$rep['none'] . '</div></div></section>';
+        $per = [];
+        foreach ($rep['per'] ?? [] as $p) {
+            $per[] = Ui::e($p['name']) . ': ' . (int)$p['services'] . ' servisten ' . (int)$p['matched'] . ' tanesi eşleşti'
+                . (($p['model']['mode'] ?? 'none') !== 'none' ? ' (fiyat ≈ ' . rtrim(rtrim(number_format((float)$p['model']['a'], 3, '.', ''), '0'), '.') . ' × sağlayıcı)' : '');
+        }
+        if ($per) {
+            $h .= '<p class="muted">' . implode('<br>', $per) . '</p>';
+        }
+        if (!$rep['pairs']) {
+            $h .= '<p class="muted">Eşleşme çıkmadı: rakip büyük ihtimalle senin eklediğin sağlayıcılardan almıyor. Daha çok sağlayıcı ekledikçe eşleşme artar.</p>';
+        }
+
+        $open = array_values(array_filter($rep['suggestions'] ?? [], static fn($s) => !isset($decided[$s['id']])));
+        $h .= '<h2>Öneriler</h2>';
+        if ($open) {
+            $h .= '<p class="muted">En güçlü kanıttan başlar. “Uygula” sözlüğe işler ve açık işlerin çevirisini yeniler. “Gerekmez” dediğin öneri bir daha gösterilmez.</p>'
+                . '<div class="table-wrap"><table><thead><tr><th>Öneri</th><th>Kanıt</th><th></th></tr></thead><tbody>';
+            foreach (array_slice($open, 0, 80) as $s) {
+                $h .= '<tr><td><span class="badge">' . Ui::e(self::LEARN_KINDS[$s['kind']] ?? $s['kind']) . '</span> <b>' . Ui::e($s['title']) . '</b>'
+                    . ($s['ex'] !== '' ? '<div class="src">Örnek: ' . Ui::e($s['ex']) . '</div>' : '') . '</td>'
+                    . '<td class="muted">' . Ui::e($s['detail']) . '</td><td class="tight"><div class="row">'
+                    . $this->ui->action('rlearn_apply', 'Uygula', ['sid' => $s['id']], 'quiet sm', 'check')
+                    . $this->ui->action('rlearn_reject', 'Gerekmez', ['sid' => $s['id']], 'ghost sm', 'x') . '</div></td></tr>';
+            }
+            $h .= '</tbody></table></div>';
+        } else {
+            $h .= '<p class="muted">' . ($rep['suggestions'] ? 'Bütün önerilere karar verdin.' : 'Öneri çıkmadı: eşleşmelerde tekrar eden yeni bir ifade yok ya da sözlüğün bunları zaten biliyor.') . '</p>';
+        }
+
+        if (!empty($rep['sample'])) {
+            $h .= '<details class="panel panel-pad gap-top"><summary>Eşleşme örnekleri (' . count($rep['sample']) . ')</summary><p class="muted">Önerilerin dayandığı çiftler. Yanlış eşleşme çoksa önerilere dikkatli bak.</p>'
+                . '<div class="table-wrap"><table><thead><tr><th>Sağlayıcı adı</th><th>Rakibin adı</th><th class="num">Skor</th></tr></thead><tbody>';
+            foreach ($rep['sample'] as $p) {
+                $h .= '<tr><td>' . Ui::e(mb_substr($p['en'], 0, 110)) . '<div class="src">' . Ui::e($p['provider']) . ' · #' . (int)$p['provider_service'] . '</div></td>'
+                    . '<td>' . Ui::e(mb_substr($p['az'], 0, 110)) . '<div class="src">' . Ui::e($p['rival']) . ' · #' . (int)$p['rival_service'] . '</div></td>'
+                    . '<td class="num tight">' . round((float)$p['score'] * 100) . '%</td></tr>';
+            }
+            $h .= '</tbody></table></div></details>';
+        }
+        $this->render('Rakipten öğren', $h, ['active' => 'rival_learn', 'sub' => $sub]);
+    }
+
+    private function postRivalLearn(string $p): bool
+    {
+        if (!str_starts_with($p, 'rlearn_')) {
+            return false;
+        }
+        $L = new RivalLearn($this->db);
+        switch ($p) {
+            case 'rlearn_run':
+                $r = $L->run();
+                $this->say('ok', 'Analiz bitti: ' . $r['pairs'] . ' eşleşmeden ' . count($r['suggestions']) . ' öneri çıktı.');
+                break;
+            case 'rlearn_apply':
+            case 'rlearn_reject':
+                $s = $L->find((string)($_POST['sid'] ?? ''));
+                if (!$s) {
+                    throw new \InvalidArgumentException('Öneri bulunamadı. Analizi yeniden çalıştır.');
+                }
+                if ($p === 'rlearn_apply') {
+                    $L->apply($s);
+                    $n = $this->refreshOpenJobs();
+                    $this->say('ok', 'Sözlüğe eklendi.' . ($n ? " $n açık iş yeniden çevrildi." : ''));
+                } else {
+                    $L->decide($s['id'], 'rejected');
+                    $this->say('ok', 'Öneri kapatıldı.');
+                }
+                break;
+            default:
+                return false;
+        }
+        $this->redirect('rival_learn');
+        return true;
     }
 }

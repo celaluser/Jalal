@@ -227,7 +227,7 @@ ID satırlarından önceki kısa başlık satırı alınır. Gerçek kanallarda 
 
 ## Rakipler (fiyat kıyası) ve haftalık özet
 
-Menüde **Analiz** bölümü altında: **Rakip kıyası** ve **Rakip listesi** sekmeleri.
+Menüde **Analiz** bölümü altında: **Rakip kıyası**, **Rakip listesi** ve **Rakipten öğren** sekmeleri.
 
 - **Rakip ekle:** rakip panelin API adresi + anahtarı (standart `action=services`). Kur çarpanı: rakip fiyatı × bu sayı = senin para birimin (aynı para birimiyse 1).
 - **Eşleştirme:** her servisin için her rakipte en benzer servis bulunur (platform, ad benzerliği, min/max, sayılar). Rakibin adı kurallarla Azericeye çevrilip senin adınla ve bankadaki İngilizce karşılığınla karşılaştırılır. Emin olunamayanlar **Kontrol bekleyen** olur: Doğru/Yanlış de, yanlış dediğin bir daha önerilmez.
@@ -235,6 +235,18 @@ Menüde **Analiz** bölümü altında: **Rakip kıyası** ve **Rakip listesi** s
 - **Otomatik:** cron her `rival_minutes` dakikada bir (varsayılan 360) rakip listesini çeker, yeniden eşleştirir. Bir rakip senden `rival_alert_pct`% (varsayılan 10) ucuzsa ya da fiyatı o kadar değişirse bota tek mesajla haber gelir (Uyarılar sayfasından kapatılır).
 - **Haftalık özet:** pazartesi 09:00'dan sonraki ilk cron'da bota geçen haftanın özeti gider (gelen/onaylanan/reddedilen iş, bankadan oran, API'den yakalanan yeni servis, bekleyenler, öğrenme doğruluğu, rakip kıyası). Uyarılar sayfasından kapatılır.
 - **Denenmedi:** gerçek rakip API'siyle. Test sahte listelerle yapıldı. Eşleştirme tahmindir; kontrol bekleyenlere göz at.
+
+### Rakipten öğren (Analiz → Rakipten öğren)
+
+Rakip panelin adları zaten Azerice; İngilizce karşılık şöyle bulunur: rakibin her servisi, eklediğin **sağlayıcıların** servisleriyle eşleştirilir. Çeviride değişmeyen izler kullanılır: aynı min/max (yoksa aynı max, daha düşük puanla), addaki sayılar, platform, refill/cancel, emoji ve fiyat oranı (rakip fiyatı ≈ a × sağlayıcı fiyatı + b; rakip başına ayrı hesaplanır). Sağlayıcının adı mevcut kurallarla Azericeye çevrilip rakibin adıyla da karşılaştırılır.
+
+- Yalnızca **emin olunan** eşleşmeler kullanılır (skor ≥ %70 ve ikinci adaydan açık ara önde; iki sağlayıcı aynı adı satıyorsa belirsizlik sayılmaz).
+- Eşleşen çiftlerden tekrar eden ifadeler çıkarılır (Öğrenme sayfasıyla aynı motor): **sözlük terimi** ("non drop" → "Düşmə yoxdur") ve **sayılı kalıp** ("#0 days refill" → "#0 gün bərpa"), kanıtıyla (kaç eşleşmede, yüzde kaç).
+- Ad biçimi (ayraç, ön/son ek, sıra) ve silinen parçalar **önerilmez**: bunlar rakibin üslubu. Tam ad kopyalanmaz.
+- Sözlüğünde karşılığı olan ifadeye öneri yapılmaz. Bankadaki çevirilerin her zaman kurallardan önce gelir.
+- **Uygula** sözlüğe işler ve açık işlerin çevirisini yeniler; **Gerekmez** dediğin öneri bir daha gösterilmez (yeniden analizde de).
+- Rakip, senin sağlayıcılarından almıyorsa eşleşme çıkmaz; sağlayıcı ekledikçe artar. Gereken: en az bir rakip (Rakip listesi) ve senkronize edilmiş en az bir sağlayıcı (Çeviri bankası → Kaynaklar).
+- **Denenmedi:** gerçek rakip/sağlayıcı listeleriyle. Test sahte listelerle yapıldı; önerilerin örneklerine ve "Eşleşme örnekleri"ne göz at.
 
 ## Sağlayıcı API izleme (yeni servis kanalda duyurulmasa da haber gelir)
 

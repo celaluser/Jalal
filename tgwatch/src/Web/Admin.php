@@ -102,6 +102,7 @@ final class Admin
             'learn' => $this->learnPage(),
             'rivals' => $this->rivalsPage(),
             'rival_list' => $this->rivalListPage(),
+            'rival_learn' => $this->rivalLearnPage(),
             'ai' => $this->aiSettings(),
             'job_prompt' => $this->jobPrompt((int)($_GET['id'] ?? 0)),
             'logs' => $this->logs(),
@@ -1166,7 +1167,7 @@ final class Admin
     {
         $id = (int)($_POST['id'] ?? 0);
         try {
-            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p) || $this->postTools($p) || $this->postLearn($p) || $this->postRival($p)) {
+            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p) || $this->postTools($p) || $this->postLearn($p) || $this->postRival($p) || $this->postRivalLearn($p)) {
                 return;
             }
             switch ($p) {
@@ -1409,6 +1410,8 @@ final class Admin
                 $this->redirect('bank');
             } elseif (str_starts_with($p, 'rival_')) {
                 $this->redirect($p === 'rival_confirm' || $p === 'rival_reject' || $p === 'rival_run' ? 'rivals' : 'rival_list');
+            } elseif (str_starts_with($p, 'rlearn_')) {
+                $this->redirect('rival_learn');
             } elseif (str_starts_with($p, 'learn_')) {
                 $this->redirect('learn');
             } elseif ($p === 'ai_save') {
