@@ -6,7 +6,7 @@
   if (window.__katTemizle) return;
   window.__katTemizle = true;
 
-  const VERSION = '1.3.0';
+  const VERSION = '1.3.1';
   const SETTINGS_KEY = 'kt_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const HANDLE = '.service-table__handle, [class*="__handle"], .handle, .drag-handle';
@@ -577,7 +577,10 @@
     let box = el; let btn = null; let cb = null;
     for (let i = 0; i < 6 && box && box !== document.body; i++, box = box.parentElement) {
       btn = [...box.querySelectorAll('button, a')].find((b) => visible(b) && /^actions\b/i.test(btnText(b)) && !b.closest('.service-table__category, .service-table__row, .service-table__body, [id^="category-"]'));
-      if (btn) { cb = el.querySelector('input[type=checkbox]') || box.querySelector('input[type=checkbox]'); break; }
+      if (btn) break;
+    }
+    for (let b = el, i = 0; b && b !== document.body && i < 8 && !cb; i++, b = b.parentElement) {
+      cb = [...b.querySelectorAll('input[type=checkbox]')].find((c) => visible(c) && (c.name === 'mass_action' || c.closest('.mass-actions') || !c.closest('.service-table__row, .service-table__body, .service-table__category'))) || null;
     }
     return { n, el, btn, cb };
   }
@@ -586,7 +589,11 @@
   async function clearSelection() {
     let s = selection();
     if (!s) return true;
-    if (s.cb) { s.cb.click(); if (await waitFor(() => !selection(), 3000, 100)) return true; }
+    for (let k = 0; k < 2 && s && s.cb; k++) {
+      s.cb.click();
+      if (await waitFor(() => !selection(), 3000, 100)) return true;
+      s = selection(); // tıklama "hepsini seç" olarak çalıştıysa bir kez daha bas
+    }
     for (const c of svcChecks()) if (c.checked) c.click();
     if (await waitFor(() => !selection(), 3000, 100)) return true;
     s = selection();
@@ -606,6 +613,28 @@
       return { dlg: d, save, close, text: t };
     }
     return null;
+  }
+  /**
+   * Save changes sonrası panelin onay penceresi: "Assign to category — Are you sure you want to assign N services to category X?"
+   * [Assign] [Cancel]. N ve X okunur; Assign'a basmadan önce doğrulanır.
+   */
+  function findAssignConfirm() {
+    for (const d of [...document.querySelectorAll(DIALOG)].filter(visible)) {
+      const t = norm(d.innerText || d.textContent); // innerText: satırlar arasında boşluk ("assign 2 services")
+      if (!/assign\s*to\s*category|are you sure you want to assign/i.test(t)) continue;
+      const ok = [...d.querySelectorAll('button, a, input[type=submit]')].find((b) => visible(b) && /^assign$/i.test(norm(b.value || btnText(b))));
+      if (!ok) continue;
+      const cancel = [...d.querySelectorAll('button, a')].find((b) => visible(b) && /^(cancel|close|no)$/i.test(btnText(b)));
+      const m = t.match(/assign\s*(\d+)\s*services?\s*to\s*category\s*(.+?)\s*\?/i);
+      return { dlg: d, ok, cancel, text: t, n: m ? parseInt(m[1], 10) : null, target: m ? m[2] : null };
+    }
+    return null;
+  }
+  async function cancelAssignConfirm() {
+    const c = findAssignConfirm();
+    if (!c) return true;
+    if (c.cancel) c.cancel.click(); else pressEscape();
+    return !!(await waitFor(() => !findAssignConfirm(), 4000, 100));
   }
   const enabled = (b) => !!b && !b.disabled && !b.classList.contains('disabled') && b.getAttribute('aria-disabled') !== 'true';
 
@@ -719,8 +748,23 @@
     const fa = findAssign();
     if (!fa || !enabled(fa.save)) { await closeAssign(); await clearSelection(); return result('error', 'Save changes etkin değil'); }
     fa.save.click();
-    const closed = await waitFor(() => { seen.push(...readToasts()); return !findAssign(); }, 15000, 120);
-    if (!closed) { await closeAssign(); await clearSelection(); S.diagNeeded = true; return result('error', 'Assign penceresi kapanmadı (sunucu cevap vermedi?)'); }
+    // Save changes → panel onay penceresi açar ("Assign to category … N services … Not Assigned?") ya da doğrudan kapanır
+    const next = await waitFor(() => findAssignConfirm() || (!findAssign() ? 'closed' : null), 8000, 100);
+    if (!next) { await closeAssign(); await clearSelection(); S.diagNeeded = true; return result('error', 'Save changes sonrası onay penceresi gelmedi, Assign penceresi de kapanmadı'); }
+    if (next !== 'closed') {
+      remember('dialog', [next.text.slice(0, 200)]);
+      const bad = next.n !== n ? 'onay penceresindeki sayı (' + next.n + ') ≠ ' + n : !isSpecial(next.target || '') ? 'onay penceresindeki hedef "' + (next.target || '?') + '" (Not Assigned değil)' : '';
+      const c3 = check(name, id, true);
+      if (bad || !c3.ok || S.stop) {
+        await cancelAssignConfirm(); await closeAssign(); await clearSelection(); await ensureCategoryView();
+        if (S.stop) return result('skip', 'durduruldu (son onaydan önce)');
+        S.diagNeeded = !!bad;
+        return result('skip', bad || ('son anda değişti: ' + c3.reason));
+      }
+      next.ok.click();
+    }
+    const closed = await waitFor(() => { seen.push(...readToasts()); return !findAssign() && !findAssignConfirm(); }, 15000, 120);
+    if (!closed) { await cancelAssignConfirm(); await closeAssign(); await clearSelection(); S.diagNeeded = true; return result('error', 'Assign penceresi kapanmadı (sunucu cevap vermedi?)'); }
     await sleep(500);
     seen.push(...readToasts());
     remember('toast', [...new Set(seen)]);

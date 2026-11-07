@@ -91,6 +91,18 @@ function Assign({ onClose, onSave, busy }) {
         e('button', { className: 'btn btn-default', onClick: onClose }, 'Close'))))), document.body);
 }
 
+/** Gerçek panel: Save changes sonrası ikinci onay — "Assign to category … assign N services to category X?" [Assign] [Cancel] */
+function AssignConfirm({ n, target, onOk, onCancel, busy }) {
+  return ReactDOM.createPortal(e('div', null,
+    e('div', { className: 'backdrop' }),
+    e('div', { className: 'modal', role: 'dialog' }, e('div', { className: 'modal-content', style: { textAlign: 'center' } },
+      e('h4', null, 'Assign to category'),
+      e('div', null, 'Are you sure you want to assign'), e('div', null, e('b', null, String(n)), ' services'), e('div', null, 'to category ', e('b', null, target), '?'),
+      e('div', { style: { marginTop: 12 } },
+        e('button', { className: 'btn btn-danger', disabled: busy, onClick: onOk }, 'Assign'),
+        e('button', { className: 'btn btn-default', onClick: onCancel }, 'Cancel'))))), document.body);
+}
+
 function App() {
   const [, force] = useState(0);
   const [key, setKey] = useState(0);
@@ -101,6 +113,7 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(null); // satır içi menü anahtarı (gerçek panel: bootstrap dropdown)
   const [confirm, setConfirm] = useState(null);
   const [assign, setAssign] = useState(false);
+  const [aconf, setAconf] = useState(null); // ikinci onay: hedef kategori
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
   rerender = () => force((n) => n + 1);
@@ -176,7 +189,7 @@ function App() {
     setTimeout(() => {
       setBusy(false);
       const names = [...byCat.keys()].map((id) => server.cats.find((c) => c.id === id).name);
-      if (names.some((n) => cfg.moveFail.includes(n))) { setAssign(false); flash('Error: services were not moved', 'err'); return; }
+      if (names.some((n) => cfg.moveFail.includes(n))) { setAssign(false); setAconf(null); flash('Error: services were not moved', 'err'); return; }
       for (const [cid, n] of byCat) {
         const c = server.cats.find((x) => x.id === cid);
         if (c.active) server.violations.push('move-from-active:' + c.name);
@@ -186,7 +199,7 @@ function App() {
       }
       target.services += [...byCat.values()].reduce((a, b) => a + b, 0);
       sel = new Set(); server.assignClosed++;
-      setAssign(false); flash('Services updated', 'ok');
+      setAssign(false); setAconf(null); flash('Services updated', 'ok');
       redraw();
     }, cfg.moveDelay);
   };
@@ -222,15 +235,22 @@ function App() {
   }
 
   return e('div', null,
-    sel.size > 0 && e('div', { className: 'mass' },
-      e('label', null, e('input', { type: 'checkbox', checked: true, onChange: () => { sel = new Set(); rerender(); } }), ' ' + sel.size + ' services selected'),
-      dd('mass', massMenu(), 'btn')),
-    e('div', { className: 'thead service-table__header' }, e('input', { type: 'checkbox' }), e('span', null, 'Service'), e('span', { style: { flex: 1 } }, ' Status  Min  Max'),
+    e('div', { className: 'thead service-table__header' },
+      e('div', { className: 'mass-actions' + (sel.size ? ' mass-actions__active' : '') },
+        e('input', { type: 'checkbox', name: 'mass_action', value: 'checkAll', checked: sel.size > 0, onChange: () => {
+          if (sel.size && !(cfg.massCheckSelectsAll && !server.massAllOnce)) { sel = new Set(); }
+          else { server.massAllOnce = true; for (const c of server.cats) for (let i = 0; i < c.services; i++) sel.add(c.id + ':' + i); }
+          rerender();
+        } }),
+        sel.size > 0 && e('div', { className: 'mass-actions__selected' }, e('div', { className: 'mass-actions__selected-title' }, sel.size + ' services selected'),
+          e('div', { className: 'mass-actions__selected-actions' }, dd('mass', massMenu(), 'btn')))),
+      e('span', null, 'Service'), e('span', { style: { flex: 1 } }, ' Status  Min  Max'),
       e('span', { className: 'far service-table__header-hide-all ' + (expanded ? 'fa-compress-alt' : 'fa-expand-alt'), onClick: () => { setExpanded((x) => !x); setOpenCats(new Set()); } }, expanded ? '[–]' : '[+]')),
     (cfg.inner || cfg.virtual) ? e('div', { id: 'scroller' }, list) : list,
     menu && e(Menu, { m: menu, close: () => setMenu(null) }),
     confirm && e(Confirm, { c: confirm, busy, onCancel: () => { server.dialogsCancelled.push(confirm.name); setConfirm(null); }, onDelete: () => doDelete(confirm) }),
-    assign && e(Assign, { busy, onClose: () => { server.assignClosed++; setAssign(false); }, onSave: (t) => doMove(t) }),
+    assign && !aconf && e(Assign, { busy, onClose: () => { server.assignClosed++; setAssign(false); }, onSave: (t) => { server.saveClicks = (server.saveClicks || 0) + 1; setAconf(t); } }),
+    aconf && e(AssignConfirm, { n: cfg.confirmCount || sel.size, target: cfg.confirmTarget || aconf.name, busy, onOk: () => { server.assignOk = (server.assignOk || 0) + 1; doMove(aconf); }, onCancel: () => { server.confirmCancels = (server.confirmCancels || 0) + 1; setAconf(null); setAssign(false); } }),
     toast && ReactDOM.createPortal(e('div', { className: 'toast ' + toast.k, role: 'alert' }, toast.t), document.body));
 }
 ReactDOM.createRoot(document.getElementById('root')).render(e(App));

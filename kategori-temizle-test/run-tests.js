@@ -246,7 +246,7 @@ const lists = (page) => bar(page, '.list').first().innerText();
     eq(s.dialogsCancelled.length, 3, '3 kategoride iptal edildi');
     const dgn = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { kt: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(dgn.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.3.0' && dj.satirTurleri && dj.actionsZinciri, 'teşhis metni hatasız üretildi (JSON)');
+    ok(dj && dj.surum === '1.3.1' && dj.satirTurleri && dj.actionsZinciri, 'teşhis metni hatasız üretildi (JSON)');
     await pop.close(); await p.close();
   }
 
@@ -334,6 +334,7 @@ const lists = (page) => bar(page, '.list').first().innerText();
     eq(sorted(s.moves.map((m) => m.from + '>' + m.to + ':' + m.n)), sorted(['TikTok Likes>Not Assigned:3', 'Pinterest>Not Assigned:1', 'Late Full Inactive>Not Assigned:2']), 'taşımalar doğru hedefe, doğru sayıda');
     eq(s.violations, [], 'ihlal yok (aktiften taşıma / dolu silme yok)');
     eq(s.massDeleteAll, 0, '"Delete all"a hiç basılmadı');
+    eq(s.assignOk, 3, 'her taşımada "Assign to category" onayında Assign');
     eq(s.cats.find((c) => c.name === 'Not Assigned').services, 6, 'Not Assigned 6 servis aldı');
     ok(['Instagram Followers', 'Snapchat', 'Twitch', 'LinkedIn', 'Late Active'].every((n) => s.cats.find((c) => c.name === n)), 'aktif dolu kategoriler duruyor');
     eq(await p.evaluate(() => window.__selCount()), 0, 'sonda seçili servis yok');
@@ -439,6 +440,34 @@ const lists = (page) => bar(page, '.list').first().innerText();
     const s = await server(p);
     eq(s.moves.length, 3, '3 taşıma'); eq(s.deleted, [], 'silme yok'); eq(s.attempts, [], 'silme isteği yok');
     ok(FULL.every((n) => s.cats.find((c) => c.name === n && c.services === 0)), 'kategoriler duruyor, boşaldı');
+    eq(s.violations, [], 'ihlal yok');
+    await p.close();
+  }
+
+  console.log('T23 Save sonrası "Assign to category" onayı: sayı/hedef yanlışsa Cancel; toplu kutucuk önce "hepsini seç" yapsa da seçim temizlenir');
+  if (want('T23')) {
+    let p = await newPage(ctx, { confirmCount: 99 });
+    await scan(p); await setMove(p, true); await setDry(p, false);
+    await bar(p, '[data-s=max]').fill('1'); await bar(p, '[data-s=max]').dispatchEvent('change');
+    await bar(p, '[data-a=run]').click(); await done(p);
+    let s = await server(p);
+    eq(s.moves, [], 'yanlış sayılı onayda taşıma yok'); eq(s.confirmCancels, 3, 'her birinde onay penceresinde Cancel (atlananlar N sınırına sayılmaz)');
+    ok(/onay penceresindeki sayı \(99\)/.test(await resText(p)), 'neden: sayı uyuşmuyor');
+    eq(await p.evaluate(() => window.__selCount()), 0, 'seçim temizlendi');
+    await p.close();
+    p = await newPage(ctx, { confirmTarget: 'PASSİF' });
+    await scan(p); await setMove(p, true); await setDry(p, false);
+    await bar(p, '[data-s=max]').fill('1'); await bar(p, '[data-s=max]').dispatchEvent('change');
+    await bar(p, '[data-a=run]').click(); await done(p);
+    s = await server(p);
+    eq(s.moves, [], 'hedef Not Assigned değilse taşıma yok');
+    ok(/hedef "PASSİF"/.test(await resText(p)), 'neden: hedef yanlış');
+    await p.close();
+    p = await newPage(ctx, { massCheckSelectsAll: true, virtual: true });
+    await scan(p); await setMove(p, true); await setDry(p, false);
+    await bar(p, '[data-a=run]').click(); await done(p);
+    s = await server(p);
+    eq(sorted(s.moves.map((m) => m.from + ':' + m.n)), sorted(['TikTok Likes:3', 'Pinterest:1', 'Late Full Inactive:2']), 'toplu kutucuk tuhaf davransa da yalnızca doğru servisler taşındı');
     eq(s.violations, [], 'ihlal yok');
     await p.close();
   }
