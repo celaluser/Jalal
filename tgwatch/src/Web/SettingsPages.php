@@ -96,6 +96,9 @@ trait SettingsPages
                 continue;
             }
             $cur = $this->config[$k] ?? ($f['default'] ?? '');
+            if ($cur === '' && isset($f['default'])) {
+                $cur = $f['default']; // boş = varsayılan (ör. kanal şablonu)
+            }
             $from = array_key_exists($k, $stored) ? 'panelden' : 'config.php';
             $help = $f['help'] ?? '';
             $id = 'f_' . $k;
@@ -107,6 +110,8 @@ trait SettingsPages
                     . ((string)$cur !== '' ? '<label class="check sm"><input type="checkbox" name="clear[' . $k . ']" value="1"><span>Temizle</span></label>' : ''),
                 'key' => '<input type="password" id="' . $id . '" name="f[' . $k . ']" value="" autocomplete="off" placeholder="' . ((string)$cur !== '' ? '•••••••• (ayarlı, değiştirmek için yaz)' : 'Henüz girilmedi') . '">'
                     . '<label class="check sm"><input type="checkbox" name="gen[' . $k . ']" value="1"><span>Yeni rastgele anahtar üret</span></label>',
+                'textarea' => '<textarea id="' . $id . '" name="f[' . $k . ']" rows="' . (($f['max'] ?? 0) > 1000 ? 6 : 3) . '" class="mono">' . Ui::e((string)$cur) . '</textarea>',
+                'channel' => '<input type="text" id="' . $id . '" name="f[' . $k . ']" value="' . Ui::e((string)$cur) . '" placeholder="@kanaladi">',
                 default => '<input type="' . (['url' => 'url', 'email' => 'email'][$f['type']] ?? 'text') . '" id="' . $id . '" name="f[' . $k . ']" value="' . Ui::e((string)$cur) . '"' . ($f['type'] === 'url' ? ' placeholder="https://"' : ($f['type'] === 'email' ? ' placeholder="ornek@mail.com"' : '')) . '>',
             };
             $rows .= '<div class="setting"><div class="setting-l"><label for="' . $id . '">' . Ui::e($f['label']) . '</label>'

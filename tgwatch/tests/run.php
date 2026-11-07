@@ -2013,6 +2013,105 @@ test('Rakipten öğren: sağlayıcı ya da rakip yoksa açık hata; reddedilen �
     eq(['abc' => 'rejected'], $L->decided());
     eq(0, $L->readiness()['rivals']);
 });
+echo "Import bildirimi ve kanal paylaşımı\n";
+test('Import raporu: kendi panelden kategorinin servisleri, bota özet + önizleme + düğme; düğmeyle kanala gider', function () {
+    [$db, $tg] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('own','panelim','https://own.example/api/v2','k',1)");
+    TgWatch\SmmApi::$fake = static fn() => json_encode([
+        ['service' => 900, 'name' => 'Eski servis', 'category' => 'Instagram Bəyəni', 'rate' => '1.5', 'min' => '10', 'max' => '1000'],
+        ['service' => 1201, 'name' => 'TikTok İzləyici | Ucuz <tez>', 'category' => 'TikTok  İzləyici Low Quality', 'rate' => '0.4500', 'min' => '10', 'max' => '100000'],
+        ['service' => 1202, 'name' => 'TikTok İzləyici | Real', 'category' => 'tiktok izləyici low quality', 'rate' => '2', 'min' => '50', 'max' => '2000000'],
+    ]);
+    $cfg = array_merge(App::config(), ['share_mode' => 'ask', 'share_channel' => '@panelbaku', 'share_link' => 'https://panelbaku.com']);
+    try {
+        $r = (new TgWatch\ImportShare($db, $tg, $cfg))->report(['categories' => [['name' => 'TikTok İzləyici Low Quality', 'src' => 'TikTok Followers Low Quality', 'moved' => true]],
+            'counts' => ['ok' => 1, 'warn' => 1, 'bad' => 0], 'services' => [['name' => 'a'], ['name' => 'b']], 'kind' => 'ok', 'note' => '']);
+    } finally {
+        TgWatch\SmmApi::$fake = null;
+    }
+    eq(['pending', 2, true], [$r['status'], $r['services'], $r['notified']]);
+    $m = $tg->last('sendMessage');
+    eq(OWNER, $m['chat_id']);
+    ok(str_contains($m['text'], 'Import tamamlandı') && str_contains($m['text'], '2 servis · 1 hazır, 1 kontrol et') && str_contains($m['text'], 'en üstte'), $m['text']);
+    ok(str_contains($m['text'], '🆔 <b>1201</b> — TikTok İzləyici | Ucuz &lt;tez&gt;') && str_contains($m['text'], '0.45 ₼ / 1000 · Min 10 · Maks 100 000'), 'önizleme, değerler kaçışlı: ' . $m['text']);
+    ok(!str_contains($m['text'], 'Eski servis'), 'başka kategori karışmaz');
+    eq('sh:post:' . $r['id'], $m['reply_markup']['inline_keyboard'][0][0]['callback_data']);
+    $n = $tg->count('sendMessage');
+    $flow = new Flow($db, $tg, $cfg);
+    $flow->handleUpdate(cb(1, 99999, 'sh:post:' . $r['id']));
+    eq($n, $tg->count('sendMessage'), 'yabancı basamaz');
+    $flow->handleUpdate(cb(2, OWNER, 'sh:post:' . $r['id']));
+    $c = $tg->last('sendMessage');
+    eq('@panelbaku', $c['chat_id']);
+    ok(str_starts_with($c['text'], '🆕 <b>TikTok İzləyici Low Quality</b>') && str_contains($c['text'], '🆔 <b>1202</b>') && str_ends_with($c['text'], 'Sifariş üçün: https://panelbaku.com'), $c['text']);
+    ok(str_contains($tg->last('editMessageText')['text'], 'Kanalda paylaşıldı: @panelbaku'));
+    eq([], $tg->last('editMessageText')['reply_markup']['inline_keyboard'], 'düğmeler kalkar');
+    $n = $tg->count('sendMessage');
+    $flow->handleUpdate(cb(3, OWNER, 'sh:post:' . $r['id']));
+    eq($n, $tg->count('sendMessage'), 'iki kez paylaşılmaz');
+});
+test('Import raporu: otomatik mod, şablon, uzun liste parçalanır; kanal yoksa ipucu; yeni kategori yoksa yalnızca özet; "Paylaşma"', function () {
+    [$db, $tg] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('own','panelim','https://own.example/api/v2','k',1)");
+    $list = [];
+    for ($i = 1; $i <= 60; $i++) {
+        $list[] = ['service' => 3000 + $i, 'name' => str_repeat('Uzun servis adı ', 4) . $i, 'category' => 'Yeni Kat', 'rate' => '1', 'min' => '10', 'max' => '1000'];
+    }
+    TgWatch\SmmApi::$fake = static fn() => json_encode($list);
+    $cfg = array_merge(App::config(), ['share_mode' => 'auto', 'share_channel' => '-1001234567890', 'share_template' => "<b>{kategori}</b> ({say})\n{servisler}\nSon", 'share_line' => '{id} {ad} {qiymet}']);
+    try {
+        $S = new TgWatch\ImportShare($db, $tg, $cfg);
+        $r = $S->report(['categories' => [['name' => 'Yeni Kat', 'src' => 'New Cat', 'moved' => true]]]);
+    } finally {
+        TgWatch\SmmApi::$fake = null;
+    }
+    eq('posted', $r['status']);
+    $posts = array_values(array_filter($tg->calls, static fn($c) => $c[0] === 'sendMessage' && $c[1]['chat_id'] === '-1001234567890'));
+    ok(count($posts) >= 2, 'uzun liste birden çok mesaja bölünür: ' . count($posts));
+    ok(str_starts_with($posts[0][1]['text'], '<b>Yeni Kat</b> (60)') && str_ends_with(end($posts)[1]['text'], 'Son'));
+    foreach ($posts as $p) {
+        ok(mb_strlen($p[1]['text']) <= 4096);
+    }
+    ok(str_contains($tg->last('sendMessage')['text'], 'Kanalda paylaşıldı'), 'sahibe sonuç');
+
+    [$db, $tg] = env();
+    $cfg = array_merge(App::config(), ['share_mode' => 'ask', 'share_channel' => '']);
+    $r = (new TgWatch\ImportShare($db, $tg, $cfg))->report(['categories' => [['name' => 'X Kat', 'src' => 'X', 'moved' => false]], 'services' => [['name' => 'Bir servis', 'rate' => '0.5']]]);
+    eq('new', $r['status']);
+    $t = $tg->last('sendMessage')['text'];
+    ok(str_contains($t, 'Kendi panelin tgwatch') && str_contains($t, 'Paylaşım kanalı'), $t);
+    ok(!isset($tg->last('sendMessage')['reply_markup']), 'kanal yoksa düğme yok');
+
+    $r = (new TgWatch\ImportShare($db, $tg, $cfg))->report(['categories' => [], 'kind' => 'ok', 'note' => 'Yeni kategori yok']);
+    ok(str_contains($tg->last('sendMessage')['text'], 'mevcut bir kategoriye'));
+
+    $cfg = array_merge(App::config(), ['share_mode' => 'ask', 'share_channel' => '@kanal1']);
+    $S = new TgWatch\ImportShare($db, $tg, $cfg);
+    $r = $S->report(['categories' => [['name' => 'Y Kat', 'src' => 'Y']], 'services' => [['name' => 'S1']]]);
+    eq('new', $r['status'], 'kendi panel yoksa ID/fiyatsız liste kanala hazırlanmaz');
+    ok(str_contains($tg->last('sendMessage')['text'], 'Kendi panelin tgwatch'));
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('own','panelim','https://own.example/api/v2','k',1)");
+    TgWatch\SmmApi::$fake = static fn() => json_encode([['service' => 5, 'name' => 'S1', 'category' => 'Y Kat', 'rate' => '1', 'min' => '1', 'max' => '10']]);
+    try {
+        $r = $S->report(['categories' => [['name' => 'Y Kat', 'src' => 'Y']]]);
+    } finally {
+        TgWatch\SmmApi::$fake = null;
+    }
+    eq('pending', $r['status']);
+    eq('Tamam, paylaşılmadı', $S->decide($r['id'], 'skip'));
+    eq('skipped', $S->find($r['id'])['status']);
+    eq('Kayıt bulunamadı', $S->decide(999, 'post'));
+    eq(400, (new TgWatch\ExtApi($db, []))->handle(['action' => 'yok'])[0]);
+});
+test('Ayarlar: paylaşım kanalı ve şablon doğrulaması', function () {
+    eq([true, '@panelbaku'], TgWatch\Settings::check('share_channel', 'https://t.me/panelbaku'));
+    eq([true, '-1001234567890'], TgWatch\Settings::check('share_channel', '-1001234567890'));
+    eq([true, ''], TgWatch\Settings::check('share_channel', ''));
+    eq(false, TgWatch\Settings::check('share_channel', 'panel baku')[0]);
+    eq([true, "a\nb"], TgWatch\Settings::check('share_template', "a\r\nb"));
+    eq(false, TgWatch\Settings::check('share_line', str_repeat('x', 601))[0]);
+    eq([true, ''], TgWatch\Settings::check('share_link', ''));
+});
 echo "Chrome eklentisi API\n";
 test('Eklenti API: teach bilinmeyen kelimeyi sözlüğe ekler (eski karşılığı değiştirir, ya da olduğu gibi bırakır); balance sağlayıcı bakiyeleri', function () {
     [$db] = env();

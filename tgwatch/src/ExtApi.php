@@ -11,12 +11,13 @@ namespace TgWatch;
  *   learn      → {items:[{id,src,az,edited,kind?}]} → Perfect Panel'de import edilen son adlar (ve kategori adları) bankaya öğretilir
  *   teach      → {en, az} → sözlüğe terim ekler (bilinmeyen kelimeyi satırda düzeltme); {en, keep:true} → "olduğu gibi kalsın" listesine
  *   balance    → sağlayıcı bakiyeleri (bot /balans ile aynı)
+ *   imported   → import bitti: bota özet, kanal paylaşımı (ImportShare)
  */
 final class ExtApi
 {
     public const MAX_ITEMS = 1000;
 
-    public function __construct(private Db $db, private array $config)
+    public function __construct(private Db $db, private array $config, private ?Telegram $tg = null)
     {
     }
 
@@ -38,6 +39,7 @@ final class ExtApi
                 'learn' => [200, ['ok' => true] + $this->learn(self::items($req))],
                 'teach' => [200, ['ok' => true] + $this->teach($req)],
                 'balance' => [200, ['ok' => true] + Balances::check($this->db)],
+                'imported' => [200, ['ok' => true] + (new ImportShare($this->db, $this->tg ?? App::telegram(), $this->config))->report($req)],
                 default => [400, ['ok' => false, 'error' => 'Bilinmeyen işlem']],
             };
         } catch (\InvalidArgumentException $e) {

@@ -6,11 +6,12 @@ let tabId = null;
 function conn(text, kind) { const c = $('conn'); c.textContent = text; c.className = 'pill ' + kind; }
 
 async function init() {
-  const s = await get({ panel: '', api: '', key: '', dry: false, skipAz: true, autoCat: true, catTop: true, stats: { day: today(), today: 0, total: 0, learned: 0 } });
+  const s = await get({ panel: '', api: '', key: '', dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, stats: { day: today(), today: 0, total: 0, learned: 0 } });
   $('dry').checked = !!s.dry;
   $('skipAz').checked = s.skipAz !== false;
   $('autoCat').checked = s.autoCat !== false;
   $('catTop').checked = s.catTop !== false;
+  $('notify').checked = s.notify !== false;
   $('s-today').textContent = s.stats.day === today() ? s.stats.today : 0;
   $('s-total').textContent = s.stats.total;
   $('s-learned').textContent = s.stats.learned;
@@ -145,6 +146,7 @@ $('dry').onchange = (e) => chrome.storage.local.set({ dry: e.target.checked });
 $('skipAz').onchange = (e) => chrome.storage.local.set({ skipAz: e.target.checked });
 $('autoCat').onchange = (e) => chrome.storage.local.set({ autoCat: e.target.checked });
 $('catTop').onchange = (e) => chrome.storage.local.set({ catTop: e.target.checked });
+$('notify').onchange = (e) => chrome.storage.local.set({ notify: e.target.checked });
 $('opt').onclick = (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); };
 $('tg').onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: $('tg').href }); };
 init();

@@ -866,6 +866,12 @@ final class Flow
             $this->resolveNotice((int)$nm[2], $nm[1] === 'nd' ? 'done' : 'ignored');
             return;
         }
+        if (preg_match('/^sh:(post|skip):(\d+)$/', (string)($cb['data'] ?? ''), $sm)) {
+            $this->safe(fn() => $this->tg->answerCallback((string)$cb['id'], 'İşleniyor…'));
+            $reply = (new ImportShare($this->db, $this->tg, $this->config))->decide((int)$sm[2], $sm[1]);
+            $this->db->log('info', 'bot', 'Kanal paylaşımı #' . $sm[2] . ': ' . $reply);
+            return;
+        }
         if (preg_match('/^ba:(ask|yes|no)$/', (string)($cb['data'] ?? ''), $bm)) {
             $reply = (new BotCommands($this->db, $this->tg, $this, $this->config))->callback($bm[1], $cb['message']['chat']['id'] ?? $this->owner(), (int)($cb['message']['message_id'] ?? 0));
             $this->safe(fn() => $this->tg->answerCallback((string)$cb['id'], $reply));

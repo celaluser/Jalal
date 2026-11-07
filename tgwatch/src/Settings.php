@@ -48,6 +48,13 @@ final class Settings
             'monitor_key' => ['g' => 'reading', 'label' => 'İzleme anahtarı', 'type' => 'key', 'help' => 'UptimeRobot gibi dış bir servisin sorgulayacağı adresin anahtarı (aşağıda adres görünür). Cron durursa ya da kanal okunamazsa adres hata döner ve o servis sana e-posta atar: Telegram\'dan bağımsız ikinci uyarı yolu.'],
             'alert_email' => ['g' => 'telegram', 'label' => 'Uyarı e-postası', 'type' => 'email', 'optional' => true, 'help' => 'Boşsa kapalı. Uyarılar Telegram\'a gitmezse (bot bozuk, engelli) bu adrese e-posta gider. Hosting e-postası gönderebiliyor olmalı.'],
             'alert_email_mode' => ['g' => 'telegram', 'label' => 'E-posta ne zaman', 'type' => 'select', 'options' => ['fallback' => 'Yalnızca Telegram gitmezse', 'all' => 'Her uyarı e-postaya da gitsin']],
+            'import_notify' => ['g' => 'telegram', 'default' => 'on', 'label' => 'Import bildirimi', 'type' => 'select', 'options' => ['on' => 'Açık: import bitince bota özet gelsin', 'off' => 'Kapalı'], 'help' => 'Chrome eklentisi import sonrası kategoriyi çevirip en üste taşıyınca bota özet gelir: kategori, servis sayısı, çeviri durumu.'],
+            'share_mode' => ['g' => 'telegram', 'default' => 'ask', 'label' => 'Kanalda paylaşım', 'type' => 'select', 'options' => ['ask' => 'Bildirimde "Kanalda paylaş" düğmesi (ben onaylarım)', 'auto' => 'Otomatik paylaş', 'off' => 'Kapalı'], 'help' => 'Yeni kategorinin servisleri (ID, ad, fiyat, min/max) kendi panelinin API\'sinden çekilir, aşağıdaki şablonla kanala gönderilir.'],
+            'share_channel' => ['g' => 'telegram', 'label' => 'Paylaşım kanalı', 'type' => 'channel', 'optional' => true, 'help' => '@kanaladi ya da -100… ile başlayan kanal ID\'si. Bot kanalda yönetici olmalı (mesaj gönderme izni).'],
+            'share_link' => ['g' => 'telegram', 'label' => 'Sipariş adresi', 'type' => 'text', 'optional' => true, 'max' => 120, 'help' => 'Şablondaki {panel} yerine yazılır. Örn: https://panelbaku.com'],
+            'share_currency' => ['g' => 'telegram', 'default' => '₼', 'label' => 'Para birimi', 'type' => 'text', 'optional' => true, 'max' => 8, 'help' => 'Şablondaki {valyuta}. Fiyat, kendi panelinin API\'sinin verdiği 1000 adet fiyatıdır.'],
+            'share_template' => ['g' => 'telegram', 'default' => ImportShare::DEFAULT_TEMPLATE, 'label' => 'Kanal şablonu', 'type' => 'textarea', 'optional' => true, 'max' => 3000, 'help' => 'Yer tutucular: {kategori} {servisler} {say} {tarix} {panel} {valyuta}. Telegram HTML: <b>kalın</b>, <i>eğik</i>, <a href="…">bağlantı</a>. Boş bırakırsan varsayılan.'],
+            'share_line' => ['g' => 'telegram', 'default' => ImportShare::DEFAULT_LINE, 'label' => 'Servis satırı', 'type' => 'textarea', 'optional' => true, 'max' => 600, 'help' => '{servisler} içinde her servis için tekrarlanır. Yer tutucular: {id} {ad} {qiymet} {min} {max} {valyuta}.'],
             'priority_source' => ['g' => 'reading', 'label' => 'Öncelikli sağlayıcı', 'type' => 'source', 'help' => 'Seçersen aynı servisi farklı sağlayıcıların kanalları duyurunca bu sağlayıcı tercih edilir: onun işi diğerlerinin yerine geçer, diğerlerinden gelen aynı servis için yeni iş açılmaz. Boş: ilk gelen kazanır. Kanalların sağlayıcısı Kanallar sayfasından seçilmiş olmalı.'],
             'fx_auto' => ['g' => 'reading', 'hidden' => true, 'label' => 'Kurları otomatik güncelle', 'type' => 'bool'],
             'fx_rates' => ['g' => 'reading', 'label' => 'Manuel kurlar (1 birim = kaç $)', 'type' => 'text', 'max' => 200, 'help' => 'Otomatik kapalıysa ya da çekilemezse kullanılır. Kanal fiyatı $ dışındaysa (₽, ₺, ₼, €) dolara çevirmek için. Örnek: RUB=0.011, TRY=0.029, AZN=0.588, EUR=1.08. Boşsa fiyat çevrilmez ve mesajda uyarı çıkar.'],
@@ -134,8 +141,26 @@ final class Settings
                 return preg_match('/^[A-Za-z0-9_-]{16,256}$/', (string)$raw) ? [true, (string)$raw] : [false, $f['label'] . ': 16–256 karakter, yalnızca harf, rakam, _ ve -'];
             case 'secret':
                 return is_string($raw) && !preg_match('/\s/', $raw) ? [true, $raw] : [false, $f['label'] . ': boşluk içeremez'];
+            case 'channel':
+                if ($raw === '') {
+                    return [true, ''];
+                }
+                $raw = (string)$raw;
+                if (preg_match('~^(?:https?://)?t\.me/([A-Za-z0-9_]{4,64})/?$~i', $raw, $m)) {
+                    $raw = '@' . $m[1];
+                }
+                return preg_match('/^(@[A-Za-z][A-Za-z0-9_]{3,63}|-100\d{5,20})$/', $raw) ? [true, $raw] : [false, $f['label'] . ': @kanaladi ya da -100… ile başlayan ID girin'];
+            case 'textarea':
+                $v = str_replace(["\r\n", "\r"], "\n", (string)$raw);
+                if ($v === '' && ($f['optional'] ?? false)) {
+                    return [true, ''];
+                }
+                return $v !== '' && mb_strlen($v) <= ($f['max'] ?? 2000) ? [true, $v] : [false, $f['label'] . ': en çok ' . ($f['max'] ?? 2000) . ' karakter'];
             default:
                 $v = (string)$raw;
+                if ($v === '' && ($f['optional'] ?? false)) {
+                    return [true, ''];
+                }
                 return $v !== '' && mb_strlen($v) <= ($f['max'] ?? 200) ? [true, $v] : [false, $f['label'] . ': boş olamaz'];
         }
     }

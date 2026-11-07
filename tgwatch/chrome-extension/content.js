@@ -13,7 +13,7 @@
   const KIND_TEXT = { ok: 'bankadan', warn: 'kontrol et', bad: 'çevrilmedi', done: 'Azerice' };
 
   const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
-  const lower = (s) => norm(s).toLowerCase(); // dil bağımsız: tr yerelinde "Import" → "ımport" olurdu
+  const lower = (s) => norm(s).toLowerCase().replace(/i\u0307/g, 'i'); // dil bağımsız ("Import" → "ımport" olmasın); "İ" → i + nokta düzeltmesi
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const btnText = (b) => norm(b.innerText !== undefined ? b.innerText : b.textContent);
   const visible = (el) => !!el && el.isConnected && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
@@ -166,7 +166,7 @@
 
   function opts() {
     return new Promise((resolve) => {
-      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true };
+      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true, notify: true };
       try { chrome.storage.local.get(d, (s) => resolve(s || d)); } catch (e) { resolve(d); }
     });
   }
@@ -982,8 +982,19 @@
       return v;
     } catch (e) { return null; }
   }
+  /** Satırdaki fiyat kutusu: sayı içeren ilk metin/sayı kutusu (ad kutusu değil). */
+  function rateOf(row) {
+    for (const i of row.el.querySelectorAll('input')) {
+      if (ours(i) || i.type === 'checkbox' || i.type === 'hidden') continue;
+      if (/^\s*\d+(?:[.,]\d+)?\s*$/.test(i.value) && /[.,]/.test(i.value)) return i.value.replace(',', '.');
+    }
+    return null;
+  }
   function markImport() {
-    try { sessionStorage.setItem(AFTER_KEY, JSON.stringify({ at: Date.now(), before: categoryRows().map((r) => r.name) })); } catch (e) { /* depolama kapalı */ }
+    let services = [];
+    try { services = scanRows().map((r) => ({ name: r.header.name, rate: rateOf(r) })); } catch (e) { /* yok */ }
+    const info = { at: Date.now(), before: categoryRows().map((r) => r.name), counts: counts(), services };
+    try { sessionStorage.setItem(AFTER_KEY, JSON.stringify(info)); } catch (e) { /* depolama kapalı */ }
   }
   let autoTimer = null;
 
@@ -1002,7 +1013,7 @@
         try { sessionStorage.removeItem(AFTER_KEY); } catch (e) { /* yok */ }
         const o = await opts();
         if (o.autoCat === false) return;
-        catFlow({ auto: true, before: p.before || [] });
+        catFlow({ auto: true, before: p.before || [], info: p });
       }, 2000);
     }
     if (!dlg && !onList && !catRunning) {
@@ -1361,14 +1372,16 @@
    * Ad çevrilir → Save → kategori en üste sürüklenir. Deneme modunda yalnızca ad yazılır.
    * auto: import sonrası; yalnızca import'tan önce listede OLMAYAN (yeni) kategorilere dokunulur.
    */
-  async function catFlow({ auto = false, before = null } = {}) {
+  async function catFlow({ auto = false, before = null, info = null } = {}) {
     if (catRunning) return;
     catRunning = true;
     if (cbar) { delete cbar.dataset.closed; delete cbar.dataset.done; }
     ensureCatBar();
     cbar.classList.add('tgw-running');
     const done = [];
-    const end = (t, kind) => { catStatus(t, kind); if (cbar) cbar.dataset.done = '1'; };
+    const report = []; // tgwatch'a: {name, src, moved}
+    let last = { t: '', kind: '' };
+    const end = (t, kind) => { last = { t, kind }; catStatus(t, kind); if (cbar) cbar.dataset.done = '1'; };
     try {
       const o = await opts();
       const save = !o.dry;
@@ -1418,9 +1431,12 @@
         const r = await translateDialog(save);
         if (!r.ok) return end(r.note, 'warn');
         if (!save) return end(r.name + ' · ' + r.how + ' · deneme: Save\'e basılmadı', 'ok');
+        const rep = { name: r.name, src: r.src || pick.name, moved: false };
+        report.push(rep);
         if (top) {
           const m = await moveToTop(r.name);
           if (!m.ok) return end(r.name + ' · kaydedildi, ama ' + m.note, 'warn');
+          rep.moved = true;
         }
         done.push(r.name);
       }
@@ -1429,6 +1445,21 @@
     } finally {
       catRunning = false;
       cbar && cbar.classList.remove('tgw-running');
+      if (auto) reportImport(report, last, info);
+    }
+  }
+
+  /** Import sonrası tgwatch'a haber: bota özet, istenirse kanalda paylaşım (Ayarlar → Telegram botu). */
+  async function reportImport(cats, last, info) {
+    const o = await opts();
+    if (o.dry || o.notify === false) return;
+    const res = await api('imported', { categories: cats, note: last.t, kind: last.kind, counts: (info && info.counts) || {}, services: (info && info.services) || [] });
+    if (!cbar) return;
+    if (res.ok) {
+      const ch = res.status === 'posted' ? ' · kanalda paylaşıldı' : res.status === 'pending' ? ' · Telegram\'da "Kanalda paylaş"a bas' : res.notified ? ' · Telegram\'a bildirildi' : '';
+      if (ch) catStatus(last.t + ch, last.kind || 'ok');
+    } else if (!/Bilinmeyen işlem/.test(res.error || '')) {
+      catStatus(last.t + ' · Telegram bildirimi gitmedi: ' + (res.error || 'tgwatch hatası'), 'warn');
     }
   }
 

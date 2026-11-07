@@ -86,6 +86,15 @@ return [
     // Uyarı e-postası (boş: kapalı) ve dış izleme adresi anahtarı (public/monitor.php?key=...)
     'alert_email' => '',
     'alert_email_mode' => 'fallback',
+
+    // Import bildirimi ve kanal paylaşımı (Chrome eklentisi import sonrası haber verir)
+    'import_notify' => 'on',
+    'share_mode' => 'ask',
+    'share_channel' => '',
+    'share_link' => '',
+    'share_currency' => '₼',
+    'share_template' => '',
+    'share_line' => '',
     'monitor_key' => '',
     'ext_key' => '', // Chrome eklentisi anahtarı (public/api.php), panelden üretilir
 
