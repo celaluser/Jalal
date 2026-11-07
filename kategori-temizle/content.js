@@ -484,6 +484,20 @@
   }
 
   // ---------------------------------------------------------------- teşhis
+  /** İlk Actions düğmelerinin ata zinciri: her basamakta etiket.sınıf, kutucuk sayısı, Actions sayısı, kısa yazı. */
+  function actionsChains() {
+    const isA = (x) => /^actions\b/i.test(btnText(x));
+    const all = [...document.querySelectorAll('button, a, [role=button], span, div')].filter((x) => x.children.length <= 2 && /^actions\b/i.test(norm(x.textContent)) && visible(x));
+    const pick = [all[0], all[1], all[all.length - 1]].filter(Boolean);
+    return { actionsAday: all.length, tipler: [...new Set(all.map((x) => x.tagName))], zincirler: pick.map((b) => {
+      const out = []; let el = b;
+      for (let i = 0; i < 7 && el && el !== document.body; i++, el = el.parentElement) {
+        out.push((el.tagName + '.' + (typeof el.className === 'string' ? el.className : '')).slice(0, 70) + ' | kutucuk=' + el.querySelectorAll('input[type=checkbox]').length + ' actions=' + [...el.querySelectorAll('button, a')].filter(isA).length + ' | ' + norm(el.textContent).slice(0, 50));
+      }
+      return out;
+    }) };
+  }
+
   function diag() {
     const rows = categoryRows();
     const { why } = splitActive(rows, S.refBest);
@@ -501,7 +515,7 @@
       surum: VERSION, adres: location.pathname, tema: getComputedStyle(document.body).backgroundColor,
       kategoriSayisi: rows.length, gorunenKutucuk: checks().length, acmaDugmesi: !![...document.querySelectorAll(TOGGLE)].find(visible),
       durum: S.status, istatistik: S.stats, aday: S.candidates.map((c) => c.name), sonuc: S.res, notlar: S.notes,
-      sonKategoriler: tail, menuYazilari: S.seen.menu, pencereYazilari: S.seen.dialog, bildirimler: S.seen.toast, adimGunlugu: S.log.slice(-40),
+      actionsZinciri: actionsChains(), sonKategoriler: tail, menuYazilari: S.seen.menu, pencereYazilari: S.seen.dialog, bildirimler: S.seen.toast, adimGunlugu: S.log.slice(-40),
     }, null, 1);
   }
 
