@@ -2033,7 +2033,7 @@ test('Import raporu: kendi panelden kategorinin servisleri, bota özet + önizle
     $m = $tg->last('sendMessage');
     eq(OWNER, $m['chat_id']);
     ok(str_contains($m['text'], 'Import tamamlandı') && str_contains($m['text'], '2 servis · 1 hazır, 1 kontrol et') && str_contains($m['text'], 'en üstte'), $m['text']);
-    ok(str_contains($m['text'], '🆔 <b>1201</b> — TikTok İzləyici | Ucuz &lt;tez&gt;') && str_contains($m['text'], '0.45 ₼ / 1000 · Min 10 · Maks 100 000'), 'önizleme, değerler kaçışlı: ' . $m['text']);
+    ok(str_contains($m['text'], '🆔 1201 - TikTok İzləyici | Ucuz &lt;tez&gt; -- 0.45'), 'önizleme, değerler kaçışlı: ' . $m['text']);
     ok(!str_contains($m['text'], 'Eski servis'), 'başka kategori karışmaz');
     eq('sh:post:' . $r['id'], $m['reply_markup']['inline_keyboard'][0][0]['callback_data']);
     $n = $tg->count('sendMessage');
@@ -2043,7 +2043,7 @@ test('Import raporu: kendi panelden kategorinin servisleri, bota özet + önizle
     $flow->handleUpdate(cb(2, OWNER, 'sh:post:' . $r['id']));
     $c = $tg->last('sendMessage');
     eq('@panelbaku', $c['chat_id']);
-    ok(str_starts_with($c['text'], '🆕 <b>TikTok İzləyici Low Quality</b>') && str_contains($c['text'], '🆔 <b>1202</b>') && str_ends_with($c['text'], 'Sifariş üçün: https://panelbaku.com'), $c['text']);
+    eq("<b>🎵 TikTok İzləyici Low Quality\n\n🆔 1201 - TikTok İzləyici | Ucuz &lt;tez&gt; -- 0.45\n\n🆔 1202 - TikTok İzləyici | Real -- 2.00\n\n50 azn və yuxarı Balans artırmalarda + %5 Bonus 🎁\n\n🔗 https://panelbaku.com</b>", $c['text'], 'paylaşım panelinin şablonu birebir');
     ok(str_contains($tg->last('editMessageText')['text'], 'Kanalda paylaşıldı: @panelbaku'));
     eq([], $tg->last('editMessageText')['reply_markup']['inline_keyboard'], 'düğmeler kalkar');
     $n = $tg->count('sendMessage');
@@ -2058,7 +2058,7 @@ test('Import raporu: otomatik mod, şablon, uzun liste parçalanır; kanal yoksa
         $list[] = ['service' => 3000 + $i, 'name' => str_repeat('Uzun servis adı ', 4) . $i, 'category' => 'Yeni Kat', 'rate' => '1', 'min' => '10', 'max' => '1000'];
     }
     TgWatch\SmmApi::$fake = static fn() => json_encode($list);
-    $cfg = array_merge(App::config(), ['share_mode' => 'auto', 'share_channel' => '-1001234567890', 'share_template' => "<b>{kategori}</b> ({say})\n{servisler}\nSon", 'share_line' => '{id} {ad} {qiymet}']);
+    $cfg = array_merge(App::config(), ['share_mode' => 'auto', 'share_channel' => '-1001234567890', 'share_template' => "<b>{kategori}</b> ({say})\n{servisler}\nSon", 'share_line' => '{id} {ad} {qiymet}', 'share_bold' => 'off']);
     try {
         $S = new TgWatch\ImportShare($db, $tg, $cfg);
         $r = $S->report(['categories' => [['name' => 'Yeni Kat', 'src' => 'New Cat', 'moved' => true]]]);
@@ -2102,6 +2102,9 @@ test('Import raporu: otomatik mod, şablon, uzun liste parçalanır; kanal yoksa
     eq('skipped', $S->find($r['id'])['status']);
     eq('Kayıt bulunamadı', $S->decide(999, 'post'));
     eq(400, (new TgWatch\ExtApi($db, []))->handle(['action' => 'yok'])[0]);
+});
+test('Kanal şablonu: platform simgesi paylaşım paneliyle aynı', function () {
+    eq(['📸', '🎵', '▶️', '✈️', '🐦', '⭐'], array_map([TgWatch\ImportShare::class, 'icon'], ['Instagram Bəyəni', 'TikTok İzləyici', 'YouTube Baxış', 'Telegram Üzv', 'X Follower', 'Spotify']));
 });
 test('Ayarlar: paylaşım kanalı ve şablon doğrulaması', function () {
     eq([true, '@panelbaku'], TgWatch\Settings::check('share_channel', 'https://t.me/panelbaku'));

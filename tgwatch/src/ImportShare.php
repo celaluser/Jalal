@@ -12,8 +12,23 @@ namespace TgWatch;
  */
 final class ImportShare
 {
-    public const DEFAULT_TEMPLATE = "🆕 <b>{kategori}</b>\n\n{servisler}\n\n🛒 Sifariş üçün: {panel}";
-    public const DEFAULT_LINE = "🆔 <b>{id}</b> — {ad}\n💰 {qiymet} {valyuta} / 1000 · Min {min} · Maks {max}";
+    /** PanelBaku paylaşım panelinin (panelbaku/script.js → buildTemplate) biçimi. */
+    public const DEFAULT_TEMPLATE = "{ikon} {kategori}\n\n{servisler}\n\n50 azn və yuxarı Balans artırmalarda + %5 Bonus 🎁\n\n🔗 https://panelbaku.com";
+    public const DEFAULT_LINE = "🆔 {id} - {ad} -- {qiymet}";
+    private const ICONS = ['instagram' => '📸', 'facebook' => '📘', 'tiktok' => '🎵', 'youtube' => '▶️', 'telegram' => '✈️', 'twitter' => '🐦',
+        'discord' => '🎮', 'pinterest' => '📌', 'snapchat' => '👻', 'twitch' => '🎥', 'linkedin' => '💼', 'whatsapp' => '💬', 'kick' => '🥊'];
+
+    /** Kategori simgesi (paylaşım panelindeki iconFor ile aynı). */
+    public static function icon(string $name): string
+    {
+        $n = mb_strtolower($name);
+        foreach (self::ICONS as $k => $e) {
+            if (str_contains($n, $k)) {
+                return $e;
+            }
+        }
+        return str_contains($n, ' x ') || str_starts_with($n, 'x ') ? '🐦' : '⭐';
+    }
     private const KEY = 'import_shares';
 
     public function __construct(private Db $db, private Telegram $tg, private array $config)
@@ -49,7 +64,7 @@ final class ImportShare
     {
         $own = $this->db->one("SELECT id FROM sources WHERE kind = 'own' ORDER BY id LIMIT 1");
         if (!$own) {
-            return [0, 'Kendi panelin tgwatch\'a ekli değil (Çeviri bankası → Kaynaklar → kendi panelim): servis ID ve fiyatları alınamadı.'];
+            return [0, 'Kendi panelin tgwatch\'a ekli değil (Ayarlar → Kaynaklar → kendi panelim): servis ID ve fiyatları alınamadı.'];
         }
         try {
             SmmApi::syncDiff($this->db, (int)$own['id'], false, false);
@@ -76,13 +91,10 @@ final class ImportShare
         return $out;
     }
 
+    /** Fiyat: 2 ondalık (paylaşım panelindeki formatRate gibi: 0.45, 2.00). */
     private static function num(?float $v): string
     {
-        if ($v === null) {
-            return '—';
-        }
-        $s = number_format($v, $v != 0 && abs($v) < 1 ? 4 : 2, '.', '');
-        return str_contains($s, '.') ? rtrim(rtrim($s, '0'), '.') : $s;
+        return $v === null ? '—' : number_format($v, 2, '.', '');
     }
 
     private static function int(?int $v): string
@@ -110,7 +122,7 @@ final class ImportShare
                     '{min}' => self::int($s['min']), '{max}' => self::int($s['max']), '{valyuta}' => Telegram::esc($cur),
                 ]);
             }
-            $vars = ['{kategori}' => Telegram::esc((string)$c['name']), '{say}' => (string)count($c['services']), '{tarix}' => date('d.m.Y'),
+            $vars = ['{kategori}' => Telegram::esc((string)$c['name']), '{ikon}' => self::icon((string)$c['name']), '{say}' => (string)count($c['services']), '{tarix}' => date('d.m.Y'),
                 '{panel}' => Telegram::esc($panel), '{valyuta}' => Telegram::esc($cur)];
             [$head, $tail] = array_pad(explode('{servisler}', strtr($tpl, $vars), 2), 2, '');
             // Uzun listeler: başlık ilk parçada, kapanış son parçada; araya sığdığı kadar satır.
@@ -126,7 +138,9 @@ final class ImportShare
             }
             $out[] = rtrim($chunk . $tail);
         }
-        return array_values(array_filter($out, static fn($t) => trim(strip_tags($t)) !== ''));
+        $out = array_values(array_filter($out, static fn($t) => trim(strip_tags($t)) !== ''));
+        // Paylaşım panelindeki gibi bütün mesaj kalın (şablonda kendi <b> etiketin varsa kapat).
+        return $this->cfg('share_bold', 'on') === 'off' ? $out : array_map(static fn($t) => '<b>' . str_replace(['<b>', '</b>'], '', $t) . '</b>', $out);
     }
 
     private function all(): array

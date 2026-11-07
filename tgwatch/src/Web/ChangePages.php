@@ -40,7 +40,7 @@ trait ChangePages
             $h .= '<form method="post" action="?p=channel_source" class="field-row gap-top">' . $this->ui->csrfField() . '<input type="hidden" name="id" value="' . (int)$ch['id'] . '"><input type="hidden" name="back" value="job:' . (int)$job['id'] . '">'
                 . '<label>@' . Ui::e($job['channel']) . ' kanalının sağlayıcısı<select name="source_id">' . $opts . '</select></label><button class="btn quiet sm">Kaydet</button></form>';
         } elseif (!$provs) {
-            $h .= ' <a href="?p=bank">Sağlayıcı ekleyin</a>';
+            $h .= ' <a href="?p=sources">Sağlayıcı ekleyin</a>';
         }
         $h .= '</dd><dt>Kategori</dt><dd>';
         $cat = $info['category'];

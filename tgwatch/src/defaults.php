@@ -95,6 +95,7 @@ return [
     'share_currency' => '₼',
     'share_template' => '',
     'share_line' => '',
+    'share_bold' => 'on',
     'monitor_key' => '',
     'ext_key' => '', // Chrome eklentisi anahtarı (public/api.php), panelden üretilir
 

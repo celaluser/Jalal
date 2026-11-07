@@ -225,6 +225,10 @@ ID satırlarından önceki kısa başlık satırı alınır. Gerçek kanallarda 
 
 **Hepsi tek yerde:** Ayarlar → **Özellikler**. Yeni servis izlemeyi sağlayıcı bazında aç/kapat, "Şimdi kontrol et", kontrol aralığı, çeviri öğrenme analizi ve görünüm kısayolları orada.
 
+## Kaynaklar (Ayarlar → Kaynaklar)
+
+Kendi panelinin (ör. `https://panelbaku.com/api/v2`) ve sağlayıcıların API adresi + anahtarı. Eskiden Çeviri bankası sayfasının içindeydi; artık menüde **Ayarlar → Kaynaklar** (komut paletinde "kaynaklar"). Kendi panelim: banka eşleştirmesi, import sonrası kanal paylaşımı (servis ID ve fiyatları), rakip kıyası. Sağlayıcılar: `/balans`, eklentideki bakiyeler, yeni servis izleme, rakipten öğrenme.
+
 ## Rakipler (fiyat kıyası) ve haftalık özet
 
 Menüde **Analiz** bölümü altında: **Rakip kıyası**, **Rakip listesi** ve **Rakipten öğren** sekmeleri.
@@ -245,12 +249,12 @@ Rakip panelin adları zaten Azerice; İngilizce karşılık şöyle bulunur: rak
 - Ad biçimi (ayraç, ön/son ek, sıra) ve silinen parçalar **önerilmez**: bunlar rakibin üslubu. Tam ad kopyalanmaz.
 - Sözlüğünde karşılığı olan ifadeye öneri yapılmaz. Bankadaki çevirilerin her zaman kurallardan önce gelir.
 - **Uygula** sözlüğe işler ve açık işlerin çevirisini yeniler; **Gerekmez** dediğin öneri bir daha gösterilmez (yeniden analizde de).
-- Rakip, senin sağlayıcılarından almıyorsa eşleşme çıkmaz; sağlayıcı ekledikçe artar. Gereken: en az bir rakip (Rakip listesi) ve senkronize edilmiş en az bir sağlayıcı (Çeviri bankası → Kaynaklar).
+- Rakip, senin sağlayıcılarından almıyorsa eşleşme çıkmaz; sağlayıcı ekledikçe artar. Gereken: en az bir rakip (Rakip listesi) ve senkronize edilmiş en az bir sağlayıcı (Ayarlar → Kaynaklar).
 - **Denenmedi:** gerçek rakip/sağlayıcı listeleriyle. Test sahte listelerle yapıldı; önerilerin örneklerine ve "Eşleşme örnekleri"ne göz at.
 
 ## Sağlayıcı API izleme (yeni servis kanalda duyurulmasa da haber gelir)
 
-Çeviri bankası → Kaynaklar'da bir sağlayıcının yanındaki **Kapalı: aç** düğmesi izlemeyi açar. Cron her çalıştığında (en sık Ayarlar → Okuma → "Sağlayıcı API kontrolü" dakikasında bir) sağlayıcının servis listesi çekilir ve daha önce görülmemiş servisler için normal iş açılır: çeviri + fiyat önerisi, bota ✅ Onayla / ✏️ Düzenle butonlu mesaj ("Yeni servisler (API)").
+Ayarlar → Kaynaklar'da bir sağlayıcının yanındaki **Kapalı: aç** düğmesi izlemeyi açar. Cron her çalıştığında (en sık Ayarlar → Okuma → "Sağlayıcı API kontrolü" dakikasında bir) sağlayıcının servis listesi çekilir ve daha önce görülmemiş servisler için normal iş açılır: çeviri + fiyat önerisi, bota ✅ Onayla / ✏️ Düzenle butonlu mesaj ("Yeni servisler (API)").
 
 - Açtığın anda mevcut servisler **sessizce** kaydedilir. Yalnızca sonradan eklenenler bildirilir.
 - Aynı servis kanalda da duyurulursa tekrar iş açılmaz (aynı sağlayıcı için tekrar sayma kuralı geçerli).
@@ -277,8 +281,8 @@ Panelde **Services → Import services** ile servisleri sen seçersin. İnceleme
 
 **Import bildirimi ve kanal paylaşımı:** otomatik kategori akışı bitince (çevir → Save → en üste) eklenti tgwatch'a haber verir (API `imported`):
 - **Bota özet:** kategori (orijinal adıyla), en üste taşındı mı, kaç servis import edildi, kaçı hazır / kontrol et / çevrilmedi. Yeni kategori yoksa "servisler mevcut kategoriye eklendi", bir adım takıldıysa nedeni.
-- **Kanal mesajı:** yeni kategorinin servisleri **kendi panelinin API'sinden** çekilir (Çeviri bankası → Kaynaklar → kendi panelim: ID, ad, 1000 adet fiyatı, min/max) ve şablonla hazırlanır. Uzun listeler 4096 karakter sınırına göre birden çok mesaja bölünür. Kendi panelin okunamazsa kanal mesajı hazırlanmaz (ID/fiyatsız liste paylaşılmaz), özette nedeni yazar.
-- **Ayarlar → Telegram botu:** *Import bildirimi* (açık/kapalı), *Kanalda paylaşım* (bildirimde **📢 Kanalda paylaş / Paylaşma** düğmesi · otomatik · kapalı), *Paylaşım kanalı* (`@kanal`, `t.me/kanal` ya da `-100…`; bot kanalda yönetici olmalı), *Sipariş adresi* ({panel}), *Para birimi* ({valyuta}), *Kanal şablonu* ({kategori} {servisler} {say} {tarix} {panel} {valyuta}, Telegram HTML) ve *Servis satırı* ({id} {ad} {qiymet} {min} {max} {valyuta}).
+- **Kanal mesajı (PanelBaku paylaşım panelinin şablonu):** `{ikon} {kategori}` → her servis `🆔 ID - Ad -- fiyat` (2 ondalık, aralarında boş satır) → `50 azn və yuxarı Balans artırmalarda + %5 Bonus 🎁` → `🔗 https://panelbaku.com`, bütün mesaj kalın; simge platforma göre (📸 Instagram, 🎵 TikTok, ▶️ YouTube, ✈️ Telegram…, yoksa ⭐). Yeni kategorinin servisleri **kendi panelinin API'sinden** çekilir (Ayarlar → Kaynaklar → kendi panelim: ID, ad, 1000 adet fiyatı, min/max) ve şablonla hazırlanır. Uzun listeler 4096 karakter sınırına göre birden çok mesaja bölünür. Kendi panelin okunamazsa kanal mesajı hazırlanmaz (ID/fiyatsız liste paylaşılmaz), özette nedeni yazar.
+- **Ayarlar → Telegram botu:** *Import bildirimi* (açık/kapalı), *Kanalda paylaşım* (bildirimde **📢 Kanalda paylaş / Paylaşma** düğmesi · otomatik · kapalı), *Paylaşım kanalı* (`@kanal`, `t.me/kanal` ya da `-100…`; bot kanalda yönetici olmalı), *Sipariş adresi* ({panel}), *Para birimi* ({valyuta}), *Kanal şablonu* ({ikon} {kategori} {servisler} {say} {tarix} {panel} {valyuta}), *Servis satırı* ({id} {ad} {qiymet} {min} {max} {valyuta}) ve *Mesaj kalın*.
 - Düğmelere yalnızca sahip basabilir; aynı kayıt iki kez paylaşılmaz; paylaşım hata verirse (bot yönetici değil, şablonda bozuk HTML) özette nedeni yazar ve düğme yeniden denemek için kalır.
 - Mini panelde **Telegram'a bildir** anahtarı; deneme modunda bildirim gitmez.
 

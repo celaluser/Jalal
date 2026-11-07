@@ -67,7 +67,7 @@ trait SettingsPages
                 $watch .= '<div class="row">' . $this->ui->action('watch_now', 'Şimdi kontrol et', [], 'quiet', 'refresh') . '</div>';
             }
         } else {
-            $watch .= '<p class="muted">Önce <a href="?p=bank">Çeviri bankası</a> sayfasından sağlayıcıyı (API adresi ve anahtar) ekle.</p>';
+            $watch .= '<p class="muted">Önce <a href="?p=sources">Ayarlar → Kaynaklar</a> sayfasından sağlayıcıyı (API adresi ve anahtar) ekle.</p>';
         }
         $watch .= '</div>';
         $learn = '<div class="panel panel-pad stack"><div><h3>Çeviri öğrenme</h3><p class="muted">Bankadaki ad çiftlerinden çeviri mantığını çıkarır ve öneri verir. Sen onaylamadan hiçbir şey değişmez.</p></div>'

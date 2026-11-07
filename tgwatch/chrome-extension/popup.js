@@ -54,7 +54,7 @@ function drawBal(b) {
   list.textContent = '';
   $('bal').hidden = false;
   if (!b.items.length) {
-    $('bal-msg').textContent = 'tgwatch\'ta sağlayıcı yok (Çeviri bankası → Kaynaklar).';
+    $('bal-msg').textContent = 'tgwatch\'ta sağlayıcı yok (Ayarlar → Kaynaklar).';
     $('bal-tot').hidden = true;
     return;
   }

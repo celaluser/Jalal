@@ -99,6 +99,7 @@ final class Admin
             'channels' => $this->channels(),
             'dict' => $this->dict(),
             'bank' => $this->bank(),
+            'sources' => $this->sourcesPage(),
             'learn' => $this->learnPage(),
             'rivals' => $this->rivalsPage(),
             'rival_list' => $this->rivalListPage(),
@@ -1406,7 +1407,9 @@ final class Admin
                 $this->redirect('health');
             } elseif ($p === 'job_paste' && $id) {
                 $this->redirect('job_prompt', ['id' => $id]);
-            } elseif (str_starts_with($p, 'source') || str_starts_with($p, 'tm_') || $p === 'match_run') {
+            } elseif (str_starts_with($p, 'source')) {
+                $this->redirect('sources');
+            } elseif (str_starts_with($p, 'tm_') || $p === 'match_run') {
                 $this->redirect('bank');
             } elseif (str_starts_with($p, 'rival_')) {
                 $this->redirect($p === 'rival_confirm' || $p === 'rival_reject' || $p === 'rival_run' ? 'rivals' : 'rival_list');

@@ -204,7 +204,7 @@ final class BotCommands
     {
         $r = Balances::check($this->db);
         if (!$r['items']) {
-            $this->say($chat, 'Sağlayıcı yok. Panelde <b>Kaynaklar</b> bölümünden sağlayıcı (API adresi + anahtar) ekle.');
+            $this->say($chat, 'Sağlayıcı yok. tgwatch\'ta <b>Ayarlar → Kaynaklar</b> sayfasından sağlayıcı (API adresi + anahtar) ekle.');
             return;
         }
         $lines = [];

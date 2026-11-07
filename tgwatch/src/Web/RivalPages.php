@@ -208,7 +208,7 @@ trait RivalPages
             return;
         }
         if (!$rd['provider_services']) {
-            $h .= '<p class="muted">Eşleştirme için sağlayıcı servisleri gerekli: Çeviri bankası → Kaynaklar\'dan sağlayıcıyı ekle ve senkronize et.</p><p>' . Ui::link('?p=bank', 'Kaynaklara git', 'primary', 'link') . '</p></div>';
+            $h .= '<p class="muted">Eşleştirme için sağlayıcı servisleri gerekli: Ayarlar → Kaynaklar\'dan sağlayıcıyı ekle ve senkronize et.</p><p>' . Ui::link('?p=sources', 'Kaynaklara git', 'primary', 'link') . '</p></div>';
             $this->render('Rakipten öğren', $h, ['active' => 'rival_learn', 'sub' => $sub]);
             return;
         }

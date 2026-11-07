@@ -22,7 +22,7 @@ final class Ui
         'channels' => ['Kanallar', 'channels', ['channels' => 'Kanallar']],
         'translate' => ['Çeviri', 'dict', ['dict' => 'Sözlük', 'bank' => 'Çeviri bankası', 'learn' => 'Öğrenme', 'ai' => 'Çeviri ayarları']],
         'insights' => ['Analiz', 'chart', ['catalog' => 'Servisler', 'audit' => 'Fiyat denetimi', 'reports' => 'Raporlar', 'rivals' => 'Rakip kıyası', 'rival_list' => 'Rakip listesi', 'rival_learn' => 'Rakipten öğren']],
-        'system' => ['Ayarlar', 'gear', ['settings' => 'Ayarlar', 'profile' => 'Profil', 'alerts' => 'Uyarılar', 'botcmds' => 'Bot komutları', 'health' => 'Sağlık', 'logs' => 'Kayıtlar']],
+        'system' => ['Ayarlar', 'gear', ['settings' => 'Ayarlar', 'sources' => 'Kaynaklar', 'profile' => 'Profil', 'alerts' => 'Uyarılar', 'botcmds' => 'Bot komutları', 'health' => 'Sağlık', 'logs' => 'Kayıtlar']],
     ];
 
     /** Sayfa => bölüm anahtarı. */
@@ -293,6 +293,7 @@ final class Ui
         $palette .= '<li><a href="?p=job_new" data-cmd="yeni iş duyuru yapıştır ekle">' . self::icon('plus', 16) . '<span>Yeni iş ekle</span><small>İşlem</small></a></li>'
             . '<li><a href="?p=settings&amp;tab=telegram" data-cmd="ayarlar telegram bot token e-posta">' . self::icon('gear', 16) . '<span>Ayarlar: Telegram ve e-posta</span><small>Ayarlar</small></a></li>'
             . '<li><a href="?p=settings&amp;tab=security" data-cmd="ayarlar güvenlik şifre oturum">' . self::icon('gear', 16) . '<span>Ayarlar: Güvenlik ve şifre</span><small>Ayarlar</small></a></li>'
+            . '<li><a href="?p=sources" data-cmd="kaynaklar kaynak sağlayıcı provider kendi panel api anahtar bakiye">' . self::icon('link', 16) . '<span>Kaynaklar: kendi panelin ve sağlayıcılar</span><small>Ayarlar</small></a></li>'
             . '<li><a href="?p=settings&amp;tab=features#eklenti" data-cmd="chrome eklenti api anahtar perfect panel import">' . self::icon('link', 16) . '<span>Chrome eklentisi: API adresi ve anahtar</span><small>Ayarlar</small></a></li>'
             . '<li><a href="?p=settings&amp;tab=appearance" data-cmd="ayarlar görünüm tema renk koyu">' . self::icon('gear', 16) . '<span>Ayarlar: Görünüm ve tema</span><small>Ayarlar</small></a></li>';
         $help = '<dialog class="cmd glass help" id="help" aria-label="Klavye kısayolları"><div class="help-in"><h3>Klavye kısayolları</h3><dl>'

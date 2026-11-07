@@ -75,7 +75,7 @@ final class RivalLearn
         $prov = $this->db->all("SELECT r.*, s.name AS source_name FROM remote_services r JOIN sources s ON s.id = r.source_id WHERE s.kind = 'provider'");
         $rivals = $this->db->all("SELECT * FROM sources WHERE kind = 'rival' ORDER BY id");
         if (!$prov) {
-            throw new \RuntimeException('Önce Çeviri bankası → Kaynaklar\'dan sağlayıcı ekleyip senkronize et (rakip servisleri sağlayıcı servisleriyle eşleştirilir).');
+            throw new \RuntimeException('Önce Ayarlar → Kaynaklar\'dan sağlayıcı ekleyip senkronize et (rakip servisleri sağlayıcı servisleriyle eşleştirilir).');
         }
         if (!$rivals) {
             throw new \RuntimeException('Önce Analiz → Rakip listesi\'nden rakip panel ekle.');

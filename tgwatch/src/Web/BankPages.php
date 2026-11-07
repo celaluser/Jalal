@@ -37,23 +37,12 @@ trait BankPages
         }
     }
 
-    private function bank(): void
+    /** Kaynaklar: kendi panelin ve sağlayıcıların API bilgileri (banka eşleştirmesi, bakiye, import paylaşımı, rakipten öğrenme kullanır). */
+    private function sourcesPage(): void
     {
-        $mem = new Memory($this->db);
-        $st = $mem->stats();
         $sources = $this->db->all("SELECT * FROM sources WHERE kind != 'rival' ORDER BY kind DESC, id");
         $hasOwn = (bool)array_filter($sources, static fn($s) => $s['kind'] === 'own');
-
-        $okSvc = $st['service']['ok'] ?? 0;
-        $h = '<section class="strip" aria-label="Banka durumu">'
-            . '<div><div class="k">' . Ui::dot($okSvc ? 'ok' : 'warn') . 'Bankadaki ad çifti</div><div class="v">' . $okSvc . '</div></div>'
-            . '<div><div class="k">' . Ui::dot('ok') . 'Öğrenilen parça</div><div class="v">' . $st['segments'] . '</div></div>'
-            . '<div><div class="k">' . Ui::dot(($st['service']['review'] ?? 0) ? 'warn' : 'ok') . 'Kontrol bekleyen eşleşme</div><div class="v"><a href="#review">' . ($st['service']['review'] ?? 0) . '</a></div></div>'
-            . '<div><div class="k">' . Ui::dot('ok') . 'Kategori çifti</div><div class="v">' . ($st['category']['ok'] ?? 0) . '</div></div>'
-            . '</section>';
-
-        // Kaynaklar
-        $h .= '<h2 class="first">Kaynaklar</h2><p class="muted">Kendi panelinizin ve sağlayıcıların API bilgileri. Anahtarlar yalnızca sunucudaki veritabanında saklanır, burada gizli gösterilir. Rakip panelleri buraya değil, <a href="?p=rival_list">Analiz → Rakip listesi</a>\'nden eklenir.</p>';
+        $h = '<p class="muted lead">Kendi panelinizin ve sağlayıcıların API bilgileri. Anahtarlar yalnızca sunucudaki veritabanında saklanır, burada gizli gösterilir. Rakip panelleri buraya değil, <a href="?p=rival_list">Analiz → Rakip listesi</a>\'nden eklenir.</p>';
         if ($sources) {
             $h .= '<div class="table-wrap"><table><thead><tr><th>Kaynak</th><th>API adresi</th><th>Anahtar</th><th class="num">Servis</th><th>Son senkron</th><th>Yeni servis izleme</th><th></th></tr></thead><tbody>';
             foreach ($sources as $s) {
@@ -77,6 +66,30 @@ trait BankPages
             . '<label class="grow">API adresi<input type="text" name="api_url" placeholder="https://site.com/api/v2" required></label>'
             . '<label class="grow">API anahtarı<input type="password" name="api_key" required autocomplete="new-password"></label>'
             . '<button class="btn primary">' . Ui::icon('plus') . '<span>Ekle ve senkronize et</span></button></form>';
+
+        $h .= '<div class="panel panel-pad stack gap-top"><p class="muted"><b>Kendi panelim</b>: panelin (ör. panelbaku.com) kendi API\'si, <code>https://panelbaku.com/api/v2</code> ve panel ayarlarındaki API anahtarın. Çeviri bankası eşleştirmesi, import sonrası kanal paylaşımı (servis ID ve fiyatları) ve rakip kıyası bunu kullanır.</p>'
+            . '<p class="muted"><b>Sağlayıcı</b>: servis aldığın paneller. Bot <code>/balans</code>, eklentideki bakiyeler, yeni servis izleme ve rakipten öğrenme bunları kullanır.</p></div>';
+        $this->render('Kaynaklar', $h, ['active' => 'sources', 'sub' => 'Kendi panelinin ve sağlayıcıların API bağlantıları.']);
+    }
+
+    private function bank(): void
+    {
+        $mem = new Memory($this->db);
+        $st = $mem->stats();
+        $sources = $this->db->all("SELECT * FROM sources WHERE kind != 'rival' ORDER BY kind DESC, id");
+        $hasOwn = (bool)array_filter($sources, static fn($s) => $s['kind'] === 'own');
+
+        $okSvc = $st['service']['ok'] ?? 0;
+        $h = '<section class="strip" aria-label="Banka durumu">'
+            . '<div><div class="k">' . Ui::dot($okSvc ? 'ok' : 'warn') . 'Bankadaki ad çifti</div><div class="v">' . $okSvc . '</div></div>'
+            . '<div><div class="k">' . Ui::dot('ok') . 'Öğrenilen parça</div><div class="v">' . $st['segments'] . '</div></div>'
+            . '<div><div class="k">' . Ui::dot(($st['service']['review'] ?? 0) ? 'warn' : 'ok') . 'Kontrol bekleyen eşleşme</div><div class="v"><a href="#review">' . ($st['service']['review'] ?? 0) . '</a></div></div>'
+            . '<div><div class="k">' . Ui::dot('ok') . 'Kategori çifti</div><div class="v">' . ($st['category']['ok'] ?? 0) . '</div></div>'
+            . '</section>';
+
+        $nOwn = count(array_filter($sources, static fn($s) => $s['kind'] === 'own'));
+        $h .= '<p class="muted gap-top">Eşleştirme kendi panelinin ve sağlayıcıların servis listelerini kullanır: ' . ($sources ? $nOwn . ' kendi panel, ' . (count($sources) - $nOwn) . ' sağlayıcı ekli.' : 'henüz kaynak yok.')
+            . ' ' . Ui::link('?p=sources', 'Kaynaklar', 'quiet sm', 'link') . '</p>';
 
         // Eşleştirme
         $rep = $this->db->getJson('match_report');
@@ -277,7 +290,7 @@ trait BankPages
                 } catch (\Throwable $e) {
                     $this->say('bad', "$name eklendi ama senkronize edilemedi: " . $e->getMessage());
                 }
-                $this->redirect('bank');
+                $this->redirect('sources');
                 return true;
             case 'source_watch':
                 $src = $this->db->one("SELECT * FROM sources WHERE id = ? AND kind = 'provider'", [$id]);
@@ -292,7 +305,7 @@ trait BankPages
                 } else {
                     $this->say('ok', $src['name'] . ': izleme kapatıldı.');
                 }
-                $this->redirect(($_POST['back'] ?? '') === 'features' ? 'settings' : 'bank', ($_POST['back'] ?? '') === 'features' ? ['tab' => 'features'] : []);
+                $this->redirect(($_POST['back'] ?? '') === 'features' ? 'settings' : 'sources', ($_POST['back'] ?? '') === 'features' ? ['tab' => 'features'] : []);
                 return true;
             case 'watch_now':
                 $reps = (new \TgWatch\ApiWatch($this->db, \TgWatch\App::flow(), $this->config))->run(0, true);
@@ -303,14 +316,14 @@ trait BankPages
                 return true;
             case 'source_sync':
                 $n = SmmApi::sync($this->db, $id);
-                $this->say('ok', "$n servis alındı. Bankayı güncellemek için eşleştirmeyi çalıştırın.");
-                $this->redirect('bank');
+                $this->say('ok', "$n servis alındı. Bankayı güncellemek için Çeviri bankası'nda eşleştirmeyi çalıştırın.");
+                $this->redirect('sources');
                 return true;
             case 'source_del':
                 $this->db->run('DELETE FROM remote_services WHERE source_id = ?', [$id]);
                 $this->db->run('DELETE FROM sources WHERE id = ?', [$id]);
                 $this->say('ok', 'Kaynak silindi.');
-                $this->redirect('bank');
+                $this->redirect('sources');
                 return true;
             case 'match_run':
                 @set_time_limit(120);

@@ -80,7 +80,7 @@ final class Rivals
     {
         $own = $this->db->one("SELECT id FROM sources WHERE kind = 'own' ORDER BY id LIMIT 1");
         if (!$own) {
-            throw new \RuntimeException('Önce Çeviri bankası → Kaynaklar\'dan kendi panelini ekle.');
+            throw new \RuntimeException('Önce Ayarlar → Kaynaklar\'dan kendi panelini ekle.');
         }
         $ownRows = $this->db->all('SELECT * FROM remote_services WHERE source_id = ?', [(int)$own['id']]);
         $rivRows = $this->db->all('SELECT * FROM remote_services WHERE source_id = ?', [$rivalId]);
