@@ -1,0 +1,54 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Services (mock) — Edit category</title>
+<style>body{font:14px system-ui;margin:10px}#list{height:260px;overflow:auto;border:1px solid #ddd}.cat{display:flex;gap:8px;align-items:center;height:36px;border-bottom:1px solid #eee;padding:0 8px}
+.service-table__category-image{width:24px;height:24px;background-size:cover;display:inline-block}
+.modal{position:fixed;left:200px;top:40px;width:560px;background:#fff;border:1px solid #999;border-radius:6px;z-index:10}
+.modal-body{position:relative;padding:12px;display:flex;gap:12px;align-items:flex-start}
+.cat-logo-box{width:56px;height:56px;border:1px solid #ccc;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.cat-logo-box img{width:40px;height:40px}
+.picker{position:absolute;left:12px;top:80px;width:420px;background:#fff;border:1px solid #bbb;border-radius:4px;padding:8px;z-index:20}
+.picker .tabs a{margin-right:12px;cursor:pointer}.picker .grid img,.picker .grid i{width:40px;height:40px;margin:3px;cursor:pointer;display:inline-block}</style></head>
+<body>
+<div id="list"></div>
+<div class="modal" role="dialog" id="cdlg"><div class="modal-content">
+  <div class="modal-header"><h4 class="modal-title">Edit category (ID: 219197)</h4><button class="close">×</button></div>
+  <div class="modal-body">
+    <div class="cat-logo-box" id="logo"></div>
+    <div style="flex:1"><label>Category name</label><br><input type="text" id="cname" style="width:360px"></div>
+    <div class="picker" id="picker" style="display:none">
+      <div class="tabs"><a data-t="icons">Icons</a><a data-t="emoji">Emoji</a><a data-t="uploaded">Uploaded</a><a class="rm" style="float:right">Remove</a></div>
+      <div class="grid" id="grid"></div>
+      <button>Upload file</button>
+    </div>
+  </div>
+  <div class="modal-footer"><button id="csave">Save changes</button></div>
+</div></div>
+<script>
+const C = 'https://storage.perfectcdn.com/fsvl4a/';
+const cfg = Object.assign({ name: 'TikTok Followers', logo: '' }, window.__catCfg || {});
+// kategori listesi (dialogun arkasında): adına göre kullanılan logolar
+const cats = [
+  ['TikTok Takipçi', 'tt-a.gif'], ['TikTok Bəyəni', 'tt-a.gif'], ['𝐓𝐢𝐤𝐓𝐨𝐤 → Takipçi', 'tt-a.gif'], ['TikTok Video Baxış', 'tt-b.png'],
+  ['Instagram Takipçi', 'ig.png'], ['Instagram Bəyəni', 'ig.png'], ['YouTube Baxış', 'yt.png'], ['Facebook Takipçi', 'fb.gif'], ['Kateqoriya logosuz', ''],
+];
+document.getElementById('list').innerHTML = cats.map(([n, f]) => '<div class="cat service-table__category"><span class="service-table__category-image" style="' + (f ? 'background-image:url(&quot;' + C + f + '&quot;)' : '') + '"></span><span class="service-table__category-name">' + n + '</span><button>Actions</button></div>').join('');
+// pencere
+document.getElementById('cname').value = cfg.name;
+const logo = document.getElementById('logo');
+const setLogo = (u) => { logo.innerHTML = u ? '<img src="' + u + '">' : ''; };
+setLogo(cfg.logo);
+const picker = document.getElementById('picker'); const grid = document.getElementById('grid');
+const uploaded = ['ig.png', 'yt.png', 'tt-b.png', 'fb.gif', 'tt-a.gif', 'tg.png', 'other.png'];
+function tab(t) {
+  window.__tab = t;
+  if (t === 'uploaded') grid.innerHTML = uploaded.map((f) => '<img data-f="' + f + '" src="' + C + f + '">').join('');
+  else grid.innerHTML = '<img data-f="x" src="https://cdn.example.com/icons/tiktok.svg"><i class="fab fa-tiktok"></i>'; // simge sekmesi: farklı adresler
+}
+logo.onclick = () => { window.__logoClicks = (window.__logoClicks || 0) + 1; picker.style.display = picker.style.display === 'none' ? '' : 'none'; tab('icons'); };
+picker.querySelector('.tabs').onclick = (e) => { const t = e.target.getAttribute('data-t'); if (t) tab(t); };
+grid.onclick = (e) => { const img = e.target.closest('img'); if (!img) return; setLogo(img.src); picker.style.display = 'none'; window.__picked = img.src; };
+document.querySelector('.modal-title').onclick = () => { picker.style.display = 'none'; };
+document.getElementById('csave').onclick = () => { window.__savedCat = { name: document.getElementById('cname').value, logo: (logo.querySelector('img') || {}).src || '' }; document.getElementById('cdlg').style.display = 'none'; };
+// gerçek hissi: rastgele resim yüklemesi yok; görünürlük için boyut veriyoruz
+for (const s of document.querySelectorAll('img')) s.width = 40;
+</script></body></html>

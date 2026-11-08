@@ -206,7 +206,7 @@
 
   function opts() {
     return new Promise((resolve) => {
-      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stripMinMax: true, stripSpeed: true, descTranslate: true, descMode: '' };
+      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stripMinMax: true, stripSpeed: true, descTranslate: true, descMode: '', catLogo: true, catLogoReplace: false };
       try { chrome.storage.local.get(d, (s) => resolve(s || d)); } catch (e) { resolve(d); }
     });
   }
@@ -926,6 +926,181 @@
     return null;
   }
 
+
+  // ---- kategori logosu: adına uygun logoyu "Uploaded" sekmesinden seç ----
+  // Uploaded'daki resimlerin adı yok (dosya adları rastgele). Bu yüzden logo, mevcut kategorilerinden öğrenilir:
+  // adında "TikTok" geçen kategorilerde en çok hangi resim kullanılıyorsa yeni TikTok kategorisine o seçilir.
+  const PLATFORMS = [
+    ['tiktok', /tik\s*tok/], ['instagram', /instagram|\binsta\b|\big\b/], ['youtube', /you\s*tube|\byt\b/], ['facebook', /face\s*book|\bfb\b/],
+    ['telegram', /telegram|\btg\b/], ['twitter', /twitter|\bx\.com\b|\btweet/], ['threads', /threads/], ['whatsapp', /whats\s*app/],
+    ['spotify', /spotify/], ['twitch', /twitch/], ['discord', /discord/], ['snapchat', /snap\s*chat/], ['linkedin', /linked\s*in/],
+    ['pinterest', /pinterest/], ['reddit', /reddit/], ['kick', /\bkick\b/], ['kwai', /\bkwai\b/], ['vk', /\bvk\b|vkontakte/],
+    ['odnoklassniki', /odnoklassniki|\bok\.ru\b/], ['soundcloud', /sound\s*cloud/], ['netflix', /netflix/], ['canva', /\bcanva\b/],
+    ['capcut', /cap\s*cut/], ['onlyfans', /only\s*fans/], ['pubg', /\bpubg\b/], ['likee', /\blikee\b/], ['google', /google/],
+    ['trovo', /trovo/], ['rumble', /rumble/], ['dailymotion', /dailymotion/], ['vimeo', /vimeo/], ['steam', /\bsteam\b/],
+    ['apple', /apple\s*music|itunes/], ['deezer', /deezer/], ['shazam', /shazam/], ['tumblr', /tumblr/], ['quora', /quora/],
+  ];
+  /** Addaki ilk platform (kalın/italik Unicode harfler sadeleştirilir: "𝐓𝐢𝐤𝐓𝐨𝐤" → "tiktok"). */
+  function platformOf(name) {
+    const t = String(name || '').normalize('NFKC').toLowerCase();
+    let best = null;
+    for (const [k, re] of PLATFORMS) {
+      const m = re.exec(t);
+      if (m && (!best || m.index < best.i)) best = { k, i: m.index };
+    }
+    return best ? best.k : null;
+  }
+  const urlOf = (el) => {
+    if (!el) return '';
+    const img = el.tagName === 'IMG' ? el : el.querySelector('img');
+    if (img && img.getAttribute('src')) return img.src;
+    const bg = getComputedStyle(el).backgroundImage || '';
+    const m = bg.match(/url\(["']?([^"')]+)["']?\)/);
+    return m ? m[1] : '';
+  };
+  /** Karşılaştırma anahtarı: adresin dosya adı (sorgu/alan farkı önemsiz). */
+  const fileKey = (u) => { try { return new URL(u, location.href).pathname.split('/').pop().toLowerCase(); } catch (e) { return ''; } };
+  function rowLogo(row) {
+    const el = row.el.querySelector('[class*="category-image"], [class*="category-icon"], img');
+    return el ? urlOf(el) : '';
+  }
+  /** Ekrandaki kategori satırlarından ad → logo kaydı (chrome.storage.local, en çok 3000 kategori). */
+  async function learnLogos() {
+    const rows = categoryRows().map((r) => ({ name: r.name, url: rowLogo(r) })).filter((x) => x.url && platformOf(x.name));
+    if (!rows.length) return 0;
+    const { logoSeen } = await new Promise((res) => { try { chrome.storage.local.get({ logoSeen: {} }, res); } catch (e) { res({ logoSeen: {} }); } });
+    let n = 0;
+    for (const x of rows) if (logoSeen[x.name] !== x.url) { logoSeen[x.name] = x.url; n++; }
+    if (n) {
+      const keys = Object.keys(logoSeen);
+      for (const k of keys.slice(0, Math.max(0, keys.length - 3000))) delete logoSeen[k];
+      try { chrome.storage.local.set({ logoSeen }); } catch (e) { /* yok */ }
+    }
+    return n;
+  }
+  /** Platform için en çok kullanılan logo adresi. */
+  async function logoFor(platform) {
+    const { logoSeen } = await new Promise((res) => { try { chrome.storage.local.get({ logoSeen: {} }, res); } catch (e) { res({ logoSeen: {} }); } });
+    const cnt = new Map();
+    for (const [name, url] of Object.entries(logoSeen)) {
+      if (platformOf(name) !== platform) continue;
+      const k = fileKey(url);
+      const e = cnt.get(k) || { url, n: 0 };
+      e.n++;
+      cnt.set(k, e);
+    }
+    let best = null;
+    for (const e of cnt.values()) if (!best || e.n > best.n) best = e;
+    return best ? best.url : '';
+  }
+  /** Penceredeki logo kutusu: ad kutusunun solundaki/yakınındaki resimli ya da "icon/image/logo" sınıflı kare öğe. */
+  function logoBox(dlg) {
+    const ir = dlg.input.getBoundingClientRect();
+    const pk = picker();
+    const cands = [...dlg.box.querySelectorAll('div, span, a, button, img, label')].filter((e) => {
+      if (!visible(e) || ours(e) || e.contains(dlg.input) || e.closest('.modal-footer, .modal-header') || (pk && pk.box.contains(e))) return false;
+      const r = e.getBoundingClientRect();
+      if (r.width < 24 || r.height < 24 || r.width > 160 || r.height > 160 || Math.abs(r.width - r.height) > 40) return false;
+      return !!urlOf(e) || /icon|image|logo|avatar|picture|photo/i.test(typeof e.className === 'string' ? e.className : '');
+    });
+    if (!cands.length) return null;
+    const d = (e) => { const r = e.getBoundingClientRect(); return Math.hypot((r.left + r.right) / 2 - ir.left, (r.top + r.bottom) / 2 - (ir.top + ir.bottom) / 2); };
+    cands.sort((a, b) => d(a) - d(b));
+    // en yakın adayın en dış tıklanabilir hâli (içindeki img yerine kutunun kendisi)
+    let el = cands[0];
+    while (el.parentElement && el.parentElement !== dlg.box && cands.includes(el.parentElement)) el = el.parentElement;
+    return el;
+  }
+  /** Açık seçici: "Uploaded" sekmesini içeren, birçok resmi olan en küçük kutu. */
+  function picker() {
+    const tabs = [...document.querySelectorAll('a, button, li, span, div')].filter((e) => visible(e) && !ours(e) && e.children.length <= 2 && /^uploaded$/i.test(norm(e.textContent)));
+    for (const t of tabs) {
+      for (let box = t.parentElement; box && box !== document.body; box = box.parentElement) {
+        if (/^uploaded$/i.test(norm(box.textContent))) continue;
+        // sekme şeridi değil, seçicinin tamamı: içinde resim ya da "Upload file" düğmesi olan ilk kutu
+        const upl = [...box.querySelectorAll('button, a, label')].some((x) => /^upload\s*file$/i.test(norm(x.textContent)));
+        if (upl || pickerImages(box).length >= 2) return { box, tab: t.closest('a, button, li, [role=tab]') || t };
+      }
+    }
+    return null;
+  }
+  const pickerImages = (box) => [...box.querySelectorAll('img, [style*="background-image"]')].filter((e) => visible(e) && !ours(e) && urlOf(e));
+  /**
+   * Kategori adına göre logoyu seç (pencere açıkken, Save'den önce). Dönüş: not (ör. "logo: TikTok") ya da ''.
+   * Mevcut logo varsa yalnızca "Mevcut logoyu değiştir" açıkken değişir.
+   */
+  async function pickCategoryLogo(name, o) {
+    if (o.catLogo === false) return '';
+    await learnLogos(); // pencerenin arkasındaki liste satırları
+    const plat = platformOf(name) || platformOf(catSrc);
+    if (!plat) return 'logo: platform anlaşılmadı';
+    const want = await logoFor(plat);
+    const NICE = { tiktok: 'TikTok', youtube: 'YouTube', linkedin: 'LinkedIn', whatsapp: 'WhatsApp', soundcloud: 'SoundCloud', onlyfans: 'OnlyFans', capcut: 'CapCut', pubg: 'PUBG', vk: 'VK', dailymotion: 'Dailymotion' };
+    const P = NICE[plat] || plat.charAt(0).toUpperCase() + plat.slice(1);
+    if (!want) return 'logo: ' + P + ' için öğrenilmiş logo yok (listeyi bir kez sona kadar kaydır)';
+    let dlg = categoryDialog();
+    const box = dlg && logoBox(dlg);
+    if (!box) { catDiagNote = 'logo kutusu bulunamadı'; return 'logo kutusu bulunamadı'; }
+    const cur = urlOf(box) || urlOf(box.querySelector('*'));
+    if (cur && fileKey(cur) === fileKey(want)) return 'logo zaten ' + P;
+    if (cur && !o.catLogoReplace) return 'logo zaten var, değiştirilmedi';
+    box.click();
+    const pk = await waitFor(picker, 3000, 80);
+    if (!pk) { catDiagNote = 'logo seçici açılmadı'; return 'logo seçici açılmadı'; }
+    pk.tab.click();
+    const img = await waitFor(() => { const p2 = picker(); return p2 && pickerImages(p2.box).find((e) => fileKey(urlOf(e)) === fileKey(want)); }, 3000, 80);
+    if (!img) { closePicker(); return 'logo: Uploaded\'da ' + P + ' logosu bulunamadı'; }
+    (img.closest('a, button, li, [role=button], [role=option]') || img).click();
+    const okSel = await waitFor(() => { const d2 = categoryDialog(); const b2 = d2 && logoBox(d2); return b2 && fileKey(urlOf(b2) || urlOf(b2.querySelector('*'))) === fileKey(want); }, 3000, 80);
+    if (picker()) closePicker();
+    await waitFor(() => !picker(), 1500, 80);
+    return okSel ? 'logo: ' + P : 'logo seçildi ama kutuda görünmedi';
+  }
+  /** Seçiciyi kapat: pencere başlığına tıkla (Escape pencerenin kendisini kapatabilir). */
+  function closePicker() {
+    const d = categoryDialog();
+    if (d && d.title) d.title.click();
+  }
+  let catDiagNote = '';
+
+  /** Listeyi baştan sona adım adım gez (sanallaştırılmış liste) ve tüm kategorilerin logosunu öğren. */
+  async function walkLearnLogos() {
+    if (catRunning || running) return { ok: false, error: 'Başka bir iş sürüyor' };
+    catRunning = true; busy(true);
+    try {
+      ensureCatBar();
+      catStatus('Logolar öğreniliyor: liste kategorilere daraltılıyor…');
+      await collapseAll();
+      const first = categoryRows()[0];
+      if (!first) return { ok: false, error: 'Kategori satırı yok (Services sayfasında değil misin?)' };
+      const box = scroller(first.el);
+      const el = box || document.scrollingElement;
+      el.scrollTop = 0; nudge(box); nudge();
+      await sleep(400);
+      let learned = await learnLogos();
+      let stable = 0;
+      for (let i = 0; i < 3000 && stable < 2; i++) {
+        const before = el.scrollTop;
+        el.scrollTop = before + Math.max(150, Math.floor(el.clientHeight * 0.7));
+        nudge(box); nudge();
+        await sleep(200);
+        learned += await learnLogos();
+        catStatus('Logolar öğreniliyor… ' + learned + ' yeni');
+        const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 4 || el.scrollTop === before;
+        if (!atEnd) { stable = 0; continue; }
+        const hgt = el.scrollHeight; await sleep(700);
+        learned += await learnLogos();
+        stable = el.scrollHeight > hgt ? 0 : stable + 1;
+      }
+      const { logoSeen } = await new Promise((res) => chrome.storage.local.get({ logoSeen: {} }, res));
+      const plats = new Set(Object.keys(logoSeen).map(platformOf).filter(Boolean));
+      catStatus('Logolar öğrenildi: ' + Object.keys(logoSeen).length + ' kategori, ' + plats.size + ' platform', 'ok');
+      return { ok: true, categories: Object.keys(logoSeen).length, platforms: [...plats] };
+    } finally {
+      catRunning = false; busy(false);
+    }
+  }
+
   let cbar = null;
   let catRunning = false;
   let catSrc = null;   // pencere açıldığındaki orijinal kategori adı
@@ -1143,6 +1318,7 @@
 
   /** Sonuna kadar kaydır; yeni satır yüklenmesi durana kadar tekrarla. */
   async function scrollToEnd() {
+    learnLogos();
     let stable = 0;
     let lastCount = -1;
     for (let i = 0; i < 40 && stable < 3; i++) {
@@ -1156,6 +1332,7 @@
         return atEnd;
       }, 4000, 100);
       await sleep(500);
+      learnLogos();
       const n = categoryRows().length + document.documentElement.scrollHeight / 1e6;
       stable = n === lastCount ? stable + 1 : 0;
       lastCount = n;
@@ -1278,8 +1455,11 @@
     if (!o) { o = h('span', 'tgw-orig'); dlg.input.insertAdjacentElement('afterend', o); }
     o.textContent = src;
     o.title = 'Orijinal kategori adı';
-    const how = tr.via === 'bank' ? 'bankadan' : tr.via === 'claude' ? 'Claude ile' : 'kurallarla';
-    if (!save) return { ok: true, saved: false, name: tr.az, src, how };
+    let how = tr.via === 'bank' ? 'bankadan' : tr.via === 'claude' ? 'Claude ile' : 'kurallarla';
+    catStatus('Logo seçiliyor…');
+    const logo = await pickCategoryLogo(tr.az, await opts());
+    if (logo) how += ' · ' + logo;
+    if (!save) return { ok: true, saved: false, name: tr.az, src, how, logo };
     await sleep(250);
     const d2 = categoryDialog();
     if (!d2 || !d2.save) return { ok: false, note: 'Save düğmesi bulunamadı' };
@@ -1288,7 +1468,7 @@
     const closed = await waitFor(() => !categoryDialog(), 8000, 100);
     if (!closed) return { ok: false, note: 'Save sonrası pencere kapanmadı — paneli kontrol et' };
     send({ type: 'stat', translated: 1 });
-    return { ok: true, saved: true, name: tr.az, src, how };
+    return { ok: true, saved: true, name: tr.az, src, how, logo };
   }
 
   // ---- sürükle-bırak: kategoriyi tutamaçından (service-table__handle) tutup listenin en üstüne bırak ----
@@ -1611,7 +1791,8 @@
         if (!r.ok) return end(r.note, 'warn');
         if (!top) return end(r.name + ' · ' + r.how + (save ? ' · kaydedildi' : ' · deneme: Save\'e basılmadı'), 'ok');
         const m = await moveToTop(r.name);
-        return end(m.ok ? r.name + ' · kaydedildi, en üstte' : r.name + ' · kaydedildi, ama ' + m.note, m.ok ? 'ok' : 'warn');
+        const lg = r.logo ? ' · ' + r.logo : '';
+        return end(m.ok ? r.name + ' · kaydedildi, en üstte' + lg : r.name + ' · kaydedildi' + lg + ', ama ' + m.note, m.ok ? 'ok' : 'warn');
       }
       let max = 1;
       let left = 0;
@@ -1714,6 +1895,10 @@
       const ctx = rows.length ? 'import' : categoryDialog() ? 'category' : (/\/admin\/services\/?$/.test(location.pathname) ? 'list' : '');
       sendResponse({ screen: rows.length > 0, ctx, rows: rows.length, running: running || catRunning, counts: counts(), changed: [...state.values()].filter((s) => s.filled).length });
       return false;
+    }
+    if (msg.type === 'tgw-learn-logos') {
+      walkLearnLogos().then(sendResponse, (e) => sendResponse({ ok: false, error: String(e) }));
+      return true;
     }
     if (msg.type === 'tgw-run') {
       if (!(findModal() && scanRows().length)) {

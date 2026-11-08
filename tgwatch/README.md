@@ -43,6 +43,17 @@ panel `https://ALANADIN/system/tgwatch/public/`, webhook `https://ALANADIN/syste
 Zip'i açarken gizli dosyaların (`.htaccess`) da çıktığından emin ol. **Sağlık** sayfasındaki "Web koruması" satırı bunu kontrol eder.
 İstersen tgwatch'ı public_html dışına koyup sadece `public/` içeriğini web'e kopyalayabilirsin (o zaman `app_path.php` içindeki yolu düzelt).
 
+## Kategori logosu (eklenti 1.16.0)
+
+Kategori adını çevirirken eklenti logoyu da seçer: logo kutusuna tıklar → **Uploaded** sekmesi → uygun resim → (sonra) **Save**.
+Uploaded'daki resimlerin adı yok (dosya adları rastgele), bu yüzden logo **mevcut kategorilerinden öğrenilir**: adında "TikTok" geçen
+kategorilerde en çok hangi resim kullanılıyorsa yeni TikTok kategorisine o seçilir (Instagram, YouTube, Facebook, Telegram… 35+ platform;
+kalın/italik Unicode adlar da tanınır). Öğrenme: liste kaydırılırken kendiliğinden, ya da mini panel → Ayarlar → **Logoları şimdi öğren**
+(Services sayfasında listeyi baştan sona gezer). Ayarlar: **Kategoriye logo seç** (açık), **Mevcut logoyu değiştir** (kapalı: yalnız logosu
+olmayan kategoriye seçer). Platform anlaşılmazsa ya da o platform için öğrenilmiş logo yoksa logo seçilmez, ad yine kaydedilir.
+**Denenmedi:** gerçek paneldeki logo kutusu ve seçici (ekran görüntüsüne göre: ad kutusunun solundaki kare, "Icons / Emoji / Uploaded"
+sekmeleri, "Upload file" düğmesi varsayıldı).
+
 ## Eklenti arka planda (1.15.0)
 
 Başka sekmeye geçsen de başlattığın iş sürer (import çevirisi, açıklamalar, kategori akışı, import sonrası otomatik kategori):

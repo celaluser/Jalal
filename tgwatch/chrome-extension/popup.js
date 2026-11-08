@@ -7,7 +7,7 @@ let tgBase = '';
 function conn(text, kind) { const c = $('conn'); c.textContent = text; c.className = 'pill ' + kind; }
 
 async function init() {
-  const s = await get({ panel: '', api: '', key: '', dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stripMinMax: true, stripSpeed: true, descTranslate: true, descMode: '', stats: { day: today(), today: 0, total: 0, learned: 0 } });
+  const s = await get({ panel: '', api: '', key: '', dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stripMinMax: true, stripSpeed: true, descTranslate: true, descMode: '', catLogo: true, catLogoReplace: false, stats: { day: today(), today: 0, total: 0, learned: 0 } });
   $('dry').checked = !!s.dry;
   $('skipAz').checked = s.skipAz !== false;
   $('bracketSpace').checked = s.bracketSpace !== false;
@@ -15,6 +15,8 @@ async function init() {
   $('stripSpeed').checked = s.stripSpeed !== false;
   $('descTranslate').checked = s.descTranslate !== false;
   $('descMode').value = s.descMode || '';
+  $('catLogo').checked = s.catLogo !== false;
+  $('catLogoReplace').checked = s.catLogoReplace === true;
   $('autoCat').checked = s.autoCat !== false;
   $('catTop').checked = s.catTop !== false;
   $('notify').checked = s.notify !== false;
@@ -209,6 +211,15 @@ $('stripMinMax').onchange = (e) => chrome.storage.local.set({ stripMinMax: e.tar
 $('stripSpeed').onchange = (e) => chrome.storage.local.set({ stripSpeed: e.target.checked });
 $('descTranslate').onchange = (e) => chrome.storage.local.set({ descTranslate: e.target.checked });
 $('descMode').onchange = (e) => chrome.storage.local.set({ descMode: e.target.value });
+$('catLogo').onchange = (e) => chrome.storage.local.set({ catLogo: e.target.checked });
+$('catLogoReplace').onchange = (e) => chrome.storage.local.set({ catLogoReplace: e.target.checked });
+$('learnLogos').onclick = () => {
+  $('learnMsg').textContent = 'Services sayfasında liste geziliyor…';
+  chrome.tabs.sendMessage(tabId, { type: 'tgw-learn-logos' }, (r) => {
+    void chrome.runtime.lastError;
+    $('learnMsg').textContent = !r ? 'Bu sekmede panelin Services sayfası açık değil' : r.ok ? r.categories + ' kategori, ' + r.platforms.length + ' platform öğrenildi' : r.error;
+  });
+};
 $('opt').onclick = (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); };
 $('tg').onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: $('tg').href }); };
 init();

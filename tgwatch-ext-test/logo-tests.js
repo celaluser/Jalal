@@ -1,0 +1,117 @@
+// tgwatch eklentisi: kategori logosu — taklit "Edit category" penceresi + Icons/Emoji/Uploaded seçici.
+const { chromium } = require('/home/user/Jalal/servis-tasi-test/node_modules/playwright');
+const fs = require('fs'); const path = require('path');
+const CONTENT = fs.readFileSync(path.resolve(__dirname, '../tgwatch/chrome-extension/content.js'), 'utf8');
+let fails = 0;
+const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) fails++; };
+const eq = (a, b, m) => { const A = JSON.stringify(a), B = JSON.stringify(b); ok(A === B, m + (A === B ? '' : '\n      beklenen ' + B + '\n      gelen    ' + A)); };
+const C = 'https://storage.perfectcdn.com/fsvl4a/';
+function stub(storage) {
+  return `(() => {
+    const store = Object.assign({ panel: 'https://panelbaku.com', api: 'x', key: 'k', delay: 0, dry: false, catTop: false }, ${JSON.stringify(storage)});
+    const listeners = []; const _st = window.setTimeout.bind(window);
+    window.__calls = [];
+    const fakeApi = (a, p) => { window.__calls.push({ a, p }); if (a === 'translate') return { ok: true, items: p.items.map((it) => ({ id: it.id, az: 'AZ ' + it.name, via: 'bank', unknown: [] })) }; return { ok: true }; };
+    window.chrome = { runtime: { lastError: null, getManifest: () => ({ version: 't' }), sendMessage: (m, cb) => _st(() => cb && cb(m.type === 'api' ? fakeApi(m.action, m.payload || {}) : { ok: true }), 5), onMessage: { addListener: (f) => listeners.push(f) } },
+      storage: { local: { get: (d, cb) => { const o = {}; for (const k of Object.keys(d)) o[k] = k in store ? JSON.parse(JSON.stringify(store[k])) : d[k]; _st(() => cb(o), 0); }, set: (o) => Object.assign(store, JSON.parse(JSON.stringify(o))) } } };
+    window.__store = store;
+    window.__send = (msg) => new Promise((r) => { for (const f of listeners) f(msg, {}, r); });
+  })();`;
+}
+async function page(b, catCfg, storage) {
+  const p = await b.newPage({ viewport: { width: 1000, height: 700 } });
+  const errs = []; p.on('pageerror', (e) => errs.push(String(e))); p.__errs = errs;
+  await p.addInitScript((c) => { window.__catCfg = c; }, catCfg || {});
+  const GIF = Buffer.from('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==', 'base64');
+  await p.route(/^https:\/\/(storage\.perfectcdn\.com|cdn\.example\.com)\//, (r) => r.fulfill({ contentType: 'image/gif', body: GIF }));
+  await p.goto('file://' + path.join(__dirname, 'mock-cat.html'));
+  await p.addScriptTag({ content: stub(storage || {}) });
+  await p.addScriptTag({ content: CONTENT });
+  await p.waitForTimeout(300);
+  return p;
+}
+async function runCat(p) {
+  await p.evaluate(() => { window.__lastStatus = ''; window.__tick = setInterval(() => { const s = document.querySelector('.tgw-cbar .tgw-status'); if (s && s.textContent) window.__lastStatus = s.textContent; }, 30); });
+  await p.evaluate(() => window.__send({ type: 'tgw-run' }));
+  await p.waitForFunction(() => /kaydedildi|deneme|Save|bulunamadı|çevrilemedi/i.test(window.__lastStatus) && !document.querySelector('.tgw-cbar.tgw-running'), null, { timeout: 30000, polling: 100 })
+    .catch(async (e) => { console.log('--- ZAMAN AŞIMI:', JSON.stringify(await p.evaluate(() => ({ st: window.__lastStatus, tab: window.__tab, saved: window.__savedCat })))); throw e; });
+  await p.waitForTimeout(150);
+  return p.evaluate(() => window.__lastStatus);
+}
+const saved = (p) => p.evaluate(() => window.__savedCat || null);
+
+(async () => {
+  const b = await chromium.launch();
+
+  console.log('L1 ad çevrilir + logo: kutuya tıkla → Uploaded → en çok kullanılan TikTok logosu → Save');
+  {
+    const p = await page(b, { name: 'TikTok Followers' });
+    const st = await runCat(p);
+    eq(await saved(p), { name: 'AZ TikTok Followers', logo: C + 'tt-a.gif' }, 'kaydedilen ad ve logo (tt-a: 3 kategori, tt-b: 1)');
+    eq(await p.evaluate(() => window.__tab), 'uploaded', 'Uploaded sekmesine geçildi');
+    ok(/logo: TikTok/.test(st), 'durum: ' + st);
+    ok(p.__errs.length === 0, 'JS hatası yok ' + p.__errs.join(' | '));
+    await p.close();
+  }
+
+  console.log('L2 kalın Unicode ad ("𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦 ...") → Instagram logosu; "Logo seç" kapalıyken dokunulmaz');
+  {
+    let p = await page(b, { name: '𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦 Followers [Real]' });
+    await runCat(p);
+    eq((await saved(p)).logo, C + 'ig.png', 'Instagram logosu');
+    await p.close();
+    p = await page(b, { name: 'TikTok Followers' }, { catLogo: false });
+    await runCat(p);
+    eq((await saved(p)).logo, '', 'ayar kapalı: logo yok');
+    eq(await p.evaluate(() => window.__logoClicks || 0), 0, 'logo kutusuna tıklanmadı');
+    await p.close();
+  }
+
+  console.log('L3 mevcut logo: "Mevcut logoyu değiştir" kapalıyken korunur, açıkken değişir');
+  {
+    let p = await page(b, { name: 'YouTube Views', logo: C + 'other.png' });
+    let st = await runCat(p);
+    eq((await saved(p)).logo, C + 'other.png', 'mevcut logo korundu');
+    ok(/logo zaten var/.test(st), 'durum: ' + st);
+    await p.close();
+    p = await page(b, { name: 'YouTube Views', logo: C + 'other.png' }, { catLogoReplace: true });
+    await runCat(p);
+    eq((await saved(p)).logo, C + 'yt.png', 'değiştir açık: YouTube logosu');
+    await p.close();
+  }
+
+  console.log('L4 öğrenilmemiş platform (Netflix) ve platformsuz ad: logo seçilmez, ad yine kaydedilir');
+  {
+    let p = await page(b, { name: 'Netflix Premium Account' });
+    let st = await runCat(p);
+    eq(await saved(p), { name: 'AZ Netflix Premium Account', logo: '' }, 'ad kaydedildi, logo yok');
+    ok(/öğrenilmiş logo yok/.test(st), 'durum: ' + st);
+    await p.close();
+    p = await page(b, { name: 'Premium Paketler' });
+    st = await runCat(p);
+    eq((await saved(p)).logo, '', 'platformsuz: logo yok');
+    await p.close();
+  }
+
+  console.log('L5 deneme modu: ad ve logo yazılır, Save\'e basılmaz');
+  {
+    const p = await page(b, { name: 'TikTok Followers' }, { dry: true });
+    await runCat(p);
+    eq(await saved(p), null, 'Save yok');
+    eq(await p.evaluate(() => (document.querySelector('#logo img') || {}).src || ''), C + 'tt-a.gif', 'logo seçildi (kaydedilmedi)');
+    await p.close();
+  }
+
+  console.log('L6 "Logoları şimdi öğren": liste gezilir, platform logoları kaydedilir');
+  {
+    const p = await page(b, { name: 'x' });
+    const r = await p.evaluate(() => window.__send({ type: 'tgw-learn-logos' }));
+    ok(r.ok && r.categories === 8, 'öğrenilen kategori: ' + JSON.stringify(r));
+    eq([...r.platforms].sort(), ['facebook', 'instagram', 'tiktok', 'youtube'], 'platformlar');
+    await p.close();
+  }
+
+  await b.close();
+  console.log('\n' + (fails ? '✗ ' + fails + ' başarısız' : '✓ hepsi geçti'));
+  process.exit(fails ? 1 : 0);
+})().catch((e) => { console.error(e); process.exit(2); });
