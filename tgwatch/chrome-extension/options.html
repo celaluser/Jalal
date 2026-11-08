@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>tgwatch eklenti ayarları</title>
+<style>
+  body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;max-width:640px;margin:32px auto;padding:0 16px;color:#0e1416;background:#f2f5f4}
+  h1{font-size:22px;margin:0 0 4px}p.sub{color:#4b5a5c;margin:0 0 20px}
+  label{display:block;font-weight:600;margin:14px 0 4px}small{display:block;color:#4b5a5c;font-weight:400}
+  input[type=text],input[type=url],input[type=password],input[type=number]{width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid #9aa8aa;border-radius:6px;font:inherit;background:#fff}
+  .check{display:flex;gap:8px;align-items:center;font-weight:500}
+  .row{display:flex;gap:10px;margin-top:20px}
+  button{font:600 14px system-ui,sans-serif;padding:9px 16px;border-radius:6px;border:1px solid #0e8c7b;background:#0e8c7b;color:#fff;cursor:pointer}
+  button.quiet{background:#fff;color:#0e8c7b}
+  #msg{margin-top:16px;padding:10px 12px;border-radius:6px;display:none}
+  #msg.ok{display:block;background:#d9f0ec}#msg.bad{display:block;background:#f5d9e1}
+</style>
+</head>
+<body>
+<h1>tgwatch eklentisi</h1>
+<p class="sub">Perfect Panel → Services → Import services ekranında servis adlarını tgwatch bankasıyla çevirir.</p>
+<form id="f">
+  <label for="panel">Panel adresi <small>Perfect Panel admin sitenin adresi, ör. https://panelbaku.com</small></label>
+  <input id="panel" type="url" placeholder="https://panelbaku.com" required>
+  <label for="api">tgwatch API adresi <small>tgwatch → Ayarlar → Özellikler → Chrome eklentisi kartındaki adres (…/api.php)</small></label>
+  <input id="api" type="url" placeholder="https://…/public/api.php" required>
+  <label for="key">Eklenti anahtarı <small>Aynı karttaki anahtar. Sadece bu tarayıcıda saklanır.</small></label>
+  <input id="key" type="password" autocomplete="off" required>
+  <label for="delay">Satırlar arası bekleme (ms) <small>Panel yavaşsa artır.</small></label>
+  <input id="delay" type="number" min="0" max="5000" step="50" value="400">
+  <label class="check"><input id="dry" type="checkbox"> Sadece doldur, Save'e basma (deneme modu)</label>
+  <div class="row"><button type="submit">Kaydet ve dene</button></div>
+</form>
+<div id="msg"></div>
+<script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+:root{--ink:#16202a;--mut:#5d6b78;--line:#e2e7ec;--bg:#f4f6f9;--card:#fff;--nila:#243b6b;--rovend:#b3362f;--zefer:#d9a21b;--ok:#1f7a45;--warn:#9a6700;--bad:#b8244b}
+@media (prefers-color-scheme:dark){:root{--ink:#e8edf2;--mut:#9aa7b4;--line:#2a3441;--bg:#121821;--card:#18202b;--nila:#8fa6e8;--ok:#5cc58a;--warn:#e8b23c;--bad:#f2537d}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.wrap{max-width:640px;margin:0 auto;padding:28px 16px 48px}
+.top{display:flex;gap:12px;align-items:center;margin-bottom:18px}
+.top h1{margin:0;font-size:20px}
+.m1{fill:var(--nila)}.m2{fill:var(--rovend)}.m3{fill:var(--zefer)}
+.muted{color:var(--mut);margin:4px 0}.small{font-size:12.5px}
+.new{color:var(--rovend)}
+.step{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.step h2{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:15px}
+.n{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--nila);color:#fff;font-size:12px}
+@media (prefers-color-scheme:dark){.n{color:#0b1220}}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn{display:inline-flex;align-items:center;height:36px;padding:0 16px;border-radius:8px;border:1px solid var(--nila);background:var(--nila);color:#fff;font:600 13.5px system-ui,sans-serif;cursor:pointer}
+@media (prefers-color-scheme:dark){.btn{color:#0b1220}}
+.btn:disabled,.btn[aria-disabled=true]{opacity:.45;cursor:default}
+.btn.ghost{background:transparent;color:var(--nila)}
+.btn:focus-visible,.file:focus-within{outline:2px solid var(--zefer);outline-offset:2px}
+.file{position:relative;overflow:hidden}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.file[aria-disabled=true] input{pointer-events:none}
+.note{margin:8px 0 0;font-size:13px}.note:empty{display:none}
+.note.ok,.log .ok{color:var(--ok)}.note.warn{color:var(--warn)}.note.bad,.log .bad{color:var(--bad)}
+.log{margin:0;padding-left:20px;font-size:13px}.log:empty::before{content:"Henüz işlem yok.";color:var(--mut);margin-left:-20px}
+code{font:12.5px ui-monospace,Menlo,Consolas,monospace}
