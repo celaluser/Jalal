@@ -166,7 +166,7 @@
 
   function opts() {
     return new Promise((resolve) => {
-      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stripMinMax: true };
+      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stripMinMax: true, stripSpeed: true };
       try { chrome.storage.local.get(d, (s) => resolve(s || d)); } catch (e) { resolve(d); }
     });
   }
@@ -191,11 +191,20 @@
    * Sayısız kelimeler ("Minecraft", "Max Kalite") ve hız gibi diğer değerler ("Gündə 500K") değişmez.
    */
   const MINMAX_SRC = '(?:\\b(?:min(?:imum)?|max(?:imum)?|maks(?:imum)?)|ən\\s+az|ən\\s+çox)\\.?\\s*[:=]?\\s*\\d[\\d.,]*\\s*(?:k|m|b)?(?![\\p{L}\\p{N}])';
-  function stripMinMax(s) {
+  /**
+   * Günlük hız: "500K/D", "10K / Day", "Gündə 500K", "Gün 50K", "Günlük 1M", "Daily 20K", "Speed 10K", "50K per day" …
+   * Yalnızca bir MİKTAR varsa silinir: "30 Gün Qarantili", "365 Gün" gibi süreler değişmez.
+   */
+  const VAL_SRC = '\\d[\\d.,]*\\s*(?:k|m|b)?';
+  const SPEED_SRC = '(?:\\b(?:gündə|gunde|günlük|gunluk|gün|gun|daily|per\\s+day|day|speed|sürət|surat)\\s*[:=]?\\s*' + VAL_SRC + '(?:\\s*/\\s*(?:d|day|gün|gun))?'
+    + '|\\b' + VAL_SRC + '\\s*(?:/\\s*(?:d|day|days|gün|gun|günlük|daily)|\\s+(?:per\\s+day|a\\s+day|daily|gündə|günlük)))(?![\\p{L}\\p{N}])';
+  const stripMinMax = (s) => stripTokens(s, MINMAX_SRC);
+  const stripSpeed = (s) => stripTokens(s, SPEED_SRC);
+  function stripTokens(s, SRC) {
     let out = String(s == null ? '' : s);
-    const has = (t) => new RegExp(MINMAX_SRC, 'iu').test(t);
+    const has = (t) => new RegExp(SRC, 'iu').test(t);
     if (!has(out)) return out;
-    const all = new RegExp(MINMAX_SRC, 'giu');
+    const all = new RegExp(SRC, 'giu');
     const SEP = '[|/,;–-]';
     const tidy = (t) => t.replace(all, ' ').replace(/\s+/g, ' ')
       .replace(new RegExp('(' + SEP + ')(\\s*' + SEP + ')+', 'g'), '$1')
@@ -206,10 +215,11 @@
       .replace(/\(([^()]*)\)/g, (m, x) => { if (!has(x)) return m; const c = tidy(x); return c ? '(' + c + ')' : ''; });
     return tidy(out);
   }
-  /** Ayarlara göre adı biçimlendir (çevrilen her servis/kategori adı bu yoldan yazılır): önce min/max, sonra parantez boşluğu. */
+  /** Ayarlara göre adı biçimlendir (çevrilen her servis/kategori adı bu yoldan yazılır): min/max, günlük hız, sonra parantez boşluğu. */
   const fmtName = (name, o) => {
     let t = name;
     if (!o || o.stripMinMax !== false) t = stripMinMax(t);
+    if (!o || o.stripSpeed !== false) t = stripSpeed(t);
     if (!o || o.bracketSpace !== false) t = spaceBrackets(t);
     return t;
   };
