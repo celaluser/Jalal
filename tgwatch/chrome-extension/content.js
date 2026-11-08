@@ -953,7 +953,13 @@
   const urlOf = (el) => {
     if (!el) return '';
     const img = el.tagName === 'IMG' ? el : el.querySelector('img');
-    if (img && img.getAttribute('src')) return img.src;
+    if (img) {
+      const lazy = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy');
+      const src = img.getAttribute('src') || '';
+      if (lazy && (!src || /^data:|placeholder|blank|spacer|loading/i.test(src))) return new URL(lazy, location.href).href;
+      if (src && !/^data:image\/(gif|svg)/i.test(src)) return img.src;
+      if (img.srcset) return new URL(img.srcset.split(',')[0].trim().split(/\s+/)[0], location.href).href;
+    }
     const bg = getComputedStyle(el).backgroundImage || '';
     const m = bg.match(/url\(["']?([^"')]+)["']?\)/);
     return m ? m[1] : '';
@@ -988,7 +994,8 @@
   }
   /** Platform için en çok kullanılan logo adresi. */
   async function logoFor(platform) {
-    const { logoSeen } = await new Promise((res) => { try { chrome.storage.local.get({ logoSeen: {} }, res); } catch (e) { res({ logoSeen: {} }); } });
+    const { logoSeen, logoPick } = await new Promise((res) => { try { chrome.storage.local.get({ logoSeen: {}, logoPick: {} }, res); } catch (e) { res({ logoSeen: {}, logoPick: {} }); } });
+    if (logoPick[platform]) return logoPick[platform]; // kullanıcının seçicide bu platform için seçtiği resim (en güvenilir)
     const cnt = new Map();
     for (const [name, url] of Object.entries(logoSeen)) {
       if (platformOf(name) !== platform) continue;
@@ -1100,7 +1107,9 @@
     }
     pk.tab.click();
     logoDiag.uploadedTiklandi = true;
-    const img = await waitFor(() => { const p2 = picker(); return p2 && p2.box && pickerImages(p2.box).find((e) => sameImg(urlOf(e), want)); }, 5000, 100);
+    let img = await waitFor(() => { const p2 = picker(); return p2 && p2.box && pickerImages(p2.box).find((e) => sameImg(urlOf(e), want)); }, 3000, 100);
+    if (!img) img = await scrollPickerFor((e) => sameImg(urlOf(e), want)); // gecikmeli yüklenen resimler
+    if (!img) { img = await visualMatch(want); if (img) logoDiag.gorselEslesme = true; } // adres farklıysa: resim içeriğine göre
     const p4 = picker();
     logoDiag.secici = p4 && p4.box ? shortHtml(p4.box, 500) : 'kutu bulunamadı';
     if (!img) {
@@ -1110,11 +1119,83 @@
       return 'logo: Uploaded\'da ' + P + ' logosu bulunamadı';
     }
     (img.closest('a, button, li, [role=button], [role=option]') || img).click();
-    const okSel = await waitFor(() => { const d2 = categoryDialog(); const b2 = d2 && logoBox(d2); return b2 && sameImg(urlOf(b2) || urlOf(b2.querySelector('*')), want); }, 3000, 80);
+    const chosen = urlOf(img); // görsel eşleşmede listedeki adresten farklı olabilir
+    const okSel = await waitFor(() => { const d2 = categoryDialog(); const b2 = d2 && logoBox(d2); const u = b2 && (urlOf(b2) || urlOf(b2.querySelector('*'))); return u && (sameImg(u, chosen) || sameImg(u, want)); }, 3000, 80);
     if (picker()) closePicker();
     await waitFor(() => !picker(), 1500, 80);
     return okSel ? 'logo: ' + P : 'logo seçildi ama kutuda görünmedi';
   }
+  /** Seçicinin kaydırılabilir alanını aşağı kaydırarak ara (resimler görününce yüklenir). */
+  async function scrollPickerFor(test) {
+    const p = picker();
+    if (!p || !p.box) return null;
+    const sc = [p.box, ...p.box.querySelectorAll('*')].find((e) => e.scrollHeight > e.clientHeight + 20 && /(auto|scroll)/.test(getComputedStyle(e).overflowY));
+    if (!sc) return null;
+    for (let y = 0; y <= sc.scrollHeight; y += Math.max(80, sc.clientHeight - 40)) {
+      sc.scrollTop = y; nudge(sc);
+      await sleep(250);
+      const p2 = picker();
+      const hit = p2 && p2.box && pickerImages(p2.box).find(test);
+      if (hit) { hit.scrollIntoView({ block: 'nearest' }); return hit; }
+    }
+    sc.scrollTop = 0;
+    return null;
+  }
+  /** Küçük gri parmak izi (16×16): resim sunucusu CORS izni vermezse null (o zaman görsel eşleşme yapılmaz). */
+  function imgHash(url) {
+    return new Promise((resolve) => {
+      const im = new Image();
+      im.crossOrigin = 'anonymous';
+      const t = setTimeout(() => resolve(null), 4000);
+      im.onload = () => {
+        clearTimeout(t);
+        try {
+          const c = document.createElement('canvas'); c.width = 16; c.height = 16;
+          const x = c.getContext('2d'); x.drawImage(im, 0, 0, 16, 16);
+          const d = x.getImageData(0, 0, 16, 16).data;
+          const v = []; for (let i = 0; i < d.length; i += 4) v.push(d[i + 3] < 30 ? 255 : (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11));
+          resolve(v);
+        } catch (e) { resolve(null); }
+      };
+      im.onerror = () => { clearTimeout(t); resolve(null); };
+      im.src = url;
+    });
+  }
+  /** Adres tutmazsa: istenen logoya en çok benzeyen Uploaded resmi (ortalama piksel farkı küçükse). */
+  async function visualMatch(want) {
+    const h0 = await imgHash(want);
+    if (!h0) { logoDiag.gorsel = 'resim sunucusu karşılaştırmaya izin vermedi (CORS)'; return null; }
+    const p = picker();
+    if (!p || !p.box) return null;
+    let best = null;
+    for (const e of pickerImages(p.box).slice(0, 200)) {
+      const h = await imgHash(urlOf(e));
+      if (!h) continue;
+      let diff = 0; for (let i = 0; i < h.length; i++) diff += Math.abs(h[i] - h0[i]);
+      diff /= h.length;
+      if (!best || diff < best.diff) best = { e, diff };
+    }
+    logoDiag.gorsel = best ? 'en yakın fark ' + best.diff.toFixed(1) : 'karşılaştırılacak resim yok';
+    return best && best.diff < 12 ? best.e : null;
+  }
+
+  // Kullanıcı seçicide bir resme tıklayıp Save'e basarsa: "bu platform = bu resim" (seçicinin kendi adresi) öğrenilir.
+  let pickedByUser = null;
+  document.addEventListener('click', (e) => {
+    if (!e.isTrusted || catRunning) return;
+    const p = picker();
+    if (!p || !p.box || !p.box.contains(e.target)) return;
+    const el = e.target.closest('img, [style*="background-image"]') || e.target.querySelector && e.target.querySelector('img');
+    const u = el && urlOf(el);
+    if (u) pickedByUser = u;
+  }, true);
+  function rememberLogoPick(name) {
+    const plat = platformOf(name) || platformOf(catSrc);
+    if (!pickedByUser || !plat) return;
+    const u = pickedByUser; pickedByUser = null;
+    try { chrome.storage.local.get({ logoPick: {} }, (r) => { r.logoPick[plat] = u; chrome.storage.local.set({ logoPick: r.logoPick }); }); } catch (e) { /* yok */ }
+  }
+
   /** Seçiciyi kapat: pencere başlığına tıkla (Escape pencerenin kendisini kapatabilir). */
   function closePicker() {
     const d = categoryDialog();
@@ -1502,7 +1583,20 @@
     // Güvenlik: penceredeki ad hatırlanan addan farklıysa ve Azerice değilse başka bir kategori açılmıştır → penceredeki ad esas.
     if (catSrc === null || (lower(dlg.input.value) !== lower(catSrc) && !AZ_ONLY.test(dlg.input.value))) catSrc = dlg.input.value;
     const src = catSrc;
-    if (AZ_ONLY.test(dlg.input.value)) return { ok: false, already: true, name: dlg.input.value, note: 'ad zaten Azerice' };
+    if (AZ_ONLY.test(dlg.input.value)) {
+      // Ad zaten Azerice: ada dokunma, ama logo yine seçilsin (ve logo değiştiyse kaydet)
+      const nm = dlg.input.value;
+      catStatus('Ad zaten Azerice · logo seçiliyor…');
+      const lg = await pickCategoryLogo(nm, await opts());
+      const changed = /^logo: /.test(lg) && !/bulunamadı|yok|anlaşılmadı/.test(lg);
+      if (!changed || !save) return { ok: false, already: true, name: nm, note: nm + ' · ad zaten Azerice' + (lg ? ' · ' + lg : '') + (changed && !save ? ' · deneme: Save\'e basılmadı' : '') };
+      await sleep(250);
+      const d3 = categoryDialog();
+      if (!d3 || !d3.save) return { ok: false, already: true, name: nm, note: 'Save düğmesi bulunamadı' };
+      d3.save.click();
+      const closed3 = await waitFor(() => !categoryDialog(), 8000, 100);
+      return { ok: false, already: true, name: nm, note: nm + ' · ad zaten Azerice · ' + lg + (closed3 ? ' · kaydedildi' : ' · Save sonrası pencere kapanmadı') };
+    }
     catStatus('Çevriliyor: ' + src);
     const res = await api('translate', { items: [{ id: 'cat', name: src, kind: 'category' }] });
     const tr = res.ok ? res.items[0] : null;
@@ -1945,7 +2039,7 @@
     const dlg = categoryDialog();
     if (!dlg || ours(e.target) || !dlg.box.contains(e.target)) return;
     const b = e.target.closest && e.target.closest('button, a, input[type=submit]');
-    if (b && SAVE_WORDS.includes(lower(b.value || btnText(b)))) rememberCategory(dlg);
+    if (b && SAVE_WORDS.includes(lower(b.value || btnText(b)))) { rememberCategory(dlg); rememberLogoPick(dlg.input ? dlg.input.value : ''); }
   }, true);
 
   // ---- mini panelden gelen istekler ----

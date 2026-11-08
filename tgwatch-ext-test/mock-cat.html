@@ -29,7 +29,7 @@ const cfg = Object.assign({ name: 'TikTok Followers', logo: '' }, window.__catCf
 // kategori listesi (dialogun arkasında): adına göre kullanılan logolar
 // gerçekçi dosya adı (gerçek panelde: rastgele 16 harf)
 const N = (f) => (cfg.longNames && f === 'tt-a.gif' ? 'nylack51yquk11yq.gif' : f);
-const cats = [
+const cats = cfg.cats || [
   ['TikTok Takipçi', 'tt-a.gif'], ['TikTok Bəyəni', 'tt-a.gif'], ['𝐓𝐢𝐤𝐓𝐨𝐤 → Takipçi', 'tt-a.gif'], ['TikTok Video Baxış', 'tt-b.png'],
   ['Instagram Takipçi', 'ig.png'], ['Instagram Bəyəni', 'ig.png'], ['YouTube Baxış', 'yt.png'], ['Facebook Takipçi', 'fb.gif'], ['Kateqoriya logosuz', ''],
 ];
@@ -41,11 +41,11 @@ const addicon = document.getElementById('addicon');
 const setLogo = (u) => { logo.innerHTML = u ? '<img src="' + u + '">' : ''; logo.style.display = u ? '' : 'none'; addicon.style.display = u ? 'none' : ''; };
 setLogo(cfg.logo);
 const picker = document.getElementById('picker'); const grid = document.getElementById('grid');
-const uploaded = ['ig.png', 'yt.png', 'tt-b.png', 'fb.gif', 'tt-a.gif', 'tg.png', 'other.png'];
+const uploaded = cfg.uploaded || ['ig.png', 'yt.png', 'tt-b.png', 'fb.gif', 'tt-a.gif', 'tg.png', 'other.png'];
 function tab(t) {
   window.__tab = t;
   const th = (f) => (cfg.thumbs ? f.replace('.', '_thumb.') : f);
-  if (t === 'uploaded') grid.innerHTML = uploaded.map((f) => '<img data-f="' + f + '" src="' + C + th(N(f)) + '">').join('');
+  if (t === 'uploaded') grid.innerHTML = uploaded.map((f) => (cfg.lazy ? '<img data-f="' + f + '" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" data-src="' + C + th(N(f)) + '">' : '<img data-f="' + f + '" src="' + C + th(N(f)) + '">')).join('');
   else grid.innerHTML = '<i class="fab fa-tiktok"></i><i class="fab fa-instagram"></i><i class="fab fa-youtube"></i>'; // simge sekmesi: resim yok
   document.getElementById('upl').style.display = t === 'uploaded' ? '' : 'none';
 }
@@ -53,8 +53,9 @@ const openPicker = () => { window.__logoClicks = (window.__logoClicks || 0) + 1;
 logo.onclick = openPicker;
 addicon.onclick = (e) => { e.preventDefault(); window.__addClicks = (window.__addClicks || 0) + 1; openPicker(); };
 picker.querySelector('.tabs').onclick = (e) => { const a = e.target.closest('a'); const t = a && a.getAttribute('data-t'); if (t) tab(t); };
-grid.onclick = (e) => { const img = e.target.closest('img'); if (!img) return; setLogo(img.src); picker.style.display = 'none'; window.__picked = img.src; };
+grid.onclick = (e) => { const img = e.target.closest('img'); if (!img) return; const u = img.getAttribute('data-src') || img.src; setLogo(u); picker.style.display = 'none'; window.__picked = u; };
 document.querySelector('.modal-title').onclick = () => { picker.style.display = 'none'; };
+window.__reopen = (name, lg) => { document.getElementById('cname').value = name; setLogo(lg || ''); document.getElementById('cdlg').style.display = ''; window.__savedCat = null; };
 document.getElementById('csave').onclick = () => { window.__savedCat = { name: document.getElementById('cname').value, logo: (logo.querySelector('img') || {}).src || '' }; document.getElementById('cdlg').style.display = 'none'; };
 // gerçek hissi: rastgele resim yüklemesi yok; görünürlük için boyut veriyoruz
 for (const s of document.querySelectorAll('img')) s.width = 40;

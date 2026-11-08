@@ -6,6 +6,18 @@ let fails = 0;
 const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) fails++; };
 const eq = (a, b, m) => { const A = JSON.stringify(a), B = JSON.stringify(b); ok(A === B, m + (A === B ? '' : '\n      beklenen ' + B + '\n      gelen    ' + A)); };
 const C = 'https://storage.perfectcdn.com/fsvl4a/';
+const zlib = require('zlib');
+/** Tek renkli 16x16 PNG. */
+function PNG(hex) {
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const raw = Buffer.alloc(16 * (1 + 16 * 3));
+  for (let y = 0; y < 16; y++) { raw[y * 49] = 0; for (let x = 0; x < 16; x++) { const o = y * 49 + 1 + x * 3; raw[o] = r; raw[o + 1] = g; raw[o + 2] = b; } }
+  const crcT = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; crcT[n] = c >>> 0; }
+  const crc = (buf) => { let c = 0xffffffff; for (const x of buf) c = crcT[(c ^ x) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const cr = Buffer.alloc(4); cr.writeUInt32BE(crc(td)); return Buffer.concat([len, td, cr]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(16, 0); ihdr.writeUInt32BE(16, 4); ihdr[8] = 8; ihdr[9] = 2;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
 function stub(storage) {
   return `(() => {
     const store = Object.assign({ panel: 'https://panelbaku.com', api: 'x', key: 'k', delay: 0, dry: false, catTop: false }, ${JSON.stringify(storage)});
@@ -23,7 +35,12 @@ async function page(b, catCfg, storage) {
   const errs = []; p.on('pageerror', (e) => errs.push(String(e))); p.__errs = errs;
   await p.addInitScript((c) => { window.__catCfg = c; }, catCfg || {});
   const GIF = Buffer.from('R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==', 'base64');
-  await p.route(/^https:\/\/(storage\.perfectcdn\.com|cdn\.example\.com)\//, (r) => r.fulfill({ contentType: 'image/gif', body: GIF }));
+  await p.route(/^https:\/\/(storage\.perfectcdn\.com|cdn\.example\.com)\//, (r) => {
+    const m = r.request().url().match(/c-([0-9a-f]{6})-/);
+    const cors = { 'Access-Control-Allow-Origin': storage && storage.__noCors ? 'https://baska-site.example' : '*' }; // Playwright izni kendiliğinden ekler: "izin yok" için başka siteye ver
+    if (m) return r.fulfill({ contentType: 'image/png', headers: cors, body: PNG(m[1]) });
+    return r.fulfill({ contentType: 'image/gif', headers: cors, body: GIF });
+  });
   await p.goto('file://' + path.join(__dirname, 'mock-cat.html'));
   await p.addScriptTag({ content: stub(storage || {}) });
   await p.addScriptTag({ content: CONTENT });
@@ -108,6 +125,56 @@ const saved = (p) => p.evaluate(() => window.__savedCat || null);
     const p = await page(b, { name: 'TikTok Followers', thumbs: true, longNames: true });
     await runCat(p);
     eq((await saved(p)).logo, C + 'nylack51yquk11yq_thumb.gif', 'önizleme adresiyle eşleşti');
+    await p.close();
+  }
+
+  console.log('L8 adı zaten Azerice: ad değişmez, logo seçilip kaydedilir, en üste taşınmaz');
+  {
+    const p = await page(b, { name: 'YouTube Baxış [ Yeni Native ads ] Sürətli Working' });
+    const st = await runCat(p);
+    eq(await saved(p), { name: 'YouTube Baxış [ Yeni Native ads ] Sürətli Working', logo: C + 'yt.png' }, 'ad aynı, logo YouTube, kaydedildi');
+    ok(/ad zaten Azerice · logo: YouTube · kaydedildi/.test(st), 'durum: ' + st);
+    eq((await p.evaluate(() => window.__calls.filter((c) => c.a === 'translate'))).length, 0, 'çeviri isteği yok');
+    await p.close();
+  }
+
+  console.log('L9 listedeki ve Uploaded\'daki adres farklı: resim içeriğine göre eşleşir; sunucu izin vermezse seçmez');
+  {
+    const cats9 = [['YouTube Baxış', 'c-ff0000-list.png'], ['YouTube Abunə', 'c-ff0000-list.png'], ['Instagram', 'c-800080-list.png']];
+    const up9 = ['c-000000-a.png', 'c-800080-b.png', 'c-ff0000-c.png', 'c-00aa00-d.png'];
+    let p = await page(b, { name: 'YouTube Views', cats: cats9, uploaded: up9 });
+    let st = await runCat(p);
+    eq((await saved(p)).logo, C + 'c-ff0000-c.png', 'kırmızı YouTube logosu içerikten bulundu');
+    ok(/logo: YouTube/.test(st), 'durum: ' + st);
+    await p.close();
+    // önbellekten gelmesin diye yeni adresler
+    p = await page(b, { name: 'YouTube Views', cats: cats9.map(([n, f]) => [n, f.replace('list', 'list2')]), uploaded: up9.map((f) => f.replace('.png', '2.png')) }, { __noCors: true });
+    st = await runCat(p);
+    eq((await saved(p)).logo, '', 'CORS yok: yanlış logo seçilmedi');
+    ok(/bulunamadı/.test(st), 'durum: ' + st);
+    await p.close();
+  }
+
+  console.log('L10 elle seçilen logo öğrenilir: kullanıcı Telegram\'a logo seçip Save\'e basar → sonraki Telegram kategorisinde kullanılır');
+  {
+    const p = await page(b, { name: 'Telegram Members' });
+    let st = await runCat(p);
+    ok(/öğrenilmiş logo yok/.test(st), 'önce bilinmiyor: ' + st);
+    await p.evaluate(() => window.__reopen('Telegram Members'));
+    await p.click('#addicon'); await p.click('a[data-t=uploaded]'); await p.click('#grid img[data-f="tg.png"]'); await p.click('#csave');
+    await p.waitForTimeout(300);
+    eq((await p.evaluate(() => window.__store.logoPick || {})).telegram, C + 'tg.png', 'elle seçim öğrenildi');
+    await p.evaluate(() => window.__reopen('Telegram Premium Members'));
+    st = await runCat(p);
+    eq((await saved(p)).logo, C + 'tg.png', 'sonraki Telegram kategorisi: öğrenilen logo');
+    await p.close();
+  }
+
+  console.log('L11 gecikmeli yüklenen resimler (data-src) de okunur');
+  {
+    const p = await page(b, { name: 'TikTok Followers', lazy: true });
+    await runCat(p);
+    eq((await saved(p)).logo, C + 'tt-a.gif', 'data-src ile eşleşti');
     await p.close();
   }
 

@@ -50,7 +50,7 @@ Uploaded'daki resimlerin adı yok (dosya adları rastgele), bu yüzden logo **me
 kategorilerde en çok hangi resim kullanılıyorsa yeni TikTok kategorisine o seçilir (Instagram, YouTube, Facebook, Telegram… 35+ platform;
 kalın/italik Unicode adlar da tanınır). Öğrenme: liste kaydırılırken kendiliğinden, ya da mini panel → Ayarlar → **Logoları şimdi öğren**
 (Services sayfasında listeyi baştan sona gezer). Ayarlar: **Kategoriye logo seç** (açık), **Mevcut logoyu değiştir** (kapalı: yalnız logosu
-olmayan kategoriye seçer). Platform anlaşılmazsa ya da o platform için öğrenilmiş logo yoksa logo seçilmez, ad yine kaydedilir.
+olmayan kategoriye seçer). **En güvenilir yol:** bir platform için logoyu bir kez kendin seçip Save'e basarsan eklenti "bu platform = bu resim" diye seçicinin kendi adresini öğrenir ve sonra hep onu kullanır. Adres tutmazsa resimler içeriğe göre karşılaştırılır (resim sunucusu izin verirse). Adı zaten Azerice olan kategoride ad değişmez, yalnız logo seçilip kaydedilir. Platform anlaşılmazsa ya da o platform için öğrenilmiş logo yoksa logo seçilmez, ad yine kaydedilir.
 **Denenmedi:** gerçek paneldeki logo kutusu ve seçici (logo yokken "Add icon" bağlantısı, varken ad kutusunun solundaki logo; "Icons / Emoji / Uploaded"
 sekmeleri, "Upload file" düğmesi varsayıldı).
 
