@@ -1016,6 +1016,20 @@
     const el = deep[0];
     return el ? { el: el.closest('a, button, [role=button]') || el, add: /^(\+\s*)?add/i.test(norm(el.textContent)) } : null;
   }
+  /** Pencerede hâlâ "Add icon" var mı (logo seçilmemiş). */
+  const iconLinkAdd = (dlg) => { const l = iconLink(dlg); return !!(l && l.add); };
+  /** Gerçek fare tıklaması gibi: üstüne gel, bas, bırak, tıkla (React/kütüphaneler mousedown'da da seçebilir). */
+  function realClick(el) {
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2; const y = r.top + r.height / 2;
+    const base = { bubbles: true, cancelable: true, composed: true, view: window, clientX: x, clientY: y, button: 0 };
+    const P = window.PointerEvent;
+    const ev = (type, extra) => el.dispatchEvent(type.startsWith('pointer') && P ? new P(type, Object.assign({ pointerId: 1, pointerType: 'mouse', isPrimary: true }, base, extra)) : new MouseEvent(type, Object.assign({}, base, extra)));
+    ev('pointerover'); ev('mouseover'); ev('pointerenter'); ev('mouseenter');
+    ev('pointerdown', { buttons: 1 }); ev('mousedown', { buttons: 1 });
+    ev('pointerup', { buttons: 0 }); ev('mouseup', { buttons: 0 });
+    ev('click', { buttons: 0 });
+  }
   /** Penceredeki logo kutusu: ad kutusunun solundaki/yakınındaki resimli ya da "icon/image/logo" sınıflı kare öğe. */
   function logoBox(dlg) {
     const ir = dlg.input.getBoundingClientRect();
@@ -1118,9 +1132,21 @@
       closePicker();
       return 'logo: Uploaded\'da ' + P + ' logosu bulunamadı';
     }
-    (img.closest('a, button, li, [role=button], [role=option]') || img).click();
     const chosen = urlOf(img); // görsel eşleşmede listedeki adresten farklı olabilir
-    const okSel = await waitFor(() => { const d2 = categoryDialog(); const b2 = d2 && logoBox(d2); const u = b2 && (urlOf(b2) || urlOf(b2.querySelector('*'))); return u && (sameImg(u, chosen) || sameImg(u, want)); }, 3000, 80);
+    logoDiag.secilenResim = fileKey(chosen);
+    // Panelin resim seçicisi seçimi gerçek fare basışıyla (mousedown) alabilir: tam tıklama dizisi gönder.
+    // Kutuda görünmezse aynı dizi resmin bir-iki üst kabına da denenir (tıklama dinleyicisi orada olabilir).
+    const shown = () => { const d2 = categoryDialog(); if (!d2 || iconLinkAdd(d2)) return false; const b2 = logoBox(d2); const u = b2 && (urlOf(b2) || urlOf(b2.querySelector('*'))); return !!u && (sameImg(u, chosen) || sameImg(u, want)); };
+    let okSel = false;
+    const targets = [img, img.parentElement, img.parentElement && img.parentElement.parentElement].filter((x, i, a) => x && a.indexOf(x) === i && !x.matches('.ReactVirtualized__Grid__innerScrollContainer, [role=rowgroup], [role=grid]'));
+    for (const tgt of targets) {
+      if (!tgt.isConnected) break;
+      realClick(tgt);
+      logoDiag.tiklanan = (logoDiag.tiklanan || []).concat(tgt.tagName + '.' + String(tgt.className || '').slice(0, 40));
+      okSel = !!(await waitFor(shown, 2000, 80));
+      if (okSel || !picker()) break; // seçildi ya da seçici kapandı (seçim olmuş olabilir)
+    }
+    if (!okSel) okSel = !!(await waitFor(shown, 1500, 80));
     if (picker()) closePicker();
     await waitFor(() => !picker(), 1500, 80);
     return okSel ? 'logo: ' + P : 'logo seçildi ama kutuda görünmedi';

@@ -30,7 +30,7 @@ function stub(storage) {
     window.__send = (msg) => new Promise((r) => { for (const f of listeners) f(msg, {}, r); });
   })();`;
 }
-async function page(b, catCfg, storage) {
+async function page(b, catCfg, storage, file) {
   const p = await b.newPage({ viewport: { width: 1000, height: 700 } });
   const errs = []; p.on('pageerror', (e) => errs.push(String(e))); p.__errs = errs;
   await p.addInitScript((c) => { window.__catCfg = c; }, catCfg || {});
@@ -41,7 +41,7 @@ async function page(b, catCfg, storage) {
     if (m) return r.fulfill({ contentType: 'image/png', headers: cors, body: PNG(m[1]) });
     return r.fulfill({ contentType: 'image/gif', headers: cors, body: GIF });
   });
-  await p.goto('file://' + path.join(__dirname, 'mock-cat.html'));
+  await p.goto('file://' + path.join(__dirname, file || 'mock-cat.html'));
   await p.addScriptTag({ content: stub(storage || {}) });
   await p.addScriptTag({ content: CONTENT });
   await p.waitForTimeout(300);
@@ -176,6 +176,21 @@ const saved = (p) => p.evaluate(() => window.__savedCat || null);
     await runCat(p);
     eq((await saved(p)).logo, C + 'tt-a.gif', 'data-src ile eşleşti');
     await p.close();
+  }
+
+  console.log('L12 gerçek yapı (select-icon__popup, React-Virtualized ızgara, seçim mousedown ile): YouTube logosu seçilir');
+  {
+    const p = await page(b, { name: 'YouTube Views' }, {}, 'mock-cat2.html');
+    const st = await runCat(p);
+    eq(await saved(p), { name: 'AZ YouTube Views', logo: C + 'nylack51yquk11yq.gif' }, 'kaydedilen logo: listedeki YouTube logosu');
+    eq(await p.evaluate(() => window.__tab), 'uploaded', 'Uploaded sekmesi');
+    ok(/logo: YouTube/.test(st), 'durum: ' + st);
+    ok(p.__errs.length === 0, 'JS hatası yok');
+    await p.close();
+    const q = await page(b, { name: '𝐓𝐢𝐤𝐓𝐨𝐤 Followers' }, {}, 'mock-cat2.html');
+    await runCat(q);
+    eq((await saved(q)).logo, C + 'ymw9y8g5ztat5h85.gif', 'TikTok logosu');
+    await q.close();
   }
 
   console.log('L6 "Logoları şimdi öğren": liste gezilir, platform logoları kaydedilir');

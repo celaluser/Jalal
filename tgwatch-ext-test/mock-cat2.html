@@ -1,0 +1,59 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Edit category (gerçek yapı)</title>
+<style>body{font:14px system-ui;margin:10px}#list{height:200px;overflow:auto;border:1px solid #ddd}.service-table__category{display:flex;gap:8px;align-items:center;height:36px;padding:0 8px}
+.service-table__category-image{width:24px;height:24px;background-size:cover;display:inline-block}
+.modal{position:fixed;left:200px;top:30px;width:600px;background:#fff;border:1px solid #999;border-radius:6px}
+.modal-body{position:relative;padding:12px;display:flex;gap:12px}
+.select-icon__preview{width:56px;height:56px;border:1px solid #ccc;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:10px}
+.select-icon__preview img{width:40px;height:40px}
+.select-icon__popup{position:absolute;left:12px;top:80px;width:450px;background:#fff;border:1px solid #bbb;z-index:20}
+.select-icon__tabs{display:flex;gap:16px;padding:8px}.select-icon__tabs-item{display:flex;gap:4px;cursor:pointer}.select-icon__tabs-item.active{font-weight:bold}
+.row-render__list{display:flex;gap:8px}.row-render__item{width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer}.row-render__item img{width:37px;height:37px}</style></head>
+<body>
+<div id="list"></div>
+<div class="modal" role="dialog" id="cdlg"><div class="modal-content">
+  <div class="modal-header"><h4 class="modal-title">Edit category (ID: 221730)</h4><button class="close">×</button></div>
+  <div class="modal-body">
+    <div class="select-icon"><div class="select-icon__preview" id="prev"></div></div>
+    <div style="flex:1"><div><b>Category name</b> <span class="badge">Azerbaijani</span></div><input type="text" id="cname" style="width:380px"></div>
+    <div class="select-icon__popup" id="popup" style="display:none">
+      <div class="select-icon__popup-header"><div class="select-icon__tabs">
+        <div class="select-icon__tabs-item active" data-t="icons"><div class="select-icon__tabs-item-icon"><span class="fas fa-smile"></span></div><div class="select-icon__tabs-item-description">Icons</div></div>
+        <div class="select-icon__tabs-item" data-t="emoji"><div class="select-icon__tabs-item-icon"><div class="select-icon__tabs-item-emoji">😀</div></div><div class="select-icon__tabs-item-description">Emoji</div></div>
+        <div class="select-icon__tabs-item" data-t="uploaded"><div class="select-icon__tabs-item-icon"><span class="fas fa-upload"></span></div><div class="select-icon__tabs-item-description">Uploaded</div></div>
+      </div></div>
+      <div class="select-icon__popup-body" id="body"></div>
+    </div>
+  </div>
+  <div class="modal-footer"><button id="csave">Save changes</button></div>
+</div></div>
+<script>
+const C = 'https://storage.perfectcdn.com/fsvl4a/';
+const cfg = Object.assign({ name: 'YouTube Views' }, window.__catCfg || {});
+const cats = [['YouTube Baxış Ən Ucuz [ PANELBAKU ]', 'nylack51yquk11yq.gif'], ['YouTube Abunə', 'nylack51yquk11yq.gif'], ['TikTok Takipçi', 'ymw9y8g5ztat5h85.gif'], ['Instagram Takipçi', '99s3cn8it67h6c9l.png']];
+document.getElementById('list').innerHTML = cats.map(([n, f]) => '<div class="service-table__category"><div class="service-table__category-image" style="background-image:url(&quot;' + C + f + '&quot;)"></div><span class="service-table__category-name">' + n + '</span><button>Actions</button></div>').join('');
+const up = ['ymw9y8g5ztat5h85.gif', 'nylack51yquk11yq.gif', '99s3cn8it67h6c9l.png', 'b96zoc6l2i7g5sgl.gif', 'ij96klx0d3h38jz8.png', '9mw6sj9wo4tiodi9.png', '35iteyu7r89tfe70.png', 'q1zyqkyrotk11h7h.png'];
+let logo = '';
+const prev = document.getElementById('prev'); const popup = document.getElementById('popup'); const body = document.getElementById('body');
+function draw() { prev.innerHTML = logo ? '<img src="' + logo + '">' : '<span class="fas fa-smile" style="font-size:18px;color:#999">☺</span><div>Add icon</div>'; }
+draw();
+document.getElementById('cname').value = cfg.name;
+prev.addEventListener('click', () => { popup.style.display = popup.style.display === 'none' ? '' : 'none'; tab('icons'); });
+function tab(t) {
+  for (const it of popup.querySelectorAll('.select-icon__tabs-item')) it.classList.toggle('active', it.dataset.t === t);
+  window.__tab = t;
+  if (t !== 'uploaded') { body.innerHTML = '<div><span class="fab fa-tiktok"></span><span class="fab fa-youtube"></span></div>'; return; }
+  // React-Virtualized: 0x0 sarmalayıcı, içinde kaydırılabilir ızgara; satırlar mutlak konumlu
+  body.innerHTML = '<div class="select-icon__upload"><div class="select-icon__upload-container" style="position:relative"><div style="overflow:visible;height:0;width:0">'
+    + '<div aria-label="grid" class="ReactVirtualized__Grid ReactVirtualized__List" role="grid" style="height:150px;position:relative;width:438px;overflow:auto">'
+    + '<div class="ReactVirtualized__Grid__innerScrollContainer" role="rowgroup" style="height:200px;position:relative;overflow:hidden">'
+    + [up.slice(0, 4), up.slice(4)].map((row, i) => '<div style="height:50px;left:0;position:absolute;top:' + (i * 50) + 'px;width:100%"><div class="row-render__list">' + row.map((f) => '<div class="row-render__item" data-f="' + f + '"><img src="' + C + f + '"></div>').join('') + '</div></div>').join('')
+    + '</div></div></div></div></div><button>Upload file</button>';
+}
+popup.querySelector('.select-icon__tabs').addEventListener('click', (e) => { const it = e.target.closest('.select-icon__tabs-item'); if (it) tab(it.dataset.t); });
+// seçim yalnız mousedown ile (düz click() bir şey yapmaz)
+body.addEventListener('mousedown', (e) => { const it = e.target.closest('.row-render__item'); if (!it) return; logo = C + it.dataset.f; popup.style.display = 'none'; draw(); window.__picked = it.dataset.f; });
+body.addEventListener('click', (e) => { window.__plainClicks = (window.__plainClicks || 0) + 1; });
+document.querySelector('.modal-title').addEventListener('click', () => { popup.style.display = 'none'; });
+document.getElementById('csave').onclick = () => { window.__savedCat = { name: document.getElementById('cname').value, logo }; document.getElementById('cdlg').style.display = 'none'; };
+</script></body></html>
