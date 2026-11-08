@@ -12,6 +12,7 @@ const URL = 'https://panelbaku.com/admin/services';
 let fails = 0;
 const want = (t) => !process.argv[2] || process.argv[2] === t;
 const ok = (c, msg) => { console.log((c ? '  ✓ ' : '  ✗ ') + msg); if (!c) fails++; };
+const sorted = (a) => [...a].sort((x, y) => x - y);
 const eq = (a, b, msg) => { const A = JSON.stringify(a), B = JSON.stringify(b); ok(A === B, msg + (A === B ? '' : '\n      beklenen ' + B + '\n      gelen    ' + A)); };
 
 // --- veri: Not Assigned en sonda; başka kategorilerde de aktif servis var (dokunulmamalı)
@@ -34,6 +35,7 @@ async function newPage(ctx, cfg) {
   const page = await ctx.newPage();
   await page.addInitScript((c) => { window.__cfg = c; }, Object.assign({ cats: cats() }, cfg));
   await page.addInitScript(() => { try { localStorage.clear(); } catch (e) { /* yok */ } });
+  await page.addInitScript((m) => { try { localStorage.setItem('sp_settings', JSON.stringify({ method: m })); } catch (e) { /* yok */ } }, (cfg && cfg.method) || 'single');
   await page.route('https://panelbaku.com/**', async (route) => {
     const u = new globalThis.URL(route.request().url());
     if (u.pathname === '/_react.js') return route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(__dirname, 'node_modules/react/umd/react.development.js')) });
@@ -224,7 +226,7 @@ const onState = (page) => page.evaluate(() => Object.fromEntries(window.__server
     eq(s.disabled, [], 'deneme: pasife alınan yok'); eq(s.menuOpens.length, 6, '6 menü açıldı');
     const d = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { sp: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(d.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.1.1' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
+    ok(dj && dj.surum === '1.2.0' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
     await pop.close(); await p.close();
   }
 
@@ -404,6 +406,97 @@ console.log('S14 otomatik mod: hemen bir tur + her 5 dk alarm; alarmda sayfa yen
     eq(s.toggles || 0, 0, '"tümünü aç/kapa" düğmesine hiç basılmadı');
     const st = await onState(p);
     ok(OTHER_ON().every((id) => st[id] === true), 'diğer kategorilerdeki aktifler duruyor');
+    await p.close();
+  }
+
+  console.log('M1 toplu yöntem (varsayılan): aktiflerin kutucuğu işaretlenir → Actions → Disable all; hepsi pasif, başka yere dokunulmaz');
+  if (want('M1')) {
+    const p = await newPage(ctx, { method: 'mass' });
+    ok(/on/.test(await bar(p, '[data-a=method][data-v=mass]').getAttribute('class')), 'Toplu sekmesi seçili');
+    await scan(p); await setDry(p, false);
+    await bar(p, '[data-a=run]').click(); await done(p);
+    const s = await server(p);
+    eq(sorted(s.massDisabled || []), sorted(ON), 'Disable all yalnızca seçilen 6 aktif servise');
+    eq(s.massDisableClicks, 1, 'tek bir "Disable all"');
+    eq([s.massDeleteAll || 0, s.massEnableAll || 0, s.deletes, s.enables], [0, 0, 0, 0], 'Delete all / Enable all / servis silme yok');
+    eq(s.menuOpens, [], 'servis menüsü açılmadı');
+    eq(s.violations, [], 'ihlal yok (Not Assigned dışı seçim yok)');
+    const st = await onState(p);
+    ok(OTHER_ON().every((id) => st[id] === true), 'diğer kategorilerdeki aktifler duruyor');
+    eq(await p.evaluate(() => window.__onCount('Not Assigned')), 0, 'Not Assigned\'da aktif kalmadı');
+    eq(await p.evaluate(() => window.__selCount()), 0, 'seçim kalmadı');
+    ok(/6 pasife alındı, 0 deneme, 0 atlandı, 0 hata/.test(await status(p)), 'özet: ' + await status(p));
+    await p.close();
+  }
+
+  console.log('M2 toplu deneme: kutucuklar işaretlenir, "Disable all" görülür ama basılmaz; seçim temizlenir');
+  if (want('M2')) {
+    const p = await newPage(ctx, { method: 'mass' });
+    await scan(p);
+    await bar(p, '[data-a=run]').click(); await done(p);
+    const s = await server(p);
+    eq([s.massDisableClicks || 0, (s.massDisabled || []).length], [0, 0], 'Disable all\'a basılmadı');
+    eq(await p.evaluate(() => window.__selCount()), 0, 'seçim temizlendi');
+    ok(/6 deneme/.test(await status(p)), 'özet: ' + await status(p));
+    await p.close();
+  }
+
+  console.log('M3 toplu: onay penceresi (sayı doğru) → Disable; sayı yanlışsa Cancel');
+  if (want('M3')) {
+    let p = await newPage(ctx, { method: 'mass', massConfirm: true });
+    await scan(p); await setDry(p, false);
+    await bar(p, '[data-a=run]').click(); await done(p);
+    let s = await server(p);
+    eq(sorted(s.massDisabled || []), sorted(ON), 'onaylandı, 6 pasif');
+    await p.close();
+    p = await newPage(ctx, { method: 'mass', massConfirm: true, massConfirmCount: 99 });
+    await scan(p); await setDry(p, false);
+    await bar(p, '[data-a=run]').click(); await done(p);
+    s = await server(p);
+    eq((s.massDisabled || []).length, 0, 'yanlış sayı: hiçbir şey pasif olmadı'); eq(s.massCancels, 1, 'Cancel');
+    ok(/onay penceresindeki sayı \(99\)/.test(await resText(p)), 'neden yazıldı');
+    eq(await p.evaluate(() => window.__selCount()), 0, 'seçim temizlendi');
+    await p.close();
+  }
+
+  console.log('M4 toplu: kutucuk fazladan servis seçerse grup iptal; kalabalık Not Assigned + yeniden çizim');
+  if (want('M4')) {
+    let p = await newPage(ctx, { method: 'mass', badCheckbox: 9003 });
+    await scan(p); await setDry(p, false);
+    await bar(p, '[data-a=run]').click(); await done(p);
+    let s = await server(p);
+    eq((s.massDisabled || []).length, 0, 'iptal: hiçbir şey pasif olmadı'); eq(s.massDisableClicks || 0, 0, 'Disable all\'a basılmadı');
+    eq(await p.evaluate(() => window.__selCount()), 0, 'seçim temizlendi');
+    await p.close();
+    const base = cats();
+    const na = base.find((c) => c.name === 'Not Assigned');
+    na.svcs = Array.from({ length: 60 }, (_, k) => ({ id: 9001 + k, name: 'Servis ' + (9001 + k) + ' | Test', on: k % 10 === 3 }));
+    const w = na.svcs.filter((x) => x.on).map((x) => x.id);
+    p = await newPage(ctx, { method: 'mass', cats: base, resetAfter: true });
+    await scan(p); await setDry(p, false);
+    await bar(p, '[data-a=run]').click(); await done(p);
+    s = await server(p);
+    eq(sorted(s.massDisabled || []), sorted(w), 'kalabalık Not Assigned: ' + w.length + ' aktif pasife alındı');
+    eq(s.violations, [], 'ihlal yok'); eq(s.toggles || 0, 0, 'tümünü aç/kapa düğmesine basılmadı');
+    await p.close();
+  }
+
+  console.log('M5 otomatik mod + toplu yöntem: alarm → yenile → Disable all');
+  if (want('M5')) {
+    const sw = await getSw(ctx);
+    const p = await newPage(ctx, { method: 'mass' });
+    await setDry(p, false);
+    await bar(p, '[data-s=auto]').check();
+    await waitHist(p, 1);
+    eq(sorted((await server(p)).massDisabled || []), sorted(ON), 'ilk tur: Disable all ile 6 pasif');
+    await p.evaluate(() => window.__mutate(9002, { on: true }));
+    const tabId = await tabIdOf(sw);
+    const l0 = await loads(p);
+    eq(await sw.evaluate((n) => self.__autoTick(n), 'sp-auto:' + tabId), 'yenilendi', 'alarm → yenilendi');
+    await p.waitForFunction((l) => (+sessionStorage.getItem('__loads') || 0) > l, l0, { timeout: 20000, polling: 200 });
+    await waitHist(p, 2);
+    ok(((await server(p)).massDisabled || []).includes(9002), 'yenilemeden sonra 9002 de Disable all ile pasif');
+    await bar(p, '[data-s=auto]').uncheck();
     await p.close();
   }
 

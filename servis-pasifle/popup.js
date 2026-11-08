@@ -23,6 +23,7 @@ function paint(s) {
   $('ver').textContent = 'v' + s.version;
   if (document.activeElement !== $('max')) $('max').value = s.settings.max;
   $('dry').checked = s.settings.dryRun;
+  $('mMass').checked = s.settings.method === 'mass'; $('mSingle').checked = s.settings.method !== 'mass'; $('mMass').disabled = $('mSingle').disabled = s.running;
   $('scan').disabled = s.running;
   const n = s.phase === 'ready' ? Math.min(s.work, s.settings.max) : 0;
   $('run').textContent = (s.settings.dryRun ? 'Dene' : 'Pasife al') + ' (' + n + ')';
@@ -57,6 +58,8 @@ async function tick() { paint(await send({ cmd: 'state' })); }
   $('all').onclick = async () => paint(await send({ cmd: 'exclude', all: false }));
   $('none').onclick = async () => paint(await send({ cmd: 'exclude', all: true }));
   $('list').onchange = async (ev) => { const k = ev.target.getAttribute('data-k'); if (k) paint(await send({ cmd: 'exclude', key: k, on: !ev.target.checked })); };
+  $('mMass').onchange = async () => paint(await send({ cmd: 'settings', patch: { method: 'mass' } }));
+  $('mSingle').onchange = async () => paint(await send({ cmd: 'settings', patch: { method: 'single' } }));
   $('dry').onchange = async () => paint(await send({ cmd: 'settings', patch: { dryRun: $('dry').checked } }));
   $('max').onchange = async () => paint(await send({ cmd: 'settings', patch: { max: $('max').value } }));
   $('auto').onchange = async () => paint(await send({ cmd: 'auto', on: $('auto').checked, every: $('every').value }));

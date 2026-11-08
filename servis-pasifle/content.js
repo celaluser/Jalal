@@ -8,7 +8,7 @@
   if (window.__servisPasifle) return;
   window.__servisPasifle = true;
 
-  const VERSION = '1.1.1';
+  const VERSION = '1.2.0';
   const SETTINGS_KEY = 'sp_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const TOGGLE = '.service-table__header-hide-all, [class*="header-hide-all"]';
@@ -103,12 +103,14 @@
     seen: { menu: [], dialog: [], toast: [] },
   };
   // Güvenlik: deneme modu kalıcı değil; her sayfa yüklenişinde AÇIK başlar. "En çok N" hatırlanır.
-  const settings = { dryRun: true, max: 100, every: 5 };
-  try { const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); if (v.max) settings.max = Math.max(1, Math.min(5000, parseInt(v.max, 10) || 100)); if (v.every) settings.every = Math.max(1, Math.min(120, parseInt(v.every, 10) || 5)); } catch (e) { /* yok */ }
-  const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ max: settings.max, every: settings.every })); } catch (e) { /* yok */ } };
+  // method: 'mass' = kutucukları işaretle → toplu Actions → Disable all · 'single' = her servis için Actions → Disable service
+  const settings = { dryRun: true, max: 100, every: 5, method: 'mass' };
+  try { const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); if (v.max) settings.max = Math.max(1, Math.min(5000, parseInt(v.max, 10) || 100)); if (v.every) settings.every = Math.max(1, Math.min(120, parseInt(v.every, 10) || 5)); if (v.method === 'mass' || v.method === 'single') settings.method = v.method; } catch (e) { /* yok */ }
+  const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ max: settings.max, every: settings.every, method: settings.method })); } catch (e) { /* yok */ } };
   function patchSettings(p) {
     if (p && typeof p.dryRun === 'boolean') { settings.dryRun = p.dryRun; const a = autoGet(); if (a && a.on) { a.real = !p.dryRun; autoSet(a); } }
     if (p && p.max !== undefined) settings.max = Math.max(1, Math.min(5000, parseInt(p.max, 10) || 100));
+    if (p && (p.method === 'mass' || p.method === 'single') && !S.running) settings.method = p.method;
     saveSettings();
   }
   function log(msg) { S.log.push(new Date().toTimeString().slice(0, 8) + ' ' + msg); if (S.log.length > 300) S.log.shift(); }
@@ -157,7 +159,8 @@
       else if (st === 'disabled' || (clsOff && st !== 'enabled')) state = 'off';
       else if (!st && !clsOff) state = 'unknown';
       const btn = [...row.querySelectorAll('button, a')].find((x) => /^actions\b/i.test(btnText(x)));
-      return { el: b, row, sid, name, state, st, clsOff, btn };
+      const cb = row.querySelector('.service-table__checker input[type=checkbox]') || row.querySelector('input[type=checkbox]');
+      return { el: b, row, sid, name, state, st, clsOff, btn, cb };
     }).filter((r) => r.sid);
   }
   const findSvc = (sid) => serviceRows().find((r) => r.sid === sid) || null;
@@ -190,18 +193,18 @@
     const box = getBox();
     setScroll(box, Math.max(0, from || 0));
     await sleep(350);
-    if (onStep()) return true;
+    if (await onStep()) return true;
     let stable = 0;
     for (let i = 0; i < 5000 && !S.stop; i++) {
       const before = box.scrollTop;
       setScroll(box, before + Math.max(150, Math.floor(box.clientHeight * 0.7)));
       await sleep(170);
-      if (onStep()) return true;
+      if (await onStep()) return true;
       const atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 4 || box.scrollTop === before;
       if (!atEnd) { stable = 0; continue; }
       const h = box.scrollHeight;
       await sleep(700);
-      if (onStep()) return true;
+      if (await onStep()) return true;
       if (box.scrollHeight > h) { stable = 0; continue; }
       if (++stable >= 2) break;
     }
@@ -281,7 +284,7 @@
     const all = [...document.querySelectorAll('a, button, li, span, div, p, [role=menuitem]')].filter((e) => visible(e) && re.test(norm(e.textContent)));
     return all.filter((e) => !all.some((o) => o !== e && e.contains(o)));
   }
-  const MENU_ANY = /^(edit service|edit description|disable service|enable service|delete custom rates|duplicate|hide service|delete service|edit category)$/i;
+  const MENU_ANY = /^(enable all|disable all|edit rates|assign category|delete all|hide all|make all visible|edit service|edit description|disable service|enable service|delete custom rates|duplicate|hide service|delete service|edit category)$/i;
   const click = (el) => (el.closest('a, button, li, [role=menuitem]') || el).click();
   function pressEscape() {
     for (const t of [document.activeElement, document.body, document]) {
@@ -486,15 +489,167 @@
 
   const workList = () => S.targets.filter((t) => !S.excluded.has(t.sid));
 
+  // ---------------------------------------------------------------- toplu yöntem: kutucuklar → Actions → Disable all
+  const SEL_RE = /(\d+)\s+services?\s+selected/i;
+  /** Başlıktaki "N services selected" çubuğu: sayı, toplu Actions düğmesi, kutucuk. */
+  function selection() {
+    const labs = [...document.querySelectorAll('label, span, div, b, strong, p')].filter((e) => visible(e) && e.children.length <= 3 && SEL_RE.test(norm(e.textContent)) && norm(e.textContent).length < 40);
+    const deep = labs.filter((e) => !labs.some((o) => o !== e && e.contains(o)));
+    if (!deep.length) return null;
+    const el = deep[0];
+    const n = parseInt(norm(el.textContent).match(SEL_RE)[1], 10);
+    let box = el; let btn = null; let cb = null;
+    for (let i = 0; i < 6 && box && box !== document.body; i++, box = box.parentElement) {
+      btn = [...box.querySelectorAll('button, a')].find((b) => visible(b) && /^actions\b/i.test(btnText(b)) && !b.closest('.service-table__category, .service-table__row, .service-table__body, [id^="category-"]'));
+      if (btn) break;
+    }
+    for (let b = el, i = 0; b && b !== document.body && i < 8 && !cb; i++, b = b.parentElement) {
+      cb = [...b.querySelectorAll('input[type=checkbox]')].find((c) => visible(c) && (c.name === 'mass_action' || c.closest('.mass-actions') || !c.closest('.service-table__row, .service-table__body, .service-table__category'))) || null;
+    }
+    return { n, el, btn, cb };
+  }
+  async function clearSelection() {
+    let x = selection();
+    if (!x) return true;
+    for (let k = 0; k < 2 && x && x.cb; k++) {
+      x.cb.click();
+      if (await waitFor(() => !selection(), 3000, 100)) return true;
+      x = selection(); // tıklama "hepsini seç" gibi çalıştıysa bir kez daha bas
+    }
+    for (const r of serviceRows()) if (r.cb && r.cb.checked) r.cb.click();
+    return !!(await waitFor(() => !selection(), 3000, 100));
+  }
+  /** "Disable all" sonrası onay penceresi (varsa): metinde "disable" olmalı, "delete" olmamalı; sayı varsa = seçilen. */
+  function massConfirm() {
+    for (const d of [...document.querySelectorAll(DIALOG)].filter(visible)) {
+      const t = norm(d.innerText || d.textContent);
+      const ok = [...d.querySelectorAll('button, a, input[type=submit]')].find((b) => visible(b) && /^(disable|disable all|yes|confirm|ok)$/i.test(norm(b.value || btnText(b))));
+      const cancel = [...d.querySelectorAll('button, a')].find((b) => visible(b) && /^(cancel|close|no)$/i.test(btnText(b))) || d.querySelector('.close, [aria-label=close], [aria-label=Close]');
+      const m = t.match(/(\d+)\s*services?/i);
+      return { dlg: d, text: t, ok, cancel, n: m ? parseInt(m[1], 10) : null, safe: /disable/i.test(t) && !/delete/i.test(t) };
+    }
+    return null;
+  }
+  async function closeMassConfirm() {
+    const c = massConfirm();
+    if (!c) return true;
+    if (c.cancel) c.cancel.click(); else pressEscape();
+    return !!(await waitFor(() => !massConfirm(), 4000, 100));
+  }
+
+  /** Bir grup: aktif servislerin kutucuklarını işaretle (Not Assigned içinde) → toplu Actions → yalnızca tam "Disable all". */
+  async function processMass(chunk) {
+    const out = { done: [], dry: [], skipped: [], errors: [], fatal: false };
+    const errAll = (why, list) => { for (const t of list) out.errors.push({ t, why }); };
+    if (!(await clearSelection())) { out.fatal = true; errAll('önceki seçim temizlenemedi', chunk); return out; }
+    const o = await openNA();
+    if (o.error) { errAll(o.error, chunk); return out; }
+    const want = new Map(chunk.map((t) => [t.sid, t]));
+    const decided = new Set(); const picked = [];
+    let abort = '';
+    setStatus((settings.dryRun ? '[DENEME] ' : '') + chunk.length + ' servisin kutucuğu işaretleniyor…');
+    await walk(async () => {
+      naHead();
+      for (const r of serviceRows()) {
+        const t = want.get(r.sid);
+        if (!t || decided.has(r.sid)) continue;
+        decided.add(r.sid);
+        const c = checkSvc(r.sid);
+        if (!c.ok) { out.skipped.push({ t, why: c.reason }); continue; }
+        if (!r.cb) { out.skipped.push({ t, why: 'kutucuk yok' }); continue; }
+        if (r.cb.checked) { abort = 'servis zaten işaretliydi (' + r.sid + ')'; return true; }
+        const n1 = picked.length + 1;
+        r.cb.click();
+        const ok = await waitFor(() => { const x = selection(); const y = findSvc(r.sid); return x && x.n === n1 && y && y.cb && y.cb.checked; }, 3000, 80);
+        if (!ok) { const x = selection(); abort = 'işaretleme sonrası seçim ' + (x ? x.n : 0) + ' ≠ ' + n1; return true; }
+        picked.push(t);
+        if (S.stop) { abort = 'durduruldu'; return true; }
+      }
+      return decided.size === want.size;
+    }, Math.max(0, (S.naOff || 0) - 60));
+    if (!abort) for (const t of chunk) if (!decided.has(t.sid)) out.skipped.push({ t, why: 'listede bulunamadı (taşınmış/silinmiş olabilir)' });
+    const bail = async (why, list) => { await closeMenu(); await closeMassConfirm(); await clearSelection(); errAll(why, list); return out; };
+    if (abort === 'durduruldu') { await clearSelection(); for (const t of picked) out.skipped.push({ t, why: 'durduruldu' }); return out; }
+    if (abort) { S.diagNeeded = true; return bail(abort, picked); }
+    if (!picked.length) return out;
+    const n = picked.length;
+    const sel = selection();
+    if (!sel || sel.n !== n) return bail('seçim sayısı (' + (sel ? sel.n : 0) + ') ≠ işaretlenen (' + n + ')', picked);
+    if (!sel.btn) { S.diagNeeded = true; return bail('seçim çubuğunda Actions düğmesi bulunamadı', picked); }
+
+    const before = new Set(itemsByText(/^disable all$/i));
+    sel.btn.click();
+    const item = await waitFor(() => { const v = itemsByText(/^disable all$/i).filter((x) => !before.has(x) && !x.closest('.service-table__category, .service-table__row, .service-table__body')); return v.length ? v[v.length - 1] : null; }, 2500, 60);
+    if (!item) { S.diagNeeded = true; return bail('"Disable all" toplu menüde bulunamadı', picked); }
+    remember('menu', [norm((item.closest('ul, [role=menu], .dropdown-menu') || item.parentElement).textContent).slice(0, 200)]);
+    const sel2 = selection();
+    if (!sel2 || sel2.n !== n) return bail('menü açıkken seçim değişti', picked);
+    if (settings.dryRun || S.stop) {
+      await closeMenu();
+      if (!(await clearSelection())) { out.fatal = true; errAll('deneme: seçim temizlenemedi', picked); return out; }
+      for (const t of picked) (S.stop ? out.skipped : out.dry).push({ t, why: S.stop ? 'durduruldu' : n + ' servis seçildi, "Disable all" görüldü, basılmadı' });
+      return out;
+    }
+    click(item);
+    const seen = [];
+    const isOff = () => picked.every((t) => { const y = findSvc(t.sid); return !y || y.state === 'off'; }) && picked.some((t) => findSvc(t.sid));
+    let r = await waitFor(() => { seen.push(...readToasts()); if (massConfirm()) return 'confirm'; return isOff() || !selection() ? 'ok' : null; }, 8000, 120);
+    if (r === 'confirm') {
+      const d = massConfirm();
+      remember('dialog', [d.text.slice(0, 200)]);
+      if (!d.safe || !d.ok) { S.diagNeeded = true; return bail('beklenmeyen onay penceresi: "' + d.text.slice(0, 80) + '"', picked); }
+      if (d.n != null && d.n !== n) { S.diagNeeded = true; return bail('onay penceresindeki sayı (' + d.n + ') ≠ seçilen (' + n + ')', picked); }
+      d.ok.click();
+      r = await waitFor(() => { seen.push(...readToasts()); return !massConfirm() && (isOff() || !selection()) ? 'ok' : null; }, 15000, 120);
+    }
+    remember('toast', [...new Set(seen)]);
+    if (r !== 'ok') { if (massConfirm()) await closeMassConfirm(); await clearSelection(); errAll('işlem tamamlanmadı (sunucu cevap vermedi?)', picked); return out; }
+    await sleep(500);
+    await clearSelection();
+    const errToast = [...new Set(seen)].find((x) => ERR_WORDS.test(x));
+    // doğrula: seçilenler gerçekten pasif mi (gerekirse kaydırarak)
+    const left = new Set(picked.map((t) => t.sid));
+    const stateOf = new Map();
+    await walk(async () => { for (const y of serviceRows()) if (left.has(y.sid) && !stateOf.has(y.sid)) stateOf.set(y.sid, y.state); return stateOf.size === left.size; }, Math.max(0, (S.naOff || 0) - 60));
+    for (const t of picked) {
+      const st = stateOf.get(t.sid);
+      if (st === 'off') out.done.push({ t, why: 'pasife alındı (Disable all, ' + n + ' servis)' });
+      else out.errors.push({ t, why: (st ? 'pasife geçmedi' : 'doğrulanamadı') + (errToast ? ' — panel: "' + errToast.slice(0, 80) + '"' : '') });
+    }
+    return out;
+  }
+
+  async function runMass(list) {
+    const K = 100;
+    const lbl = (t) => t.sid + ' — ' + t.name;
+    let i = 0; let bad = 0; let n = 0;
+    const cap = list.slice(0, settings.max);
+    if (cap.length < list.length) S.notes.push('En çok ' + settings.max + ' sınırına ulaşıldı.');
+    for (; i < cap.length; i += K) {
+      if (S.stop) break;
+      const chunk = cap.slice(i, i + K);
+      setStatus((settings.dryRun ? '[DENEME] ' : '') + 'Toplu: ' + (i + 1) + '–' + (i + chunk.length) + ' / ' + cap.length);
+      let r;
+      try { r = await processMass(chunk); } catch (e) { r = { done: [], dry: [], skipped: [], errors: chunk.map((t) => ({ t, why: 'beklenmeyen hata: ' + (e && e.message) })), fatal: false }; }
+      for (const [k, arr] of [['done', r.done], ['dry', r.dry], ['skipped', r.skipped], ['errors', r.errors]]) for (const x of arr) S.res[k].push({ name: lbl(x.t), reason: x.why });
+      n += r.done.length + r.dry.length;
+      render();
+      bad = r.errors.length ? bad + 1 : 0;
+      if (r.fatal || bad >= 2) { S.notes.push('Toplu işlemde hata: durduruldu.'); S.diagNeeded = true; i += K; break; }
+    }
+    return { i, list: cap };
+  }
+
   async function run() {
     if (S.running || S.phase !== 'ready' || !workList().length) return;
     if (anyDialog()) return fail('Açık bir pencere var; önce kapat.');
     S.running = true; S.stop = false; S.phase = 'running'; S.diagNeeded = false; busy(true);
     S.res = { done: [], dry: [], skipped: [], errors: [], pending: [] };
-    const list = workList();
+    let list = workList();
     let n = 0; let errs = 0; let i = 0;
     try {
-      for (; i < list.length; i++) {
+      if (settings.method === 'mass') { const m = await runMass(list); i = m.i; list = m.list; }
+      else for (; i < list.length; i++) {
         if (S.stop) break;
         if (n >= settings.max) { S.notes.push('En çok ' + settings.max + ' sınırına ulaşıldı.'); break; }
         const t = list[i];
@@ -674,6 +829,7 @@
     label{display:flex;gap:4px;align-items:center}
     input[type=number]{width:56px;background:#121a16;color:#fff;border:1px solid #3c5a4a;border-radius:4px;padding:2px 4px}
     small{color:#9fb3a8}
+    .tabs{display:flex;gap:4px}.tab{all:unset;cursor:pointer;flex:1;text-align:center;padding:4px 6px;border-radius:6px;background:#121a16;color:#a9c2b5;font-size:11px}.tab.on{background:#3a604d;color:#fff}.tab[disabled]{opacity:.5;cursor:default}
     .auto{color:#8fe0b0}.warn{color:#ffb4a8}
   `;
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -709,6 +865,8 @@
     const work = S.phase === 'ready' ? Math.min(workList().length, settings.max) : 0;
     const p = [];
     p.push('<div class="hd"><b>⏻ Servis Pasifle' + (settings.dryRun ? ' <small>(deneme)</small>' : '') + '</b><button data-a="min" title="Küçült/Büyüt">' + (minimized ? '▢' : '–') + '</button></div><div class="body">');
+    const mass = settings.method === 'mass';
+    p.push('<div class="tabs"><button class="tab' + (mass ? ' on' : '') + '" data-a="method" data-v="mass"' + (busyNow ? ' disabled' : '') + '>Toplu: kutucuk → Disable all</button><button class="tab' + (mass ? '' : ' on') + '" data-a="method" data-v="single"' + (busyNow ? ' disabled' : '') + '>Tek tek: Disable service</button></div>');
     p.push('<div class="row"><button class="b" data-a="scan"' + (busyNow ? ' disabled' : '') + '>Not Assigned\'daki aktif servisleri bul</button></div>');
     if (S.stats) p.push('<small class="sum">Not Assigned: ' + S.stats.okunan + ' servis · <b>' + S.stats.aktif + ' aktif</b> · ' + S.stats.pasif + ' pasif' + (S.stats.belirsiz ? ' · ' + S.stats.belirsiz + ' belirsiz' : '') + '</small>');
     if (S.phase === 'ready' && S.targets.length) {
@@ -745,6 +903,7 @@
     const a = t.getAttribute('data-a');
     if (a === 'min') { minimized = !minimized; try { localStorage.setItem('sp_min', minimized ? '1' : '0'); } catch (e) { /* yok */ } render(); }
     else if (a === 'scan') scan();
+    else if (a === 'method') { patchSettings({ method: t.getAttribute('data-v') }); render(); }
     else if (a === 'run') run();
     else if (a === 'stop') stop();
     else if (a === 'all' || a === 'none') { setAll(a === 'none'); render(); }
