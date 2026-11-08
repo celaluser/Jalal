@@ -1,0 +1,157 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Services (mock)</title>
+<style>
+ html,body{margin:0;background:#fff;color:#222;font:14px system-ui}
+ .top{height:40px;background:#334;color:#fff;display:flex;align-items:center;padding:0 12px}
+ .thead{display:flex;gap:10px;align-items:center;padding:6px 12px;background:#f3f3f3;border-bottom:1px solid #ddd;min-height:30px}
+ .mass-actions{display:flex;gap:8px;align-items:center}.mass-actions__selected{display:flex;gap:8px;align-items:center}
+ .service-table__header-hide-all{cursor:pointer;padding:2px 6px;margin-left:auto}
+ .vwrap{position:relative}.vwrap > div{position:absolute;left:0;right:0;box-sizing:border-box}
+ .service-table__category{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;background:#f7f7f7;border-bottom:1px solid #ddd}
+ .service-table__category-disabled .service-table__category-name{color:#c4c4c4}
+ .service-table__category-collapse{margin-left:auto;color:#2a6fc9;cursor:pointer;font-size:12px}
+ .service-table__row{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;background:#fff;border-bottom:1px solid #eee}
+ .service-table__row-disabled{color:#bbb}
+ .service-table__service{flex:1}
+ button.actions{background:#fff;color:#222;border:1px solid #bbb;padding:3px 8px;border-radius:4px;cursor:pointer}
+ .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60}
+ .modal{position:fixed;z-index:61;left:50%;top:20%;transform:translateX(-50%);background:#fff;border:1px solid #999;padding:16px;border-radius:8px;width:380px}
+ .rs-control{border:1px solid #bbb;border-radius:4px;padding:4px 8px}.rs-control input{border:0;outline:0;width:100%}
+ .rs-menu{border:1px solid #bbb;border-radius:4px;margin-top:2px;max-height:160px;overflow:auto;background:#fff}
+ .rs-option{padding:5px 8px;cursor:pointer}
+ .toast{position:fixed;right:12px;top:12px;z-index:70;padding:8px 12px;border-radius:6px;color:#fff}
+ .toast.ok{background:#1f7a4a}.toast.err{background:#a02a2a}
+ #scroller{height:440px;overflow:auto}
+</style></head>
+<body><div class="top">Perfect Panel (mock)</div><div id="root"></div>
+<script src="https://panelbaku.com/_react.js"></script><script src="https://panelbaku.com/_react-dom.js"></script>
+<script>
+// Taklit Perfect Panel > Services (gerçek panelden öğrenilenler):
+// - kategori başlığı div.service-table__category#category-NNN (+ -disabled); "Not Assigned" en sonda, Actions'ı yok
+// - servis: div.service-table__body#service-NNNN > .service-table__row.service-table__row-service[.service-table__row-disabled]
+//   solda kutucuk (.service-table__checker), Status "Enabled"/"Disabled"
+// - kutucuk işaretlenince başlıkta: .mass-actions > input[name=mass_action] + .mass-actions__selected-title "N services selected"
+//   + toplu Actions (Enable all, Disable all, …, Assign category, …, Delete all)
+// - Assign category: aramalı seçim → Save changes → "Assign to category: assign N services to category X?" [Assign] [Cancel]
+// - liste sanallaştırılmış; taşımadan sonra yeniden çizilir (servisler kapanır, başa döner)
+const e = React.createElement, { useState, useEffect } = React;
+const cfg = Object.assign({ virtual: true, delay: 400, resetAfter: true, moveFail: false, confirmCount: null, badCheckbox: null, someCollapsed: [], cats: [] }, window.__cfg || {});
+const server = window.__server = { cats: JSON.parse(JSON.stringify(cfg.cats)), moves: [], violations: [], massOther: [], massDeleteAll: 0, assignOpened: 0, assignClosed: 0, assignOk: 0, confirmCancels: 0, deletes: 0 };
+let sel = new Set(); // seçili servis kimlikleri
+window.__selCount = () => sel.size;
+let rerender = () => {};
+const isNA = (c) => /^not assigned$/i.test(c.name);
+const catOf = (sid) => server.cats.find((c) => c.svcs.some((s) => s.id === sid));
+window.__mutate = (sid, patch) => { for (const c of server.cats) for (const s of c.svcs) if (s.id === sid) Object.assign(s, patch); rerender(); };
+window.__moveSvc = (sid, toName) => { const from = catOf(sid); const s = from.svcs.find((x) => x.id === sid); from.svcs = from.svcs.filter((x) => x.id !== sid); server.cats.find((c) => c.name === toName).svcs.push(s); rerender(); };
+
+function Assign({ onClose, onSave, busy }) {
+  const [q, setQ] = useState(''); const [open, setOpen] = useState(false); const [val, setVal] = useState(null);
+  const opts = server.cats.filter((c) => !q || c.name.toLowerCase().includes(q.toLowerCase()));
+  return ReactDOM.createPortal(e('div', null, e('div', { className: 'backdrop' }),
+    e('div', { className: 'modal', role: 'dialog' }, e('div', { className: 'modal-content' },
+      e('h4', null, 'Assign category'), e('button', { className: 'close', 'aria-label': 'close', onClick: onClose }, '×'),
+      e('label', null, 'Categories'),
+      e('div', { className: 'rs-control', onMouseDown: () => setOpen(true) },
+        val && !q ? e('div', null, val.name) : null,
+        e('input', { type: 'text', value: q, placeholder: val ? '' : 'Choose category', onChange: (ev) => { setQ(ev.target.value); setOpen(true); }, onFocus: () => setOpen(true) })),
+      open && e('div', { className: 'rs-menu', role: 'listbox' }, opts.map((c) => e('div', { key: c.id, className: 'rs-option', role: 'option', onClick: () => { setVal(c); setQ(''); setOpen(false); } }, c.name))),
+      e('div', { style: { marginTop: 12 } },
+        e('button', { className: 'btn btn-primary', disabled: !val || busy, onClick: () => onSave(val) }, 'Save changes'),
+        e('button', { className: 'btn btn-default', onClick: onClose }, 'Close'))))), document.body);
+}
+
+function App() {
+  const [, force] = useState(0);
+  const [key, setKey] = useState(0);
+  const [expanded, setExpanded] = useState(!!cfg.startExpanded);
+  const [openCats, setOpenCats] = useState(new Set());
+  const [closedCats, setClosedCats] = useState(new Set(cfg.someCollapsed)); // tümü açıkken bile kapalı kalanlar
+  const [menuOpen, setMenuOpen] = useState(null);
+  const [assign, setAssign] = useState(false);
+  const [aconf, setAconf] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState(null);
+  rerender = () => force((n) => n + 1);
+  const cats = server.cats;
+  const scroller = () => document.getElementById('scroller');
+  const flash = (t, k) => { setToast({ t, k }); setTimeout(() => setToast(null), 2500); };
+  useEffect(() => { const el = scroller(); const vr = () => force((n) => n + 1); el.addEventListener('scroll', vr); return () => el.removeEventListener('scroll', vr); });
+  useEffect(() => { const h = () => setMenuOpen(null); document.addEventListener('click', h); return () => document.removeEventListener('click', h); }, []);
+
+  const dd = (k, items) => e('div', { className: 'dropdown btn-group btn-group-xs' + (menuOpen === k ? ' open' : ''), style: { position: 'relative', display: 'inline-block' } },
+    e('button', { className: 'actions dropdown-toggle btn btn-xs btn-default', onClick: (ev) => { ev.stopPropagation(); setMenuOpen(menuOpen === k ? null : k); } }, 'Actions ', e('span', { className: 'caret' })),
+    e('ul', { role: 'menu', className: 'dropdown-menu', style: { display: menuOpen === k ? 'block' : 'none', position: 'absolute', zIndex: 40, background: '#fff', border: '1px solid #bbb', listStyle: 'none', margin: 0, padding: '4px 0', minWidth: 200, left: 0, top: '100%' } },
+      items.map(([t, fn]) => e('li', { key: t, role: 'presentation' }, e('a', { role: 'menuitem', href: '#', style: { display: 'block', padding: '4px 12px', color: '#222' }, onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); setMenuOpen(null); fn(); } }, t)))));
+  const massMenu = () => ['Enable all', 'Disable all', 'Edit rates', 'Edit names and descriptions', 'Assign category', 'Update currency conversion rate', 'Delete custom rates', 'Make all visible', 'Hide all', 'Delete all']
+    .map((t) => [t, () => { if (t === 'Assign category') { server.assignOpened++; setAssign(true); } else if (t === 'Delete all') server.massDeleteAll++; else server.massOther.push(t); }]);
+
+  const doMove = (target) => {
+    setBusy(true);
+    const ids = [...sel];
+    setTimeout(() => {
+      setBusy(false);
+      if (cfg.moveFail === true || (Array.isArray(cfg.moveFail) && ids.some((id) => cfg.moveFail.includes(id)))) { setAssign(false); setAconf(null); flash('Error: services were not moved', 'err'); return; }
+      for (const id of ids) {
+        const c = catOf(id); const s = c.svcs.find((x) => x.id === id);
+        if (s.on) server.violations.push('move-enabled:' + id);
+        if (isNA(c)) server.violations.push('move-from-na:' + id);
+        if (!isNA(target)) server.violations.push('move-to:' + target.name);
+        c.svcs = c.svcs.filter((x) => x.id !== id); target.svcs.push(s);
+        server.moves.push({ id, from: c.name, to: target.name });
+      }
+      sel = new Set(); setAssign(false); setAconf(null); flash('Services updated', 'ok');
+      if (cfg.resetAfter) { setKey((x) => x + 1); setExpanded(false); setOpenCats(new Set()); const sc = scroller(); if (sc) sc.scrollTop = 0; } else rerender();
+    }, cfg.delay);
+  };
+  const toggleSel = (s) => {
+    if (sel.has(s.id)) sel.delete(s.id); else { sel.add(s.id); if (cfg.badCheckbox === s.id) { const other = server.cats.flatMap((c) => c.svcs).find((x) => x.id !== s.id && !sel.has(x.id)); if (other) sel.add(other.id); } }
+    rerender();
+  };
+
+  const isOpen = (c) => !closedCats.has(c.name) && (expanded || openCats.has(c.id));
+  const catRow = (c, style) => e('div', { key: 'c' + c.id, id: isNA(c) ? undefined : 'category-' + c.id, style, className: 'service-table__category' + (c.active ? '' : ' service-table__category-disabled') },
+    e('div', { className: 'service-table__category-handle' }, e('span', { className: 'service-table__handle' }, '⋮⋮')),
+    e('div', { className: 'service-table__category-name' }, e('span', null, e('span', null, c.name))),
+    !isNA(c) && e('div', { className: 'service-table__category-actions' }, dd('c' + c.id, [['Edit category', () => {}], [c.active ? 'Disable category' : 'Enable category', () => {}], ['Select all category services', () => {}]])),
+    c.svcs.length > 0 && e('div', { className: 'service-table__category-collapse ' + (isOpen(c) ? 'show-category' : 'hide-category'), onClick: () => {
+      if (closedCats.has(c.name)) { setClosedCats((x) => { const n = new Set(x); n.delete(c.name); return n; }); setOpenCats((x) => new Set(x).add(c.id)); }
+      else setOpenCats((x) => { const n = new Set(x); if (n.has(c.id)) n.delete(c.id); else n.add(c.id); return n; });
+    } }, e('span', { className: 'service-table__category-collapse-name' }, (isOpen(c) ? 'Collapse (' : 'Expand (') + c.svcs.length + ')')));
+  const svcRow = (s, style) => e('div', { key: 's' + s.id, id: 'service-' + s.id, style, className: 'service-table__body' },
+    e('div', { className: 'service-table__row service-table__row-service' + (s.on ? '' : ' service-table__row-disabled') },
+      e('div', { className: 'service-table__td service-table__checker' }, e('span', { className: 'service-table__handle' }, '⋮⋮'), e('input', { type: 'checkbox', checked: sel.has(s.id), onChange: () => toggleSel(s) })),
+      e('div', { className: 'service-table__td service-table__id' }, String(s.id)),
+      e('div', { className: 'service-table__td service-table__service' }, s.name),
+      e('div', { className: 'service-table__td service-table__visibility' }, e('span', { className: 'service-table__visibility-name' }, s.on ? 'Enabled' : 'Disabled')),
+      e('div', { className: 'service-table__td service-table__action' }, dd('s' + s.id, [['Edit service', () => {}], [s.on ? 'Disable service' : 'Enable service', () => {}], ['Delete service', () => { server.deletes++; }]]))));
+
+  const items = [];
+  for (const c of cats) { items.push(['c', c]); if (isOpen(c)) for (const s of c.svcs) items.push(['s', s]); }
+  let list;
+  if (cfg.virtual) {
+    const sc = scroller(); const st = sc ? sc.scrollTop : 0; const first = Math.max(0, Math.floor(st / 40) - 3);
+    list = e('div', { key: 'V' + key, className: 'vwrap', style: { height: items.length * 40 } },
+      items.slice(first, first + 18).map((it, j) => (it[0] === 'c' ? catRow(it[1], { top: (first + j) * 40 }) : svcRow(it[1], { top: (first + j) * 40 }))));
+  } else list = e('div', { key: 'L' + key }, items.map((it) => (it[0] === 'c' ? catRow(it[1]) : svcRow(it[1]))));
+
+  return e('div', null,
+    e('div', { className: 'thead service-table__header' },
+      e('div', { className: 'mass-actions' + (sel.size ? ' mass-actions__active' : '') },
+        e('input', { type: 'checkbox', name: 'mass_action', value: 'checkAll', checked: sel.size > 0, onChange: () => { sel = new Set(); rerender(); } }),
+        sel.size > 0 && e('div', { className: 'mass-actions__selected' }, e('div', { className: 'mass-actions__selected-title' }, sel.size + ' services selected'),
+          e('div', { className: 'mass-actions__selected-actions' }, dd('mass', massMenu())))),
+      e('span', null, 'ID  Service  Status'),
+      e('span', { className: 'far service-table__header-hide-all ' + (expanded ? 'fa-compress-alt' : 'fa-expand-alt'), onClick: () => { setExpanded((x) => !x); setOpenCats(new Set()); } }, expanded ? '[–]' : '[+]')),
+    e('div', { id: 'scroller', className: 'service-table__container' }, list),
+    assign && !aconf && e(Assign, { busy, onClose: () => { server.assignClosed++; setAssign(false); }, onSave: (t) => setAconf(t) }),
+    aconf && ReactDOM.createPortal(e('div', null, e('div', { className: 'backdrop' }),
+      e('div', { className: 'modal', role: 'dialog' }, e('div', { className: 'modal-content', style: { textAlign: 'center' } },
+        e('h4', null, 'Assign to category'), e('div', null, 'Are you sure you want to assign'), e('div', null, e('b', null, String(cfg.confirmCount || sel.size)), ' services'), e('div', null, 'to category ', e('b', null, aconf.name), '?'),
+        e('div', { style: { marginTop: 12 } },
+          e('button', { className: 'btn btn-danger', disabled: busy, onClick: () => { server.assignOk++; doMove(aconf); } }, 'Assign'),
+          e('button', { className: 'btn btn-default', onClick: () => { server.confirmCancels++; setAconf(null); setAssign(false); } }, 'Cancel'))))), document.body),
+    toast && ReactDOM.createPortal(e('div', { className: 'toast ' + toast.k, role: 'alert' }, toast.t), document.body));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(e(App));
+</script></body></html>
