@@ -13,7 +13,7 @@
 <div class="modal" role="dialog" id="cdlg"><div class="modal-content">
   <div class="modal-header"><h4 class="modal-title">Edit category (ID: 219197)</h4><button class="close">×</button></div>
   <div class="modal-body">
-    <div class="cat-logo-box" id="logo"></div>
+    <div class="cat-logo-box" id="logo"></div><a href="#" id="addicon" style="display:none">Add icon</a>
     <div style="flex:1"><label>Category name</label><br><input type="text" id="cname" style="width:360px"></div>
     <div class="picker" id="picker" style="display:none">
       <div class="tabs"><a data-t="icons">Icons</a><a data-t="emoji">Emoji</a><a data-t="uploaded">Uploaded</a><a class="rm" style="float:right">Remove</a></div>
@@ -35,7 +35,8 @@ document.getElementById('list').innerHTML = cats.map(([n, f]) => '<div class="ca
 // pencere
 document.getElementById('cname').value = cfg.name;
 const logo = document.getElementById('logo');
-const setLogo = (u) => { logo.innerHTML = u ? '<img src="' + u + '">' : ''; };
+const addicon = document.getElementById('addicon');
+const setLogo = (u) => { logo.innerHTML = u ? '<img src="' + u + '">' : ''; logo.style.display = u ? '' : 'none'; addicon.style.display = u ? 'none' : ''; };
 setLogo(cfg.logo);
 const picker = document.getElementById('picker'); const grid = document.getElementById('grid');
 const uploaded = ['ig.png', 'yt.png', 'tt-b.png', 'fb.gif', 'tt-a.gif', 'tg.png', 'other.png'];
@@ -44,7 +45,9 @@ function tab(t) {
   if (t === 'uploaded') grid.innerHTML = uploaded.map((f) => '<img data-f="' + f + '" src="' + C + f + '">').join('');
   else grid.innerHTML = '<img data-f="x" src="https://cdn.example.com/icons/tiktok.svg"><i class="fab fa-tiktok"></i>'; // simge sekmesi: farklı adresler
 }
-logo.onclick = () => { window.__logoClicks = (window.__logoClicks || 0) + 1; picker.style.display = picker.style.display === 'none' ? '' : 'none'; tab('icons'); };
+const openPicker = () => { window.__logoClicks = (window.__logoClicks || 0) + 1; picker.style.display = picker.style.display === 'none' ? '' : 'none'; tab('icons'); };
+logo.onclick = openPicker;
+addicon.onclick = (e) => { e.preventDefault(); window.__addClicks = (window.__addClicks || 0) + 1; openPicker(); };
 picker.querySelector('.tabs').onclick = (e) => { const t = e.target.getAttribute('data-t'); if (t) tab(t); };
 grid.onclick = (e) => { const img = e.target.closest('img'); if (!img) return; setLogo(img.src); picker.style.display = 'none'; window.__picked = img.src; };
 document.querySelector('.modal-title').onclick = () => { picker.style.display = 'none'; };

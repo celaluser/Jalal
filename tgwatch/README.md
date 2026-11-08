@@ -51,7 +51,7 @@ kategorilerde en çok hangi resim kullanılıyorsa yeni TikTok kategorisine o se
 kalın/italik Unicode adlar da tanınır). Öğrenme: liste kaydırılırken kendiliğinden, ya da mini panel → Ayarlar → **Logoları şimdi öğren**
 (Services sayfasında listeyi baştan sona gezer). Ayarlar: **Kategoriye logo seç** (açık), **Mevcut logoyu değiştir** (kapalı: yalnız logosu
 olmayan kategoriye seçer). Platform anlaşılmazsa ya da o platform için öğrenilmiş logo yoksa logo seçilmez, ad yine kaydedilir.
-**Denenmedi:** gerçek paneldeki logo kutusu ve seçici (ekran görüntüsüne göre: ad kutusunun solundaki kare, "Icons / Emoji / Uploaded"
+**Denenmedi:** gerçek paneldeki logo kutusu ve seçici (logo yokken "Add icon" bağlantısı, varken ad kutusunun solundaki logo; "Icons / Emoji / Uploaded"
 sekmeleri, "Upload file" düğmesi varsayıldı).
 
 ## Eklenti arka planda (1.15.0)

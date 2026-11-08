@@ -49,6 +49,7 @@ const saved = (p) => p.evaluate(() => window.__savedCat || null);
     const st = await runCat(p);
     eq(await saved(p), { name: 'AZ TikTok Followers', logo: C + 'tt-a.gif' }, 'kaydedilen ad ve logo (tt-a: 3 kategori, tt-b: 1)');
     eq(await p.evaluate(() => window.__tab), 'uploaded', 'Uploaded sekmesine geçildi');
+    eq(await p.evaluate(() => window.__addClicks || 0), 1, 'logo yokken "Add icon"a tıklandı');
     ok(/logo: TikTok/.test(st), 'durum: ' + st);
     ok(p.__errs.length === 0, 'JS hatası yok ' + p.__errs.join(' | '));
     await p.close();
