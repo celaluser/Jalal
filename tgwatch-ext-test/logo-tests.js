@@ -193,6 +193,17 @@ const saved = (p) => p.evaluate(() => window.__savedCat || null);
     await q.close();
   }
 
+  console.log('L13 "İnstagram" (büyük noktalı İ) tanınır; en çok kullanılan logo Uploaded\'da yoksa sıradaki aday seçilir');
+  {
+    const cats = [['İnstagram Takipçi', '99s3cn8it67h6c9l.png'], ['İnstagram Bəyəni', 'yokolanresim1234.png'], ['İnstagram Baxış', 'yokolanresim1234.png'], ['YouTube Abunə', 'nylack51yquk11yq.gif']];
+    const p = await page(b, { name: 'İnstagram İzləyici', cats }, {}, 'mock-cat2.html');
+    const st = await runCat(p);
+    eq((await saved(p)).logo, C + '99s3cn8it67h6c9l.png', 'Instagram logosu (ikinci aday)');
+    ok(/logo: Instagram/.test(st), 'durum: ' + st);
+    ok(p.__errs.length === 0, 'JS hatası yok');
+    await p.close();
+  }
+
   console.log('L6 "Logoları şimdi öğren": liste gezilir, platform logoları kaydedilir');
   {
     const p = await page(b, { name: 'x' });

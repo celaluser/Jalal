@@ -942,7 +942,8 @@
   ];
   /** Addaki ilk platform (kalın/italik Unicode harfler sadeleştirilir: "𝐓𝐢𝐤𝐓𝐨𝐤" → "tiktok"). */
   function platformOf(name) {
-    const t = String(name || '').normalize('NFKC').toLowerCase();
+    // NFKD + işaretleri at: "İnstagram" → "instagram" (büyük noktalı İ küçülünce "i̇" olur, eşleşmezdi), "𝐓𝐢𝐤𝐓𝐨𝐤" → "tiktok"
+    const t = String(name || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/ı/g, 'i');
     let best = null;
     for (const [k, re] of PLATFORMS) {
       const m = re.exec(t);
@@ -993,9 +994,12 @@
     return n;
   }
   /** Platform için en çok kullanılan logo adresi. */
-  async function logoFor(platform) {
+  async function logoFor(platform) { return (await logoCandidates(platform))[0] || ''; }
+  /** Platform için aday logolar, en güvenilirden: kullanıcının seçtiği, sonra listede en çok kullanılanlar. */
+  async function logoCandidates(platform) {
     const { logoSeen, logoPick } = await new Promise((res) => { try { chrome.storage.local.get({ logoSeen: {}, logoPick: {} }, res); } catch (e) { res({ logoSeen: {}, logoPick: {} }); } });
-    if (logoPick[platform]) return logoPick[platform]; // kullanıcının seçicide bu platform için seçtiği resim (en güvenilir)
+    const out = [];
+    if (logoPick[platform]) out.push(logoPick[platform]); // kullanıcının seçicide bu platform için seçtiği resim (en güvenilir)
     const cnt = new Map();
     for (const [name, url] of Object.entries(logoSeen)) {
       if (platformOf(name) !== platform) continue;
@@ -1004,9 +1008,8 @@
       e.n++;
       cnt.set(k, e);
     }
-    let best = null;
-    for (const e of cnt.values()) if (!best || e.n > best.n) best = e;
-    return best ? best.url : '';
+    for (const e of [...cnt.values()].sort((a, b) => b.n - a.n)) if (!out.some((u) => sameImg(u, e.url))) out.push(e.url);
+    return out;
   }
   /** "Add icon" (logo yokken seçiciyi açan bağlantı) ya da "Change/Edit icon". */
   function iconLink(dlg) {
@@ -1092,8 +1095,13 @@
     const plat = platformOf(name) || platformOf(catSrc);
     logoDiag.platform = plat;
     if (!plat) return 'logo: platform anlaşılmadı';
-    const want = await logoFor(plat);
+    const cands = await logoCandidates(plat);
+    const want = cands[0] || '';
     logoDiag.istenen = want;
+    logoDiag.adaylar = cands.map(fileKey);
+    // seçicideki resimlerden, aday sırası en önde olan (öğrenilen ilk logo Uploaded'da yoksa sonraki denenir)
+    const rank = (e) => { const u = urlOf(e); const i = cands.findIndex((c) => sameImg(u, c)); return i < 0 ? 1e9 : i; };
+    const bestIn = (box) => { let b = null; for (const e of pickerImages(box)) { const r = rank(e); if (r < 1e9 && (!b || r < b.r)) b = { e, r }; } return b; };
     try { const { logoSeen } = await new Promise((res) => chrome.storage.local.get({ logoSeen: {} }, res)); logoDiag.ogrenilen = Object.keys(logoSeen).length; logoDiag.buPlatform = Object.keys(logoSeen).filter((k) => platformOf(k) === plat).length; } catch (e) { /* yok */ }
     const NICE = { tiktok: 'TikTok', youtube: 'YouTube', linkedin: 'LinkedIn', whatsapp: 'WhatsApp', soundcloud: 'SoundCloud', onlyfans: 'OnlyFans', capcut: 'CapCut', pubg: 'PUBG', vk: 'VK', dailymotion: 'Dailymotion' };
     const P = NICE[plat] || plat.charAt(0).toUpperCase() + plat.slice(1);
@@ -1108,7 +1116,7 @@
     logoDiag.kutu = box ? shortHtml(box, 400) : null;
     const cur = link && link.add ? '' : (box ? urlOf(box) || urlOf(box.querySelector('*')) : '');
     logoDiag.mevcut = cur;
-    if (cur && sameImg(cur, want)) return 'logo zaten ' + P;
+    if (cur && cands.some((c) => sameImg(cur, c))) return 'logo zaten ' + P;
     if (cur && !o.catLogoReplace) return 'logo zaten var, değiştirilmedi';
     const trigger = (link && link.el) || (cur && box) || box;
     if (!trigger) { catDiagNote = 'logo kutusu bulunamadı'; return 'logo kutusu ("Add icon") bulunamadı'; }
@@ -1121,8 +1129,12 @@
     }
     pk.tab.click();
     logoDiag.uploadedTiklandi = true;
-    let img = await waitFor(() => { const p2 = picker(); return p2 && p2.box && pickerImages(p2.box).find((e) => sameImg(urlOf(e), want)); }, 3000, 100);
-    if (!img) img = await scrollPickerFor((e) => sameImg(urlOf(e), want)); // gecikmeli yüklenen resimler
+    // ilk aday görünürse hemen; değilse 3 sn içinde görünen en iyi aday
+    let firstHit = null;
+    await waitFor(() => { const p2 = picker(); const b = p2 && p2.box && bestIn(p2.box); if (b) firstHit = b; return b && b.r === 0; }, 3000, 100);
+    let img = firstHit && firstHit.e;
+    if (!img || firstHit.r > 0) { const s2 = await scrollPickerFor((e) => rank(e) === 0); if (s2) img = s2; } // ilk aday aşağıda olabilir
+    if (!img) img = await scrollPickerFor((e) => rank(e) < 1e9); // gecikmeli yüklenen resimler
     if (!img) { img = await visualMatch(want); if (img) logoDiag.gorselEslesme = true; } // adres farklıysa: resim içeriğine göre
     const p4 = picker();
     logoDiag.secici = p4 && p4.box ? shortHtml(p4.box, 500) : 'kutu bulunamadı';
@@ -1136,7 +1148,7 @@
     logoDiag.secilenResim = fileKey(chosen);
     // Panelin resim seçicisi seçimi gerçek fare basışıyla (mousedown) alabilir: tam tıklama dizisi gönder.
     // Kutuda görünmezse aynı dizi resmin bir-iki üst kabına da denenir (tıklama dinleyicisi orada olabilir).
-    const shown = () => { const d2 = categoryDialog(); if (!d2 || iconLinkAdd(d2)) return false; const b2 = logoBox(d2); const u = b2 && (urlOf(b2) || urlOf(b2.querySelector('*'))); return !!u && (sameImg(u, chosen) || sameImg(u, want)); };
+    const shown = () => { const d2 = categoryDialog(); if (!d2 || iconLinkAdd(d2)) return false; const b2 = logoBox(d2); const u = b2 && (urlOf(b2) || urlOf(b2.querySelector('*'))); return !!u && (sameImg(u, chosen) || cands.some((c) => sameImg(u, c))); };
     let okSel = false;
     const targets = [img, img.parentElement, img.parentElement && img.parentElement.parentElement].filter((x, i, a) => x && a.indexOf(x) === i && !x.matches('.ReactVirtualized__Grid__innerScrollContainer, [role=rowgroup], [role=grid]'));
     for (const tgt of targets) {
@@ -1207,14 +1219,16 @@
 
   // Kullanıcı seçicide bir resme tıklayıp Save'e basarsa: "bu platform = bu resim" (seçicinin kendi adresi) öğrenilir.
   let pickedByUser = null;
-  document.addEventListener('click', (e) => {
+  // Panel seçimi fareye basınca (mousedown) yapıp seçiciyi kapatabilir; bu yüzden basış anı da dinlenir.
+  const onUserPick = (e) => {
     if (!e.isTrusted || catRunning) return;
     const p = picker();
     if (!p || !p.box || !p.box.contains(e.target)) return;
     const el = e.target.closest('img, [style*="background-image"]') || e.target.querySelector && e.target.querySelector('img');
     const u = el && urlOf(el);
     if (u) pickedByUser = u;
-  }, true);
+  };
+  for (const t of ['pointerdown', 'mousedown', 'click']) document.addEventListener(t, onUserPick, true);
   function rememberLogoPick(name) {
     const plat = platformOf(name) || platformOf(catSrc);
     if (!pickedByUser || !plat) return;
