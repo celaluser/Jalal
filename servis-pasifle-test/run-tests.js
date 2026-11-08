@@ -226,7 +226,7 @@ const onState = (page) => page.evaluate(() => Object.fromEntries(window.__server
     eq(s.disabled, [], 'deneme: pasife alınan yok'); eq(s.menuOpens.length, 6, '6 menü açıldı');
     const d = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { sp: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(d.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.2.0' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
+    ok(dj && dj.surum === '1.2.1' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
     await pop.close(); await p.close();
   }
 
@@ -498,6 +498,25 @@ console.log('S14 otomatik mod: hemen bir tur + her 5 dk alarm; alarmda sayfa yen
     ok(((await server(p)).massDisabled || []).includes(9002), 'yenilemeden sonra 9002 de Disable all ile pasif');
     await bar(p, '[data-s=auto]').uncheck();
     await p.close();
+  }
+
+  console.log('M6 arayüz: Toplu / Tek tek sekmelerine fareyle tıklama yöntemi değiştirir ve hatırlanır');
+  if (want('M6')) {
+    const p = await newPage(ctx, { method: 'mass' });
+    const cls = (v) => bar(p, '[data-a=method][data-v=' + v + ']').getAttribute('class');
+    ok(/on/.test(await cls('mass')), 'başta Toplu seçili');
+    await bar(p, '[data-a=method][data-v=single]').click();
+    ok(/on/.test(await cls('single')) && !/on/.test(await cls('mass')), 'Tek tek\'e tıklayınca Tek tek seçili');
+    await bar(p, '[data-a=method][data-v=mass]').click();
+    ok(/on/.test(await cls('mass')) && !/on/.test(await cls('single')), 'Toplu\'ya tıklayınca Toplu seçili');
+    eq(await p.evaluate(() => JSON.parse(localStorage.getItem('sp_settings')).method), 'mass', 'seçim kaydedildi');
+    await p.close();
+    const base = cats(); base.find((c) => c.name === 'Not Assigned').svcs.forEach((x) => { x.on = false; });
+    const q = await newPage(ctx, { method: 'mass', cats: base });
+    await scan(q);
+    ok(/yapılacak iş yok/.test(await bar(q, '#bar').innerText()), 'aktif yoksa açık mesaj: "yapılacak iş yok"');
+    eq(await bar(q, '[data-a=run]').getAttribute('title'), 'Pasife alınacak aktif servis yok', 'kapalı düğmede neden yazıyor');
+    await q.close();
   }
 
   console.log('S13 Services dışı sayfada çubuk yok');

@@ -8,7 +8,7 @@
   if (window.__servisPasifle) return;
   window.__servisPasifle = true;
 
-  const VERSION = '1.2.0';
+  const VERSION = '1.2.1';
   const SETTINGS_KEY = 'sp_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const TOGGLE = '.service-table__header-hide-all, [class*="header-hide-all"]';
@@ -831,6 +831,7 @@
     small{color:#9fb3a8}
     .tabs{display:flex;gap:4px}.tab{all:unset;cursor:pointer;flex:1;text-align:center;padding:4px 6px;border-radius:6px;background:#121a16;color:#a9c2b5;font-size:11px}.tab.on{background:#3a604d;color:#fff}.tab[disabled]{opacity:.5;cursor:default}
     .auto{color:#8fe0b0}.warn{color:#ffb4a8}
+    .ok{color:#8fe0b0;background:#16301f;border-radius:6px;padding:4px 6px}
   `;
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function ensureBar() {
@@ -873,7 +874,9 @@
       p.push('<div class="row"><small>Pasife alınacak (işareti kaldırılan atlanır):</small><button class="lk" data-a="all">hepsi</button><button class="lk" data-a="none">hiçbiri</button></div>');
       p.push('<div class="list" id="spList">' + S.targets.map((t) => '<label class="it"><input type="checkbox" data-x="' + esc(t.sid) + '"' + (S.excluded.has(t.sid) ? '' : ' checked') + '> <span>' + esc(t.sid + ' — ' + t.name) + '</span></label>').join('') + '</div>');
     }
-    p.push('<div class="row"><button class="b red" data-a="run"' + (busyNow || S.phase !== 'ready' || !workList().length ? ' disabled' : '') + '>' + (settings.dryRun ? 'Dene' : 'Pasife al') + ' (' + work + ')</button><button class="b" data-a="stop"' + (busyNow ? '' : ' disabled') + '>Durdur</button></div>');
+    const why = busyNow ? 'İş sürüyor' : S.phase !== 'ready' ? 'Önce "Not Assigned\'daki aktif servisleri bul"a bas' : !workList().length ? 'Pasife alınacak aktif servis yok' : '';
+    if (S.phase === 'ready' && !S.targets.length && !busyNow) p.push('<div class="ok">✓ Not Assigned\'daki tüm servisler zaten pasif — yapılacak iş yok.</div>');
+    p.push('<div class="row"><button class="b red" data-a="run" title="' + esc(why) + '"' + (why ? ' disabled' : '') + '>' + (settings.dryRun ? 'Dene' : 'Pasife al') + ' (' + work + ')</button><button class="b" data-a="stop"' + (busyNow ? '' : ' disabled title="Yalnızca iş sürerken"') + '>Durdur</button></div>');
     p.push('<div class="row"><label><input type="checkbox" data-s="dry"' + (settings.dryRun ? ' checked' : '') + '> Deneme modu</label><label>en çok <input type="number" min="1" max="5000" data-s="max" value="' + settings.max + '"></label></div>');
     const a = autoGet();
     const every = (a && a.every) || settings.every || 5;
