@@ -166,7 +166,7 @@
 
   function opts() {
     return new Promise((resolve) => {
-      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true };
+      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stripMinMax: true };
       try { chrome.storage.local.get(d, (s) => resolve(s || d)); } catch (e) { resolve(d); }
     });
   }
@@ -185,8 +185,34 @@
     }
     return out;
   }
-  /** Ayar açıksa adı biçimlendir (çevrilen her servis/kategori adı bu yoldan yazılır). */
-  const fmtName = (name, o) => (o && o.bracketSpace === false ? name : spaceBrackets(name));
+  /**
+   * Min/Max değerleri: "Max 500K", "Maks 10M", "Min 100", "Maksimum: 1M", "Ən çox 50K" … addan çıkarılır.
+   * Yalnızca bunlardan oluşan parantez ([ Max 1M ], ( Min 100 - Max 10M )) tamamen kalkar; geride kalan çift ayırıcı ("| |") teke iner.
+   * Sayısız kelimeler ("Minecraft", "Max Kalite") ve hız gibi diğer değerler ("Gündə 500K") değişmez.
+   */
+  const MINMAX_SRC = '(?:\\b(?:min(?:imum)?|max(?:imum)?|maks(?:imum)?)|ən\\s+az|ən\\s+çox)\\.?\\s*[:=]?\\s*\\d[\\d.,]*\\s*(?:k|m|b)?(?![\\p{L}\\p{N}])';
+  function stripMinMax(s) {
+    let out = String(s == null ? '' : s);
+    const has = (t) => new RegExp(MINMAX_SRC, 'iu').test(t);
+    if (!has(out)) return out;
+    const all = new RegExp(MINMAX_SRC, 'giu');
+    const SEP = '[|/,;–-]';
+    const tidy = (t) => t.replace(all, ' ').replace(/\s+/g, ' ')
+      .replace(new RegExp('(' + SEP + ')(\\s*' + SEP + ')+', 'g'), '$1')
+      .replace(new RegExp('^\\s*' + SEP + '\\s*'), '').replace(new RegExp('\\s*' + SEP + '\\s*$'), '')
+      .replace(/\s+/g, ' ').trim();
+    // parantez içleri: yalnız min/max ise parantez tamamen kalkar
+    out = out.replace(/\[([^\[\]]*)\]/g, (m, x) => { if (!has(x)) return m; const c = tidy(x); return c ? '[' + c + ']' : ''; })
+      .replace(/\(([^()]*)\)/g, (m, x) => { if (!has(x)) return m; const c = tidy(x); return c ? '(' + c + ')' : ''; });
+    return tidy(out);
+  }
+  /** Ayarlara göre adı biçimlendir (çevrilen her servis/kategori adı bu yoldan yazılır): önce min/max, sonra parantez boşluğu. */
+  const fmtName = (name, o) => {
+    let t = name;
+    if (!o || o.stripMinMax !== false) t = stripMinMax(t);
+    if (!o || o.bracketSpace !== false) t = spaceBrackets(t);
+    return t;
+  };
 
   // ---- satır durumu ----
   const state = new Map(); // id => {src, filled, final, edited}

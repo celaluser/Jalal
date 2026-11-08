@@ -7,10 +7,11 @@ let tgBase = '';
 function conn(text, kind) { const c = $('conn'); c.textContent = text; c.className = 'pill ' + kind; }
 
 async function init() {
-  const s = await get({ panel: '', api: '', key: '', dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stats: { day: today(), today: 0, total: 0, learned: 0 } });
+  const s = await get({ panel: '', api: '', key: '', dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stripMinMax: true, stats: { day: today(), today: 0, total: 0, learned: 0 } });
   $('dry').checked = !!s.dry;
   $('skipAz').checked = s.skipAz !== false;
   $('bracketSpace').checked = s.bracketSpace !== false;
+  $('stripMinMax').checked = s.stripMinMax !== false;
   $('autoCat').checked = s.autoCat !== false;
   $('catTop').checked = s.catTop !== false;
   $('notify').checked = s.notify !== false;
@@ -201,6 +202,7 @@ $('autoCat').onchange = (e) => chrome.storage.local.set({ autoCat: e.target.chec
 $('catTop').onchange = (e) => chrome.storage.local.set({ catTop: e.target.checked });
 $('notify').onchange = (e) => chrome.storage.local.set({ notify: e.target.checked });
 $('bracketSpace').onchange = (e) => chrome.storage.local.set({ bracketSpace: e.target.checked });
+$('stripMinMax').onchange = (e) => chrome.storage.local.set({ stripMinMax: e.target.checked });
 $('opt').onclick = (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); };
 $('tg').onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: $('tg').href }); };
 init();
