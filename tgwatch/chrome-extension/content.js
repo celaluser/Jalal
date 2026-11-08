@@ -930,24 +930,83 @@
   // ---- kategori logosu: adına uygun logoyu "Uploaded" sekmesinden seç ----
   // Uploaded'daki resimlerin adı yok (dosya adları rastgele). Bu yüzden logo, mevcut kategorilerinden öğrenilir:
   // adında "TikTok" geçen kategorilerde en çok hangi resim kullanılıyorsa yeni TikTok kategorisine o seçilir.
+  // Her platform: [anahtar, kelime kalıbı (boşluklu metinde), bitişik yazım kalıbı (harf dışı her şey atılmış metinde)].
+  // Bitişik kalıp "I.n.s.t.a.g.r.a.m", "You Tube", "Tik-Tok", "Face_book" gibi bölünmüş yazımları yakalar;
+  // yalnız uzun/ayırt edici adlar orada aranır (kısa "ig", "yt", "x" orada yanlış eşleşirdi).
   const PLATFORMS = [
-    ['tiktok', /tik\s*tok/], ['instagram', /instagram|\binsta\b|\big\b/], ['youtube', /you\s*tube|\byt\b/], ['facebook', /face\s*book|\bfb\b/],
-    ['telegram', /telegram|\btg\b/], ['twitter', /twitter|\bx\.com\b|\btweet/], ['threads', /threads/], ['whatsapp', /whats\s*app/],
-    ['spotify', /spotify/], ['twitch', /twitch/], ['discord', /discord/], ['snapchat', /snap\s*chat/], ['linkedin', /linked\s*in/],
-    ['pinterest', /pinterest/], ['reddit', /reddit/], ['kick', /\bkick\b/], ['kwai', /\bkwai\b/], ['vk', /\bvk\b|vkontakte/],
-    ['odnoklassniki', /odnoklassniki|\bok\.ru\b/], ['soundcloud', /sound\s*cloud/], ['netflix', /netflix/], ['canva', /\bcanva\b/],
-    ['capcut', /cap\s*cut/], ['onlyfans', /only\s*fans/], ['pubg', /\bpubg\b/], ['likee', /\blikee\b/], ['google', /google/],
-    ['trovo', /trovo/], ['rumble', /rumble/], ['dailymotion', /dailymotion/], ['vimeo', /vimeo/], ['steam', /\bsteam\b/],
-    ['apple', /apple\s*music|itunes/], ['deezer', /deezer/], ['shazam', /shazam/], ['tumblr', /tumblr/], ['quora', /quora/],
+    ['tiktok', /tik\s*[-_.]?\s*tok|tic\s*tok|тик\s*[-]?\s*ток/, /tiktok|tictok|ticktock|тикток/],
+    ['instagram', /insta(?!nt|ll)|\big\b|инста/, /instagram|instaqram|instagramm|инстаграм/],
+    ['youtube', /you\s*tube|\byt\b|ютуб|ютьюб|\byutub|\byoutub/, /youtube|yutube|yutub|ютуб|ютьюб/],
+    ['facebook', /face\s*book|\bfb\b|фейсбук|фэйсбук|feysbuk|fesbuk/, /facebook|facebok|feysbuk|fesbuk|фейсбук|фэйсбук/],
+    ['telegram', /telegram|teleqram|\btg\b|телеграм|телега/, /telegram|teleqram|телеграм/],
+    ['twitter', /twitter|tvitter|twiter|твиттер|твитер|\bx\.com\b|\btweet|ретвит|^\W*x\s+(?=[a-zа-яəçğıöşü])|\(\s*x\s*\)|\bx\s*\/\s*twitter/, /twitter|tvitter|твиттер/],
+    ['threads', /\bthreads\b|тредс/, null],
+    ['whatsapp', /whats\s*app|w?vatsap|watsap|ватсап|вотсап|вацап/, /whatsapp|vatsap|watsap|ватсап|вотсап/],
+    ['spotify', /spotify|спотифай/, /spotify|спотифай/],
+    ['twitch', /twitch|твич/, /twitch|твич/],
+    ['discord', /discord|дискорд/, /discord|дискорд/],
+    ['snapchat', /snap\s*chat|снэпчат|снапчат|\bsnap\b/, /snapchat|снэпчат|снапчат/],
+    ['linkedin', /linked\s*in|линкедин/, /linkedin|линкедин/],
+    ['pinterest', /pinterest|пинтерест/, /pinterest|пинтерест/],
+    ['reddit', /reddit|реддит|редит/, /reddit|реддит/],
+    ['kick', /\bkick\b|(?<![а-яё])кик(?![а-яё])/, null],
+    ['kwai', /\bkwai\b|(?<![а-яё])квай(?![а-яё])/, null],
+    ['vk', /\bvk\b|vkontakte|(?<![а-яё])вк(?![а-яё])|вконтакте/, /vkontakte|вконтакте/],
+    ['odnoklassniki', /odnoklassniki|\bok\.ru\b|одноклассники/, /odnoklassniki|одноклассники/],
+    ['soundcloud', /sound\s*cloud|саундклауд/, /soundcloud|саундклауд/],
+    ['netflix', /netflix|нетфликс/, /netflix|нетфликс/],
+    ['canva', /\bcanva\b/, null],
+    ['capcut', /cap\s*cut|капкут/, /capcut|капкут/],
+    ['onlyfans', /only\s*fans|онлифанс/, /onlyfans|онлифанс/],
+    ['pubg', /\bpubg\b|пабг|пубг/, null],
+    ['likee', /\blikee\b/, null],
+    ['google', /google|гугл/, /google/],
+    ['trovo', /trovo/, null], ['rumble', /rumble/, null], ['dailymotion', /daily\s*motion/, /dailymotion/], ['vimeo', /vimeo/, null],
+    ['steam', /\bsteam\b|(?<![а-яё])стим(?![а-яё])/, null], ['apple', /apple\s*music|itunes/, /applemusic/], ['deezer', /deezer/, null],
+    ['shazam', /shazam|шазам/, /shazam|шазам/], ['tumblr', /tumblr/, /tumblr/], ['quora', /quora/, null],
   ];
-  /** Addaki ilk platform (kalın/italik Unicode harfler sadeleştirilir: "𝐓𝐢𝐤𝐓𝐨𝐤" → "tiktok"). */
+  // Latin harfe benzeyen harfler (Kiril/Yunan "а е о р с у х і…", küçük büyük harf "ɪɴsᴛᴀɢʀᴀᴍ") → Latin.
+  // Yalnız ikinci okumada kullanılır; ilk okuma Rusça yazımlar ("Инстаграм") için harfleri olduğu gibi bırakır.
+  const LOOKALIKE = {
+    'а': 'a', 'в': 'b', 'е': 'e', 'ё': 'e', 'к': 'k', 'м': 'm', 'н': 'h', 'о': 'o', 'р': 'p', 'с': 'c', 'т': 't', 'у': 'y', 'х': 'x',
+    'і': 'i', 'ї': 'i', 'ј': 'j', 'ѕ': 's', 'һ': 'h', 'ԁ': 'd', 'ԛ': 'q', 'ԝ': 'w', 'ɡ': 'g', 'ɑ': 'a', 'ı': 'i',
+    'α': 'a', 'β': 'b', 'ε': 'e', 'η': 'n', 'ι': 'i', 'κ': 'k', 'ν': 'v', 'ο': 'o', 'ρ': 'p', 'τ': 't', 'υ': 'u', 'χ': 'x', 'γ': 'y',
+    'ᴀ': 'a', 'ʙ': 'b', 'ᴄ': 'c', 'ᴅ': 'd', 'ᴇ': 'e', 'ꜰ': 'f', 'ɢ': 'g', 'ʜ': 'h', 'ɪ': 'i', 'ᴊ': 'j', 'ᴋ': 'k', 'ʟ': 'l', 'ᴍ': 'm',
+    'ɴ': 'n', 'ᴏ': 'o', 'ᴘ': 'p', 'ǫ': 'q', 'ʀ': 'r', 'ꜱ': 's', 'ᴛ': 't', 'ᴜ': 'u', 'ᴠ': 'v', 'ᴡ': 'w', 'ʏ': 'y', 'ᴢ': 'z',
+    '0': 'o', '@': 'a', '$': 's',
+  };
+  /**
+   * Adı platform aramasına hazırla. Dönüş: [olduğu gibi, benzer harfler Latin'e çevrilmiş] — ikisi aynı uzunlukta (konumlar aynı).
+   * NFKD + işaretleri at: "𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦", "Ｉｎｓｔａ", "Ⓘⓝⓢⓣⓐ", "İnstagram" (büyük noktalı İ) → "instagram".
+   * Görünmez harfler (sıfır genişlikli boşluk vb.) atılır.
+   */
+  function platformText(name) {
+    // "й" NFKD'de "и" + işaret olur; işaret atılınca "Фейсбук" bozulurdu → önce saklanır
+    const t = String(name || '').replace(/[йЙ]/g, '\ue000').normalize('NFKD').replace(/[\u0300-\u036f\u200b-\u200f\u2060\u00ad\ufeff\ufe0f]/g, '').replace(/\ue000/g, 'й').toLowerCase();
+    const map = (c) => {
+      if (c === 'ı') return 'i';
+      if (/[a-z]/.test(c)) return c;
+      return LOOKALIKE[c] || c;
+    };
+    const plain = [...t].map((c) => (c === 'ı' ? 'i' : c)).join('');
+    // "0", "@", "$" yalnız harflerin arasında harf sayılır ("Inst@gram", "Y0uTube"); "1000" gibi sayılara dokunulmaz
+    const look = [...t].map((c, i, a) => {
+      if (/[0@$]/.test(c)) return /\p{L}/u.test(a[i - 1] || '') && /\p{L}/u.test(a[i + 1] || '') ? LOOKALIKE[c] : c;
+      return map(c);
+    }).join('');
+    return [plain, look];
+  }
+  /** Addaki ilk platform (yazım biçimi önemsiz: süslü/Kiril benzeri harfler, araya nokta/boşluk, Azerice/Rusça yazılış). */
   function platformOf(name) {
-    // NFKD + işaretleri at: "İnstagram" → "instagram" (büyük noktalı İ küçülünce "i̇" olur, eşleşmezdi), "𝐓𝐢𝐤𝐓𝐨𝐤" → "tiktok"
-    const t = String(name || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/ı/g, 'i');
+    const [plain, look] = platformText(name);
     let best = null;
-    for (const [k, re] of PLATFORMS) {
-      const m = re.exec(t);
-      if (m && (!best || m.index < best.i)) best = { k, i: m.index };
+    const hit = (k, i) => { if (!best || i < best.i) best = { k, i }; };
+    // bitişik metin: yalnız harfler (hangi alfabeden olursa), her harfin asıl konumu tutulur
+    const idx = []; let compact = '';
+    for (let i = 0; i < look.length; i++) if (/\p{L}/u.test(look[i])) { compact += look[i]; idx.push(i); }
+    for (const [k, re, glued] of PLATFORMS) {
+      for (const t of [plain, look]) { const m = re.exec(t); if (m) hit(k, m.index); }
+      if (glued) { const m = glued.exec(compact); if (m) hit(k, idx[m.index]); }
     }
     return best ? best.k : null;
   }
