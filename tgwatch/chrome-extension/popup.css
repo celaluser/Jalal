@@ -58,3 +58,5 @@ p{margin:0}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0 0 6px;font-size:12.5px}.kv dt{color:var(--mut)}.kv dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
 .kv dd.new{color:var(--rovend)}
 .muted.small a,.foot a{color:var(--nila)}
+
+.sel{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0 8px 44px}.sel b{font-weight:600;font-size:12.5px}.sel select{max-width:190px;font:inherit;font-size:12px;padding:2px 4px;border:1px solid var(--line);border-radius:6px;background:transparent;color:inherit}

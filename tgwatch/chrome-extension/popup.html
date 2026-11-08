@@ -59,6 +59,14 @@
     <label class="tog"><input type="checkbox" id="bracketSpace"><span class="sw"></span><span><b>Parantez içinde boşluk</b><small>[Metin] → [ Metin ], (Metin) → ( Metin )</small></span></label>
     <label class="tog"><input type="checkbox" id="stripMinMax"><span class="sw"></span><span><b>Min/Max'ı adlardan çıkar</b><small>"Max 500K", "[ Min 100 ]" gibi değerleri çeviriden siler</small></span></label>
     <label class="tog"><input type="checkbox" id="stripSpeed"><span class="sw"></span><span><b>Günlük hızı adlardan çıkar</b><small>"[500K/D]", "Gündə 500K" gibi değerleri çeviriden siler</small></span></label>
+    <label class="tog"><input type="checkbox" id="descTranslate"><span class="sw"></span><span><b>Açıklamaları da çevir</b><small>İmportta ve "Edit description" penceresinde; tgwatch bankası + Google + DeepSeek</small></span></label>
+    <label class="sel"><span><b>Açıklama kaynağı</b></span><select id="descMode">
+      <option value="">tgwatch ayarı (Çeviri ayarları)</option>
+      <option value="mix">Karma: banka + Google + DeepSeek</option>
+      <option value="google">Yalnız Google (+ banka)</option>
+      <option value="deepseek">Yalnız DeepSeek (+ banka)</option>
+      <option value="bank">Yalnız banka</option>
+    </select></label>
     <label class="tog"><input type="checkbox" id="notify"><span class="sw"></span><span><b>Telegram'a bildir</b><small>Import bitince bota özet; kanal paylaşımı tgwatch ayarlarında</small></span></label>
   </section>
   <p class="muted small"><a href="#" id="opt">Bağlantı ayarları</a> (panel adresi, tgwatch API adresi ve anahtar)</p>

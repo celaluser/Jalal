@@ -17,7 +17,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const btnText = (b) => norm(b.innerText !== undefined ? b.innerText : b.textContent);
   const visible = (el) => !!el && el.isConnected && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-  const ours = (el) => !!(el.closest && el.closest('.tgw-bar, .tgw-badge, .tgw-orig, .tgw-cbar, .tgw-side, .tgw-word, .tgw-pop'));
+  const ours = (el) => !!(el.closest && el.closest('.tgw-bar, .tgw-badge, .tgw-orig, .tgw-cbar, .tgw-side, .tgw-word, .tgw-pop, .tgw-descbar'));
 
   function h(tag, cls, text) {
     const el = document.createElement(tag);
@@ -166,7 +166,7 @@
 
   function opts() {
     return new Promise((resolve) => {
-      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stripMinMax: true, stripSpeed: true };
+      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stripMinMax: true, stripSpeed: true, descTranslate: true, descMode: '' };
       try { chrome.storage.local.get(d, (s) => resolve(s || d)); } catch (e) { resolve(d); }
     });
   }
@@ -223,6 +223,86 @@
     if (!o || o.bracketSpace !== false) t = spaceBrackets(t);
     return t;
   };
+
+  // ---- açıklama çevirisi (tgwatch: banka + Google + DeepSeek) ----
+  const DESC_LABEL = /^(description|açıklama|açıqlama|təsvir)\s*:?$/;
+  /** Açıklama alanı: "Description" yazısından sonraki ilk textarea/metin kutusu/zengin editör; yoksa satırdaki textarea. */
+  function descField(scope, exclude) {
+    const cands = [...scope.querySelectorAll('textarea, input[type=text], input:not([type]), [contenteditable=""], [contenteditable="true"]')]
+      .filter((i) => visible(i) && !ours(i) && i !== exclude && !i.readOnly && !i.disabled);
+    if (!cands.length) return null;
+    const label = [...scope.querySelectorAll('label, div, span, strong, b, p, h4, h5, h6, td, th')]
+      .find((el) => el.children.length === 0 && DESC_LABEL.test(lower(el.textContent)));
+    if (label) {
+      const after = cands.find((i) => label.compareDocumentPosition(i) & Node.DOCUMENT_POSITION_FOLLOWING);
+      if (after) return after;
+    }
+    return cands.find((i) => i.tagName === 'TEXTAREA' || i.isContentEditable) || null;
+  }
+  const readField = (el) => (el.isContentEditable ? el.innerText : el.value);
+  function writeField(el, text) {
+    if (!el.isContentEditable) return setValue(el, text);
+    el.focus();
+    el.innerText = text;
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+  }
+  const DESC_VIA = { bank: 'bankadan', mix: 'banka + Google + DeepSeek', deepseek: 'DeepSeek', google: 'Google' };
+  /** Alandaki açıklamayı tgwatch ile çevirip yazar; dönüş: {ok, note, src}. Ad kuralları (min/max, parantez) açıklamaya uygulanmaz. */
+  async function translateDescField(el, o) {
+    const src = readField(el);
+    if (!norm(src)) return { ok: false, note: '' };
+    if (AZ_ONLY.test(src)) return { ok: false, note: 'açıklama zaten Azerice' };
+    const res = await api('translate_desc', { mode: o.descMode || undefined, items: [{ id: 'd', text: src }] });
+    if (!res.ok) return { ok: false, note: 'açıklama: ' + (res.error || 'tgwatch hatası') };
+    const it = res.items && res.items[0];
+    if (!it || !it.az) return { ok: false, note: 'açıklama çevrilmedi' + (it && it.note ? ' (' + it.note + ')' : '') };
+    writeField(el, it.az);
+    if (it.via !== 'bank') api('learn_desc', { items: [{ en: src, az: it.az }] });
+    return { ok: true, src, note: 'açıklama ' + (DESC_VIA[it.via] || it.via) + (it.note ? ' (' + it.note + ')' : '') };
+  }
+  /** İmport satırında açıklama (ayar açıksa): satır açıkken çağrılır. */
+  async function rowDesc(id, o) {
+    if (!o.descTranslate) return '';
+    const row = findRow(id);
+    if (!row) return '';
+    const el = descField(row.el, nameInput(row));
+    if (!el) return '\nAçıklama alanı bulunamadı';
+    const r = await translateDescField(el, o);
+    if (r.ok && !(state.get(id) || {}).descSrc) remember(id, { descSrc: r.src });
+    return r.note ? '\n' + r.note.charAt(0).toUpperCase() + r.note.slice(1) : '';
+  }
+
+  // ---- "Edit description" penceresi (Services sayfası): "tgwatch: çevir" düğmesi ----
+  function descDialogs() {
+    return [...document.querySelectorAll(DIALOG)].filter((d) => visible(d) && !ours(d) && /description|açıklama/i.test(norm(d.textContent).slice(0, 400)) && !d.querySelector('.tgw-descbtn'));
+  }
+  function addDescButtons() {
+    for (const d of descDialogs()) {
+      const el = descField(d, null);
+      if (!el) continue;
+      const box = d.matches('.modal-content') ? d : d.querySelector('.modal-content') || d;
+      if (box.querySelector('.tgw-descbtn')) continue;
+      const b = h('button', 'tgw-descbtn', 'tgwatch: açıklamayı çevir');
+      b.type = 'button';
+      b.style.cssText = 'margin:6px 0;padding:4px 10px;border-radius:6px;border:1px solid #2f6f4f;background:#e9f7ef;color:#1d4d35;cursor:pointer;font-size:12px';
+      const note = h('span', 'tgw-descnote');
+      note.style.cssText = 'margin-left:8px;font-size:12px;color:#555';
+      b.addEventListener('click', async (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        const field = descField(d, null);
+        if (!field) { note.textContent = 'açıklama alanı bulunamadı'; return; }
+        b.disabled = true; note.textContent = 'çevriliyor…';
+        const r = await translateDescField(field, await opts());
+        b.disabled = false;
+        note.textContent = r.ok ? '✓ ' + r.note + ' — kontrol edip kaydet' : (r.note || 'çevrilecek yazı yok');
+      });
+      const wrap = h('div', 'tgw-descbar');
+      wrap.append(b, note);
+      el.insertAdjacentElement('beforebegin', wrap);
+    }
+  }
 
   // ---- satır durumu ----
   const state = new Map(); // id => {src, filled, final, edited}
@@ -613,15 +693,29 @@
       }
       // Zaten çevrilmiş (bu oturumda) ya da zaten Azerice olan satırlar yeniden çevrilmez.
       const rows = [];
+      const descOnly = []; // adı atlanan ama açıklaması çevrilecek satırlar
       for (const r of all) {
         const st = state.get(r.id);
         if (st && st.filled && lower(r.header.name) === lower(st.filled)) { skipped++; continue; }
         if (o.skipAz && AZ_ONLY.test(r.header.name)) {
           skipped++;
-          if (!marks.has(r.id)) mark(r, 'done', 'Ad zaten Azerice, dokunulmadı');
+          if (o.descTranslate && !(st && st.descDone)) descOnly.push(r);
+          else if (!marks.has(r.id)) mark(r, 'done', 'Ad zaten Azerice, dokunulmadı');
           continue;
         }
         rows.push(r);
+      }
+      // Adı Azerice olan satırlar: ada dokunmadan yalnız açıklama (ayar açıksa)
+      for (const r of descOnly) {
+        if (stopFlag) break;
+        status((o.dry ? 'Deneme · ' : '') + 'Açıklama · #' + r.id);
+        const row = await openRow(r.id);
+        if (!row) continue;
+        const dn = await rowDesc(r.id, o);
+        remember(r.id, { descDone: true });
+        if (!o.dry) await saveRow(r.id);
+        const rr = findRow(r.id) || row;
+        mark(rr, 'done', 'Ad zaten Azerice, dokunulmadı' + dn);
       }
       if (!rows.length) {
         status('Hepsi zaten çevrilmiş (' + skipped + ' satır). Gözden geçirip Import\'a bas.', 'ok');
@@ -657,22 +751,25 @@
         }
         if (tr && tr.via === 'already') {
           skipped++;
+          const dn = await rowDesc(id, o);
           if (!o.dry) await saveRow(id);
           const r = findRow(id) || row;
-          mark(r, 'done', 'Ad zaten Azerice, dokunulmadı');
+          mark(r, 'done', 'Ad zaten Azerice, dokunulmadı' + dn);
           continue;
         }
         if (!tr || !tr.az || tr.via === 'none') {
           bad++;
+          const dn = await rowDesc(id, o);
           if (!o.dry) await saveRow(id);
           const r = findRow(id) || row;
           remember(id, { unknown: tr ? (tr.unknown || []) : [] });
-          mark(r, 'bad', tr ? 'Bankada da kurallarda da karşılığı yok: ' + src : 'tgwatch cevap vermedi');
+          mark(r, 'bad', (tr ? 'Bankada da kurallarda da karşılığı yok: ' + src : 'tgwatch cevap vermedi') + dn);
           continue;
         }
         tr.az = fmtName(tr.az, o);
         setValue(input, tr.az);
         remember(id, { filled: tr.az, final: tr.az, edited: false, unknown: tr.via === 'bank' || tr.via === 'claude' ? [] : (tr.unknown || []) });
+        const dn = await rowDesc(id, o);
         if (!o.dry && !(await saveRow(id))) {
           bad++;
           const r = findRow(id);
@@ -680,7 +777,7 @@
           continue;
         }
         const r = findRow(id) || row;
-        const why = 'Orijinal: ' + src + (tr.unknown && tr.unknown.length ? '\nBilinmeyen: ' + tr.unknown.join(', ') : '');
+        const why = 'Orijinal: ' + src + (tr.unknown && tr.unknown.length ? '\nBilinmeyen: ' + tr.unknown.join(', ') : '') + dn;
         if (tr.via === 'bank') { ok++; mark(r, 'ok', 'Bankadan birebir\n' + why); }
         else { warn++; mark(r, 'warn', (tr.via === 'mixed' ? 'Kısmen bankadan' : tr.via === 'claude' ? 'Claude ile (tgwatch denetiminden geçti)' : 'Kurallarla') + '\n' + why); }
         await sleep(Math.max(0, Number(o.delay) || 0));
@@ -712,8 +809,9 @@
         const row = await openRow(id);
         if (!row) continue;
         setValue(nameInput(row), st.src);
+        if (st.descSrc) { const d = descField(row.el, nameInput(row)); if (d) writeField(d, st.descSrc); }
         if (!o.dry) await saveRow(id);
-        remember(id, { filled: undefined, final: st.src, edited: false });
+        remember(id, { filled: undefined, final: st.src, edited: false, descSrc: undefined });
         const r = findRow(id);
         if (r) unmark(r);
         n++;
@@ -1595,9 +1693,16 @@
   const mo = new MutationObserver(() => {
     if (scheduled) return;
     scheduled = true;
-    setTimeout(() => { scheduled = false; ensureBar(); ensureCat(); }, 150);
+    setTimeout(() => { scheduled = false; ensureBar(); ensureCat(); descButtons(); }, 150);
   });
   mo.observe(document.documentElement, { childList: true, subtree: true });
+  /** "Edit description" penceresine düğme: yalnızca ayar açıkken (ayar her seferinde okunur, önbellek 3 sn). */
+  let descOn = null; let descAt = 0;
+  async function descButtons() {
+    if (Date.now() - descAt > 3000) { descAt = Date.now(); descOn = (await opts()).descTranslate !== false; }
+    if (descOn) addDescButtons();
+  }
   ensureBar();
   ensureCat();
+  descButtons();
 })();
