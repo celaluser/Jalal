@@ -960,6 +960,14 @@
   };
   /** Karşılaştırma anahtarı: adresin dosya adı (sorgu/alan farkı önemsiz). */
   const fileKey = (u) => { try { return new URL(u, location.href).pathname.split('/').pop().toLowerCase(); } catch (e) { return ''; } };
+  /** Aynı resim mi: dosya adı aynı; ya da uzantısız ad (≥8 harf) diğerinin içinde (önizleme "_thumb" vb. ekleri). */
+  const sameImg = (a, b) => {
+    const x = fileKey(a); const y = fileKey(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    const bx = x.replace(/\.[a-z0-9]+$/, ''); const by = y.replace(/\.[a-z0-9]+$/, '');
+    return (bx.length >= 8 && y.includes(bx)) || (by.length >= 8 && x.includes(by));
+  };
   function rowLogo(row) {
     const el = row.el.querySelector('[class*="category-image"], [class*="category-icon"], img');
     return el ? urlOf(el) : '';
@@ -1006,7 +1014,7 @@
     const ir = dlg.input.getBoundingClientRect();
     const pk = picker();
     const cands = [...dlg.box.querySelectorAll('div, span, a, button, img, label')].filter((e) => {
-      if (!visible(e) || ours(e) || e.contains(dlg.input) || e.closest('.modal-footer, .modal-header') || (pk && pk.box.contains(e))) return false;
+      if (!visible(e) || ours(e) || e.contains(dlg.input) || e.closest('.modal-footer, .modal-header') || (pk && pk.box && pk.box.contains(e))) return false;
       const r = e.getBoundingClientRect();
       if (r.width < 24 || r.height < 24 || r.width > 160 || r.height > 160 || Math.abs(r.width - r.height) > 40) return false;
       return !!urlOf(e) || /icon|image|logo|avatar|picture|photo/i.test(typeof e.className === 'string' ? e.className : '');
@@ -1014,7 +1022,7 @@
     if (!cands.length) {
       // sınıf adı tutmadıysa: ad kutusunun SOLUNDA, onunla aynı yükseklikte duran kare öğe (gerçek panelde logo kutusu orada)
       for (const e of dlg.box.querySelectorAll('div, span, a, button, img, label')) {
-        if (!visible(e) || ours(e) || e.contains(dlg.input) || e.closest('.modal-footer, .modal-header') || (pk && pk.box.contains(e))) continue;
+        if (!visible(e) || ours(e) || e.contains(dlg.input) || e.closest('.modal-footer, .modal-header') || (pk && pk.box && pk.box.contains(e))) continue;
         const r = e.getBoundingClientRect();
         if (r.width < 30 || r.height < 30 || r.width > 140 || r.height > 140 || Math.abs(r.width - r.height) > 30) continue;
         if (r.right > ir.left + 4 || r.bottom < ir.top - 60 || r.top > ir.bottom + 20) continue;
@@ -1029,18 +1037,22 @@
     while (el.parentElement && el.parentElement !== dlg.box && cands.includes(el.parentElement)) el = el.parentElement;
     return el;
   }
-  /** Açık seçici: "Uploaded" sekmesini içeren, birçok resmi olan en küçük kutu. */
+  /** Seçicinin "Uploaded" sekmesi (ilk açılışta Icons sekmesi seçili olur; orada resim / "Upload file" olmayabilir). */
+  function uploadedTab() {
+    const all = [...document.querySelectorAll('a, button, li, span, div, [role=tab]')].filter((e) => visible(e) && !ours(e) && e.children.length <= 3 && /^uploaded$/i.test(norm(e.textContent)));
+    const deep = all.filter((e) => !all.some((x) => x !== e && e.contains(x)));
+    const t = deep[0];
+    return t ? (t.closest('a, button, li, [role=tab]') || t) : null;
+  }
+  /** Açık seçici: "Uploaded" sekmesinin, içinde resim ya da "Upload file" olan en yakın atası. */
   function picker() {
-    const tabs = [...document.querySelectorAll('a, button, li, span, div')].filter((e) => visible(e) && !ours(e) && e.children.length <= 2 && /^uploaded$/i.test(norm(e.textContent)));
-    for (const t of tabs) {
-      for (let box = t.parentElement; box && box !== document.body; box = box.parentElement) {
-        if (/^uploaded$/i.test(norm(box.textContent))) continue;
-        // sekme şeridi değil, seçicinin tamamı: içinde resim ya da "Upload file" düğmesi olan ilk kutu
-        const upl = [...box.querySelectorAll('button, a, label')].some((x) => /^upload\s*file$/i.test(norm(x.textContent)));
-        if (upl || pickerImages(box).length >= 2) return { box, tab: t.closest('a, button, li, [role=tab]') || t };
-      }
+    const tab = uploadedTab();
+    if (!tab) return null;
+    for (let box = tab.parentElement; box && box !== document.body; box = box.parentElement) {
+      const upl = [...box.querySelectorAll('button, a, label')].some((x) => /^upload\s*file$/i.test(norm(x.textContent)));
+      if (upl || pickerImages(box).length >= 2) return { box, tab };
     }
-    return null;
+    return { box: null, tab };
   }
   const pickerImages = (box) => [...box.querySelectorAll('img, [style*="background-image"]')].filter((e) => visible(e) && !ours(e) && urlOf(e));
   /**
@@ -1075,28 +1087,30 @@
     logoDiag.kutu = box ? shortHtml(box, 400) : null;
     const cur = link && link.add ? '' : (box ? urlOf(box) || urlOf(box.querySelector('*')) : '');
     logoDiag.mevcut = cur;
-    if (cur && fileKey(cur) === fileKey(want)) return 'logo zaten ' + P;
+    if (cur && sameImg(cur, want)) return 'logo zaten ' + P;
     if (cur && !o.catLogoReplace) return 'logo zaten var, değiştirilmedi';
     const trigger = (link && link.el) || (cur && box) || box;
     if (!trigger) { catDiagNote = 'logo kutusu bulunamadı'; return 'logo kutusu ("Add icon") bulunamadı'; }
     trigger.click();
-    const pk = await waitFor(picker, 3000, 80);
+    const pk = await waitFor(uploadedTab, 4000, 80) && picker();
     if (!pk) {
       catDiagNote = 'logo seçici açılmadı';
       logoDiag.uploadedYazisi = [...document.querySelectorAll('a, button, li, span, div')].filter((e) => visible(e) && /uploaded/i.test(norm(e.textContent)) && norm(e.textContent).length < 40).slice(0, 4).map((e) => shortHtml(e, 200));
       return 'logo seçici açılmadı';
     }
-    logoDiag.secici = shortHtml(pk.box, 500);
     pk.tab.click();
-    const img = await waitFor(() => { const p2 = picker(); return p2 && pickerImages(p2.box).find((e) => fileKey(urlOf(e)) === fileKey(want)); }, 3000, 80);
+    logoDiag.uploadedTiklandi = true;
+    const img = await waitFor(() => { const p2 = picker(); return p2 && p2.box && pickerImages(p2.box).find((e) => sameImg(urlOf(e), want)); }, 5000, 100);
+    const p4 = picker();
+    logoDiag.secici = p4 && p4.box ? shortHtml(p4.box, 500) : 'kutu bulunamadı';
     if (!img) {
       const p3 = picker();
-      logoDiag.uploadedResimler = p3 ? pickerImages(p3.box).slice(0, 12).map((e) => fileKey(urlOf(e))) : 'seçici kayboldu';
+      logoDiag.uploadedResimler = p3 && p3.box ? pickerImages(p3.box).slice(0, 12).map((e) => fileKey(urlOf(e))) : 'seçici kayboldu';
       closePicker();
       return 'logo: Uploaded\'da ' + P + ' logosu bulunamadı';
     }
     (img.closest('a, button, li, [role=button], [role=option]') || img).click();
-    const okSel = await waitFor(() => { const d2 = categoryDialog(); const b2 = d2 && logoBox(d2); return b2 && fileKey(urlOf(b2) || urlOf(b2.querySelector('*'))) === fileKey(want); }, 3000, 80);
+    const okSel = await waitFor(() => { const d2 = categoryDialog(); const b2 = d2 && logoBox(d2); return b2 && sameImg(urlOf(b2) || urlOf(b2.querySelector('*')), want); }, 3000, 80);
     if (picker()) closePicker();
     await waitFor(() => !picker(), 1500, 80);
     return okSel ? 'logo: ' + P : 'logo seçildi ama kutuda görünmedi';

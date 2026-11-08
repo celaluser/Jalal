@@ -103,6 +103,14 @@ const saved = (p) => p.evaluate(() => window.__savedCat || null);
     await p.close();
   }
 
+  console.log('L7 Uploaded\'daki resimler önizleme adıyla ("nylack51yquk11yq_thumb.gif") gelse de eşleşir');
+  {
+    const p = await page(b, { name: 'TikTok Followers', thumbs: true, longNames: true });
+    await runCat(p);
+    eq((await saved(p)).logo, C + 'nylack51yquk11yq_thumb.gif', 'önizleme adresiyle eşleşti');
+    await p.close();
+  }
+
   console.log('L6 "Logoları şimdi öğren": liste gezilir, platform logoları kaydedilir');
   {
     const p = await page(b, { name: 'x' });

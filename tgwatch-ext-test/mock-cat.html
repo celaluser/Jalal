@@ -16,9 +16,9 @@
     <div class="cat-logo-box" id="logo"></div><a href="#" id="addicon" style="display:none">Add icon</a>
     <div style="flex:1"><label>Category name</label><br><input type="text" id="cname" style="width:360px"></div>
     <div class="picker" id="picker" style="display:none">
-      <div class="tabs"><a data-t="icons">Icons</a><a data-t="emoji">Emoji</a><a data-t="uploaded">Uploaded</a><a class="rm" style="float:right">Remove</a></div>
+      <ul class="tabs" style="list-style:none;padding:0;display:flex;gap:12px"><li><a data-t="icons"><i class="far fa-smile"></i> Icons</a></li><li><a data-t="emoji"><i class="far fa-grin"></i> Emoji</a></li><li><a data-t="uploaded"><i class="fas fa-upload"></i> Uploaded</a></li><li style="margin-left:auto"><a class="rm">Remove</a></li></ul>
       <div class="grid" id="grid"></div>
-      <button>Upload file</button>
+      <button id="upl" style="display:none">Upload file</button>
     </div>
   </div>
   <div class="modal-footer"><button id="csave">Save changes</button></div>
@@ -27,11 +27,13 @@
 const C = 'https://storage.perfectcdn.com/fsvl4a/';
 const cfg = Object.assign({ name: 'TikTok Followers', logo: '' }, window.__catCfg || {});
 // kategori listesi (dialogun arkasında): adına göre kullanılan logolar
+// gerçekçi dosya adı (gerçek panelde: rastgele 16 harf)
+const N = (f) => (cfg.longNames && f === 'tt-a.gif' ? 'nylack51yquk11yq.gif' : f);
 const cats = [
   ['TikTok Takipçi', 'tt-a.gif'], ['TikTok Bəyəni', 'tt-a.gif'], ['𝐓𝐢𝐤𝐓𝐨𝐤 → Takipçi', 'tt-a.gif'], ['TikTok Video Baxış', 'tt-b.png'],
   ['Instagram Takipçi', 'ig.png'], ['Instagram Bəyəni', 'ig.png'], ['YouTube Baxış', 'yt.png'], ['Facebook Takipçi', 'fb.gif'], ['Kateqoriya logosuz', ''],
 ];
-document.getElementById('list').innerHTML = cats.map(([n, f]) => '<div class="cat service-table__category"><span class="service-table__category-image" style="' + (f ? 'background-image:url(&quot;' + C + f + '&quot;)' : '') + '"></span><span class="service-table__category-name">' + n + '</span><button>Actions</button></div>').join('');
+document.getElementById('list').innerHTML = cats.map(([n, f]) => '<div class="cat service-table__category"><span class="service-table__category-image" style="' + (f ? 'background-image:url(&quot;' + C + N(f) + '&quot;)' : '') + '"></span><span class="service-table__category-name">' + n + '</span><button>Actions</button></div>').join('');
 // pencere
 document.getElementById('cname').value = cfg.name;
 const logo = document.getElementById('logo');
@@ -42,13 +44,15 @@ const picker = document.getElementById('picker'); const grid = document.getEleme
 const uploaded = ['ig.png', 'yt.png', 'tt-b.png', 'fb.gif', 'tt-a.gif', 'tg.png', 'other.png'];
 function tab(t) {
   window.__tab = t;
-  if (t === 'uploaded') grid.innerHTML = uploaded.map((f) => '<img data-f="' + f + '" src="' + C + f + '">').join('');
-  else grid.innerHTML = '<img data-f="x" src="https://cdn.example.com/icons/tiktok.svg"><i class="fab fa-tiktok"></i>'; // simge sekmesi: farklı adresler
+  const th = (f) => (cfg.thumbs ? f.replace('.', '_thumb.') : f);
+  if (t === 'uploaded') grid.innerHTML = uploaded.map((f) => '<img data-f="' + f + '" src="' + C + th(N(f)) + '">').join('');
+  else grid.innerHTML = '<i class="fab fa-tiktok"></i><i class="fab fa-instagram"></i><i class="fab fa-youtube"></i>'; // simge sekmesi: resim yok
+  document.getElementById('upl').style.display = t === 'uploaded' ? '' : 'none';
 }
 const openPicker = () => { window.__logoClicks = (window.__logoClicks || 0) + 1; picker.style.display = picker.style.display === 'none' ? '' : 'none'; tab('icons'); };
 logo.onclick = openPicker;
 addicon.onclick = (e) => { e.preventDefault(); window.__addClicks = (window.__addClicks || 0) + 1; openPicker(); };
-picker.querySelector('.tabs').onclick = (e) => { const t = e.target.getAttribute('data-t'); if (t) tab(t); };
+picker.querySelector('.tabs').onclick = (e) => { const a = e.target.closest('a'); const t = a && a.getAttribute('data-t'); if (t) tab(t); };
 grid.onclick = (e) => { const img = e.target.closest('img'); if (!img) return; setLogo(img.src); picker.style.display = 'none'; window.__picked = img.src; };
 document.querySelector('.modal-title').onclick = () => { picker.style.display = 'none'; };
 document.getElementById('csave').onclick = () => { window.__savedCat = { name: document.getElementById('cname').value, logo: (logo.querySelector('img') || {}).src || '' }; document.getElementById('cdlg').style.display = 'none'; };
