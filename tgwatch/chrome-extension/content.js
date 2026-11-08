@@ -14,7 +14,47 @@
 
   const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
   const lower = (s) => norm(s).toLowerCase().replace(/i\u0307/g, 'i'); // dil bağımsız ("Import" → "ımport" olmasın); "İ" → i + nokta düzeltmesi
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Arka plan sekmesi: sayfanın zamanlayıcıları kısılır. Her bekleme hem burada hem service worker'da başlar; önce biten sayılır
+  // (önde: sayfa, arkada: service worker). Bağlantı koparsa (eklenti yenilendi) sayfa zamanlayıcısı yeter.
+  let port = null; let seq = 0;
+  const waiters = new Map();
+  function getPort() {
+    if (port) return port;
+    try {
+      port = chrome.runtime.connect({ name: 'tgw' });
+      port.onMessage.addListener((m) => { const f = m && m.t === 'wake' && waiters.get(m.id); if (f) f(); });
+      port.onDisconnect.addListener(() => { void chrome.runtime.lastError; port = null; });
+    } catch (e) { port = null; }
+    return port;
+  }
+  const sleep = (ms) => new Promise((resolve) => {
+    const id = ++seq;
+    let h = null;
+    const fin = () => { if (!waiters.has(id)) return; waiters.delete(id); clearTimeout(h); resolve(); };
+    waiters.set(id, fin);
+    h = setTimeout(fin, ms);
+    const p = getPort();
+    if (p) { try { p.postMessage({ t: 'sleep', id, ms }); } catch (e) { port = null; } }
+  });
+  /** İş sürerken sekme otomatik kapatılmasın (Bellek Tasarrufu). */
+  let busyN = 0;
+  function busy(on) {
+    busyN = Math.max(0, busyN + (on ? 1 : -1));
+    const p = getPort();
+    if (p) { try { p.postMessage({ t: 'busy', on: busyN > 0 }); } catch (e) { port = null; } }
+  }
+  /** Kaydır; arka plandaki sekmede yumuşak kaydırma ilerlemez ve scroll olayı gecikir: anında kaydır + olayı hemen tetikle. */
+  function scrollBoxTo(box, top) {
+    const hidden = document.hidden;
+    if (box) {
+      if (hidden) { box.scrollTop = top; try { box.dispatchEvent(new Event('scroll')); } catch (e) { /* yok */ } }
+      else box.scrollTo({ top, behavior: 'smooth' });
+    }
+    const wt = top === 0 ? 0 : document.documentElement.scrollHeight;
+    if (hidden) { window.scrollTo(0, wt); try { window.dispatchEvent(new Event('scroll')); } catch (e) { /* yok */ } }
+    else window.scrollTo({ top: wt, behavior: 'smooth' });
+  }
+  const nudge = (el) => { try { (el || window).dispatchEvent(new Event('scroll')); } catch (e) { /* yok */ } };
   const btnText = (b) => norm(b.innerText !== undefined ? b.innerText : b.textContent);
   const visible = (el) => !!el && el.isConnected && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
   const ours = (el) => !!(el.closest && el.closest('.tgw-bar, .tgw-badge, .tgw-orig, .tgw-cbar, .tgw-side, .tgw-word, .tgw-pop, .tgw-descbar'));
@@ -641,6 +681,7 @@
   }
 
   function setRunning(on) {
+    if (on !== running) busy(on);
     running = on;
     if (!bar) return;
     bar.classList.toggle('tgw-running', on);
@@ -1108,8 +1149,7 @@
       const rows = categoryRows();
       const box = scroller(rows.length ? rows[rows.length - 1].el : null);
       // Yalnızca en alta in (bir satıra kaydırmak listeyi yukarı çekip panelin "sonraki sayfayı yükle"sini engeller). Kayma gözle görülsün.
-      if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
-      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+      scrollBoxTo(box, box ? box.scrollHeight : document.documentElement.scrollHeight);
       await waitFor(() => {
         const atEnd = (!box || box.scrollTop + box.clientHeight >= box.scrollHeight - 4)
           && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4;
@@ -1159,7 +1199,8 @@
     const onList = !importOpen && !dlg && !anyDialog() && onServicesList(); // ağır tarama yalnızca düğmeye basınca
     if (onList && !catRunning && !autoTimer && pendingImport()) {
       // Import bitti, liste geldi: biraz bekle (panel listeyi yeniden çizer), sonra kendiliğinden çalış.
-      autoTimer = setTimeout(async () => {
+      autoTimer = true;
+      sleep(2000).then(async () => {
         autoTimer = null;
         const p = pendingImport();
         if (!p || catRunning || anyDialog() || !onServicesList()) return;
@@ -1167,7 +1208,7 @@
         const o = await opts();
         if (o.autoCat === false) return;
         catFlow({ auto: true, before: p.before || [], info: p });
-      }, 2000);
+      });
     }
     if (!dlg && !onList && !catRunning) {
       if (cbar && cbar.isConnected) cbar.remove();
@@ -1198,6 +1239,7 @@
   /** Kategorinin Actions menüsünden "Edit category" penceresini aç. */
   async function openCategoryEditor(row) {
     row.el.scrollIntoView({ block: 'center' });
+    nudge(scroller(row.el)); nudge();
     row.el.classList.add('tgw-flash');
     await sleep(300);
     const before = new Set(editCategoryLinks().filter(visible));
@@ -1418,6 +1460,7 @@
     if (i <= 0) return;
     const me = rows[i];
     me.el.scrollIntoView({ block: 'center' });
+    nudge(scroller(me.el)); nudge();
     await sleep(200);
     const box = scroller(me.el);
     const atTop = () => (box ? box.scrollTop <= 0 : true) && window.scrollY <= 0;
@@ -1444,8 +1487,8 @@
       // Basılı tutarken yukarı kaydır
       for (let n = 0; n < 600 && !atTop(); n++) {
         const step = Math.max(240, (box ? box.clientHeight : innerHeight) * 0.6);
-        if (box && box.scrollTop > 0) box.scrollTop = Math.max(0, box.scrollTop - step);
-        else window.scrollTo(0, Math.max(0, window.scrollY - step));
+        if (box && box.scrollTop > 0) { box.scrollTop = Math.max(0, box.scrollTop - step); nudge(box); }
+        else { window.scrollTo(0, Math.max(0, window.scrollY - step)); nudge(); }
         move(x, edge);
         await sleep(16);
         if (n % 10 === 9) catStatus('En üste taşınıyor… (basılı)');
@@ -1488,6 +1531,7 @@
     const box = scroller(rows[0] && rows[0].el);
     if (box) box.scrollTop = 0;
     window.scrollTo(0, 0);
+    nudge(box); nudge();
     await sleep(600);
     if ((i = indexOf(name)) >= 0) return i;
     await scrollToEnd();
@@ -1536,8 +1580,7 @@
       if (i < 0) return { ok: false, note: 'en üste taşındı mı doğrulanamadı (panel listeyi yeniledi); listeye bir bak' };
     }
     const box = scroller(categoryRows()[0] && categoryRows()[0].el);
-    if (box) box.scrollTo({ top: 0, behavior: 'smooth' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollBoxTo(box, 0);
     const first = categoryRows()[0];
     if (first) { first.el.classList.remove('tgw-flash'); void first.el.offsetWidth; first.el.classList.add('tgw-flash'); }
     return i === 0 ? { ok: true } : { ok: false, note: 'en üste çıkmadı (' + i + '. sırada kaldı)' };
@@ -1551,6 +1594,7 @@
   async function catFlow({ auto = false, before = null, info = null } = {}) {
     if (catRunning) return;
     catRunning = true;
+    busy(true);
     if (cbar) { delete cbar.dataset.closed; delete cbar.dataset.done; }
     ensureCatBar();
     cbar.classList.add('tgw-running');
@@ -1620,6 +1664,7 @@
       end((done.length === 1 ? done[0] + ' · kaydedildi' : done.length + ' kategori kaydedildi') + (top ? ', en üstte' : '') + more, more ? 'warn' : 'ok');
     } finally {
       catRunning = false;
+      busy(false);
       cbar && cbar.classList.remove('tgw-running');
       if (auto) reportImport(report, last, info);
     }

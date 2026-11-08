@@ -43,6 +43,14 @@ panel `https://ALANADIN/system/tgwatch/public/`, webhook `https://ALANADIN/syste
 Zip'i açarken gizli dosyaların (`.htaccess`) da çıktığından emin ol. **Sağlık** sayfasındaki "Web koruması" satırı bunu kontrol eder.
 İstersen tgwatch'ı public_html dışına koyup sadece `public/` içeriğini web'e kopyalayabilirsin (o zaman `app_path.php` içindeki yolu düzelt).
 
+## Eklenti arka planda (1.15.0)
+
+Başka sekmeye geçsen de başlattığın iş sürer (import çevirisi, açıklamalar, kategori akışı, import sonrası otomatik kategori):
+beklemeler eklentinin service worker'ında yapılır (Chrome arka plandaki sekmenin zamanlayıcılarını kısar, service worker'ınkini kısmaz),
+kaydırmalar arka plandayken anında yapılıp kaydırma olayı elle tetiklenir, iş sürerken sekme Bellek Tasarrufu ile kapatılmaz.
+Panel sekmesi açık kalmalı. **Denenmedi:** kategoriyi en üste **sürükleme** panelin kendi sürükle-bırak kütüphanesine bağlı; arka plandaki
+sekmede çizim durduğu için çalışmayabilir. Olmazsa eklenti "sürükleme çalışmadı" der, kategori kaydedilmiş kalır; elle taşıyabilirsin.
+
 ## Açıklama çevirisi (eklenti 1.14.0, tgwatch 1.3.0)
 
 Eklenti servis **açıklamalarını** da çevirir: import ekranında her satırda (adı zaten Azerice olan satırlarda da, ada dokunmadan) ve

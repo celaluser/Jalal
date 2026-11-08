@@ -13,6 +13,7 @@ function stub(storage) {
   return `(() => {
     const store = Object.assign({ panel: 'https://panelbaku.com', api: 'https://tgwatch.test/api', key: 'k', delay: 0 }, ${JSON.stringify(storage)});
     const listeners = [];
+    const _st = window.setTimeout.bind(window); // gerçek mesajlaşma zamanlayıcıya bağlı değil: kısıtlama taklidinden etkilenmesin
     window.__calls = [];
     const fakeApi = (action, p) => {
       window.__calls.push({ action, p });
@@ -25,10 +26,10 @@ function stub(storage) {
       runtime: {
         lastError: null,
         getManifest: () => ({ version: 'test' }),
-        sendMessage: (msg, cb) => { setTimeout(() => cb && cb(msg.type === 'api' ? fakeApi(msg.action, msg.payload || {}) : { ok: true }), 5); },
+        sendMessage: (msg, cb) => { _st(() => cb && cb(msg.type === 'api' ? fakeApi(msg.action, msg.payload || {}) : { ok: true }), 5); },
         onMessage: { addListener: (f) => listeners.push(f) },
       },
-      storage: { local: { get: (d, cb) => { const o = {}; for (const k of Object.keys(d)) o[k] = k in store ? store[k] : d[k]; setTimeout(() => cb(o), 0); }, set: (o) => Object.assign(store, o) } },
+      storage: { local: { get: (d, cb) => { const o = {}; for (const k of Object.keys(d)) o[k] = k in store ? store[k] : d[k]; _st(() => cb(o), 0); }, set: (o) => Object.assign(store, o) } },
     };
     window.__send = (msg) => new Promise((r) => { for (const f of listeners) f(msg, {}, r); });
   })();`;
@@ -117,6 +118,37 @@ async function runImport(p) {
     await q.waitForTimeout(800);
     eq(await q.locator('.tgw-descbtn').count(), 0, 'ayar kapalıyken düğme yok');
     await q.close();
+  }
+
+  console.log('D5 arka plan taklidi: sayfa zamanlayıcıları 100 kat yavaş (Chrome kısıtlaması gibi); beklemeler service worker\'dan gelince import yine çabuk biter');
+  {
+    const p = await b.newPage();
+    const errs = []; p.on('pageerror', (e) => errs.push(String(e)));
+    await p.goto('file://' + path.join(__dirname, 'mock.html'));
+    await p.addScriptTag({ content: stub({ delay: 300 }) });
+    await p.addScriptTag({ content: `(() => {
+      const orig = window.setTimeout.bind(window);
+      window.__wakes = 0;
+      // service worker taklidi: bekleme isteğine gerçek sürede cevap verir
+      window.chrome.runtime.connect = () => {
+        const ls = [];
+        return { onMessage: { addListener: (f) => ls.push(f) }, onDisconnect: { addListener: () => {} },
+          postMessage: (m) => { if (m.t === 'sleep') orig(() => { window.__wakes++; ls.forEach((f) => f({ t: 'wake', id: m.id })); }, m.ms); if (m.t === 'busy') window.__busy = m.on; } };
+      };
+      // sayfanın kendi zamanlayıcıları kısıldı (arka plan sekmesi gibi)
+      window.setTimeout = (f, ms, ...a) => orig(f, (Number(ms) || 0) * 100 + 5000, ...a);
+      window.__orig = orig;
+    })();` });
+    await p.addScriptTag({ content: CONTENT });
+    const t0 = Date.now();
+    await p.evaluate(() => window.__send({ type: 'tgw-run' }));
+    await p.waitForFunction(() => { const s = document.querySelector('.tgw-status'); return s && /^Bitti/.test(s.textContent) && window.__rows.every((r) => !r.open); }, null, { timeout: 120000, polling: 200 });
+    eq((await rowsOf(p)).map((r) => r.desc.startsWith('AZ:')), [true, true, true, false], 'dört satır işlendi (boş açıklama hariç)');
+    const sec = (Date.now() - t0) / 1000;
+    ok(sec < 20, 'import + açıklamalar ' + sec.toFixed(1) + ' sn içinde bitti (sayfa zamanlayıcılarıyla dakikalar sürerdi)');
+    ok((await p.evaluate(() => window.__wakes)) >= 3, 'satırlar arası 300 ms beklemeler service worker üzerinden (' + await p.evaluate(() => window.__wakes) + ' uyanış)');
+    ok(errs.length === 0, 'JS hatası yok ' + errs.join(' | '));
+    await p.close();
   }
 
   await b.close();

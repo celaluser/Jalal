@@ -78,6 +78,29 @@ chrome.alarms && chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'tgw-
 chrome.runtime.onInstalled.addListener(() => { register(); schedule(); checkUpdate(); });
 chrome.runtime.onStartup.addListener(() => { register(); schedule(); checkUpdate(); });
 
+// ---- arka plan sekmesi: Chrome sayfanın zamanlayıcılarını kısar; içerik script'inin beklemeleri burada yapılır ----
+// (service worker kısılmaz). İş sürerken sekmenin Bellek Tasarrufu ile kapatılması da engellenir.
+self.__ticks = 0;
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'tgw') return;
+  const tabId = port.sender && port.sender.tab ? port.sender.tab.id : null;
+  const timers = new Set();
+  const setDiscardable = (v) => { if (tabId != null) chrome.tabs.update(tabId, { autoDiscardable: v }).catch(() => {}); };
+  port.onMessage.addListener((m) => {
+    if (!m) return;
+    if (m.t === 'sleep') {
+      const h = setTimeout(() => {
+        timers.delete(h); self.__ticks++;
+        try { port.postMessage({ t: 'wake', id: m.id }); } catch (e) { /* sekme kapandı */ }
+      }, Math.max(0, Math.min(60000, m.ms | 0)));
+      timers.add(h);
+    } else if (m.t === 'busy') {
+      setDiscardable(!m.on);
+    }
+  });
+  port.onDisconnect.addListener(() => { timers.forEach(clearTimeout); setDiscardable(true); });
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg || typeof msg !== 'object') return false;
   if (msg.type === 'api' && typeof msg.action === 'string') {
