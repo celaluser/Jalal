@@ -8,7 +8,7 @@
   if (window.__servisPasifle) return;
   window.__servisPasifle = true;
 
-  const VERSION = '1.1.0';
+  const VERSION = '1.1.1';
   const SETTINGS_KEY = 'sp_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const TOGGLE = '.service-table__header-hide-all, [class*="header-hide-all"]';
@@ -218,7 +218,7 @@
       for (const o of opened) (o.querySelector('[class*="collapse-name"], a') || o).click();
       if (opened.length && await waitFor(() => !serviceRows().length, 3000, 100)) return true;
     }
-    if (!t) return false;
+    if (!t || !globalOpen) return !serviceRows().length; // "tümü" kapalıyken düğmeye basmak her şeyi AÇAR: basma
     t.click();
     return !!(await waitFor(() => !serviceRows().length && catHeaders().length > 0, 6000, 100));
   }
@@ -231,12 +231,13 @@
   /** Not Assigned başlığını bul ve servislerini aç (önce kendi Expand'i, olmazsa tümünü aç). */
   async function openNA() {
     let h = naHead();
-    if (!h) {
-      if (!(await ensureCategoryView())) return { error: 'kategori görünümüne geçilemedi' };
-      await walk(() => !!naHead());
-      h = naHead();
-      if (!h) return { error: '"Not Assigned" başlığı bulunamadı (listenin sonuna kadar bakıldı)' };
+    if (!h && S.naOff != null) { // bilinen konum: oraya kaydır
+      setScroll(getBox(), Math.max(0, S.naOff - 60)); await sleep(350);
+      h = await waitFor(naHead, 2000, 100);
     }
+    if (!h) { await walk(() => !!naHead()); h = naHead(); } // hiçbir düğmeye basmadan baştan gez
+    if (!h && await ensureCategoryView()) { await walk(() => !!naHead()); h = naHead(); }
+    if (!h) return { error: '"Not Assigned" başlığı bulunamadı (listenin sonuna kadar bakıldı)' };
     const count = naCount(h.el);
     h.el.scrollIntoView({ block: 'start' }); nudgeScroll(); await sleep(250);
     if (!naOpen()) {
@@ -301,16 +302,35 @@
   }
 
   /** Servisin Actions menüsü: "Disable service" (aktif) ya da "Enable service" (zaten pasif) öğesini bul. */
-  async function openSvcMenu(r) {
-    const re = /^(disable|enable)\s+service$/i;
-    const before = new Set(itemsByText(re));
-    r.btn.click();
-    const item = await waitFor(() => { const v = itemsByText(re).filter((x) => !before.has(x)); return v.length ? v[v.length - 1] : null; }, 2500, 60);
-    if (!item) return { item: null, status: null };
-    remember('menu', [norm((item.closest('ul, [role=menu], .dropdown-menu') || item.parentElement).textContent).slice(0, 200)]);
-    const status = lower(item.textContent).split(' ')[0];
-    const inRow = item.closest('.service-table__body, .service-table__row-service');
-    return { item: status === 'disable' ? item : null, status, foreign: !!(inRow && !r.el.contains(item)) };
+  const STATUS_RE = /^(disable|enable)\s+service$/i;
+  /** Satırın kendi Actions menüsündeki "Disable/Enable service" öğesi (gerçek panelde menü kapalıyken de satırın içinde durur). */
+  function rowItem(sid) {
+    const r = findSvc(sid);
+    if (!r) return null;
+    const all = [...r.row.querySelectorAll('a, button, li, [role=menuitem]')].filter((e) => STATUS_RE.test(norm(e.textContent)));
+    const deep = all.filter((e) => !all.some((o) => o !== e && e.contains(o)));
+    return { r, item: deep[0] || null };
+  }
+  /**
+   * Actions'a bas, menünün açılmasını bekle. Açılmasa da (liste kaydı / satır yeniden çizildi) satırın içindeki öğe kullanılır;
+   * satır dışında (portal) yeni çıkan öğe de kabul edilir. Sonuç her zaman "Disabled" olmasıyla doğrulanır.
+   */
+  async function openSvcMenu(sid) {
+    const r0 = findSvc(sid);
+    if (!r0 || !r0.btn) return { item: null, status: null };
+    const before = new Set(itemsByText(STATUS_RE));
+    r0.btn.click();
+    const vis = await waitFor(() => {
+      const x = rowItem(sid);
+      if (x && x.item && visible(x.item)) return x;
+      const g = itemsByText(STATUS_RE).filter((e) => !before.has(e) && !e.closest('.service-table__body, .service-table__row-service'));
+      return g.length === 1 ? { r: x && x.r, item: g[0], portal: true } : null;
+    }, 2000, 80);
+    const x = vis || rowItem(sid);
+    if (!x || !x.item) return { item: null, status: null };
+    remember('menu', [norm((x.item.closest('ul, [role=menu], .dropdown-menu') || x.item.parentElement).textContent).slice(0, 200) + (vis ? '' : ' [menü görünmedi; satırdaki öğe]')]);
+    const status = lower(x.item.textContent).split(' ')[0];
+    return { item: status === 'disable' ? x.item : null, status, opened: !!vis, portal: !!(vis && vis.portal) };
   }
 
   /** "Disable service" sonrası onay penceresi (varsa): Disable/Yes/Confirm/OK; içinde "Delete" geçen pencereye dokunulmaz. */
@@ -387,9 +407,16 @@
   // ---------------------------------------------------------------- pasife alma
   const result = (kind, reason, extra) => Object.assign({ kind, reason }, extra || {});
 
-  async function locateSvc(sid) {
+  async function locateSvc(sid, off) {
     let r = findSvc(sid);
     if (r) return r;
+    const box = getBox();
+    if (off != null) { // taramadaki konum (yalnızca durum değiştiği için düzen aynı kalır)
+      setScroll(box, Math.max(0, off - Math.floor(box.clientHeight / 2))); await sleep(350);
+      r = await waitFor(() => findSvc(sid), 1500, 100);
+      if (r) return r;
+    }
+    if (S.naOff != null) { await walk(() => !!findSvc(sid), Math.max(0, S.naOff - 60)); r = findSvc(sid); if (r) return r; }
     const o = await openNA();
     if (o.error) return { error: o.error };
     await walk(() => !!findSvc(sid), Math.max(0, (S.naOff || 0) - 60));
@@ -397,26 +424,42 @@
   }
 
   async function processOne(t) {
-    const l = await locateSvc(t.sid);
+    const l = await locateSvc(t.sid, t.off);
     if (l && l.error) return result('error', l.error);
     if (!l) return result('skip', 'satır bulunamadı (taşınmış ya da silinmiş olabilir)');
     l.el.scrollIntoView({ block: 'center' });
     nudgeScroll();
     await waitFor(() => findSvc(t.sid), 3000, 100);
-    await sleep(250);
+    await sleep(500); // sanallaştırılmış liste kaydırmadan sonra otursun
 
     const c1 = checkSvc(t.sid);
     if (!c1.ok) return result('skip', c1.reason);
-    const m = await openSvcMenu(c1.r);
+    let m = await openSvcMenu(t.sid);
+    if (!m.item && m.status !== 'enable') {
+      // menü görünmedi ve satır ekrandan çıktı (liste kaydı): Actions'a YENİDEN basma (yine kaydırır); satırı bul, içindeki öğeyi al
+      await closeMenu(); await sleep(400);
+      const again = await locateSvc(t.sid, t.off);
+      if (again && !again.error) {
+        again.el.scrollIntoView({ block: 'center' }); nudgeScroll(); await sleep(500);
+        const x = rowItem(t.sid);
+        if (x && x.item) {
+          const st = lower(x.item.textContent).split(' ')[0];
+          remember('menu', [norm((x.item.closest('ul, [role=menu], .dropdown-menu') || x.item.parentElement).textContent).slice(0, 200) + ' [satırdaki öğe, menü açılmadan]']);
+          m = { item: st === 'disable' ? x.item : null, status: st, opened: false };
+        }
+      }
+    }
     if (m.status === 'enable') { await closeMenu(); return result('skip', 'menü "Enable service" diyor (zaten pasif)'); }
     if (!m.item) { await closeMenu(); S.diagNeeded = true; return result('error', '"Disable service" menüde bulunamadı'); }
-    if (m.foreign) { await closeMenu(); return result('skip', 'menü başka satıra ait'); }
     const c2 = checkSvc(t.sid);
     if (!c2.ok) { await closeMenu(); return result('skip', 'son anda değişti: ' + c2.reason); }
     if (S.stop) { await closeMenu(); return result('skip', 'durduruldu'); }
-    if (settings.dryRun) { await closeMenu(); return result('dry', '"Disable service" görüldü, basılmadı'); }
+    if (settings.dryRun) { await closeMenu(); return result('dry', '"Disable service" bulundu' + (m.opened ? '' : ' (menü görünmedi, satırda)') + ', basılmadı'); }
 
-    click(m.item);
+    // basmadan hemen önce öğeyi satırdan yeniden al (React yeniden çizmiş olabilir)
+    const fresh = m.portal ? m : rowItem(t.sid);
+    if (!fresh || !fresh.item || lower(fresh.item.textContent) !== 'disable service') { await closeMenu(); return result('error', '"Disable service" son anda kayboldu'); }
+    click(fresh.item);
     const seen = [];
     let out = await waitFor(() => {
       seen.push(...readToasts());
@@ -435,7 +478,7 @@
     const errToast = [...new Set(seen)].find((x) => ERR_WORDS.test(x));
     if (out !== 'off') {
       if (findConfirm()) await closeConfirm();
-      const x = await locateSvc(t.sid); // liste yeniden çizilmiş olabilir
+      const x = await locateSvc(t.sid, t.off); // liste yeniden çizilmiş olabilir
       if (!x || x.error || x.state !== 'off') return result('error', 'pasife geçmedi' + (errToast ? ' — panel: "' + errToast.slice(0, 100) + '"' : ''));
     }
     return result('done', 'pasife alındı' + (errToast ? ' (panel: ' + errToast.slice(0, 60) + ')' : ''));

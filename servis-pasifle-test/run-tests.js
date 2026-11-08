@@ -224,7 +224,7 @@ const onState = (page) => page.evaluate(() => Object.fromEntries(window.__server
     eq(s.disabled, [], 'deneme: pasife alınan yok'); eq(s.menuOpens.length, 6, '6 menü açıldı');
     const d = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { sp: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(d.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.1.0' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
+    ok(dj && dj.surum === '1.1.1' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
     await pop.close(); await p.close();
   }
 
@@ -385,6 +385,26 @@ console.log('S14 otomatik mod: hemen bir tur + her 5 dk alarm; alarmda sayfa yen
     eq((await server(p)).violations, [], 'ihlal yok');
     await p.evaluate(() => document.querySelector('#sp-host').shadowRoot.querySelector('[data-s=auto]').click());
     await other.close(); await p.close();
+  }
+
+  console.log('S19 gerçek panelde görülen: Not Assigned kalabalık (başlık çok yukarıda), menü açılmıyor, tıklayınca liste başa kayıyor');
+  if (want('S19')) {
+    const base = cats();
+    const na = base.find((c) => c.name === 'Not Assigned');
+    na.svcs = Array.from({ length: 60 }, (_, k) => ({ id: 9001 + k, name: 'Servis ' + (9001 + k) + ' | Test', on: k % 10 === 3 }));
+    const want19 = na.svcs.filter((x) => x.on).map((x) => x.id);
+    const p = await newPage(ctx, { cats: base, menuNoOpen: true, jumpOnMenu: true });
+    await scan(p);
+    eq(await targets(p), want19, 'aday listesi (' + want19.length + ')');
+    await setDry(p, false);
+    await bar(p, '[data-a=run]').click(); await done(p);
+    const s = await server(p);
+    eq(s.disabled, want19, 'hepsi pasife alındı (menü görünmese de satırdaki öğeyle)');
+    eq(s.violations, [], 'ihlal yok'); eq([s.deletes, s.enables, s.hides], [0, 0, 0], 'Delete/Enable/Hide yok');
+    eq(s.toggles || 0, 0, '"tümünü aç/kapa" düğmesine hiç basılmadı');
+    const st = await onState(p);
+    ok(OTHER_ON().every((id) => st[id] === true), 'diğer kategorilerdeki aktifler duruyor');
+    await p.close();
   }
 
   console.log('S13 Services dışı sayfada çubuk yok');

@@ -62,7 +62,14 @@ function App() {
   useEffect(() => { const h = () => setMenuOpen(null); document.addEventListener('click', h); return () => document.removeEventListener('click', h); }, []);
 
   const dd = (k, items, onOpen) => e('div', { className: 'dropdown btn-group btn-group-xs' + (menuOpen === k ? ' open' : ''), style: { position: 'relative', display: 'inline-block' } },
-    e('button', { className: 'actions dropdown-toggle btn btn-xs btn-default', onClick: (ev) => { ev.stopPropagation(); if (menuOpen !== k && onOpen) onOpen(); setMenuOpen(menuOpen === k ? null : k); } }, 'Actions ', e('span', { className: 'caret' })),
+    e('button', { className: 'actions dropdown-toggle btn btn-xs btn-default', onClick: (ev) => {
+      ev.stopPropagation();
+      if (menuOpen !== k && onOpen) onOpen();
+      // gerçekte görülen sorunlar: menü açılmıyor / tıklayınca liste başa kayıyor
+      if (k[0] === 's' && cfg.jumpOnMenu) setTimeout(() => { const sc = scroller(); if (sc) sc.scrollTop = 0; force((n) => n + 1); }, 30);
+      if (k[0] === 's' && cfg.menuNoOpen) return;
+      setMenuOpen(menuOpen === k ? null : k);
+    } }, 'Actions ', e('span', { className: 'caret' })),
     e('ul', { role: 'menu', className: 'dropdown-menu', style: { display: menuOpen === k ? 'block' : 'none', position: 'absolute', zIndex: 40, background: '#fff', border: '1px solid #bbb', listStyle: 'none', margin: 0, padding: '4px 0', minWidth: 190, right: 0, top: '100%' } },
       items.map(([t, fn]) => e('li', { key: t, role: 'presentation' }, e('a', { role: 'menuitem', href: '#', style: { display: 'block', padding: '4px 12px', color: '#222' }, onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); setMenuOpen(null); fn(); } }, t)))));
 
@@ -118,7 +125,7 @@ function App() {
     e('div', { className: 'thead service-table__header' },
       e('div', { className: 'mass-actions' }, e('input', { type: 'checkbox', name: 'mass_action', value: 'checkAll' })),
       e('span', null, 'ID  Service  Status'),
-      e('span', { className: 'far service-table__header-hide-all ' + (expanded ? 'fa-compress-alt' : 'fa-expand-alt'), onClick: () => { setExpanded((x) => !x); setOpenCats(new Set()); } }, expanded ? '[–]' : '[+]')),
+      e('span', { className: 'far service-table__header-hide-all ' + (expanded ? 'fa-compress-alt' : 'fa-expand-alt'), onClick: () => { server.toggles = (server.toggles || 0) + 1; setExpanded((x) => !x); setOpenCats(new Set()); } }, expanded ? '[–]' : '[+]')),
     e('div', { id: 'scroller', className: 'service-table__container' }, list),
     confirm && ReactDOM.createPortal(e('div', null, e('div', { className: 'backdrop' }),
       e('div', { className: 'modal', role: 'dialog' }, e('div', { className: 'modal-content' },
