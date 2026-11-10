@@ -34,7 +34,7 @@ const OTHER_ON = () => cats().filter((c) => c.name !== 'Not Assigned').flatMap((
 async function newPage(ctx, cfg) {
   const page = await ctx.newPage();
   await page.addInitScript((c) => { window.__cfg = c; }, Object.assign({ cats: cats() }, cfg));
-  await page.addInitScript(() => { try { localStorage.clear(); } catch (e) { /* yok */ } });
+  await page.addInitScript(() => { try { localStorage.clear(); localStorage.setItem('sp_set', '1'); } catch (e) { /* yok */ } });
   await page.addInitScript((m) => { try { localStorage.setItem('sp_settings', JSON.stringify({ method: m })); } catch (e) { /* yok */ } }, (cfg && cfg.method) || 'single');
   await page.route('https://panelbaku.com/**', async (route) => {
     const u = new globalThis.URL(route.request().url());

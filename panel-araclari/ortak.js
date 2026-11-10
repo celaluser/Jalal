@@ -120,7 +120,6 @@ globalThis.__PANEL_ARACLARI = true;
       b.right = right + 'px';
       if (dr.top + dr.height / 2 > innerHeight / 2) { b.bottom = (innerHeight - dr.top + 8) + 'px'; b.maxHeight = (dr.top - 16) + 'px'; }
       else { b.top = (dr.bottom + 8) + 'px'; b.maxHeight = (innerHeight - dr.bottom - 16) + 'px'; }
-      b.overflow = 'auto';
     }
   }
   function stateOf(k) {

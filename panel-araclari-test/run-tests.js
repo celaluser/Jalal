@@ -23,7 +23,7 @@ function cats() {
   const t0 = Date.now();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pa-'));
   const ctx = await chromium.launchPersistentContext(dir, {
-    channel: 'chromium', headless: true, viewport: { width: 1300, height: 700 },
+    channel: 'chromium', headless: true, viewport: { width: 1300, height: 700 }, acceptDownloads: true,
     args: ['--disable-extensions-except=' + EXT, '--load-extension=' + EXT, '--no-sandbox'],
   });
   const p = await ctx.newPage();
@@ -127,6 +127,16 @@ function cats() {
   ok(notes.some((n) => n.startsWith('pa-pt-')), 'bildirim gösterildi: ' + JSON.stringify(notes));
   const pop2 = await ctx.newPage();
   await pop2.goto('chrome-extension://' + extId + '/popup.html?tab=' + tabId);
+  console.log('A8 ID\'leri virgülle kopyala ve günlük (.txt): içerik betiği doğru veriyi verir; sayfadaki düğmeler var');
+  const idsDone = await pop2.evaluate((t) => new Promise((r) => chrome.tabs.sendMessage(t, { pt: true, cmd: 'ids', g: 'done' }, r)), tabId);
+  eq(idsDone.ids.slice().sort(), ['1132', '2452'], 'yapılan ID\'ler');
+  const lg = await pop2.evaluate((t) => new Promise((r) => chrome.tabs.sendMessage(t, { pt: true, cmd: 'log' }, r)), tabId);
+  ok(/^pt-gunluk-.*\.txt$/.test(lg.name) && /== Taşınan \(2\)/.test(lg.text) && /ID: (2452,1132|1132,2452)/.test(lg.text) && /== Adım günlüğü/.test(lg.text) && /== Teşhis/.test(lg.text), 'günlük metni: ' + lg.name);
+  ok(await p.evaluate(() => { const r = document.getElementById('pt-host').shadowRoot; return !!r.querySelector('[data-a=copyids][data-g=done]') && !!r.querySelector('[data-a=log]'); }), 'çubukta "⧉ yapılan ID\'ler" ve "⬇ Günlük (.txt)" düğmeleri');
+  const dl = p.waitForEvent('download', { timeout: 10000 });
+  await p.evaluate(() => document.getElementById('pt-host').shadowRoot.querySelector('[data-a=log]').click());
+  const d = await dl;
+  ok(/^pt-gunluk-.*\.txt$/.test(d.suggestedFilename()), 'sayfadan indirildi: ' + d.suggestedFilename());
   await pop2.click('#t-hist');
   await pop2.waitForSelector('#h-list li');
   ok(/Pasif Servis Taşı[\s\S]*gerçek[\s\S]*2 taşındı/.test(await pop2.locator('#h-list li').first().innerText()), 'Geçmiş sekmesinde: ' + (await pop2.locator('#h-list li').first().innerText()).replace(/\s+/g, ' '));

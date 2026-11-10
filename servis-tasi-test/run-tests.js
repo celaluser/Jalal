@@ -35,7 +35,7 @@ const EXP_ALL = offIn(() => true);             // + pasif kategorilerdekiler
 async function newPage(ctx, cfg) {
   const page = await ctx.newPage();
   await page.addInitScript((c) => { window.__cfg = c; }, Object.assign({ cats: cats() }, cfg));
-  await page.addInitScript(() => { try { localStorage.clear(); } catch (e) { /* yok */ } });
+  await page.addInitScript(() => { try { localStorage.clear(); localStorage.setItem('pt_set', '1'); } catch (e) { /* yok */ } });
   await page.route('https://panelbaku.com/**', async (route) => {
     const u = new globalThis.URL(route.request().url());
     if (u.pathname === '/_react.js') return route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(__dirname, 'node_modules/react/umd/react.development.js')) });

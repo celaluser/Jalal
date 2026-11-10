@@ -851,16 +851,16 @@
     @media (prefers-color-scheme:dark){:host{--ink:#e8edf2;--mut:#9aa7b4;--line:#2a3441;--bg:#18202b;--soft:#121821;--red:#f2537d;--ok:#5cc58a;--warnc:#f0a46a}}
     *{box-sizing:border-box}
     .bar{position:fixed;right:12px;bottom:12px;z-index:2147483646;width:320px;max-width:calc(100vw - 24px);font:12.5px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);
-      border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(15,23,42,.18),0 2px 6px rgba(15,23,42,.08);overflow:hidden}
+      border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(15,23,42,.18),0 2px 6px rgba(15,23,42,.08);overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 24px)}
     .bar.min{width:auto}.bar.min .body{display:none}
     .hd{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:linear-gradient(0deg,var(--bg),color-mix(in srgb,var(--ac) 7%,var(--bg)))}
     .bar.min .hd{border-bottom:0}
     .hd b{flex:1;font-size:13px;font-weight:650;display:flex;align-items:center;gap:6px}
     .hd small{font-weight:600;color:var(--warnc);background:color-mix(in srgb,var(--warnc) 12%,transparent);padding:1px 7px;border-radius:999px;font-size:10.5px}
     .hd button{all:unset;cursor:pointer;width:24px;height:24px;display:grid;place-items:center;border-radius:7px;color:var(--mut)}.hd button:hover{background:var(--soft);color:var(--ink)}
-    .body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;max-height:min(70vh,560px);overflow:auto}
+    .body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;flex:1 1 auto;min-height:0;overflow:auto}.body > *,.body > button.b{flex-shrink:0}.hd{flex:none}
     .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    button.b{all:unset;cursor:pointer;height:30px;padding:0 12px;display:inline-flex;align-items:center;border-radius:8px;background:var(--ac);color:#fff;font-weight:600;font-size:12.5px}
+    button.b{all:unset;box-sizing:border-box;cursor:pointer;height:30px;padding:0 12px;display:inline-flex;align-items:center;border-radius:8px;background:var(--ac);color:#fff;font-weight:600;font-size:12.5px}
     button.b:hover{filter:brightness(1.08)}button.b:focus-visible,.tab:focus-visible,.lk:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
     button.b[disabled]{opacity:.38;cursor:default;filter:none}
     button.red{background:var(--red)}
@@ -880,6 +880,34 @@
     .tabs{display:flex;gap:3px;padding:3px;background:var(--soft);border-radius:10px}
     .tab{all:unset;cursor:pointer;flex:1;text-align:center;padding:6px;border-radius:8px;color:var(--mut);font-size:11.5px;font-weight:600}.tab.on{background:var(--bg);color:var(--ink);box-shadow:0 1px 3px rgba(15,23,42,.12)}.tab[disabled]{opacity:.5;cursor:default}
     .auto{color:var(--ok)}.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,var(--bg));border-radius:9px;padding:8px 10px}
+    .hd .ic{font-size:14px;width:22px;height:22px;display:grid;place-items:center;border-radius:7px;background:color-mix(in srgb,var(--ac) 14%,var(--bg));color:var(--ac);flex:none}
+    .hd b::before{display:none}
+    .hd button.mode{all:unset;cursor:pointer;font:700 10px/1 system-ui,sans-serif;letter-spacing:.04em;padding:5px 8px;border-radius:999px;width:auto;height:auto}.hd button.mode[disabled]{cursor:default;opacity:.7}
+    .hd .mode.dry{color:var(--warnc);background:color-mix(in srgb,var(--warnc) 13%,var(--bg))}.hd .mode.real{color:#fff;background:var(--red)}.hd .mode:hover{filter:brightness(.95)}
+    .blk{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+    .blk .list{border:0;border-radius:0;max-height:170px}
+    .bh{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px 6px 10px;background:var(--soft);border-bottom:1px solid var(--line);font-size:11.5px;font-weight:650;color:var(--mut)}
+    .bh em{font-style:normal;color:var(--ink);margin-left:4px}.bh .acts{display:flex;gap:2px}.bh .lk{margin:0;padding:2px 6px;border-radius:6px}.bh .lk:hover{background:var(--bg);text-decoration:none}
+    .res .gh{display:flex;align-items:center;justify-content:space-between;padding:6px 0 2px;border-bottom:0}.res .gh.bad b{color:var(--red)}
+    .res .gh .lk{margin:0}
+    .ri{padding:3px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.ri small{margin-left:4px}
+    .main{display:flex;gap:8px}.main [data-a=run]{flex:1;justify-content:center;height:34px}
+    button.b[data-a=scan]{width:100%;justify-content:center;height:34px}
+    .toast{padding:6px 10px;border-radius:9px;background:var(--ink);color:var(--bg);font-weight:600;font-size:12px}
+    details.set{border:1px solid var(--line);border-radius:10px}
+    details.set summary{cursor:pointer;list-style:none;padding:8px 10px;font-weight:650;font-size:12px;color:var(--mut);display:flex;align-items:center;gap:6px}
+    details.set summary::before{content:"›";display:inline-block;transition:transform .15s;font-size:14px;line-height:1}
+    details.set[open] summary::before{transform:rotate(90deg)}
+    details.set summary::-webkit-details-marker{display:none}
+    .kv{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+    .kr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;border-bottom:1px solid var(--line);cursor:pointer}
+    .kr:last-child{border-bottom:0}
+    .kr > span:first-child{display:flex;flex-direction:column;gap:1px;min-width:0}.kr > span:first-child small{font-size:11px;line-height:1.3}
+    .kr .in{display:flex;flex-direction:row;align-items:center;gap:6px;flex:none;white-space:nowrap;color:var(--mut);font-size:11.5px}
+    .ft{display:flex;gap:8px}.ft .b{flex:1;justify-content:center}
+    button.gh{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}button.gh:hover{background:var(--soft)}
+    .autoinfo{padding:8px 10px;border-radius:9px;background:color-mix(in srgb,var(--ok) 10%,var(--bg));color:var(--ok);font-size:12px}
+    .autoinfo.warn{background:color-mix(in srgb,var(--red) 10%,var(--bg));color:var(--red)}
     ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
   `;
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -892,6 +920,7 @@
     root.innerHTML = '<style>' + CSS + '</style><div class="bar" id="bar"></div>';
     root.addEventListener('click', onBarClick);
     root.addEventListener('change', onBarChange);
+    root.addEventListener('toggle', (e) => { if (e.target.matches && e.target.matches('details.set')) { setOpen = e.target.open; try { localStorage.setItem(ME + '_set', setOpen ? '1' : '0'); } catch (er) { /* yok */ } } }, true);
     root.addEventListener('focusout', () => setTimeout(render, 0)); // sayı kutusundan çıkınca düğme etiketini güncelle
     document.documentElement.appendChild(host);
     render();
@@ -915,6 +944,77 @@
   document.addEventListener('pointerdown', (e) => { if (host && e.composedPath().includes(host)) pressed = true; }, true);
   document.addEventListener('pointerup', () => { if (!pressed) return; pressed = false; setTimeout(() => { if (wantRender) render(); }, 0); }, true);
 
+  // ---------------------------------------------------------------- ortak arayüz parçaları (Panel Araçları tasarımı)
+  /** Metindeki/öğedeki servis ya da kategori ID'si: sid, id ("category-123" → 123) ya da "62727 — Ad" biçimindeki adın başı. */
+  const idOf = (x) => { const v = x && (x.sid || x.id); if (v) return String(v).replace(/\D+/g, ''); const m = String((x && x.name) || x || '').match(/^\s*(\d{2,})/); return m ? m[1] : ''; };
+  const idList = (arr) => arr.map(idOf).filter(Boolean);
+  let setOpen = false;
+  try { setOpen = localStorage.getItem(ME + '_set') === '1'; } catch (e) { setOpen = false; } // Ayarlar başta kapalı (sade görünüm)
+  let flash = '';
+  function toast(t) { flash = t; render(); setTimeout(() => { if (flash === t) { flash = ''; render(); } }, 2500); }
+  async function copyIds(ids, what) {
+    if (!ids.length) return toast('Kopyalanacak ID yok');
+    const ok = await copyText(ids.join(','));
+    toast(ok ? '✓ ' + ids.length + ' ' + what + ' ID kopyalandı' : '⚠ Panoya kopyalanamadı');
+  }
+  /** Günlük: teşhis + adım günlüğü + sonuçlar → .txt indir. */
+  function logText() {
+    const r = S.res || {};
+    const lines = ['Panel Araçları — ' + 'Servis Pasifle' + ' v' + VERSION, 'Zaman: ' + new Date().toLocaleString('tr-TR'), 'Adres: ' + location.href, 'Durum: ' + S.status, ''];
+    for (const [k, t] of RES_GROUPS) {
+      const a = r[k] || [];
+      if (!a.length) continue;
+      lines.push('== ' + t + ' (' + a.length + ')');
+      for (const x of a) lines.push('  ' + (x.name || x) + (x.reason ? '  — ' + x.reason : ''));
+      const ids = idList(a); if (ids.length) lines.push('  ID: ' + ids.join(','));
+      lines.push('');
+    }
+    if (S.notes && S.notes.length) lines.push('== Notlar', ...S.notes.map((n) => '  ' + n), '');
+    lines.push('== Adım günlüğü', ...(S.log || []).map((l) => '  ' + l), '', '== Teşhis', diag());
+    return lines.join('\r\n');
+  }
+  function downloadLog() {
+    const name = ME + '-gunluk-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.txt';
+    const a = document.createElement('a');
+    a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent('﻿' + logText());
+    a.download = name;
+    a.style.display = 'none';
+    document.documentElement.appendChild(a); a.click(); a.remove();
+    toast('⬇ ' + name + ' indirildi');
+  }
+  const ui = {
+    head: (icon, title) => '<div class="hd"><span class="ic">' + icon + '</span><b>' + title + '</b><button class="mode ' + (settings.dryRun ? 'dry' : 'real') + '" data-a="drytoggle"' + (S.running ? ' disabled' : '') + ' title="' + (settings.dryRun ? 'Deneme modu: hiçbir şey değişmez — tıkla: gerçek moda geç' : 'Gerçek mod: değişiklik yapılır — tıkla: deneme moduna dön') + '">' + (settings.dryRun ? 'DENEME' : 'GERÇEK') + '</button><button data-a="min" title="Küçült/Büyüt" aria-label="Küçült">' + (minimized ? '▢' : '–') + '</button></div>',
+    /** Seçim listesi: başlıkta seçili/toplam, hepsi/hiçbiri, ID'leri kopyala. */
+    pick: (id, title, items, sel, busy) => '<div class="blk"><div class="bh"><span>' + title + ' <em>' + sel + '/' + items.length + '</em></span><span class="acts"><button class="lk" data-a="all"' + (busy ? ' disabled' : '') + '>hepsi</button><button class="lk" data-a="none"' + (busy ? ' disabled' : '') + '>hiçbiri</button><button class="lk" data-a="copyids" data-g="sel" title="Seçili olanların ID\'lerini virgülle kopyala (62727,26272,…)">⧉ ID\'ler</button></span></div><div class="list" id="' + id + '">' + items.join('') + '</div></div>',
+    /** Sonuç grupları; her grubun ID'leri ayrı kopyalanır. */
+    res: (id, r) => {
+      const g = RES_GROUPS.filter(([k]) => (r[k] || []).length);
+      if (!g.length) return '';
+      return '<div class="blk"><div class="bh"><span>Sonuç</span><span class="acts"><button class="lk" data-a="copyids" data-g="done" title="Yapılanların ID\'lerini virgülle kopyala">⧉ yapılan ID\'ler</button></span></div><div class="list res" id="' + id + '">'
+        + g.map(([k, t]) => '<div class="gh' + (k === 'errors' ? ' bad' : '') + '"><b>' + t + ' (' + r[k].length + ')</b>' + (idList(r[k]).length ? '<button class="lk" data-a="copyids" data-g="' + k + '">⧉</button>' : '') + '</div>'
+          + r[k].map((x) => '<div class="ri">' + esc(x.name) + (x.reason ? ' <small>' + esc(x.reason) + '</small>' : '') + '</div>').join('')).join('') + '</div></div>';
+    },
+    status: () => '<div class="st' + (/^⚠/.test(S.status) ? ' warn' : '') + '" id="st" role="status">' + esc(S.status) + '</div>' + (flash ? '<div class="toast">' + esc(flash) + '</div>' : ''),
+    settings: (rows) => '<details class="set"' + (setOpen ? ' open' : '') + '><summary>Ayarlar</summary><div class="kv">' + rows.join('') + '</div></details>',
+    row: (label, ctl, hint) => '<label class="kr"><span>' + label + (hint ? '<small>' + hint + '</small>' : '') + '</span>' + ctl + '</label>',
+    foot: () => '<div class="ft"><button class="b gh" data-a="diag">Teşhisi kopyala</button><button class="b gh" data-a="log" title="Teşhis + adım günlüğü + sonuçlar (.txt)">⬇ Günlük (.txt)</button></div>',
+  };
+  /** Ortak düğmeler: ID kopyala, günlük indir, ayarlar aç/kapa. true dönerse işlendi. */
+  function uiClick(a, t) {
+    if (a === 'copyids') {
+      const g = t.getAttribute('data-g');
+      if (g === 'sel') { copyIds(idList(selectedItems()), 'seçili'); return true; }
+      const r = S.res || {};
+      if (g === 'done') { copyIds(idList(DONE_KEYS.flatMap((k) => r[k] || [])), 'yapılan'); return true; }
+      copyIds(idList(r[g] || []), (RES_GROUPS.find((x) => x[0] === g) || ['', ''])[1].toLowerCase()); return true;
+    }
+    if (a === 'log') { downloadLog(); return true; }
+    if (a === 'drytoggle') { patchSettings({ dryRun: !settings.dryRun }); render(); return true; }
+    return false;
+  }
+  const RES_GROUPS = [['done', 'Pasife alınan'], ['dry', 'Deneme'], ['skipped', 'Atlanan'], ['errors', 'Hata'], ['pending', 'İşlenmeyen']];
+  const DONE_KEYS = ['done'];
+  const selectedItems = () => (S.phase === 'ready' ? S.targets.filter((t) => !S.excluded.has(t.sid)) : []);
   function render() {
     if (!root) return;
     if (pressed) { wantRender = true; return; }
@@ -925,37 +1025,41 @@
     if (focused && focused.tagName === 'INPUT' && focused.type === 'number') { const st = bar.querySelector('#st'); if (st) st.textContent = S.status; return; }
     const busyNow = S.running; const r = S.res;
     const work = S.phase === 'ready' ? Math.min(workList().length, settings.max) : 0;
-    const p = [];
-    p.push('<div class="hd"><b>⊘ Servis Pasifle' + (settings.dryRun ? ' <small>(deneme)</small>' : '') + '</b><button data-a="min" title="Küçült/Büyüt">' + (minimized ? '▢' : '–') + '</button></div><div class="body">');
     const mass = settings.method === 'mass';
-    p.push('<div class="tabs"><button class="tab' + (mass ? ' on' : '') + '" data-a="method" data-v="mass"' + (busyNow ? ' disabled' : '') + '>Toplu: kutucuk → Disable all</button><button class="tab' + (mass ? '' : ' on') + '" data-a="method" data-v="single"' + (busyNow ? ' disabled' : '') + '>Tek tek: Disable service</button></div>');
-    p.push('<div class="row"><button class="b" data-a="scan"' + (busyNow ? ' disabled' : '') + '>Not Assigned\'daki aktif servisleri bul</button></div>');
+    const p = [ui.head('⊘', 'Servis Pasifle'), '<div class="body">'];
+    p.push('<div class="tabs"><button class="tab' + (mass ? ' on' : '') + '" data-a="method" data-v="mass"' + (busyNow ? ' disabled' : '') + ' title="Kutucukları işaretle → Disable all">Toplu</button><button class="tab' + (mass ? '' : ' on') + '" data-a="method" data-v="single"' + (busyNow ? ' disabled' : '') + ' title="Her servis için Actions → Disable service">Tek tek</button></div>');
+    p.push('<button class="b" data-a="scan"' + (busyNow ? ' disabled' : '') + '>Not Assigned\'daki aktif servisleri bul</button>');
     if (S.stats) p.push('<small class="sum">Not Assigned: ' + S.stats.okunan + ' servis · <b>' + S.stats.aktif + ' aktif</b> · ' + S.stats.pasif + ' pasif' + (S.stats.belirsiz ? ' · ' + S.stats.belirsiz + ' belirsiz' : '') + '</small>');
     if (S.phase === 'ready' && S.targets.length) {
-      p.push('<div class="row"><small>Pasife alınacak (işareti kaldırılan atlanır):</small><button class="lk" data-a="all">hepsi</button><button class="lk" data-a="none">hiçbiri</button></div>');
-      p.push('<div class="list" id="spList">' + S.targets.map((t) => '<label class="it"><input type="checkbox" data-x="' + esc(t.sid) + '"' + (S.excluded.has(t.sid) ? '' : ' checked') + '> <span>' + esc(t.sid + ' — ' + t.name) + '</span></label>').join('') + '</div>');
+      const sel = S.targets.filter((t) => !S.excluded.has(t.sid)).length;
+      p.push(ui.pick('spList', 'Pasife alınacak', S.targets.map((t) => '<label class="it"><input type="checkbox" data-x="' + esc(t.sid) + '"' + (S.excluded.has(t.sid) ? '' : ' checked') + (busyNow ? ' disabled' : '') + '> <span>' + esc(t.sid + ' — ' + t.name) + '</span></label>'), sel, busyNow));
     }
-    const why = busyNow ? 'İş sürüyor' : S.phase !== 'ready' ? 'Önce "Not Assigned\'daki aktif servisleri bul"a bas' : !workList().length ? 'Pasife alınacak aktif servis yok' : '';
     if (S.phase === 'ready' && !S.targets.length && !busyNow) p.push('<div class="ok">✓ Not Assigned\'daki tüm servisler zaten pasif — yapılacak iş yok.</div>');
-    p.push('<div class="row"><button class="b red" data-a="run" title="' + esc(why) + '"' + (why ? ' disabled' : '') + '>' + (settings.dryRun ? 'Dene' : 'Pasife al') + ' (' + work + ')</button><button class="b" data-a="stop"' + (busyNow ? '' : ' disabled title="Yalnızca iş sürerken"') + '>Durdur</button></div>');
-    p.push('<div class="row"><label><input type="checkbox" data-s="dry"' + (settings.dryRun ? ' checked' : '') + '> Deneme modu</label><label>en çok <input type="number" min="1" max="5000" data-s="max" value="' + settings.max + '"></label></div>');
+    const why = busyNow ? 'İş sürüyor' : S.phase !== 'ready' ? 'Önce "Not Assigned\'daki aktif servisleri bul"a bas' : !workList().length ? 'Pasife alınacak aktif servis yok' : '';
+    p.push('<div class="main"><button class="b red" data-a="run" title="' + esc(why) + '"' + (why ? ' disabled' : '') + '>' + (settings.dryRun ? 'Dene' : 'Pasife al') + ' (' + work + ')</button><button class="b" data-a="stop"' + (busyNow ? '' : ' disabled title="Yalnızca iş sürerken"') + '>Durdur</button></div>');
     const a = autoGet();
     const every = (a && a.every) || settings.every || 5;
-    p.push('<div class="row"><label><input type="checkbox" data-s="auto"' + (a && a.on ? ' checked' : '') + '> Otomatik: her</label><input type="number" min="1" max="120" data-s="every" value="' + every + '"><label>dk yenile + kontrol et</label></div>');
+    let autoBox = '';
     if (a && a.on) {
       const h = (a.history || [])[0];
-      p.push('<small class="auto" id="spAuto">● Otomatik AÇIK (' + (a.real ? '<b>GERÇEK</b>' : 'DENEME') + ') · sonraki: ' + hhmm(S.autoInfo && S.autoInfo.next) + (h ? ' · son ' + hhmm(h.at) + ': ' + (h.bulunan || 0) + ' bulundu, ' + (a.real ? (h.yapilan || 0) + ' pasife alındı' : (h.deneme || 0) + ' deneme') + (h.hata ? ', ' + h.hata + ' hata' : '') : '') + (a.lastSkip && (!h || a.lastSkip.at > h.at) ? '<br>son tur atlandı (' + hhmm(a.lastSkip.at) + '): ' + esc(a.lastSkip.why) : '') + '</small>');
+      autoBox = '<div class="autoinfo" id="spAuto">● Otomatik AÇIK (' + (a.real ? '<b>GERÇEK</b>' : 'deneme') + ') · sonraki tur ' + hhmm(S.autoInfo && S.autoInfo.next) + (h ? '<br>Son tur ' + hhmm(h.at) + ': ' + (h.bulunan || 0) + ' bulundu, ' + (a.real ? (h.yapilan || 0) + ' pasife alındı' : (h.deneme || 0) + ' deneme') + (h.hata ? ', ' + h.hata + ' hata' : '') : '') + (a.lastSkip && (!h || a.lastSkip.at > h.at) ? '<br>Son tur atlandı (' + hhmm(a.lastSkip.at) + '): ' + esc(a.lastSkip.why) : '') + '</div>';
     } else if (a && a.offReason && a.offReason !== 'elle kapatıldı') {
-      p.push('<small class="warn">' + esc(a.offReason) + '</small>');
+      autoBox = '<div class="autoinfo warn">' + esc(a.offReason) + '</div>';
     }
-    if (a && (a.history || []).length) p.push('<div class="list" id="spHist">' + a.history.slice(0, 5).map((h) => '<div>' + hhmm(h.at) + ' · ' + (h.bulunan || 0) + ' bulundu · ' + (h.gercek ? (h.yapilan || 0) + ' pasife alındı' : (h.deneme || 0) + ' deneme') + (h.hata ? ' · ' + h.hata + ' hata' : '') + (/^⚠/.test(h.durum || '') ? ' · <small>' + esc(h.durum) + '</small>' : '') + '</div>').join('') + '</div>');
-    p.push('<div class="st' + (/^⚠/.test(S.status) ? ' warn' : '') + '" id="st">' + esc(S.status) + '</div>');
-    if (r.done.length || r.dry.length || r.skipped.length || r.errors.length) {
-      const sec = (a, t) => a.length ? '<div><b>' + t + ' (' + a.length + ')</b></div>' + a.map((x) => '<div>' + esc(x.name) + ' <small>' + esc(x.reason || '') + '</small></div>').join('') : '';
-      p.push('<div class="list" id="spRes">' + sec(r.done, 'Pasife alınan') + sec(r.dry, 'Deneme') + sec(r.skipped, 'Atlanan') + sec(r.errors, 'Hata') + '</div>');
-    }
+    const autoRows = [
+      ui.row('Otomatik mod', '<span class="in"><input type="checkbox" data-s="auto"' + (a && a.on ? ' checked' : '') + '></span>', 'Sayfayı yenileyip kendiliğinden Not Assigned\'ı kontrol eder'),
+      ui.row('Kaç dakikada bir', '<span class="in"><input type="number" min="1" max="120" data-s="every" value="' + every + '"> dk</span>'),
+    ];
+    p.push(autoBox);
+    p.push(ui.status());
+    p.push(ui.res('spRes', r));
+    if (a && (a.history || []).length) p.push('<div class="blk"><div class="bh"><span>Otomatik turlar</span></div><div class="list" id="spHist">' + a.history.slice(0, 5).map((h) => '<div>' + hhmm(h.at) + ' · ' + (h.bulunan || 0) + ' bulundu · ' + (h.gercek ? (h.yapilan || 0) + ' pasife alındı' : (h.deneme || 0) + ' deneme') + (h.hata ? ' · ' + h.hata + ' hata' : '') + (/^⚠/.test(h.durum || '') ? ' · <small>' + esc(h.durum) + '</small>' : '') + '</div>').join('') + '</div></div>');
     if (S.notes.length) p.push('<small>' + S.notes.map(esc).join('<br>') + '</small>');
-    p.push('<div class="row"><button class="b" data-a="diag">Teşhisi kopyala</button></div></div>');
+    p.push(ui.settings([
+      ui.row('Deneme modu', '<span class="in"><input type="checkbox" data-s="dry"' + (settings.dryRun ? ' checked' : '') + '></span>', 'Açıkken hiçbir servis pasife alınmaz'),
+      ui.row('En çok', '<span class="in"><input type="number" min="1" max="5000" data-s="max" value="' + settings.max + '"> servis</span>'),
+    ].concat(autoRows)));
+    p.push(ui.foot(), '</div>');
     bar.className = 'bar' + (minimized ? ' min' : '');
     bar.innerHTML = p.join('');
     placeBar();
@@ -966,6 +1070,7 @@
     const t = ev.target.closest && ev.target.closest('[data-a]');
     if (!t || t.disabled || t.hasAttribute('disabled')) return;
     const a = t.getAttribute('data-a');
+    if (uiClick(a, t)) return;
     if (a === 'min') { minimized = !minimized; try { localStorage.setItem('sp_min', minimized ? '1' : '0'); } catch (e) { /* yok */ } render(); document.dispatchEvent(new CustomEvent('panel-arac-yerles')); }
     else if (a === 'scan') gScan();
     else if (a === 'method') { patchSettings({ method: t.getAttribute('data-v') }); render(); }
@@ -1006,6 +1111,8 @@
         case 'settings': patchSettings(msg.patch); render(); done(); return false;
         case 'exclude': if (msg.all !== undefined) setAll(!!msg.all); else if (msg.on) S.excluded.add(msg.key); else S.excluded.delete(msg.key); render(); done(); return false;
         case 'diag': respond({ text: diag() }); return false;
+        case 'ids': { const g = msg.g; const r = S.res || {}; respond({ ids: g === 'sel' ? idList(selectedItems()) : g === 'done' ? idList(DONE_KEYS.flatMap((k) => r[k] || [])) : idList(r[g] || []) }); return false; }
+        case 'log': respond({ text: logText(), name: ME + '-gunluk-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.txt' }); return false;
         case 'autoTick': respond(autoTick()); return false;
         case 'auto': if (msg.every !== undefined) autoEvery(msg.every); if (msg.on !== undefined) autoEnable(!!msg.on); done(); return false;
         default: done(); return false;

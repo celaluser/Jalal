@@ -28,3 +28,11 @@
 ## Tasarım
 Sayfadaki çubuklar ve mini paneller ortak, açık/koyu temaya uyan bir tasarıma geçti (araç renkleri: Kategori mavi, Pasifle yeşil, Taşı turuncu).
 Ayrı eklentiler de aynı tasarımı kullanır; onların çubukları da artık **sağ altta** durur (soldaki tgwatch logosuyla çakışmaz).
+
+## Arayüz düzeni (1.3.0)
+Her aracın çubuğu ve mini paneli aynı sırayla: **Bul** → özet → **seçim listesi** (başlıkta seçili/toplam, hepsi, hiçbiri, **⧉ ID'ler**) →
+**Çalıştır / Durdur** → durum → **Sonuç** (her grubun ve "yapılan"ların ID'leri ayrı kopyalanır) → **Ayarlar** (sayfadaki çubukta katlanır) →
+**Teşhisi kopyala** · **⬇ Günlük (.txt)**.
+- **ID kopyala:** virgülle bitişik, ör. `62727,26272,2627` (servislerde servis ID, kategorilerde kategori ID).
+- **Günlük (.txt):** teşhis + adım adım günlük + sonuç listeleri (ID'leriyle) tek dosyada indirilir; hata olunca bunu gönder.
+- Başlıktaki **DENEME / GERÇEK** etiketine tıklayınca mod değişir.

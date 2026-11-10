@@ -46,11 +46,32 @@ function paint(s) {
   $('st').textContent = s.status;
   $('st').className = /^⚠/.test(s.status) ? 'warn' : '';
   const r = s.res;
-  const sec = (a, t) => a.length ? '<div><b>' + t + ' (' + a.length + ')</b></div>' + a.map((x) => '<div>' + esc(x.name) + ' <small>' + esc(x.reason || '') + '</small></div>').join('') : '';
+  const sec = (a, t) => a.length ? '<div class="gh"><b>' + t + ' (' + a.length + ')</b></div>' + a.map((x) => '<div>' + esc(x.name) + ' <small>' + esc(x.reason || '') + '</small></div>').join('') : '';
   const rh = sec(r.done, 'Pasife alınan') + sec(r.dry, 'Deneme') + sec(r.skipped, 'Atlanan') + sec(r.errors, 'Hata');
   $('res').hidden = !rh; $('res').innerHTML = rh;
+  $('resCard').hidden = !rh;
+  const selN = ((typeof lst !== 'undefined' && lst) || s.targets || s.items || []).filter((x) => !x.off).length; const allN = ((typeof lst !== 'undefined' && lst) || s.targets || s.items || []).length; if ($('selCount')) $('selCount').textContent = allN ? selN + '/' + allN : '';
 }
 async function tick() { paint(await send({ cmd: 'state' })); }
+// ---- ID kopyala ve günlük indir (içerik betiğinden alınır) ----
+const flashMsg = (t) => { $('msg').textContent = t; clearTimeout(flashMsg.h); flashMsg.h = setTimeout(() => { $('msg').textContent = ''; }, 2600); };
+async function copyIdsFrom(g, what) {
+  const r = await send({ cmd: 'ids', g });
+  const ids = (r && r.ids) || [];
+  if (!ids.length) return flashMsg('Kopyalanacak ID yok');
+  try { await navigator.clipboard.writeText(ids.join(',')); flashMsg('✓ ' + ids.length + ' ' + what + ' ID kopyalandı'); } catch (e) { flashMsg('⚠ Panoya kopyalanamadı'); }
+}
+$('cpSel').onclick = () => copyIdsFrom('sel', 'seçili');
+$('cpDone').onclick = () => copyIdsFrom('done', 'yapılan');
+$('cpErr').onclick = () => copyIdsFrom('errors', 'hatalı');
+$('log').onclick = async () => {
+  const r = await send({ cmd: 'log' });
+  if (!r || !r.text) return flashMsg('⚠ Günlük alınamadı (sayfayı yenile)');
+  const url = URL.createObjectURL(new Blob(['﻿' + r.text], { type: 'text/plain;charset=utf-8' }));
+  const a = document.createElement('a'); a.href = url; a.download = r.name || 'gunluk.txt'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  flashMsg('⬇ ' + (r.name || 'gunluk.txt') + ' indirildi');
+};
 (async () => {
   tabId = await findTab();
   $('scan').onclick = async () => paint(await send({ cmd: 'scan' }));
