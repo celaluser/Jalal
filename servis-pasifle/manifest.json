@@ -2,11 +2,12 @@
   "manifest_version": 3,
   "name": "Servis Pasifle — Not Assigned",
   "short_name": "Servis Pasifle",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "description": "Perfect Panel Services sayfasında Not Assigned kategorisindeki aktif servisleri bulur ve pasife alır (Disable service). Otomatik mod: her N dakikada sayfayı yenileyip yeniden kontrol eder. Deneme modu, durdur, en çok N; arka planda da çalışır.",
   "minimum_chrome_version": "103",
   "permissions": [
-    "alarms"
+    "alarms",
+    "storage"
   ],
   "host_permissions": [
     "https://panelbaku.com/*"

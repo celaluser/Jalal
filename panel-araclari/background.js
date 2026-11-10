@@ -19,6 +19,33 @@ async function anyAuto(tabId) {
   for (const p of PREFIXES) if (await chrome.alarms.get(p + tabId)) return true;
   return false;
 }
+// ---- simge rozeti: "●" (sarı) bir araç çalışıyor, "OTO" (yeşil) otomatik mod açık ----
+const busyTabs = new Map(); // tabId → çalışan araç sayısı
+async function badge(tabId) {
+  if (tabId == null) return;
+  const busy = (busyTabs.get(tabId) || 0) > 0;
+  const auto = !busy && await anyAuto(tabId).catch(() => false);
+  const text = busy ? '●' : auto ? 'OTO' : '';
+  try {
+    await chrome.action.setBadgeText({ tabId, text });
+    if (text) await chrome.action.setBadgeBackgroundColor({ tabId, color: busy ? '#d99a1b' : '#1f8a5b' });
+    await chrome.action.setTitle({ tabId, title: 'Panel Araçları' + (busy ? ' — çalışıyor' : auto ? ' — otomatik mod açık' : '') });
+  } catch (e) { /* sekme kapandı */ }
+}
+const NAMES = { kt: 'Kategori Temizle', sp: 'Servis Pasifle', pt: 'Pasif Servis Taşı' };
+/** Gerçek değişiklik ya da hata olan biten iş: masaüstü bildirimi (mini panelden kapatılabilir). */
+async function notify(entry) {
+  const { pa_notify: on } = await chrome.storage.local.get({ pa_notify: true });
+  if (on === false || !entry) return;
+  try {
+    await chrome.notifications.create('pa-' + entry.tool + '-' + entry.at, {
+      type: 'basic', iconUrl: 'icons/128.png', priority: entry.errors ? 2 : 0,
+      title: (NAMES[entry.tool] || 'Panel Araçları') + (entry.auto ? ' (otomatik)' : '') + (entry.errors ? ' — hata var' : ''),
+      message: String(entry.text || '').slice(0, 250),
+    });
+  } catch (e) { /* bildirim izni yok */ }
+}
+
 async function setDiscardable(tabId, v) {
   if (tabId == null) return;
   if (v && await anyAuto(tabId).catch(() => false)) return; // otomatik mod açıkken korunmaya devam
@@ -38,6 +65,9 @@ chrome.runtime.onConnect.addListener((port) => {
       timers.add(h);
     } else if (m.t === 'busy') {
       setDiscardable(tabId, !m.on);
+      if (tabId != null) { const n = (busyTabs.get(tabId) || 0) + (m.on ? 1 : -1); busyTabs.set(tabId, Math.max(0, n)); badge(tabId); }
+    } else if (m.t === 'notify') {
+      notify(m.entry);
     } else if (m.t === 'auto' && tabId != null && prefix) {
       const name = prefix + tabId;
       if (m.on) {
@@ -50,6 +80,7 @@ chrome.runtime.onConnect.addListener((port) => {
         setDiscardable(tabId, true);
       }
       post({ t: 'autoInfo', info: await autoInfo(name) });
+      badge(tabId);
     } else if (m.t === 'autoInfo' && tabId != null && prefix) {
       post({ t: 'autoInfo', info: await autoInfo(prefix + tabId) });
     }
@@ -57,6 +88,7 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onDisconnect.addListener(() => {
     timers.forEach(clearTimeout);
     setDiscardable(tabId, true);
+    if (tabId != null) { busyTabs.delete(tabId); badge(tabId); } // sayfa yenilendi/kapandı: çalışan iş kalmadı
   });
 });
 
@@ -68,6 +100,7 @@ async function onAutoAlarm(name) {
   const tabId = Number(name.slice(prefix.length));
   let tab;
   try { tab = await chrome.tabs.get(tabId); } catch (e) { await chrome.alarms.clear(name); return 'sekme-yok'; }
+  badge(tabId);
   if (!tab.url || !SERVICES_URL.test(tab.url)) return 'atla-adres'; // başka sayfadaysa yenileme
   // Diğer aracın alarmı az önce yeniledi: yenilenen sayfada iki araç da turunu yapar, ikinci yenileme onları yarıda keserdi.
   if (tab.status === 'loading' || Date.now() - (lastReload.get(tabId) || 0) < 45000) return 'atla-yeni-yenilendi';
@@ -84,3 +117,8 @@ async function onAutoAlarm(name) {
 self.__autoTick = onAutoAlarm; // test kancası
 self.__forgetReload = (tabId) => lastReload.delete(tabId); // test kancası
 chrome.alarms.onAlarm.addListener((al) => { onAutoAlarm(al.name); });
+self.__notify = notify; self.__badge = badge; // test kancaları
+chrome.notifications.onClicked.addListener(async () => { // bildirime tıkla: panel sekmesine git
+  const [t] = await chrome.tabs.query({ url: 'https://panelbaku.com/admin/services*' });
+  if (t) { chrome.tabs.update(t.id, { active: true }); chrome.windows.update(t.windowId, { focused: true }); }
+});

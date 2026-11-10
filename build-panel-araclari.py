@@ -18,7 +18,7 @@ for src, js, key in TOOLS:
     html = (d / 'popup.html').read_text(encoding='utf-8')
     assert html.count('<script src="popup.js"></script>') == 1, src
     # birleşik mini panelde her araç bir sekmenin içinde (iframe) açılır: gövde genişliği çerçeveye uysun
-    html = html.replace('<script src="popup.js"></script>', '<script src="%s.js"></script>' % key).replace('width:340px;', 'width:auto;', 1)
+    html = html.replace('<script src="popup.js"></script>', '<script src="%s.js"></script>' % key).replace('body{margin:0;width:350px;', 'body{margin:0;width:auto;', 1).replace('<h1>', '<h1 hidden>', 1)
     (OUT / (key + '.html')).write_text(html, encoding='utf-8')
     (OUT / (key + '.js')).write_text(HEAD.format(src=src, name='popup.js') + (d / 'popup.js').read_text(encoding='utf-8'), encoding='utf-8')
     versions[key] = json.loads((d / 'manifest.json').read_text(encoding='utf-8'))['version']

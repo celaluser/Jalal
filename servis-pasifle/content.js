@@ -8,7 +8,7 @@
   if (window.__servisPasifle) return;
   window.__servisPasifle = true;
 
-  const VERSION = '1.2.2';
+  const VERSION = '1.3.0';
   const SETTINGS_KEY = 'sp_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const TOGGLE = '.service-table__header-hide-all, [class*="header-hide-all"]';
@@ -131,6 +131,18 @@
   }
   function log(msg) { S.log.push(new Date().toTimeString().slice(0, 8) + ' ' + msg); if (S.log.length > 300) S.log.shift(); }
   function setStatus(t) { S.status = t; log(t); render(); }
+  /** Biten işi geçmişe yaz (mini panel → Geçmiş) ve gerçek değişiklik/hata varsa arka plana bildir (masaüstü bildirimi). */
+  function recordRun(text) {
+    try {
+      const r = S.res || {};
+      const doneArr = [].concat(r.done || [], r.deleted || [], r.moved || []);
+      const entry = { tool: ME, at: Date.now(), dry: !!settings.dryRun, auto: !!autoBusy, text, done: doneArr.length, errors: (r.errors || []).length,
+        items: doneArr.slice(0, 40).map((x) => (x && x.name) || String(x)), errorItems: (r.errors || []).slice(0, 10).map((x) => ((x && x.name) || '') + (x && x.reason ? ' — ' + x.reason : '')) };
+      chrome.storage.local.get({ pa_history: [] }, (o) => { void chrome.runtime.lastError; chrome.storage.local.set({ pa_history: [entry].concat((o && o.pa_history) || []).slice(0, 150) }); });
+      const p = getPort();
+      if (p && !entry.dry && (entry.done || entry.errors)) p.postMessage({ t: 'notify', entry });
+    } catch (e) { /* depolama yok (eski kurulum) */ }
+  }
   const remember = (kind, arr) => {
     for (const t of arr) if (t && !S.seen[kind].includes(t)) S.seen[kind].push(t);
     S.seen[kind] = S.seen[kind].slice(-12);
@@ -688,6 +700,7 @@
       if (r.pending.length) bits.push(r.pending.length + ' işlenmedi');
       S.phase = 'idle'; S.targets = [];
       setStatus((S.stop ? 'Durduruldu. ' : 'Bitti. ') + bits.join(', ') + '.');
+      recordRun(S.status);
     } catch (e) {
       fail('Hata: ' + (e && e.message));
     } finally {
@@ -831,28 +844,42 @@
   // ---------------------------------------------------------------- arayüz (shadow DOM)
   let host = null; let root = null; let minimized = false;
   try { const m = localStorage.getItem('sp_min'); minimized = m === '1'; } catch (e) { /* yok */ }
+  // Ortak tasarım (Panel Araçları): açık/koyu tema, araç rengi --ac.
   const CSS = `
-    :host{all:initial}
-    .bar{position:fixed;bottom:12px;z-index:2147483646;width:300px;font:12px/1.4 system-ui,sans-serif;color:#e8ecf4;background:#1e2a24;border:1px solid #3c5a4a;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
+    :host{all:initial;--ac:#1f8a5b;--ac2:#176b46;--ink:#16202a;--mut:#5d6b78;--line:#e2e7ec;--bg:#ffffff;--soft:#f4f6f9;--red:#c0324a;--ok:#1f7a45;--warnc:#a34a1a}
+    @media (prefers-color-scheme:dark){:host{--ink:#e8edf2;--mut:#9aa7b4;--line:#2a3441;--bg:#18202b;--soft:#121821;--red:#f2537d;--ok:#5cc58a;--warnc:#f0a46a}}
+    *{box-sizing:border-box}
+    .bar{position:fixed;right:12px;bottom:12px;z-index:2147483646;width:320px;max-width:calc(100vw - 24px);font:12.5px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);
+      border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(15,23,42,.18),0 2px 6px rgba(15,23,42,.08);overflow:hidden}
     .bar.min{width:auto}.bar.min .body{display:none}
-    .hd{display:flex;align-items:center;gap:6px;padding:6px 8px}.hd b{flex:1}
-    .hd button{all:unset;cursor:pointer;padding:0 6px;border-radius:4px;color:#aab4cc}.hd button:hover{background:#2c3f35}
-    .body{padding:0 8px 8px;display:flex;flex-direction:column;gap:6px}
-    .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-    button.b{all:unset;cursor:pointer;padding:5px 9px;border-radius:6px;background:#2d4a3c;color:#fff}
-    button.b:hover{background:#3a604d}button.b[disabled]{opacity:.4;cursor:default}
-    button.red{background:#9b2c3a}button.red:hover{background:#b73646}
-    .st{white-space:pre-wrap;color:#c9d8d0}.warn{color:#ffb4a8}
-    .list{max-height:140px;overflow:auto;background:#121a16;border-radius:6px;padding:4px 6px}
-    .list > div{padding:1px 0;border-bottom:1px solid #20302a}
-    .it{display:flex;gap:4px;align-items:center;padding:1px 0;border-bottom:1px solid #20302a}.it span{flex:1}
-    .lk{all:unset;cursor:pointer;color:#8fd0ff;font-size:11px;margin-left:6px}
-    label{display:flex;gap:4px;align-items:center}
-    input[type=number]{width:56px;background:#121a16;color:#fff;border:1px solid #3c5a4a;border-radius:4px;padding:2px 4px}
-    small{color:#9fb3a8}
-    .tabs{display:flex;gap:4px}.tab{all:unset;cursor:pointer;flex:1;text-align:center;padding:4px 6px;border-radius:6px;background:#121a16;color:#a9c2b5;font-size:11px}.tab.on{background:#3a604d;color:#fff}.tab[disabled]{opacity:.5;cursor:default}
-    .auto{color:#8fe0b0}.warn{color:#ffb4a8}
-    .ok{color:#8fe0b0;background:#16301f;border-radius:6px;padding:4px 6px}
+    .hd{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:linear-gradient(0deg,var(--bg),color-mix(in srgb,var(--ac) 7%,var(--bg)))}
+    .bar.min .hd{border-bottom:0}
+    .hd b{flex:1;font-size:13px;font-weight:650;display:flex;align-items:center;gap:6px}
+    .hd small{font-weight:600;color:var(--warnc);background:color-mix(in srgb,var(--warnc) 12%,transparent);padding:1px 7px;border-radius:999px;font-size:10.5px}
+    .hd button{all:unset;cursor:pointer;width:24px;height:24px;display:grid;place-items:center;border-radius:7px;color:var(--mut)}.hd button:hover{background:var(--soft);color:var(--ink)}
+    .body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;max-height:min(70vh,560px);overflow:auto}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    button.b{all:unset;cursor:pointer;height:30px;padding:0 12px;display:inline-flex;align-items:center;border-radius:8px;background:var(--ac);color:#fff;font-weight:600;font-size:12.5px}
+    button.b:hover{filter:brightness(1.08)}button.b:focus-visible,.tab:focus-visible,.lk:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+    button.b[disabled]{opacity:.38;cursor:default;filter:none}
+    button.red{background:var(--red)}
+    button.b[data-a=stop],button.b[data-a=diag]{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+    button.b[data-a=stop]:hover,button.b[data-a=diag]:hover{background:var(--soft)}
+    .st{white-space:pre-wrap;padding:8px 10px;border-radius:9px;background:var(--soft);color:var(--ink)}
+    .st.warn,.warn{color:var(--red)}.st.warn{background:color-mix(in srgb,var(--red) 10%,var(--bg))}
+    .list{max-height:150px;overflow:auto;background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:4px 8px}
+    .list > div{padding:3px 0;border-bottom:1px solid var(--line)}.list > div:last-child{border-bottom:0}
+    .it{display:flex;gap:6px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line)}.it:last-child{border-bottom:0}.it span{flex:1;min-width:0;overflow-wrap:anywhere}
+    .lk{all:unset;cursor:pointer;color:var(--ac);font-size:11.5px;font-weight:600;margin-left:6px}.lk:hover{text-decoration:underline}
+    label{display:flex;gap:6px;align-items:center;cursor:pointer}
+    input[type=checkbox]{accent-color:var(--ac);width:14px;height:14px;margin:0}
+    input[type=number]{width:62px;height:26px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:0 6px;font:inherit}
+    input[type=number]:focus{outline:2px solid var(--ac);outline-offset:0;border-color:transparent}
+    small{color:var(--mut)}.sum{display:block;padding:6px 8px;border-radius:8px;background:color-mix(in srgb,var(--ac) 8%,var(--bg))}
+    .tabs{display:flex;gap:3px;padding:3px;background:var(--soft);border-radius:10px}
+    .tab{all:unset;cursor:pointer;flex:1;text-align:center;padding:6px;border-radius:8px;color:var(--mut);font-size:11.5px;font-weight:600}.tab.on{background:var(--bg);color:var(--ink);box-shadow:0 1px 3px rgba(15,23,42,.12)}.tab[disabled]{opacity:.5;cursor:default}
+    .auto{color:var(--ok)}.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,var(--bg));border-radius:9px;padding:8px 10px}
+    ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
   `;
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function ensureBar() {
@@ -869,17 +896,17 @@
     render();
   }
   /** Kategori Temizle çubuğu da varsa yanına otur (üst üste binmesin). */
-  /** Çubuklar soldan sağa dizilir (Kategori Temizle, Servis Pasifle, Pasif Servis Taşı): soldakilerin gerçek genişliği kadar kayar. */
+  /** Çubuklar sağdan sola dizilir (Kategori Temizle, Servis Pasifle, Pasif Servis Taşı): soldakilerin gerçek genişliği kadar kayar. */
   function placeBar() {
     const b = root && root.getElementById('bar');
     if (!b) return;
-    let left = 12;
+    let right = 12; // sağ altta, soldaki tgwatch logosuyla çakışmasın
     for (const id of ['kt-host']) {
       const h = document.getElementById(id);
       const ob = h && h.shadowRoot && h.shadowRoot.getElementById('bar');
-      if (ob) left += Math.round(ob.getBoundingClientRect().width) + 8;
+      if (ob) right += Math.round(ob.getBoundingClientRect().width) + 8;
     }
-    b.style.left = left + 'px';
+    b.style.right = right + 'px';
   }
 
   document.addEventListener('panel-arac-yerles', () => setTimeout(placeBar, 0)); // soldaki çubuk küçüldü/büyüdü

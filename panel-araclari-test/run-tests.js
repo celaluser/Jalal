@@ -85,10 +85,11 @@ function cats() {
   for (const [t, title] of [['kt', 'Kategori Temizle'], ['sp', 'Servis Pasifle'], ['pt', 'Pasif Servis Taşı']]) {
     await pop.click('#t-' + t);
     const f = pop.frameLocator('#f-' + t);
-    await f.locator('#ver').filter({ hasText: /^v\d/ }).waitFor({ timeout: 10000 });
-    ok(new RegExp(title).test(await f.locator('h1').innerText()), title + ' sekmesi bağlandı (' + await f.locator('#ver').innerText() + ')');
+    await f.locator('#ver').filter({ hasText: /^v\d/ }).waitFor({ state: 'attached', timeout: 10000 });
+    ok(new RegExp(title).test(await f.locator('h1').textContent()), title + ' sekmesi bağlandı (' + await f.locator('#ver').textContent() + ')');
   }
   ok(await pop.frameLocator('#f-pt').locator('#auto').count() === 1, 'Pasif Servis Taşı sekmesinde otomatik mod var');
+  if (process.argv[3]) { await pop.click('#t-pt'); await pop.waitForTimeout(700); await pop.setViewportSize({ width: 372, height: 600 }); await pop.screenshot({ path: process.argv[3] }); }
   await pop.close();
 
   console.log('A4 ortak arka plan: iki aracın alarmı art arda gelirse sayfa bir kez yenilenir');
@@ -119,6 +120,41 @@ function cats() {
   await p.evaluate(() => document.getElementById('pa-dock').shadowRoot.querySelector('button[data-k=pt]').click());
   await p.waitForTimeout(300);
   if (process.argv[2]) await p.screenshot({ path: process.argv[2] });
+  console.log('A6 Geçmiş: biten iş mini panelde görünür; gerçek değişiklikte masaüstü bildirimi');
+  const hist = await sw.evaluate(async () => (await chrome.storage.local.get({ pa_history: [] })).pa_history);
+  ok(hist.length >= 1 && hist[0].tool === 'pt' && hist[0].dry === false && hist[0].done === 2 && /Bitti\. 2 taşındı/.test(hist[0].text), 'geçmişe yazıldı: ' + JSON.stringify(hist[0]).slice(0, 160));
+  const notes = await sw.evaluate(async () => Object.keys(await chrome.notifications.getAll()));
+  ok(notes.some((n) => n.startsWith('pa-pt-')), 'bildirim gösterildi: ' + JSON.stringify(notes));
+  const pop2 = await ctx.newPage();
+  await pop2.goto('chrome-extension://' + extId + '/popup.html?tab=' + tabId);
+  await pop2.click('#t-hist');
+  await pop2.waitForSelector('#h-list li');
+  ok(/Pasif Servis Taşı[\s\S]*gerçek[\s\S]*2 taşındı/.test(await pop2.locator('#h-list li').first().innerText()), 'Geçmiş sekmesinde: ' + (await pop2.locator('#h-list li').first().innerText()).replace(/\s+/g, ' '));
+  await pop2.selectOption('#h-tool', 'kt');
+  ok(await pop2.locator('#h-list li').count() === 0 && /filtreye uyan/.test(await pop2.textContent('#h-empty')), 'araç filtresi');
+  await pop2.selectOption('#h-tool', '');
+  if (process.argv[4]) { await pop2.setViewportSize({ width: 372, height: 560 }); await pop2.screenshot({ path: process.argv[4] }); }
+  await pop2.click('#h-clear'); await pop2.click('#h-clear');
+  await pop2.waitForFunction(() => !document.querySelector('#h-list li'));
+  ok(true, 'temizle (iki tık)');
+  await pop2.close();
+
+  console.log('A7 dok sürüklenir, yeri sayfa yenilense de kalır; çubuk dokun yanına açılır; küçültülünce tek düğme');
+  const grip = await p.evaluate(() => { const r = document.getElementById('pa-dock').shadowRoot.querySelector('.grip').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  await p.mouse.move(grip.x, grip.y); await p.mouse.down(); await p.mouse.move(grip.x - 300, grip.y - 400, { steps: 8 }); await p.mouse.up();
+  await p.waitForTimeout(300);
+  const after = await p.evaluate(() => { const d = document.getElementById('pa-dock').shadowRoot.querySelector('.dock').getBoundingClientRect(); const b = document.getElementById('pt-host').shadowRoot.getElementById('bar').getBoundingClientRect(); return { dTop: Math.round(d.top), dBottom: Math.round(d.bottom), bTop: Math.round(b.top), bBottom: Math.round(b.bottom), saved: localStorage.getItem('pa_pos') }; });
+  ok(after.dTop < 300 && after.saved, 'dok yukarı taşındı ve yeri kaydedildi: ' + JSON.stringify(after));
+  ok(after.bTop >= after.dBottom, 'dok üst yarıda: çubuk altında açıldı');
+  await p.evaluate(() => document.getElementById('pa-dock').shadowRoot.querySelector('.x').click());
+  await p.waitForTimeout(300);
+  eq(await vis(), [], 'küçültülünce araç çubuğu da gizlendi');
+  ok(await p.evaluate(() => document.getElementById('pa-dock').shadowRoot.querySelector('.dock').getBoundingClientRect().width < 60), 'dok tek düğme');
+  await p.evaluate(() => document.getElementById('pa-dock').shadowRoot.querySelector('.x').click());
+  await p.evaluate(() => document.getElementById('pa-dock').shadowRoot.querySelector('.grip').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })));
+  await p.waitForTimeout(300);
+  ok(await p.evaluate(() => { const d = document.getElementById('pa-dock').shadowRoot.querySelector('.dock').getBoundingClientRect(); return Math.round(innerWidth - d.right) === 12 && Math.round(innerHeight - d.bottom) === 12 && !localStorage.getItem('pa_pos'); }), 'çift tık: köşeye döndü');
+
   eq(errors, [], 'JS hatası yok');
   await ctx.close();
   console.log('\n' + (fails ? '✗ ' + fails + ' başarısız' : '✓ hepsi geçti') + '  (' + ((Date.now() - t0) / 1000).toFixed(0) + ' sn)');

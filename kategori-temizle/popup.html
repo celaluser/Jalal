@@ -1,20 +1,35 @@
 <!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><title>Kategori Temizle</title>
 <style>
- body{margin:0;width:340px;font:13px/1.4 system-ui,sans-serif;background:#1b2130;color:#e8ecf4}
- main{padding:10px;display:flex;flex-direction:column;gap:8px}
- h1{font-size:14px;margin:0}
- .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
- button{cursor:pointer;border:0;border-radius:6px;padding:6px 10px;background:#2d3a5c;color:#fff;font:inherit}
- button:hover{background:#3a4a74}button:disabled{opacity:.4;cursor:default}
- #run{background:#9b2c3a}#run:hover{background:#b73646}
- .tabs{display:flex;gap:4px}.tab{flex:1;background:#121724;color:#aab4cc;font-size:12px;padding:5px}.tab.on{background:#3a4a74;color:#fff}
- .lk{background:none;color:#8fb0ff;padding:0 4px;font-size:12px}
- #list,#res{max-height:170px;overflow:auto;background:#121724;border-radius:6px;padding:4px 6px}
- #list label,#res div{display:flex;gap:4px;padding:1px 0;border-bottom:1px solid #1f2740}#list label span{flex:1}
- input[type=number]{width:56px;background:#121724;color:#fff;border:1px solid #3a4560;border-radius:4px;padding:2px 4px}
- #st{white-space:pre-wrap;color:#c9d2e8}small{color:#8f9bb8}.warn{color:#ffb4a8}
- label{display:flex;gap:4px;align-items:center}
+ :root{--ac:#3b5bdb;--ink:#16202a;--mut:#5d6b78;--line:#e2e7ec;--bg:#f4f6f9;--card:#fff;--red:#c0324a;--ok:#1f7a45;--warnc:#a34a1a}
+ @media (prefers-color-scheme:dark){:root{--ink:#e8edf2;--mut:#9aa7b4;--line:#2a3441;--bg:#121821;--card:#18202b;--red:#f2537d;--ok:#5cc58a;--warnc:#f0a46a}}
+ *{box-sizing:border-box}[hidden]{display:none !important}
+ body{margin:0;width:350px;font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+ main{padding:12px;display:flex;flex-direction:column;gap:10px}
+ h1{display:flex;align-items:center;gap:8px;font-size:15px;margin:0;font-weight:650}
+ h1 small{margin-left:auto;font-weight:500;font-size:11px}
+ #ui{display:flex;flex-direction:column;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+ #ui[hidden]{display:none}
+ .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+ button{cursor:pointer;border:0;border-radius:8px;height:32px;padding:0 13px;background:var(--ac);color:#fff;font:600 12.5px system-ui,sans-serif}
+ button:hover{filter:brightness(1.08)}button:disabled{opacity:.38;cursor:default;filter:none}
+ button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+ #run{background:var(--red)}
+ #stop,#diag{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}#stop:hover,#diag:hover{background:var(--bg)}
+ #scan{flex:1}
+ .lk{background:none;height:auto;padding:0 4px;color:var(--ac);font-size:12px}
+ .tabs{display:flex;gap:3px;padding:3px;background:var(--bg);border-radius:10px}
+ .tab{flex:1;height:30px;background:transparent;color:var(--mut);font-size:12px}.tab.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+ #list,#res,#hist{max-height:180px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:4px 8px}
+ #list label,#res div,#hist div{display:flex;gap:6px;padding:4px 0;border-bottom:1px solid var(--line)}#list label:last-child,#res div:last-child{border-bottom:0}#list label span{flex:1;min-width:0;overflow-wrap:anywhere}
+ input[type=checkbox]{accent-color:var(--ac);width:15px;height:15px;margin:0}
+ input[type=number]{width:62px;height:28px;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:0 6px;font:inherit}
+ #st{white-space:pre-wrap;padding:8px 10px;border-radius:9px;background:var(--bg)}#st:empty{display:none}
+ small{color:var(--mut)}.warn{color:var(--red)}#st.warn{background:color-mix(in srgb,var(--red) 10%,var(--card))}
+ #off{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+ label{display:flex;gap:6px;align-items:center;cursor:pointer}
+ .auto{color:var(--ok)}
+ ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
 </style></head>
 <body><main>
  <h1>🗑 Kategori Temizle <small id="ver"></small></h1>

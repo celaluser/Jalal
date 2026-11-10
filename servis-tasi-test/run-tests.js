@@ -253,7 +253,7 @@ const naIds = (s) => s.cats.find((c) => c.name === 'Not Assigned').svcs.map((x) 
     eq(s.moves, [], 'deneme: taşıma yok'); ok(s.assignOpened >= 1 && s.assignOpened === s.assignClosed, 'Assign açıldı ve kapandı');
     const d = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { pt: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(d.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.1.0' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
+    ok(dj && dj.surum === '1.2.0' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
     await pop.close(); await p.close();
   }
 
