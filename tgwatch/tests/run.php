@@ -2194,6 +2194,44 @@ test('Ayarlar: paylaşım kanalı ve şablon doğrulaması', function () {
     eq([true, ''], TgWatch\Settings::check('share_link', ''));
 });
 echo "Chrome eklentisi API\n";
+test('Eklenti API: teach bankadaki eski kayıtları da düzeltir (çevrilmeden kalmış kelime, sözlükteki eski karşılık); word_info şimdiki durumu verir', function () {
+    [$db] = env();
+    $api = new TgWatch\ExtApi($db, []);
+    $one = static function (string $name) use ($api): string {
+        return $api->handle(['action' => 'translate', 'items' => [['id' => 1, 'name' => $name]]])[1]['items'][0]['az'];
+    };
+    // "Almost" çevrilmeden onaylanmış: tam ad ve parça bankaya böyle girdi
+    $api->handle(['action' => 'teach', 'en' => 'Almost', 'keep' => true]);
+    $api->handle(['action' => 'learn', 'items' => [
+        ['id' => 1, 'src' => 'Facebook Followers | Almost No Drop | No Refill', 'az' => 'Facebook Takipçi | Almost Azalma olmaz | Sürətli'],
+        ['id' => 2, 'src' => 'Facebook Likes | Fast', 'az' => 'Facebook Bəyəni | Tez'],
+    ]]);
+    ok(str_contains($one('Facebook Followers | Almost No Drop | 30 Days Refill'), 'Almost Azalma olmaz'), 'önce: banka parçası eski hâliyle gelir');
+    [, $i] = $api->handle(['action' => 'word_info', 'en' => 'almost']);
+    eq(['keep', '', 1], [$i['state'], $i['az'], $i['bank']]);
+    eq('Facebook Followers | Almost No Drop | No Refill', $i['samples'][0]['en']);
+
+    [$c, $t] = $api->handle(['action' => 'teach', 'en' => 'Almost', 'az' => 'Demək olar ki']);
+    eq([200, 1, false], [$c, $t['bank'], $t['keep']]);
+    eq('Facebook Takipçi | Demək olar ki Azalma olmaz | Sürətli', (new TgWatch\Memory($db))->lookup('service', 'Facebook Followers | Almost No Drop | No Refill'), 'tam ad düzeldi');
+    $az = $one('Facebook Followers | Almost No Drop | 30 Days Refill');
+    ok(str_contains($az, 'Demək olar ki Azalma olmaz') && !str_contains($az, 'Almost'), 'parça bankası da düzeldi: ' . $az);
+    [, $i] = $api->handle(['action' => 'word_info', 'en' => 'Almost']);
+    eq(['phrase', 'Demək olar ki'], [$i['state'], $i['az']]);
+
+    // ikinci kez değiştir: bu sefer eski karşılık sözlükteki "Demək olar ki"
+    [, $t] = $api->handle(['action' => 'teach', 'en' => 'almost', 'az' => 'Təxminən']);
+    eq(1, $t['bank']);
+    ok(str_contains($one('Facebook Followers | Almost No Drop | 60 Days Refill'), 'Təxminən Azalma olmaz'));
+    // "aynen kalsın"a geri dön: karşılık yine kaynak kelime olur
+    [, $t] = $api->handle(['action' => 'teach', 'en' => 'Almost', 'keep' => true]);
+    eq(1, $t['bank']);
+    ok(str_contains($one('Facebook Followers | Almost No Drop | 60 Days Refill'), 'Almost Azalma olmaz'));
+    // kelimenin geçmediği kayda ve başka kelimenin içindeki harflere dokunulmaz
+    eq('Facebook Bəyəni | Tez', (new TgWatch\Memory($db))->lookup('service', 'Facebook Likes | Fast'));
+    eq(0, (new TgWatch\Memory($db))->replaceWord('Face', ['Face'], 'Üz'), '"Face" tam kelime değil ("Facebook" içinde)');
+    eq(400, $api->handle(['action' => 'word_info', 'en' => ''])[0]);
+});
 test('Eklenti API: teach bilinmeyen kelimeyi sözlüğe ekler (eski karşılığı değiştirir, ya da olduğu gibi bırakır); balance sağlayıcı bakiyeleri', function () {
     [$db] = env();
     $api = new TgWatch\ExtApi($db, []);

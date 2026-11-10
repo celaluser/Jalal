@@ -34,6 +34,15 @@
     </div>
     <div class="row" id="tab-open" hidden><button id="open-panel" class="btn ghost">Import ekranını aç</button></div>
   </section>
+  <section class="card" id="word">
+    <div class="card-h"><span>Kelimenin çevirisini değiştir</span></div>
+    <div class="wf">
+      <input id="w-en" type="text" placeholder="Kaynak (ör. Almost)" autocomplete="off" spellcheck="false">
+      <input id="w-az" type="text" placeholder="Azerice karşılığı" autocomplete="off" spellcheck="false">
+    </div>
+    <p id="w-info" class="muted small">Sözlükteki karşılığı ve bankadaki eski kayıtları birlikte değiştirir.</p>
+    <div class="row"><button id="w-save" class="btn">Değiştir</button><button id="w-keep" class="btn ghost" title="Marka/özel ad: çevrilmesin">Aynen kalsın</button></div>
+  </section>
   <section class="stats">
     <div><b id="s-today">0</b><small>bugün çevrilen</small></div>
     <div><b id="s-total">0</b><small>toplam</small></div>

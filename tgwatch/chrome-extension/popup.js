@@ -52,6 +52,41 @@ async function init() {
   refresh();
 }
 
+// ---- kelimenin çevirisini değiştir: sözlük + bankadaki eski kayıtlar (tgwatch "teach") ----
+const callApi = (action, payload) => new Promise((res) => chrome.runtime.sendMessage({ type: 'api', action, payload }, (r) => res(chrome.runtime.lastError || !r ? { ok: false, error: 'tgwatch cevap vermedi' } : r)));
+const wInfo = (text, kind) => { const e = $('w-info'); e.textContent = text; e.className = 'muted small' + (kind ? ' ' + kind : ''); };
+let wSeq = 0;
+let wTimer = null;
+async function wordInfo() {
+  const en = $('w-en').value.trim();
+  if (!en) { wInfo('Sözlükteki karşılığı ve bankadaki eski kayıtları birlikte değiştirir.'); return; }
+  const my = ++wSeq;
+  const r = await callApi('word_info', { en });
+  if (my !== wSeq) return;
+  if (!r.ok) { wInfo(/Bilinmeyen işlem/.test(r.error || '') ? 'tgwatch sunucusu eski: şimdiki karşılık gösterilemiyor.' : (r.error || 'tgwatch hatası'), 'bad'); return; }
+  if (r.state === 'phrase' && !$('w-az').value.trim()) $('w-az').value = r.az;
+  wInfo((r.state === 'phrase' ? 'Şimdi: “' + r.az + '”' : r.state === 'keep' ? 'Şimdi: çevrilmiyor (aynen kalsın)' : 'Sözlükte yok')
+    + (r.bank ? ' · bankada ' + r.bank + ' adda geçiyor' + (r.samples && r.samples[0] ? ' (ör. ' + r.samples[0].az + ')' : '') : ' · bankada geçmiyor'));
+}
+$('w-en').addEventListener('input', () => { clearTimeout(wTimer); $('w-az').value = ''; wTimer = setTimeout(wordInfo, 450); });
+async function wordSave(keep) {
+  const en = $('w-en').value.trim();
+  const az = $('w-az').value.trim();
+  if (!en) { wInfo('Kaynak kelimeyi yaz', 'bad'); $('w-en').focus(); return; }
+  if (!keep && !az) { wInfo('Azerice karşılığı yaz', 'bad'); $('w-az').focus(); return; }
+  $('w-save').disabled = $('w-keep').disabled = true;
+  wSeq++;
+  wInfo('tgwatch\'a gönderiliyor…');
+  const r = await callApi('teach', keep ? { en, keep: true } : { en, az });
+  $('w-save').disabled = $('w-keep').disabled = false;
+  if (!r.ok) { wInfo(r.error || 'tgwatch hatası', 'bad'); return; }
+  wInfo('✓ “' + r.en + '”' + (r.keep ? ' çevrilmeyecek' : ' → “' + r.az + '”')
+    + (r.bank === undefined ? ' · sunucu eski: bankadaki eski kayıtlar düzeltilmedi' : r.bank ? ' · bankada ' + r.bank + ' kayıt düzeltildi' : ' · bankada düzeltilecek kayıt yoktu'), 'ok');
+}
+$('w-save').onclick = () => wordSave(false);
+$('w-keep').onclick = () => wordSave(true);
+$('w-az').addEventListener('keydown', (e) => { if (e.key === 'Enter') wordSave(false); });
+
 // ---- sağlayıcı bakiyeleri: 10 dakikadan eskiyse kendiliğinden yenilenir, "Yenile" ile hemen ----
 const money = (v) => {
   const [i, d] = (v !== 0 && Math.abs(v) < 1 ? v.toFixed(4) : v.toFixed(2)).split('.');

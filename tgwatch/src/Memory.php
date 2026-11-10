@@ -172,6 +172,80 @@ final class Memory
         return $n;
     }
 
+    /** Tam kelime/ifade kalıbı (harf/rakam komşusu olmayan; ifadede boşluk sayısı önemsiz; büyük/küçük harf fark etmez). */
+    public static function wordRegex(string $w): string
+    {
+        $parts = array_map(static fn(string $x): string => preg_quote($x, '/'), preg_split('/\s+/u', trim($w)) ?: []);
+        return '/(?<![\p{L}\p{N}])' . implode('\s+', $parts) . '(?![\p{L}\p{N}])/iu';
+    }
+
+    /**
+     * Bankadaki adlarda bir kelimenin karşılığını değiştirir: kaynağında $en geçen VE Azericesinde eski karşılıklardan ($olds) biri
+     * geçen kayıtlarda eski karşılık $new olur; sonra parçalar baştan kurulur. Eski karşılık geçmeyen kayıtlara dokunulmaz.
+     * @param list<string> $olds ör. sözlükteki eski karşılık ve kelimenin çevrilmemiş hâli
+     * @return int düzeltilen kayıt sayısı
+     */
+    public function replaceWord(string $en, array $olds, string $new): int
+    {
+        $en = trim($en);
+        $new = trim($new);
+        $olds = array_values(array_unique(array_filter(array_map('trim', $olds), static fn(string $o): bool => $o !== '' && mb_strtolower($o) !== mb_strtolower($new))));
+        if ($en === '' || $new === '' || !$olds) {
+            return 0;
+        }
+        usort($olds, static fn(string $a, string $b): int => mb_strlen($b) <=> mb_strlen($a)); // uzun ifade önce
+        $enRe = self::wordRegex($en);
+        $oldRes = array_map([self::class, 'wordRegex'], $olds);
+        $n = 0;
+        $this->db->tx(function () use ($enRe, $oldRes, $new, &$n): void {
+            foreach ($this->db->all("SELECT id, kind, en, en_norm, az FROM tm WHERE kind IN ('service', 'category') AND status != 'rejected'") as $r) {
+                if (!preg_match($enRe, $r['en']) && !preg_match($enRe, $r['en_norm'])) {
+                    continue;
+                }
+                $az = $r['az'];
+                foreach ($oldRes as $re) {
+                    $az = preg_replace_callback($re, static fn(): string => $new, $az) ?? $az;
+                }
+                $az = trim(preg_replace('/\s+/u', ' ', $az) ?? $az);
+                if ($az === $r['az'] || $az === '') {
+                    continue;
+                }
+                // Düzeltilmiş hâli zaten kayıtlıysa (aynı kaynak + aynı Azerice) eskisi silinir.
+                if ($this->db->one('SELECT id FROM tm WHERE kind = ? AND en_norm = ? AND az = ? AND id != ?', [$r['kind'], $r['en_norm'], $az, $r['id']])) {
+                    $this->db->run('DELETE FROM tm WHERE id = ?', [$r['id']]);
+                } else {
+                    $this->db->run('UPDATE tm SET az = ?, updated_at = ? WHERE id = ?', [$az, time(), $r['id']]);
+                }
+                $n++;
+            }
+        });
+        if ($n) {
+            $this->rebuildSegments();
+        }
+        return $n;
+    }
+
+    /**
+     * Kaynağında $en geçen banka kayıtları (eklentideki "kelimeyi değiştir" kutusu için).
+     * @return array{count:int, samples:list<array{en:string,az:string}>}
+     */
+    public function wordUses(string $en, int $limit = 3): array
+    {
+        $re = self::wordRegex($en);
+        $count = 0;
+        $samples = [];
+        foreach ($this->db->all("SELECT en, az FROM tm WHERE kind IN ('service', 'category') AND status = 'ok' ORDER BY updated_at DESC") as $r) {
+            if (!preg_match($re, $r['en'])) {
+                continue;
+            }
+            $count++;
+            if (count($samples) < $limit) {
+                $samples[] = ['en' => $r['en'], 'az' => $r['az']];
+            }
+        }
+        return ['count' => $count, 'samples' => $samples];
+    }
+
     // ------------------------------------------------------------ arama
 
     /** Tam ad için bankadaki en güvenilir karşılık. */

@@ -377,10 +377,13 @@
     if (o && o.dataset.src === st.src) return;
     if (!o) {
       o = h('span', 'tgw-orig');
-      o.title = 'Orijinal ad — tıkla, kopyala';
+      o.title = 'Orijinal ad — bir kelimeye tıkla: çevirisini değiştir · boşluğa tıkla: kopyala';
       o.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        // kelimeye tıklandıysa: o kelimenin bankadaki/sözlükteki karşılığını değiştir
+        const w = e.target.closest && e.target.closest('.tgw-ow');
+        if (w) { openTeach(o.__rid, w.textContent, w, true); return; }
         navigator.clipboard && navigator.clipboard.writeText(o.dataset.src).then(() => {
           o.classList.add('tgw-copied');
           setTimeout(() => o.classList.remove('tgw-copied'), 900);
@@ -389,8 +392,24 @@
       host.insertBefore(o, host.firstChild);
     }
     o.dataset.src = st.src;
-    o.textContent = st.src;
+    o.__rid = row.id;
+    fillWords(o, st.src);
   }
+  /** Metni kelime kelime yaz: her kelime tıklanabilir (.tgw-ow), aradaki işaretler düz metin. */
+  function fillWords(el, text) {
+    el.textContent = '';
+    let last = 0;
+    for (const m of String(text).matchAll(/\p{L}[\p{L}'’-]*\p{L}|\p{L}/gu)) {
+      if (m.index > last) el.appendChild(document.createTextNode(text.slice(last, m.index)));
+      const w = h('span', 'tgw-ow', m[0]);
+      w.title = '“' + m[0] + '” — tıkla: bu kelimenin çevirisini değiştir (sözlük + banka)';
+      el.appendChild(w);
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) el.appendChild(document.createTextNode(text.slice(last)));
+  }
+  /** Tam kelime/ifade kalıbı (sunucudaki Memory::wordRegex ile aynı). */
+  const wordRe = (w) => new RegExp('(?<![\\p{L}\\p{N}])' + norm(w).split(' ').map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+') + '(?![\\p{L}\\p{N}])', 'iu');
 
   function paint(row) {
     const mk = marks.get(row.id);
@@ -437,11 +456,12 @@
   let pop = null;
   function closeTeach() { if (pop) { pop.remove(); pop = null; } }
 
-  function openTeach(id, word, anchor) {
+  /** edit = true: bilinen kelimenin karşılığını değiştir (şimdiki karşılık tgwatch'tan sorulup kutuya yazılır). */
+  function openTeach(id, word, anchor, edit) {
     closeTeach();
     pop = h('div', 'tgw-pop');
     pop.setAttribute('role', 'dialog');
-    pop.setAttribute('aria-label', 'Kelimeyi öğret');
+    pop.setAttribute('aria-label', edit ? 'Kelimenin çevirisini değiştir' : 'Kelimeyi öğret');
     const f = h('form', 'tgw-pop-f');
     const l1 = h('label', '', 'Kaynak');
     const en = h('input');
@@ -454,7 +474,7 @@
     l2.appendChild(az);
     const msg = h('div', 'tgw-pop-msg');
     const acts = h('div', 'tgw-pop-a');
-    const ok = h('button', 'tgw-btn', 'Öğret ve düzelt');
+    const ok = h('button', 'tgw-btn', edit ? 'Değiştir ve düzelt' : 'Öğret ve düzelt');
     ok.type = 'submit';
     const keep = h('button', 'tgw-btn tgw-ghost', 'Aynen kalsın');
     keep.type = 'button';
@@ -473,17 +493,38 @@
       const dst = az.value.trim();
       if (!src || (!asKeep && !dst)) { msg.textContent = asKeep ? 'Kaynak kelimeyi yaz' : 'Azerice karşılığı yaz'; (asKeep ? en : az).focus(); return; }
       ok.disabled = keep.disabled = true;
+      msg.className = 'tgw-pop-msg';
       msg.textContent = 'tgwatch\'a öğretiliyor…';
       const res = await api('teach', asKeep ? { en: src, keep: true } : { en: src, az: dst });
       if (!res.ok) { msg.textContent = res.error || 'tgwatch hatası'; ok.disabled = keep.disabled = false; return; }
       send({ type: 'stat', learned: 1 });
+      // Banka sözlükten önce gelir: sunucu eski kayıtları da düzeltir (res.bank). Eski sunucu bu alanı göndermez.
+      const bankNote = res.bank === undefined ? ' · tgwatch sunucusu eski: bankadaki eski kayıtlar düzeltilmedi' : (res.bank ? ' · bankada ' + res.bank + ' kayıt düzeltildi' : '');
       msg.className = 'tgw-pop-msg tgw-pop-ok';
-      msg.textContent = asKeep ? '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” çevrilmeyecek' : '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” → “' + res.az + '”';
+      msg.textContent = (asKeep ? '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” çevrilmeyecek' : '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” → “' + res.az + '”') + bankNote;
       status(msg.textContent.slice(2) + ' · satırlar düzeltiliyor…', 'ok');
       await sleep(900);
       closeTeach();
-      await retranslate(id, src, asKeep ? src : res.az);
+      await retranslate(id, src, asKeep ? src : res.az, bankNote);
     };
+    if (edit) {
+      // şimdiki karşılığı göster (kullanıcı kaynağı uzatırsa/değiştirirse yeniden sorulur)
+      let seq = 0;
+      const info = async () => {
+        const src = en.value.trim();
+        if (!src) return;
+        const my = ++seq;
+        const r = await api('word_info', { en: src });
+        if (my !== seq || !pop || ok.disabled) return;
+        if (!r.ok) { if (/Bilinmeyen işlem/.test(r.error || '')) { msg.className = 'tgw-pop-msg tgw-pop-info'; msg.textContent = 'tgwatch sunucusu eski: şimdiki karşılık gösterilemiyor (yine de değiştirebilirsin).'; } return; }
+        if (r.state === 'phrase' && !az.value.trim()) az.value = r.az;
+        msg.className = 'tgw-pop-msg tgw-pop-info';
+        msg.textContent = (r.state === 'phrase' ? 'Şimdi: “' + r.az + '”' : r.state === 'keep' ? 'Şimdi: çevrilmiyor (aynen kalsın)' : 'Sözlükte yok')
+          + (r.bank ? ' · bankada ' + r.bank + ' adda geçiyor' : '');
+      };
+      en.addEventListener('change', info);
+      info();
+    }
     f.addEventListener('submit', (e) => { e.preventDefault(); go(false); });
     keep.addEventListener('click', () => go(true));
     // Kutu import penceresinin İÇİNE konur: panel penceresi odağı ve tıklamaları kendi içinde tutuyor (dışarıdaki kutuya yazılamaz).
@@ -503,10 +544,13 @@
   }
 
   /** Öğretilen kelimeyi içeren (bilinmeyen listesinde olan) tüm satırları yeniden çevirip yaz. */
-  async function retranslate(firstId, word, az) {
+  async function retranslate(firstId, word, az, note) {
     if (running) return;
     const parts = lower(word).split(' ');
-    const ids = [...state.entries()].filter(([rid, st]) => st.src && (rid === firstId || (st.unknown || []).some((u) => parts.includes(lower(u))))).map(([rid]) => rid);
+    const wre = wordRe(word);
+    // tıklanan satır + kelimenin bilinmeyen olduğu satırlar + orijinal adında bu kelime geçen satırlar (elle düzelttiklerin hariç)
+    const ids = [...state.entries()].filter(([rid, st]) => st.src && (rid === firstId
+      || (st.unknown || []).some((u) => parts.includes(lower(u))) || (!st.edited && wre.test(st.src)))).map(([rid]) => rid);
     ids.sort((a, b) => (a === firstId ? -1 : b === firstId ? 1 : 0));
     setRunning(true);
     const o = await opts();
@@ -518,10 +562,11 @@
         const rid = ids[k];
         const tr = res.items[k];
         if (!tr || !tr.az || tr.via === 'none' || tr.via === 'already') continue;
+        tr.az = fmtName(tr.az, o);
+        if (rid !== firstId && tr.az === state.get(rid).filled) continue; // bu satırda değişen bir şey yok
         status('Düzeltiliyor · #' + rid);
         const row = await openRow(rid);
         if (!row) continue;
-        tr.az = fmtName(tr.az, o);
         setValue(nameInput(row), tr.az);
         remember(rid, { filled: tr.az, final: tr.az, edited: false, unknown: tr.via === 'bank' || tr.via === 'claude' ? [] : (tr.unknown || []) });
         if (!o.dry) await saveRow(rid);
@@ -530,7 +575,7 @@
         mark(r, tr.via === 'bank' || !left.length ? 'ok' : 'warn', 'Orijinal: ' + state.get(rid).src + (left.length ? '\nBilinmeyen: ' + left.join(', ') : '\nKelime öğretildi'));
         fixed++;
       }
-      status('✓ Sözlüğe eklendi: “' + word + '”' + (az && az !== word ? ' → “' + az + '”' : ' (çevrilmeyecek)') + ' · ' + fixed + ' satır düzeltildi. tgwatch → Çeviri → Sözlük\'te görünür.', 'ok');
+      status('✓ Sözlüğe eklendi: “' + word + '”' + (az && az !== word ? ' → “' + az + '”' : ' (çevrilmeyecek)') + (note || '') + ' · ' + fixed + ' satır düzeltildi. tgwatch → Çeviri → Sözlük\'te görünür.', 'ok');
     } finally {
       setRunning(false);
     }

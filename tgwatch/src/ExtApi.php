@@ -41,6 +41,7 @@ final class ExtApi
                 'learn_desc' => [200, ['ok' => true] + $this->learnDesc($req)],
                 'learn' => [200, ['ok' => true] + $this->learn(self::items($req))],
                 'teach' => [200, ['ok' => true] + $this->teach($req)],
+                'word_info' => [200, ['ok' => true] + $this->wordInfo($req)],
                 'balance' => [200, ['ok' => true] + Balances::check($this->db)],
                 'imported' => [200, ['ok' => true] + (new ImportShare($this->db, $this->tg ?? App::telegram(), $this->config))->report($req)],
                 'ext_files' => [200, ['ok' => true] + self::extFiles()],
@@ -225,8 +226,10 @@ final class ExtApi
         }
         $dict = Dictionary::load($this->db);
         $low = mb_strtolower($en);
+        $olds = [$en]; // bankada çevrilmeden kalmış hâli ("Almost Azalma olmaz")
         foreach (array_keys($dict['phrases']) as $k) {
             if (mb_strtolower((string)$k) === $low) {
+                $olds[] = (string)$dict['phrases'][$k]; // sözlükteki eski karşılık
                 unset($dict['phrases'][$k]);
             }
         }
@@ -238,8 +241,32 @@ final class ExtApi
             $dict['phrases'][$en] = $az;
         }
         Dictionary::save($this->db, $dict);
-        $this->db->log('info', 'ext', 'Eklenti sözlüğe ekledi: ' . $en . ($keep ? ' (olduğu gibi kalsın)' : ' → ' . $az));
-        return ['en' => $en, 'az' => $keep ? $en : $az, 'keep' => $keep];
+        // Banka sözlükten önce gelir: kelimenin eski hâliyle kayıtlı adlar düzeltilmezse eski çeviri gelmeye devam ederdi.
+        $bank = (new Memory($this->db))->replaceWord($en, $olds, $keep ? $en : $az);
+        $this->db->log('info', 'ext', 'Eklenti sözlüğe ekledi: ' . $en . ($keep ? ' (olduğu gibi kalsın)' : ' → ' . $az) . ($bank ? "; bankada $bank kayıt düzeltildi" : ''));
+        return ['en' => $en, 'az' => $keep ? $en : $az, 'keep' => $keep, 'bank' => $bank];
+    }
+
+    /** Kelimenin şimdiki durumu: sözlükteki karşılığı / "aynen kalsın" / yok; bankada kaç adda geçtiği ve birkaç örnek. */
+    private function wordInfo(array $req): array
+    {
+        $en = trim(preg_replace('/\s+/u', ' ', (string)($req['en'] ?? '')) ?? '');
+        if ($en === '' || mb_strlen($en) > 80 || !preg_match('/\p{L}/u', $en)) {
+            throw new \InvalidArgumentException('Kaynak kelime 1–80 karakter olmalı');
+        }
+        $dict = Dictionary::load($this->db);
+        $low = mb_strtolower($en);
+        $az = '';
+        foreach ($dict['phrases'] as $k => $v) {
+            if (mb_strtolower((string)$k) === $low) {
+                $az = (string)$v;
+            }
+        }
+        $in = static fn(array $list): bool => in_array($low, array_map(static fn($x) => mb_strtolower((string)$x), $list), true);
+        $keep = $in($dict['keep'] ?? []);
+        $uses = (new Memory($this->db))->wordUses($en);
+        return ['en' => $en, 'az' => $az, 'state' => $az !== '' ? 'phrase' : ($keep ? 'keep' : 'none'), 'guess' => $in($dict['guesses'] ?? []),
+            'bank' => $uses['count'], 'samples' => $uses['samples']];
     }
 
     /** Sunucudaki eklenti sürümü (chrome-extension/manifest.json): eklenti kendininkiyle karşılaştırıp "yeni sürüm var" der. */
