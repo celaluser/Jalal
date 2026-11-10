@@ -926,8 +926,7 @@
 
   // ---------------------------------------------------------------- arayüz (shadow DOM: sayfa aramalarına karışmaz)
   let host = null; let root = null; let minimized = false;
-  // Birleşik eklentide (Panel Araçları) üç çubuk yan yana durur: ilk açılışta küçük başlar.
-  try { const m = localStorage.getItem('kt_min'); minimized = m === '1' || (m === null && !!globalThis.__PANEL_ARACLARI); } catch (e) { /* yok */ }
+  try { const m = localStorage.getItem('kt_min'); minimized = m === '1'; } catch (e) { /* yok */ }
 
   const CSS = `
     :host{all:initial}
@@ -1014,6 +1013,7 @@
     parts.push('</div>');
     bar.className = 'bar' + (minimized ? ' min' : '');
     bar.innerHTML = parts.join('');
+    if (globalThis.__paDock) globalThis.__paDock.place('kt', host, bar);
   }
   function renderLite(bar) {
     const st = bar.querySelector('#st');

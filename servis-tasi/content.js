@@ -635,7 +635,7 @@
 
   // Kullanıcı panelde çalışıyorsa yenileme: gerçek (isTrusted) tıklama/tuş, eklenti çubukları hariç.
   let lastUserInput = 0;
-  const markUser = (e) => { if (!e.isTrusted) return; const path = e.composedPath ? e.composedPath() : []; if (path.some((n) => n && /^(kt|sp|pt)-host$/.test(n.id || ''))) return; lastUserInput = Date.now(); };
+  const markUser = (e) => { if (!e.isTrusted) return; const path = e.composedPath ? e.composedPath() : []; if (path.some((n) => n && /^((kt|sp|pt)-host|pa-dock)$/.test(n.id || ''))) return; lastUserInput = Date.now(); };
   document.addEventListener('pointerdown', markUser, true);
   document.addEventListener('keydown', markUser, true);
 
@@ -756,8 +756,7 @@
 
   // ---------------------------------------------------------------- arayüz (shadow DOM)
   let host = null; let root = null; let minimized = false;
-  // Birleşik eklentide (Panel Araçları) üç çubuk yan yana durur: ilk açılışta küçük başlar.
-  try { const m = localStorage.getItem('pt_min'); minimized = m === '1' || (m === null && !!globalThis.__PANEL_ARACLARI); } catch (e) { /* yok */ }
+  try { const m = localStorage.getItem('pt_min'); minimized = m === '1'; } catch (e) { /* yok */ }
   const CSS = `
     :host{all:initial}
     .bar{position:fixed;bottom:12px;z-index:2147483646;width:310px;font:12px/1.4 system-ui,sans-serif;color:#f2ece4;background:#2e2418;border:1px solid #6a5134;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
@@ -850,6 +849,7 @@
     bar.className = 'bar' + (minimized ? ' min' : '');
     bar.innerHTML = p.join('');
     placeBar();
+    if (globalThis.__paDock) globalThis.__paDock.place('pt', host, bar);
   }
   function setAll(off) { for (const x of S.all) if (x.catActive || settings.includePasif) { if (off) S.excluded.add(x.sid); else S.excluded.delete(x.sid); } }
   async function onBarClick(ev) {

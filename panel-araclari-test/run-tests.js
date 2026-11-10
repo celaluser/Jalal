@@ -39,22 +39,30 @@ function cats() {
   });
   await p.goto('https://panelbaku.com/admin/services');
 
-  console.log('A1 üç çubuk birlikte yüklenir, küçük başlar, üst üste binmez');
-  for (const id of ['kt-host', 'sp-host', 'pt-host']) await p.waitForSelector('#' + id, { state: 'attached', timeout: 20000 });
-  await p.waitForTimeout(1200);
-  const boxes = await p.evaluate(() => ['kt-host', 'sp-host', 'pt-host'].map((id) => { const b = document.getElementById(id).shadowRoot.getElementById('bar'); const r = b.getBoundingClientRect(); return { l: Math.round(r.left), r: Math.round(r.right), min: b.classList.contains('min') }; }));
-  ok(boxes.every((b) => b.min), 'üçü de küçük başladı: ' + JSON.stringify(boxes));
-  ok(boxes[0].r <= boxes[1].l && boxes[1].r <= boxes[2].l, 'soldan sağa sıralı, çakışma yok: ' + JSON.stringify(boxes));
-  // biri büyüyünce sağdakiler kayar
-  await p.evaluate(() => document.getElementById('kt-host').shadowRoot.querySelector('[data-a=min]').click());
-  await p.waitForTimeout(400);
-  const b2 = await p.evaluate(() => ['kt-host', 'sp-host', 'pt-host'].map((id) => { const r = document.getElementById(id).shadowRoot.getElementById('bar').getBoundingClientRect(); return { l: Math.round(r.left), r: Math.round(r.right) }; }));
-  ok(b2[0].r <= b2[1].l && b2[1].r <= b2[2].l, 'Kategori Temizle büyüyünce diğerleri kaydı: ' + JSON.stringify(b2));
+  console.log('A1 tek dok: sağ altta "Panel Araçları"; başta hiçbir çubuk görünmez; tıklanan araç açılır, diğerleri gizli');
+  for (const id of ['kt-host', 'sp-host', 'pt-host', 'pa-dock']) await p.waitForSelector('#' + id, { state: 'attached', timeout: 20000 });
+  await p.waitForTimeout(800);
+  const vis = () => p.evaluate(() => ['kt-host', 'sp-host', 'pt-host'].filter((id) => getComputedStyle(document.getElementById(id)).display !== 'none'));
+  const dockBtn = (k) => p.evaluate((x) => document.getElementById('pa-dock').shadowRoot.querySelector('button[data-k=' + x + ']').click(), k);
+  eq(await vis(), [], 'başta üç çubuk da gizli');
+  const dr = await p.evaluate(() => { const r = document.getElementById('pa-dock').shadowRoot.querySelector('.dock').getBoundingClientRect(); return { right: Math.round(innerWidth - r.right), bottom: Math.round(innerHeight - r.bottom), left: Math.round(r.left) }; });
+  ok(dr.right === 12 && dr.bottom === 12 && dr.left > 400, 'dok sağ altta (soldaki tgwatch logosuyla çakışmaz): ' + JSON.stringify(dr));
+  await dockBtn('pt');
+  await p.waitForTimeout(200);
+  eq(await vis(), ['pt-host'], 'Taşı seçildi: yalnız onun çubuğu');
+  const br = await p.evaluate(() => { const b = document.getElementById('pt-host').shadowRoot.getElementById('bar').getBoundingClientRect(); const d = document.getElementById('pa-dock').shadowRoot.querySelector('.dock').getBoundingClientRect(); return { barBottom: Math.round(b.bottom), dockTop: Math.round(d.top), right: Math.round(innerWidth - b.right) }; });
+  ok(br.barBottom <= br.dockTop && br.right === 12, 'çubuk dokun üstünde, sağda: ' + JSON.stringify(br));
+  await dockBtn('kt');
+  await p.waitForTimeout(200);
+  eq(await vis(), ['kt-host'], 'Kategori seçildi: Taşı gizlendi');
+  await dockBtn('kt');
+  await p.waitForTimeout(200);
+  eq(await vis(), [], 'aynı düğmeye tekrar: kapandı');
+  await dockBtn('pt');
+  await p.waitForTimeout(200);
 
   console.log('A2 araçlar arası kilit: biri çalışırken diğeri başlamaz');
   await p.evaluate(() => document.documentElement.setAttribute('data-panel-arac', 'kt'));
-  await p.evaluate(() => { const r = document.getElementById('pt-host').shadowRoot; r.querySelector('[data-a=min]').click(); });
-  await p.waitForTimeout(300);
   await p.evaluate(() => document.getElementById('pt-host').shadowRoot.querySelector('[data-a=scan]').click());
   await p.waitForFunction(() => /Kategori Temizle.*çalışıyor/.test(document.getElementById('pt-host').shadowRoot.getElementById('st').textContent), null, { timeout: 8000 });
   ok(true, 'Pasif Servis Taşı: "Kategori Temizle çalışıyor: önce o bitsin"');
@@ -63,6 +71,10 @@ function cats() {
   await p.waitForFunction(() => /hazır|yok|⚠/.test(document.getElementById('pt-host').shadowRoot.getElementById('st').textContent), null, { timeout: 60000 });
   ok(/2 pasif servis/.test(await p.evaluate(() => document.getElementById('pt-host').shadowRoot.getElementById('st').textContent)), 'kilit kalkınca tarama çalıştı');
   eq(await p.evaluate(() => document.documentElement.getAttribute('data-panel-arac')), null, 'tarama bitince kilit bırakıldı');
+  await p.evaluate(() => document.documentElement.setAttribute('data-panel-arac', 'sp'));
+  await p.waitForTimeout(1200);
+  ok(await p.evaluate(() => { const d = document.getElementById('pa-dock').shadowRoot.querySelector('button[data-k=sp] .d'); return !d.hidden && d.classList.contains('run'); }), 'gizli araç çalışırken dokta sarı nokta');
+  await p.evaluate(() => document.documentElement.removeAttribute('data-panel-arac'));
 
   console.log('A3 mini panel: üç sekme, her biri kendi aracına bağlanır');
   const sw = ctx.serviceWorkers()[0] || await ctx.waitForEvent('serviceworker');
@@ -93,6 +105,20 @@ function cats() {
   await p.evaluate(() => { sessionStorage.removeItem('sp_auto'); sessionStorage.removeItem('pt_auto'); });
   await sw.evaluate(async () => chrome.alarms.clearAll());
 
+  console.log('A5 birleşik eklentide gerçek iş: Pasif Servis Taşı aktif kategorideki 2 pasif servisi Not Assigned\'a taşır');
+  await p.evaluate(() => { const r = document.getElementById('pt-host').shadowRoot; const d = r.querySelector('[data-s=dry]'); if (d.checked) d.click(); });
+  await p.waitForTimeout(200);
+  await p.evaluate(() => document.getElementById('pt-host').shadowRoot.querySelector('[data-a=scan]').click());
+  await p.waitForFunction(() => /hazır|yok|⚠/.test(document.getElementById('pt-host').shadowRoot.getElementById('st').textContent), null, { timeout: 60000 });
+  await p.evaluate(() => document.getElementById('pt-host').shadowRoot.querySelector('[data-a=run]').click());
+  await p.waitForFunction(() => /Bitti|Durduruldu\.|⚠/.test(document.getElementById('pt-host').shadowRoot.getElementById('st').textContent), null, { timeout: 120000 });
+  const srv = await p.evaluate(() => JSON.parse(JSON.stringify(window.__server)));
+  eq(srv.moves.map((m) => m.id).sort(), [1132, 2452], 'taşınan: 2452, 1132'); eq(srv.violations, [], 'ihlal yok');
+  await p.waitForTimeout(1300);
+  eq(await p.evaluate(() => [document.documentElement.getAttribute('data-panel-arac'), document.getElementById('pa-dock').shadowRoot.querySelector('button[data-k=pt] .d').hidden]), [null, true], 'iş bitti: kilit bırakıldı, dokta nokta söndü');
+  await p.evaluate(() => document.getElementById('pa-dock').shadowRoot.querySelector('button[data-k=pt]').click());
+  await p.waitForTimeout(300);
+  if (process.argv[2]) await p.screenshot({ path: process.argv[2] });
   eq(errors, [], 'JS hatası yok');
   await ctx.close();
   console.log('\n' + (fails ? '✗ ' + fails + ' başarısız' : '✓ hepsi geçti') + '  (' + ((Date.now() - t0) / 1000).toFixed(0) + ' sn)');

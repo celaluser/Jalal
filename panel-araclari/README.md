@@ -1,11 +1,13 @@
 # Panel Araçları (Perfect Panel)
 
-Üç aracı tek eklentide toplar. Panelin Services sayfasında sol altta üç küçük çubuk yan yana durur; mini panelde her biri ayrı sekmededir.
+Üç aracı tek eklentide toplar. Services sayfasında **sağ altta tek bir dok** durur: `Panel Araçları [🗑 Kategori] [⊘ Pasifle] [⇄ Taşı]`.
+Tıkladığın aracın çubuğu dokun üstünde açılır, diğerleri gizlenir (gizli araç işini sürdürür); aynı düğmeye tekrar basınca kapanır, seçim hatırlanır.
+Doktaki nokta: sarı = çalışıyor, yeşil = otomatik mod açık, kırmızı = uyarı var. Mini panelde her araç ayrı sekmededir.
 
 | Sekme | Araç | Ne yapar |
 |---|---|---|
 | 🗑 Kategori | Kategori Temizle | Boş pasif kategorileri siler; dolu pasif kategorilerin servislerini Not Assigned'a taşır |
-| ⏻ Pasifle | Servis Pasifle | Not Assigned'daki aktif servisleri pasife alır. Otomatik mod (her N dk) |
+| ⊘ Pasifle | Servis Pasifle | Not Assigned'daki aktif servisleri pasife alır. Otomatik mod (her N dk) |
 | ⇄ Taşı | Pasif Servis Taşı | Aktif kategorilerdeki pasif servisleri Not Assigned'a taşır. Otomatik mod (her N dk) |
 
 - **Kurulum:** `chrome://extensions` → Geliştirici modu → **Paketlenmemiş öğe yükle** → `panel-araclari` klasörü.
