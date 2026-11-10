@@ -1,7 +1,7 @@
 // Panel Araçları — mini panel: üç aracın kendi paneli birer sekmede (iframe), Geçmiş sekmesi burada.
 // Çerçeve yalnız sekmesi seçilince yüklenir; yüksekliği içeriğine göre ayarlanır. Son seçilen sekme hatırlanır.
 const $ = (id) => document.getElementById(id);
-const TABS = ['kt', 'sp', 'pt', 'hist'];
+const TABS = ['kt', 'sp', 'pt', 'hist', 'prot'];
 const NAMES = { kt: 'Kategori Temizle', sp: 'Servis Pasifle', pt: 'Pasif Servis Taşı' };
 const qs = location.search || ''; // testte ?tab=<sekme no> çerçevelere aktarılır
 $('ver').textContent = 'v' + chrome.runtime.getManifest().version;
@@ -15,14 +15,15 @@ function show(t) {
   for (const k of TABS) {
     const on = k === t;
     const b = $('t-' + k);
-    const p = $(k === 'hist' ? 'p-hist' : 'f-' + k);
+    const p = $(k === 'hist' || k === 'prot' ? 'p-' + k : 'f-' + k);
     b.setAttribute('aria-selected', on ? 'true' : 'false');
     b.tabIndex = on ? 0 : -1;
     p.hidden = !on;
-    if (on && k !== 'hist' && !p.src) { p.addEventListener('load', () => fit(p)); p.src = k + '.html' + qs; }
-    if (on && k !== 'hist') fit(p);
+    if (on && p.tagName === 'IFRAME' && !p.src) { p.addEventListener('load', () => fit(p)); p.src = k + '.html' + qs; }
+    if (on && p.tagName === 'IFRAME') fit(p);
   }
   if (t === 'hist') drawHist();
+  if (t === 'prot') loadProt();
   try { localStorage.setItem('pa_tab', t); } catch (e) { /* yok */ }
 }
 for (const k of TABS) {
@@ -109,3 +110,19 @@ try { const s = localStorage.getItem('pa_tab'); if (TABS.includes(s)) first = s;
 show(first);
 (async () => { tabId = await panelTab(); $('sub').textContent = tabId == null ? 'Bu sekme panelin Services sayfası değil' : 'Perfect Panel · Services'; dots(); setInterval(dots, 1500); })();
 setInterval(() => { const f = document.querySelector('iframe:not([hidden])'); if (f) fit(f); }, 400);
+
+// ---- Koruma listesi (pa_protect): araçlar bu ID'leri hiç işlemez ----
+async function loadProt() {
+  const { pa_protect: ids } = await chrome.storage.local.get({ pa_protect: [] });
+  $('pr-in').value = (ids || []).join(', ');
+  $('pr-msg').className = 'muted small';
+  $('pr-msg').textContent = (ids || []).length ? (ids.length + ' ID korunuyor.') : 'Korunan ID yok.';
+}
+$('pr-save').onclick = async () => {
+  const ids = [...new Set($('pr-in').value.match(/\d{2,}/g) || [])];
+  await chrome.storage.local.set({ pa_protect: ids });
+  $('pr-in').value = ids.join(', ');
+  $('pr-msg').className = 'small ok-msg';
+  $('pr-msg').textContent = '✓ Kaydedildi: ' + ids.length + ' ID korunuyor. Açık paneldeki listeler hemen güncellenir.';
+};
+$('pr-copy').onclick = async () => { try { await navigator.clipboard.writeText(($('pr-in').value.match(/\d{2,}/g) || []).join(',')); $('pr-msg').textContent = 'Panoya kopyalandı.'; } catch (e) { $('pr-msg').textContent = 'Panoya kopyalanamadı.'; } };

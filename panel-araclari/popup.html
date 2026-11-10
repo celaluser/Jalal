@@ -9,10 +9,11 @@
   <span id="ver" class="pill"></span>
 </header>
 <nav class="tabs" role="tablist" aria-label="Araçlar">
- <button role="tab" data-t="kt" id="t-kt" aria-controls="f-kt" style="--ac:#3b5bdb" title="Boş pasif kategorileri sil · dolu pasif kategorileri Not Assigned'a taşı"><span class="i">🗑</span>Kategori<i class="d" hidden></i></button>
- <button role="tab" data-t="sp" id="t-sp" aria-controls="f-sp" style="--ac:#1f8a5b" title="Not Assigned'daki aktif servisleri pasife al"><span class="i">⊘</span>Pasifle<i class="d" hidden></i></button>
- <button role="tab" data-t="pt" id="t-pt" aria-controls="f-pt" style="--ac:#c26a1b" title="Aktif kategorilerdeki pasif servisleri Not Assigned'a taşı"><span class="i">⇄</span>Taşı<i class="d" hidden></i></button>
- <button role="tab" data-t="hist" id="t-hist" aria-controls="p-hist" style="--ac:#243b6b" title="Biten işler"><span class="i">⟲</span>Geçmiş</button>
+ <button role="tab" data-t="kt" id="t-kt" aria-controls="f-kt" title="Boş pasif kategorileri sil · dolu pasif kategorileri Not Assigned'a taşı"><span class="i">🗑</span>Kategori<i class="d" hidden></i></button>
+ <button role="tab" data-t="sp" id="t-sp" aria-controls="f-sp" title="Not Assigned'daki aktif servisleri pasife al"><span class="i">⊘</span>Pasifle<i class="d" hidden></i></button>
+ <button role="tab" data-t="pt" id="t-pt" aria-controls="f-pt" title="Aktif kategorilerdeki pasif servisleri Not Assigned'a taşı"><span class="i">⇄</span>Taşı<i class="d" hidden></i></button>
+ <button role="tab" data-t="hist" id="t-hist" aria-controls="p-hist" title="Biten işler"><span class="i">⟲</span>Geçmiş</button>
+ <button role="tab" data-t="prot" id="t-prot" aria-controls="p-prot" title="Hiçbir aracın dokunmayacağı ID'ler"><span class="i">🛡</span>Koruma</button>
 </nav>
 <iframe id="f-kt" title="Kategori Temizle" role="tabpanel" aria-labelledby="t-kt" hidden></iframe>
 <iframe id="f-sp" title="Servis Pasifle" role="tabpanel" aria-labelledby="t-sp" hidden></iframe>
@@ -24,8 +25,14 @@
   </div>
   <ul id="h-list" class="hlist"></ul>
   <p id="h-empty" class="muted">Henüz biten iş yok. Bir araç işini bitirince burada görünür (deneme dahil).</p>
-  <div class="row"><button id="h-copy" class="btn ghost">Metin olarak kopyala</button><button id="h-clear" class="btn ghost danger">Temizle</button></div>
+  <div class="row"><button id="h-copy" class="btn">Metin olarak kopyala</button><button id="h-clear" class="btn danger">Temizle</button></div>
   <p id="h-msg" class="muted small"></p>
+</section>
+<section id="p-prot" role="tabpanel" aria-labelledby="t-prot" hidden>
+  <p class="muted small">Buradaki servis ve kategori ID'lerine <b>hiçbir araç dokunmaz</b> (otomatik mod dahil): listede "KORUMALI" görünür, işaretlenemez. Virgül, boşluk ya da satırla ayır.</p>
+  <textarea id="pr-in" spellcheck="false" placeholder="62727, 26272&#10;2627" aria-label="Korunan ID'ler"></textarea>
+  <div class="row"><button id="pr-save" class="btn pri">Kaydet</button><button id="pr-copy" class="btn">Kopyala</button></div>
+  <p id="pr-msg" class="muted small"></p>
 </section>
 <footer class="foot">
   <label class="chk"><input type="checkbox" id="notif"> Masaüstü bildirimi</label>

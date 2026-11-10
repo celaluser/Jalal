@@ -31,8 +31,9 @@ function paint(s) {
   $('stats').textContent = s.stats ? `${s.stats.kategori} kategori · ${s.stats.servis} servis · ${s.stats.pasifAktifKat} pasif servis aktif kategorilerde · ${s.stats.pasifPasifKat} pasif kategorilerde` : '';
   const show = s.phase === 'ready' && s.items.length;
   $('list').hidden = !show; $('selrow').hidden = !show;
-  const html = s.items.map((x) => '<label><input type="checkbox" data-k="' + esc(x.key) + '"' + (x.off ? '' : ' checked') + (s.running ? ' disabled' : '') + '> <span>' + esc(x.name) + ' <small>· ' + esc(x.cat.slice(0, 40)) + (x.catActive ? '' : ' (pasif kat.)') + '</small></span></label>').join('');
-  if (html !== last) { $('list').innerHTML = html; last = html; }
+  const html = s.items.map((x) => '<label><input type="checkbox" data-k="' + esc(x.key) + '"' + (x.off ? '' : ' checked') + (s.running || x.prot ? ' disabled' : '') + '> <span>' + esc(x.name) + (x.prot ? ' <b style="color:var(--ok);font-size:10.5px">KORUMALI</b>' : '') + ' <small>· ' + esc(x.cat.slice(0, 40)) + (x.catActive ? '' : ' (pasif kat.)') + '</small></span></label>').join('');
+  if (html !== last) { $('list').innerHTML = html; last = html; applyFlt(); }
+  $('run').classList.toggle('real', !s.settings.dryRun);
   const a = s.auto;
   const hm = (t) => (t ? new Date(t).toTimeString().slice(0, 5) : '--:--');
   $('auto').checked = !!(a && a.on);
@@ -70,6 +71,32 @@ $('log').onclick = async () => {
   setTimeout(() => URL.revokeObjectURL(url), 5000);
   flashMsg('⬇ ' + (r.name || 'gunluk.txt') + ' indirildi');
 };
+// ---- liste araçları: ara (yalnız görünümü süzer), ters çevir, ID yapıştırarak seç ----
+function applyFlt() {
+  const q = $('flt').value.trim().toLowerCase();
+  for (const l of $('list').querySelectorAll('label')) l.hidden = !!q && !l.textContent.toLowerCase().includes(q);
+}
+$('flt').addEventListener('input', applyFlt);
+const visBoxes = () => [...$('list').querySelectorAll('label:not([hidden]) input[data-k]')].filter((c) => !c.disabled);
+$('inv').onclick = async () => { let st = null; for (const c of visBoxes()) st = await send({ cmd: 'exclude', key: c.getAttribute('data-k'), on: c.checked }); if (st) paint(st); };
+$('pasteBtn').onclick = () => { $('pasteRow').hidden = !$('pasteRow').hidden; if (!$('pasteRow').hidden) $('pasteIn').focus(); };
+async function pasteGo() {
+  const want = new Set($('pasteIn').value.match(/\d{2,}/g) || []);
+  if (!want.size) return flashMsg('ID bulunamadı: virgülle ya da boşlukla ayır');
+  let hit = 0; let st = null;
+  for (const c of $('list').querySelectorAll('input[data-k]')) {
+    if (c.disabled) continue;
+    const k = c.getAttribute('data-k');
+    const id = String(k).replace(/\D+/g, '') || (c.closest('label').textContent.match(/\d{2,}/) || [''])[0];
+    const on = want.has(id); if (on) hit++;
+    st = await send({ cmd: 'exclude', key: k, on: !on });
+  }
+  if (st) paint(st);
+  $('pasteRow').hidden = true; $('pasteIn').value = '';
+  flashMsg(hit + ' / ' + want.size + ' ID listede bulundu ve seçildi');
+}
+$('pasteGo').onclick = pasteGo;
+$('pasteIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') pasteGo(); });
 (async () => {
   tabId = await findTab();
   $('scan').onclick = async () => paint(await send({ cmd: 'scan' }));

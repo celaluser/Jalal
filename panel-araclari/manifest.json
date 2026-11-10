@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Panel Araçları — Perfect Panel",
   "short_name": "Panel Araçları",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "description": "Perfect Panel Services sayfası için üç araç tek eklentide: Kategori Temizle (boş/pasif kategoriler), Servis Pasifle (Not Assigned'daki aktif servisler), Pasif Servis Taşı (pasif servisleri Not Assigned'a). Deneme modu, durdur, otomatik mod; arka planda da çalışır.",
   "minimum_chrome_version": "103",
   "permissions": [

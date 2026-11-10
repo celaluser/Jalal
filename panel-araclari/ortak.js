@@ -1,155 +1,150 @@
 // Panel Araçları — üç aracın içerik betiklerinden önce yüklenir (aynı izole dünyayı paylaşırlar).
-// Sayfada üç çubuk birden görünmesin diye tek bir "dok" durur: [🗑 Kategori] [⊘ Pasifle] [⇄ Taşı].
-// - Tıklanan aracın çubuğu dokun yanında açılır, diğerleri gizlenir (gizli araç çalışmaya devam eder).
-// - Dok tutamacından (⠿) sürüklenir, yeri hatırlanır; çift tıklayınca köşeye döner. "–" ile tek düğmeye küçülür.
-// - Noktalar: sarı = çalışıyor, yeşil = otomatik mod açık, kırmızı = uyarı var.
+// Sayfada TEK pencere: başlık (sürükle), araç sekmeleri, seçili aracın içeriği. Araçların kendi çubukları bu pencerenin içine
+// yerleşir (data-embed: kendi başlıkları/gölgeleri gizlenir). Pencere "–" ile küçük bir hapa döner; yeri ve seçili araç hatırlanır.
 globalThis.__PANEL_ARACLARI = true;
 (() => {
   if (globalThis.__paDock) return;
-  const TOOLS = [['kt', '🗑', 'Kategori', 'Kategori Temizle — boş/pasif kategoriler', '#3b5bdb'], ['sp', '⊘', 'Pasifle', 'Servis Pasifle — Not Assigned\'daki aktif servisler', '#1f8a5b'], ['pt', '⇄', 'Taşı', 'Pasif Servis Taşı — pasif servisleri Not Assigned\'a', '#c26a1b']];
+  const TOOLS = [['kt', 'Kategori', 'Boş/pasif kategorileri temizle'], ['sp', 'Pasifle', 'Not Assigned\'daki aktif servisleri pasife al'], ['pt', 'Taşı', 'Pasif servisleri Not Assigned\'a taşı']];
+  const ICON = {
+    kt: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M2.5 4.5h11M6.5 2.5h3M4 4.5l.7 8.2c.1.7.6 1.3 1.3 1.3h4c.7 0 1.2-.6 1.3-1.3l.7-8.2M6.8 7v4.5M9.2 7v4.5"/></svg>',
+    sp: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4.2 11.8l7.6-7.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    pt: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M2.5 5.5h9.5M9.5 3l2.5 2.5L9.5 8M13.5 10.5H4M6.5 8L4 10.5 6.5 13"/></svg>',
+  };
+  const LOGO = '<svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="#243b6b" d="M3.2 28.5V20C3.2 15 6.11 12 8.1 9c1.7 3.2 3.08 6 2.82 11V28.5z"/><path fill="#b3362f" d="M12.4 28.5V13.6C12.4 8.6 15.4 5.6 17.6 2.6c1.76 3.2 2.96 6 2.64 11V28.5z"/><path fill="#d9a21b" d="M21.6 28.5V23.5C21.6 18.5 24.42 15.5 26.2 12.5c1.64 3.2 3.2 6 3 11V28.5z"/></svg>';
   const refs = {}; // key → { host, bar }
   const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { /* yok */ } return null; };
-  let sel = ls('pa_sec') || '';
-  let small = ls('pa_small') === '1';
-  let pos = null; // { r, b } sağ/alt kenara uzaklık (px)
+  let sel = ls('pa_sec') || 'kt';
+  if (!TOOLS.some((t) => t[0] === sel)) sel = 'kt';
+  let small = ls('pa_small') !== '0'; // başta küçük hap: sayfayı kapatmasın
+  let pos = null; // { r, b } sağ/alt kenara uzaklık
   try { pos = JSON.parse(ls('pa_pos') || 'null'); } catch (e) { pos = null; }
-  let host = null; let root = null;
+  let win = null; let root = null;
   const CSS = `
-    :host{all:initial;--ink:#16202a;--mut:#5d6b78;--line:#e2e7ec;--bg:#ffffff;--soft:#f4f6f9}
-    @media (prefers-color-scheme:dark){:host{--ink:#e8edf2;--mut:#9aa7b4;--line:#2a3441;--bg:#18202b;--soft:#121821}}
-    .dock{position:fixed;z-index:2147483647;display:flex;align-items:center;gap:2px;padding:4px;border-radius:14px;background:var(--bg);border:1px solid var(--line);
-      box-shadow:0 12px 32px rgba(15,23,42,.18),0 2px 6px rgba(15,23,42,.08);font:600 12.5px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);user-select:none}
-    .grip{all:unset;cursor:grab;width:18px;height:30px;display:grid;place-items:center;color:var(--mut);border-radius:8px;font-size:14px;letter-spacing:-1px}
-    .grip:active{cursor:grabbing}.grip:hover{background:var(--soft)}
-    .brand{display:flex;align-items:center;gap:6px;padding:0 8px 0 2px;color:var(--mut);font-size:11.5px;white-space:nowrap}
-    .brand svg{flex:none}
-    .t{all:unset;position:relative;cursor:pointer;display:flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:10px;white-space:nowrap;color:var(--ink)}
-    .t:hover{background:var(--soft)}
-    .t[aria-pressed=true]{background:var(--ac);color:#fff}
-    .t .i{font-size:13px;line-height:1}
-    .t:focus-visible,.x:focus-visible,.grip:focus-visible{outline:2px solid #3b5bdb;outline-offset:1px}
-    .d{position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;box-shadow:0 0 0 2px var(--bg)}
-    .t[aria-pressed=true] .d{box-shadow:0 0 0 2px var(--ac)}
-    .d.run{background:#f2b33d}.d.auto{background:#2fb36e}.d.warn{background:#e5484d}
-    .x{all:unset;cursor:pointer;width:24px;height:30px;display:grid;place-items:center;color:var(--mut);border-radius:8px}.x:hover{background:var(--soft);color:var(--ink)}
-    .dock.small .brand,.dock.small .t,.dock.small .grip{display:none}
-    .dock.small{padding:3px}.dock.small .x{width:32px;height:32px}
-    .dot{position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 2px var(--bg)}
+    :host{all:initial;--bg:#ffffff;--sf:#f6f7f9;--sf2:#eef0f3;--bd:#e3e6ea;--tx:#111827;--mt:#6b7280;--ac:#4f46e5;--dn:#dc2626;--ok:#059669;--wr:#d97706;
+      --sh:0 1px 2px rgba(16,24,40,.06),0 16px 40px rgba(16,24,40,.16)}
+    @media (prefers-color-scheme:dark){:host{--bg:#14161b;--sf:#1b1e25;--sf2:#22262f;--bd:#2b303b;--tx:#e6e8ec;--mt:#9aa1ad;--ac:#818cf8;--dn:#f87171;--ok:#34d399;--wr:#fbbf24;--sh:0 1px 2px rgba(0,0,0,.4),0 18px 44px rgba(0,0,0,.55)}}
+    *{box-sizing:border-box}
+    .w{position:fixed;z-index:2147483646;width:380px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);display:flex;flex-direction:column;background:var(--bg);color:var(--tx);
+      border:1px solid var(--bd);border-radius:12px;box-shadow:var(--sh);font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden}
+    .hd{flex:none;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 12px;cursor:grab;user-select:none}
+    .hd:active{cursor:grabbing}
+    .hd b{font-size:13px;font-weight:600}
+    .hd .st{flex:1;min-width:0;color:var(--mt);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ib{all:unset;cursor:pointer;width:28px;height:28px;display:grid;place-items:center;border-radius:6px;color:var(--mt)}.ib:hover{background:var(--sf);color:var(--tx)}
+    .ib:focus-visible,.t:focus-visible,.pill:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+    .tabs{flex:none;display:flex;gap:2px;margin:0 10px;padding:2px;background:var(--sf2);border-radius:8px}
+    .t{all:unset;position:relative;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:30px;border-radius:6px;color:var(--mt);font-weight:600;font-size:12.5px}
+    .t:hover{color:var(--tx)}
+    .t[aria-selected=true]{background:var(--bg);color:var(--tx);box-shadow:0 1px 2px rgba(16,24,40,.12)}
+    .t[aria-selected=true] svg{color:var(--ac)}
+    .d{width:6px;height:6px;border-radius:50%;flex:none}
+    .d.run{background:var(--wr)}.d.auto{background:var(--ok)}.d.warn{background:var(--dn)}
+    .bd{flex:1 1 auto;min-height:0;overflow:auto;margin-top:8px;border-top:1px solid var(--bd)}
+    .bd::-webkit-scrollbar{width:8px}.bd::-webkit-scrollbar-thumb{background:var(--bd);border-radius:8px}
+    .pill{all:unset;position:fixed;z-index:2147483646;cursor:pointer;display:flex;align-items:center;gap:8px;height:36px;padding:0 12px 0 10px;border-radius:999px;background:var(--bg);color:var(--tx);
+      border:1px solid var(--bd);box-shadow:var(--sh);font:600 12.5px/1 ui-sans-serif,system-ui,sans-serif;user-select:none}
+    .pill:hover{background:var(--sf)}
+    .pill .ds{display:flex;gap:3px}
+    [hidden]{display:none !important}
   `;
-  const LOGO = '<svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="#243b6b" d="M3.2 28.5V20C3.2 15 6.11 12 8.1 9c1.7 3.2 3.08 6 2.82 11V28.5z"/><path fill="#b3362f" d="M12.4 28.5V13.6C12.4 8.6 15.4 5.6 17.6 2.6c1.76 3.2 2.96 6 2.64 11V28.5z"/><path fill="#d9a21b" d="M21.6 28.5V23.5C21.6 18.5 24.42 15.5 26.2 12.5c1.64 3.2 3.2 6 3 11V28.5z"/></svg>';
   function ensure() {
     const any = Object.values(refs).some((r) => r.host && r.host.isConnected);
-    if (!any) { if (host) { host.remove(); host = null; root = null; } return; }
-    if (host && host.isConnected) return;
-    host = document.createElement('div');
-    host.id = 'pa-dock';
-    root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = '<style>' + CSS + '</style><div class="dock" role="toolbar" aria-label="Panel Araçları">'
-      + '<button class="grip" title="Sürükle: yerini değiştir · çift tık: köşeye döndür" aria-label="Doku taşı">⠿</button>'
-      + '<span class="brand">' + LOGO + '<span>Panel Araçları</span></span>'
-      + TOOLS.map(([k, ic, name, title, ac]) => '<button class="t" data-k="' + k + '" style="--ac:' + ac + '" title="' + title + '" aria-pressed="false"><span class="i">' + ic + '</span>' + name + '<span class="d" hidden></span></button>').join('')
-      + '<button class="x" title="Küçült / büyüt" aria-label="Küçült"></button></div>';
+    if (!any) { if (win) { win.remove(); win = null; root = null; } return; }
+    if (win && win.isConnected) return;
+    win = document.createElement('div');
+    win.id = 'pa-dock';
+    root = win.attachShadow({ mode: 'open' });
+    root.innerHTML = '<style>' + CSS + '</style>'
+      + '<button class="pill" title="Panel Araçları — aç" aria-label="Panel Araçları penceresini aç">' + LOGO + '<span>Panel Araçları</span><span class="ds"></span></button>'
+      + '<section class="w" role="dialog" aria-label="Panel Araçları"><div class="hd" title="Sürükle: taşı · çift tık: köşeye döndür">' + LOGO + '<b>Panel Araçları</b><span class="st"></span>'
+      + '<button class="ib" data-x="min" title="Küçült" aria-label="Küçült"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 8h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>'
+      + '<div class="tabs" role="tablist">' + TOOLS.map(([k, n, t]) => '<button class="t" role="tab" data-k="' + k + '" title="' + t + '">' + ICON[k] + n + '<span class="d" hidden></span></button>').join('') + '</div>'
+      + '<div class="bd"><slot></slot></div></section>';
     root.addEventListener('click', (e) => {
-      const t = e.target.closest && e.target.closest('button');
-      if (!t) return;
-      if (t.dataset.k) select(sel === t.dataset.k ? '' : t.dataset.k);
-      else if (t.classList.contains('x')) { small = !small; ls('pa_small', small ? '1' : '0'); if (small) sel = ''; render(); apply(); }
+      const b = e.target.closest && e.target.closest('button');
+      if (!b) return;
+      if (b.dataset.k) select(b.dataset.k);
+      else if (b.dataset.x === 'min') setSmall(true);
+      else if (b.classList.contains('pill')) { if (moved) { moved = false; return; } setSmall(false); }
     });
-    drag(root.querySelector('.grip'));
-    document.documentElement.appendChild(host);
-    render(); paint();
+    drag(root.querySelector('.hd'));
+    drag(root.querySelector('.pill'));
+    document.documentElement.appendChild(win);
+    for (const r of Object.values(refs)) adopt(r.host);
+    layout(); paint();
   }
-  /** Dokun konumu: kayıtlı yer (ekrana sığdırılır) ya da sağ alt köşe. */
-  function render() {
-    const d = root && root.querySelector('.dock');
-    if (!d) return;
-    d.classList.toggle('small', small);
-    const x = root.querySelector('.x');
-    x.innerHTML = small ? LOGO + '<span class="dot" hidden></span>' : '–';
-    x.setAttribute('aria-label', small ? 'Panel Araçları — aç' : 'Küçült');
-    const r = d.getBoundingClientRect();
-    const R = Math.max(4, Math.min(innerWidth - r.width - 4, pos ? pos.r : 12));
-    const B = Math.max(4, Math.min(innerHeight - r.height - 4, pos ? pos.b : 12));
-    d.style.right = R + 'px'; d.style.bottom = B + 'px';
+  function adopt(h) {
+    if (!win || !h || !h.isConnected) return;
+    h.setAttribute('data-embed', '');
+    if (h.parentNode !== win) win.appendChild(h);
   }
-  function drag(grip) {
-    let start = null;
-    grip.addEventListener('pointerdown', (e) => {
-      const d = root.querySelector('.dock').getBoundingClientRect();
-      start = { x: e.clientX, y: e.clientY, r: innerWidth - d.right, b: innerHeight - d.bottom };
-      grip.setPointerCapture(e.pointerId);
-      e.preventDefault();
+  function setSmall(v) { small = v; ls('pa_small', v ? '1' : '0'); layout(); paint(); }
+  function select(k) { sel = k; ls('pa_sec', k); layout(); paint(); }
+  /** Konum: kayıtlı yer (ekrana sığdırılır) ya da sağ alt köşe. Küçükken hap, değilken pencere. */
+  function layout() {
+    if (!root) return;
+    const w = root.querySelector('.w'); const p = root.querySelector('.pill');
+    w.hidden = small; p.hidden = !small;
+    for (const [k, r] of Object.entries(refs)) if (r.host && r.host.isConnected) r.host.style.display = k === sel ? '' : 'none';
+    const el = small ? p : w;
+    const rc = el.getBoundingClientRect();
+    const R = Math.max(4, Math.min(innerWidth - rc.width - 4, pos ? pos.r : 12));
+    const B = Math.max(4, Math.min(innerHeight - rc.height - 4, pos ? pos.b : 12));
+    for (const x of [w, p]) { x.style.right = R + 'px'; x.style.bottom = B + 'px'; }
+  }
+  let moved = false;
+  function drag(handle) {
+    let st = null;
+    handle.addEventListener('pointerdown', (e) => {
+      if (e.target.closest && e.target.closest('.ib')) return;
+      const el = small ? root.querySelector('.pill') : root.querySelector('.w');
+      const r = el.getBoundingClientRect();
+      st = { x: e.clientX, y: e.clientY, r: innerWidth - r.right, b: innerHeight - r.bottom, id: e.pointerId };
+      moved = false;
     });
-    grip.addEventListener('pointermove', (e) => {
-      if (!start) return;
-      pos = { r: start.r - (e.clientX - start.x), b: start.b - (e.clientY - start.y) };
-      render(); apply();
+    handle.addEventListener('pointermove', (e) => {
+      if (!st) return;
+      const dx = e.clientX - st.x; const dy = e.clientY - st.y;
+      if (!moved && Math.abs(dx) + Math.abs(dy) < 4) return;
+      if (!moved) { moved = true; try { handle.setPointerCapture(st.id); } catch (er) { /* yok */ } }
+      pos = { r: st.r - dx, b: st.b - dy };
+      layout();
     });
-    const end = () => { if (!start) return; start = null; if (pos) ls('pa_pos', JSON.stringify(pos)); };
-    grip.addEventListener('pointerup', end);
-    grip.addEventListener('pointercancel', end);
-    grip.addEventListener('dblclick', () => { pos = null; ls('pa_pos', null); render(); apply(); });
-    grip.addEventListener('keydown', (e) => { // klavyeyle de taşınır (ok tuşları, 20 px)
-      const m = { ArrowLeft: [20, 0], ArrowRight: [-20, 0], ArrowUp: [0, 20], ArrowDown: [0, -20] }[e.key];
-      if (!m) return;
-      e.preventDefault();
-      const d = root.querySelector('.dock').getBoundingClientRect();
-      pos = { r: innerWidth - d.right + m[0], b: innerHeight - d.bottom + m[1] };
-      ls('pa_pos', JSON.stringify(pos)); render(); apply();
-    });
+    const end = () => { if (!st) return; st = null; if (moved && pos) ls('pa_pos', JSON.stringify(pos)); };
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
+    handle.addEventListener('dblclick', () => { pos = null; ls('pa_pos', null); layout(); });
   }
-  addEventListener('resize', () => { render(); apply(); });
-  function select(k) {
-    sel = k;
-    ls('pa_sec', k);
-    apply(); paint();
-  }
-  /** Seçili aracın çubuğu dokun yanında: dok ekranın alt yarısındaysa üstünde, üst yarısındaysa altında; dokla aynı kenara hizalı. */
-  function apply() {
-    const dock = root && root.querySelector('.dock');
-    const dr = dock ? dock.getBoundingClientRect() : null;
-    for (const [k, r] of Object.entries(refs)) {
-      if (!r.host || !r.host.isConnected) continue;
-      const on = k === sel && !small;
-      r.host.style.display = on ? '' : 'none';
-      if (!on || !r.bar) continue;
-      const b = r.bar.style;
-      b.left = 'auto'; b.top = 'auto'; b.bottom = 'auto';
-      if (!dr) { b.right = '12px'; b.bottom = '60px'; continue; }
-      const right = Math.max(8, innerWidth - dr.right);
-      b.right = right + 'px';
-      if (dr.top + dr.height / 2 > innerHeight / 2) { b.bottom = (innerHeight - dr.top + 8) + 'px'; b.maxHeight = (dr.top - 16) + 'px'; }
-      else { b.top = (dr.bottom + 8) + 'px'; b.maxHeight = (innerHeight - dr.bottom - 16) + 'px'; }
-    }
-  }
+  addEventListener('resize', layout);
+  const NAME = { kt: 'Kategori', sp: 'Pasifle', pt: 'Taşı' };
   function stateOf(k) {
     const r = refs[k];
     if (document.documentElement.getAttribute('data-panel-arac') === k) return ['run', 'çalışıyor'];
     const st = r && r.host && r.host.shadowRoot && r.host.shadowRoot.getElementById('st');
     if (st && /^⚠/.test(st.textContent || '')) return ['warn', 'uyarı var'];
-    try { const a = JSON.parse(sessionStorage.getItem(k + '_auto') || 'null'); if (a && a.on) return ['auto', 'otomatik mod açık']; } catch (e) { /* yok */ }
+    try { const a = JSON.parse(sessionStorage.getItem(k + '_auto') || 'null'); if (a && a.on) return ['auto', 'otomatik açık']; } catch (e) { /* yok */ }
     return null;
   }
   function paint() {
     if (!root) return;
-    let top = null;
+    const notes = [];
+    let dots = '';
     for (const b of root.querySelectorAll('.t[data-k]')) {
       const k = b.dataset.k;
-      b.setAttribute('aria-pressed', k === sel ? 'true' : 'false');
+      b.setAttribute('aria-selected', k === sel ? 'true' : 'false');
+      b.tabIndex = k === sel ? 0 : -1;
       b.hidden = !(refs[k] && refs[k].host && refs[k].host.isConnected);
       const s = stateOf(k);
       const d = b.querySelector('.d');
-      d.hidden = !s;
-      d.className = 'd' + (s ? ' ' + s[0] : '');
-      b.title = TOOLS.find((t) => t[0] === k)[3] + (s ? ' · ' + s[1] : '');
-      if (s && (!top || s[0] === 'warn' || (s[0] === 'run' && top !== 'warn'))) top = s[0];
+      d.hidden = !s; d.className = 'd' + (s ? ' ' + s[0] : '');
+      if (s) { notes.push(NAME[k] + ' ' + s[1]); dots += '<span class="d ' + s[0] + '" title="' + NAME[k] + ' ' + s[1] + '"></span>'; }
     }
-    const dot = root.querySelector('.x .dot'); // küçükken en önemli durum tek noktada
-    if (dot) { dot.hidden = !top; dot.className = 'dot d ' + (top || ''); }
+    root.querySelector('.hd .st').textContent = notes.join(' · ');
+    root.querySelector('.pill .ds').innerHTML = dots;
   }
   globalThis.__paDock = {
-    /** Araç her çizimde çağırır. */
-    place(k, h, bar) { refs[k] = { host: h, bar }; ensure(); apply(); paint(); },
+    /** Araç her çizimde çağırır: çubuğu pencerenin içine alır. */
+    place(k, h, bar) { refs[k] = { host: h, bar }; ensure(); adopt(h); if (root) { h.style.display = k === sel ? '' : 'none'; } paint(); },
     select,
   };
   setInterval(() => { ensure(); paint(); }, 1000);
