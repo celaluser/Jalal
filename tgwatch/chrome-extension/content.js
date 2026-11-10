@@ -1009,7 +1009,23 @@
     ['trovo', /trovo/, null], ['rumble', /rumble/, null], ['dailymotion', /daily\s*motion/, /dailymotion/], ['vimeo', /vimeo/, null],
     ['steam', /\bsteam\b|(?<![а-яё])стим(?![а-яё])/, null], ['apple', /apple\s*music|itunes/, /applemusic/], ['deezer', /deezer/, null],
     ['shazam', /shazam|шазам/, /shazam|шазам/], ['tumblr', /tumblr/, /tumblr/], ['quora', /quora/, null],
+    ['bigo', /\bbigo\b/, /bigolive/], ['clubhouse', /club\s*house/, /clubhouse/], ['wechat', /we\s*chat/, /wechat/], ['viber', /\bviber\b|вайбер/, null],
+    ['signal', /\bsignal\b/, null], ['imo', /\bimo\b/, null], ['zalo', /\bzalo\b/, null], ['weibo', /weibo/, null], ['bilibili', /bilibili/, /bilibili/],
+    ['douyin', /douyin/, null], ['medium', /\bmedium\.com\b|\bmedium\s+(claps|followers)/, null], ['github', /git\s*hub/, /github/], ['behance', /behance/, null],
+    ['dribbble', /dribb+le/, null], ['patreon', /patreon/, null], ['mixcloud', /mix\s*cloud/, /mixcloud/], ['audiomack', /audio\s*mack/, /audiomack/],
+    ['boomplay', /boom\s*play/, /boomplay/], ['tidal', /\btidal\b/, null], ['anghami', /anghami/, null], ['yandex', /yandex|яндекс|\bdzen\b|дзен/, /yandex|яндекс/],
+    ['rutube', /rutube|рутуб/, /rutube|рутуб/], ['coub', /\bcoub\b/, null], ['tripadvisor', /trip\s*advisor/, /tripadvisor/], ['trustpilot', /trust\s*pilot/, /trustpilot/],
+    ['opensea', /open\s*sea/, /opensea/], ['coinmarketcap', /coin\s*market\s*cap|\bcmc\b/, /coinmarketcap/], ['binance', /binance/, null], ['amazon', /amazon/, null],
+    ['line', /\bline\s+(friends|followers|voom)/, null], ['bluesky', /blue\s*sky|\bbsky\b/, /bluesky/], ['mastodon', /mastodon/, null], ['lemon8', /lemon\s*8/, null],
+    ['xiaohongshu', /xiaohongshu|red\s*note/, /xiaohongshu|rednote/], ['podcast', /podcast|подкаст/, null], ['iptv', /\biptv\b/, null],
+    ['website', /web\s*site\s+traffic|\btraffic\b|\btrafik\b|трафик/, /websitetraffic/],
   ];
+  /** Görünen ad (logo tablosu ve durum yazıları). */
+  const PLATFORM_LABEL = { tiktok: 'TikTok', youtube: 'YouTube', linkedin: 'LinkedIn', whatsapp: 'WhatsApp', soundcloud: 'SoundCloud', onlyfans: 'OnlyFans', capcut: 'CapCut',
+    pubg: 'PUBG', vk: 'VK', dailymotion: 'Dailymotion', twitter: 'Twitter / X', odnoklassniki: 'Odnoklassniki (OK)', apple: 'Apple Music', wechat: 'WeChat', github: 'GitHub',
+    tripadvisor: 'TripAdvisor', opensea: 'OpenSea', coinmarketcap: 'CoinMarketCap', iptv: 'IPTV', website: 'Website Traffic', bigo: 'Bigo Live', xiaohongshu: 'Xiaohongshu (RedNote)',
+    imo: 'imo', lemon8: 'Lemon8', mixcloud: 'Mixcloud', bluesky: 'Bluesky' };
+  const platformLabel = (k) => PLATFORM_LABEL[k] || (k.charAt(0).toUpperCase() + k.slice(1));
   // Latin harfe benzeyen harfler (Kiril/Yunan "а е о р с у х і…", küçük büyük harf "ɪɴsᴛᴀɢʀᴀᴍ") → Latin.
   // Yalnız ikinci okumada kullanılır; ilk okuma Rusça yazımlar ("Инстаграм") için harfleri olduğu gibi bırakır.
   const LOOKALIKE = {
@@ -1083,37 +1099,85 @@
     const el = row.el.querySelector('[class*="category-image"], [class*="category-icon"], img');
     return el ? urlOf(el) : '';
   }
-  /** Ekrandaki kategori satırlarından ad → logo kaydı (chrome.storage.local, en çok 3000 kategori). */
+  const stGet = (d) => new Promise((res) => { try { chrome.storage.local.get(d, (r) => res(r || d)); } catch (e) { res(d); } });
+  const stSet = (o) => { try { chrome.storage.local.set(o); } catch (e) { /* yok */ } };
+  let walkSeen = null; // "Logoları şimdi öğren" sürerken: bu gezintide görülenler (bitince eski/silinmiş kategoriler atılır)
+  const STAT_V = 2; // özet biçimi/platform listesi değişince artır: logo tablosu yeniden hesaplanır
+  /**
+   * Ekrandaki kategori satırlarından öğren (chrome.storage.local):
+   *  - logoSeen: platform adlı kategori → logo (en çok 3000),
+   *  - logoAll: görülen bütün resimler (logo tablosundaki seçim ızgarası için; up=1: Uploaded sekmesinde görüldü),
+   *  - logoStat: platform → [{url, n}] özeti (logo tablosu sayfası bunu okur).
+   */
   async function learnLogos() {
-    const rows = categoryRows().map((r) => ({ name: r.name, url: rowLogo(r) })).filter((x) => x.url && platformOf(x.name));
-    if (!rows.length) return 0;
-    const { logoSeen } = await new Promise((res) => { try { chrome.storage.local.get({ logoSeen: {} }, res); } catch (e) { res({ logoSeen: {} }); } });
-    let n = 0;
-    for (const x of rows) if (logoSeen[x.name] !== x.url) { logoSeen[x.name] = x.url; n++; }
+    const all = categoryRows().map((r) => ({ name: r.name, url: rowLogo(r) })).filter((x) => x.url);
+    const { logoSeen, logoAll, logoStatV } = await stGet({ logoSeen: {}, logoAll: {}, logoStatV: 0 });
+    let n = 0; let m = 0;
+    for (const x of all) {
+      const k = fileKey(x.url);
+      if (k && !logoAll[k]) { logoAll[k] = { u: x.url, up: 0 }; m++; }
+      if (!platformOf(x.name)) continue;
+      if (walkSeen) walkSeen[x.name] = x.url;
+      if (logoSeen[x.name] !== x.url) { logoSeen[x.name] = x.url; n++; }
+    }
     if (n) {
       const keys = Object.keys(logoSeen);
       for (const k of keys.slice(0, Math.max(0, keys.length - 3000))) delete logoSeen[k];
-      try { chrome.storage.local.set({ logoSeen }); } catch (e) { /* yok */ }
     }
+    if (n || m || logoStatV !== STAT_V) stSet(Object.assign({ logoSeen, logoStatV: STAT_V, logoStat: logoStatOf(logoSeen), logoPlatforms: PLATFORMS.map(([k]) => [k, platformLabel(k)]) }, m ? { logoAll } : {}));
     return n;
   }
-  /** Platform için en çok kullanılan logo adresi. */
-  async function logoFor(platform) { return (await logoCandidates(platform))[0] || ''; }
-  /** Platform için aday logolar, en güvenilirden: kullanıcının seçtiği, sonra listede en çok kullanılanlar. */
-  async function logoCandidates(platform) {
-    const { logoSeen, logoPick } = await new Promise((res) => { try { chrome.storage.local.get({ logoSeen: {}, logoPick: {} }, res); } catch (e) { res({ logoSeen: {}, logoPick: {} }); } });
-    const out = [];
-    if (logoPick[platform]) out.push(logoPick[platform]); // kullanıcının seçicide bu platform için seçtiği resim (en güvenilir)
-    const cnt = new Map();
+  /** platform → kullanılan logolar, çoktan aza. */
+  function logoStatOf(logoSeen) {
+    const by = {};
     for (const [name, url] of Object.entries(logoSeen)) {
-      if (platformOf(name) !== platform) continue;
+      const p = platformOf(name);
+      if (!p) continue;
       const k = fileKey(url);
-      const e = cnt.get(k) || { url, n: 0 };
+      const e = (by[p] = by[p] || {})[k] || (by[p][k] = { url, n: 0 });
       e.n++;
-      cnt.set(k, e);
     }
-    for (const e of [...cnt.values()].sort((a, b) => b.n - a.n)) if (!out.some((u) => sameImg(u, e.url))) out.push(e.url);
+    const out = {};
+    for (const [p, m] of Object.entries(by)) out[p] = Object.values(m).sort((a, b) => b.n - a.n);
     return out;
+  }
+  /** Seçicide (Uploaded) görünen resimleri "seçilebilir" olarak kaydet. */
+  async function collectPicker() {
+    const p = picker();
+    if (!p || !p.box) return 0;
+    const urls = pickerImages(p.box).map(urlOf).filter(Boolean);
+    if (!urls.length) return 0;
+    const { logoAll } = await stGet({ logoAll: {} });
+    let n = 0;
+    for (const u of urls) { const k = fileKey(u); if (k && (!logoAll[k] || !logoAll[k].up)) { logoAll[k] = { u, up: 1 }; n++; } }
+    if (n) stSet({ logoAll });
+    return n;
+  }
+  /** Addaki özel kural (logo tablosunda "adında şu kelime geçerse → bu logo"): en önde geçen kazanır. */
+  function ruleOf(name, rules) {
+    const [plain, look] = platformText(name);
+    let best = null;
+    for (const r of rules || []) {
+      if (!r || !r.word || !r.url) continue;
+      const re = wordRe(platformText(r.word)[0]);
+      for (const t of [plain, look]) { const m = re.exec(t); if (m && (!best || m.index < best.i)) best = { r, i: m.index }; }
+    }
+    return best ? best.r : null;
+  }
+  /**
+   * Bu ad için hangi logo: { key, label, cands, fixed }.
+   * Sıra: 1) özel kural, 2) tabloda sabitlenen platform logosu, 3) listede o platformda en çok kullanılanlar.
+   */
+  async function logoTarget(name, alt) {
+    const { logoSeen, logoPick, logoRules } = await stGet({ logoSeen: {}, logoPick: {}, logoRules: [] });
+    const rule = ruleOf(name, logoRules) || (alt ? ruleOf(alt, logoRules) : null);
+    if (rule) return { key: 'kural:' + rule.word, label: rule.word, cands: [rule.url], fixed: true };
+    const plat = platformOf(name) || (alt ? platformOf(alt) : null);
+    if (!plat) return null;
+    const cands = [];
+    if (logoPick[plat]) cands.push(logoPick[plat]);
+    for (const e of logoStatOf(logoSeen)[plat] || []) if (!cands.some((u) => sameImg(u, e.url))) cands.push(e.url);
+    return { key: plat, label: platformLabel(plat), cands, fixed: !!logoPick[plat] };
   }
   /** "Add icon" (logo yokken seçiciyi açan bağlantı) ya da "Change/Edit icon". */
   function iconLink(dlg) {
@@ -1196,20 +1260,20 @@
   async function pickLogoInner(name, o) {
     if (o.catLogo === false) return '';
     await learnLogos(); // pencerenin arkasındaki liste satırları
-    const plat = platformOf(name) || platformOf(catSrc);
+    const target = await logoTarget(name, catSrc);
+    const plat = target && target.key;
     logoDiag.platform = plat;
-    if (!plat) return 'logo: platform anlaşılmadı';
-    const cands = await logoCandidates(plat);
+    if (!target) return 'logo: adda tanınan bir platform yok (Logo tablosu → özel kural ekleyebilirsin)';
+    const cands = target.cands;
     const want = cands[0] || '';
     logoDiag.istenen = want;
+    logoDiag.sabit = target.fixed;
     logoDiag.adaylar = cands.map(fileKey);
     // seçicideki resimlerden, aday sırası en önde olan (öğrenilen ilk logo Uploaded'da yoksa sonraki denenir)
     const rank = (e) => { const u = urlOf(e); const i = cands.findIndex((c) => sameImg(u, c)); return i < 0 ? 1e9 : i; };
     const bestIn = (box) => { let b = null; for (const e of pickerImages(box)) { const r = rank(e); if (r < 1e9 && (!b || r < b.r)) b = { e, r }; } return b; };
-    try { const { logoSeen } = await new Promise((res) => chrome.storage.local.get({ logoSeen: {} }, res)); logoDiag.ogrenilen = Object.keys(logoSeen).length; logoDiag.buPlatform = Object.keys(logoSeen).filter((k) => platformOf(k) === plat).length; } catch (e) { /* yok */ }
-    const NICE = { tiktok: 'TikTok', youtube: 'YouTube', linkedin: 'LinkedIn', whatsapp: 'WhatsApp', soundcloud: 'SoundCloud', onlyfans: 'OnlyFans', capcut: 'CapCut', pubg: 'PUBG', vk: 'VK', dailymotion: 'Dailymotion' };
-    const P = NICE[plat] || plat.charAt(0).toUpperCase() + plat.slice(1);
-    if (!want) return 'logo: ' + P + ' için öğrenilmiş logo yok (listeyi bir kez sona kadar kaydır)';
+    const P = target.label;
+    if (!want) return 'logo: ' + P + ' için logo belli değil — mini panel → Logo tablosu\'ndan seç';
     let dlg = categoryDialog();
     if (!dlg) return 'kategori penceresi kayboldu';
     logoDiag.pencere = shortHtml(dlg.input.closest('.modal-body') || dlg.box, 1500);
@@ -1233,6 +1297,8 @@
     }
     pk.tab.click();
     logoDiag.uploadedTiklandi = true;
+    await waitFor(() => { const p2 = picker(); return p2 && p2.box && pickerImages(p2.box).length; }, 3000, 100);
+    await collectPicker(); // Uploaded'daki resimler logo tablosunda seçilebilir olsun
     // ilk aday görünürse hemen; değilse 3 sn içinde görünen en iyi aday
     let firstHit = null;
     await waitFor(() => { const p2 = picker(); const b = p2 && p2.box && bestIn(p2.box); if (b) firstHit = b; return b && b.r === 0; }, 3000, 100);
@@ -1246,7 +1312,7 @@
       const p3 = picker();
       logoDiag.uploadedResimler = p3 && p3.box ? pickerImages(p3.box).slice(0, 12).map((e) => fileKey(urlOf(e))) : 'seçici kayboldu';
       closePicker();
-      return 'logo: Uploaded\'da ' + P + ' logosu bulunamadı';
+      return 'logo: ' + P + ' logosu Uploaded\'da bulunamadı — mini panel → Logo tablosu\'ndan Uploaded\'daki bir resmi seç';
     }
     const chosen = urlOf(img); // görsel eşleşmede listedeki adresten farklı olabilir
     logoDiag.secilenResim = fileKey(chosen);
@@ -1265,7 +1331,8 @@
     if (!okSel) okSel = !!(await waitFor(shown, 1500, 80));
     if (picker()) closePicker();
     await waitFor(() => !picker(), 1500, 80);
-    return okSel ? 'logo: ' + P : 'logo seçildi ama kutuda görünmedi';
+    logoDiag.secildi = okSel;
+    return okSel ? 'logo: ' + P + (target.fixed ? '' : ' (otomatik)') : 'logo: ' + P + ' resmine tıklandı ama kutuda görünmedi';
   }
   /** Seçicinin kaydırılabilir alanını aşağı kaydırarak ara (resimler görününce yüklenir). */
   async function scrollPickerFor(test) {
@@ -1276,6 +1343,7 @@
     for (let y = 0; y <= sc.scrollHeight; y += Math.max(80, sc.clientHeight - 40)) {
       sc.scrollTop = y; nudge(sc);
       await sleep(250);
+      await collectPicker();
       const p2 = picker();
       const hit = p2 && p2.box && pickerImages(p2.box).find(test);
       if (hit) { hit.scrollIntoView({ block: 'nearest' }); return hit; }
@@ -1321,23 +1389,35 @@
     return best && best.diff < 12 ? best.e : null;
   }
 
-  // Kullanıcı seçicide bir resme tıklayıp Save'e basarsa: "bu platform = bu resim" (seçicinin kendi adresi) öğrenilir.
+  // Kullanıcı seçicide bir resme tıklayıp Save'e basarsa: "bu platform = bu resim" öğrenilir — ama yalnız
+  //  - o platform tabloda henüz sabitlenmemişse (sabit seçim kendiliğinden değişmez),
+  //  - Save anında penceredeki logo gerçekten o resimse ve tıklama aynı pencerede, az önce olduysa.
+  // (Eskiden tıklanıp vazgeçilen bir resim, sonra kaydedilen başka kategorinin platformuna yazılabiliyordu.)
   let pickedByUser = null;
   // Panel seçimi fareye basınca (mousedown) yapıp seçiciyi kapatabilir; bu yüzden basış anı da dinlenir.
   const onUserPick = (e) => {
     if (!e.isTrusted || catRunning) return;
     const p = picker();
     if (!p || !p.box || !p.box.contains(e.target)) return;
+    collectPicker();
     const el = e.target.closest('img, [style*="background-image"]') || e.target.querySelector && e.target.querySelector('img');
     const u = el && urlOf(el);
-    if (u) pickedByUser = u;
+    const d = categoryDialog();
+    if (u) pickedByUser = { u, at: Date.now(), dlg: d ? d.box : null };
   };
   for (const t of ['pointerdown', 'mousedown', 'click']) document.addEventListener(t, onUserPick, true);
-  function rememberLogoPick(name) {
-    const plat = platformOf(name) || platformOf(catSrc);
-    if (!pickedByUser || !plat) return;
-    const u = pickedByUser; pickedByUser = null;
-    try { chrome.storage.local.get({ logoPick: {} }, (r) => { r.logoPick[plat] = u; chrome.storage.local.set({ logoPick: r.logoPick }); }); } catch (e) { /* yok */ }
+  async function rememberLogoPick(dlg) {
+    const pick = pickedByUser; pickedByUser = null;
+    if (!pick || !dlg || pick.dlg !== dlg.box || Date.now() - pick.at > 10 * 60000) return;
+    const b = logoBox(dlg);
+    const shown = b && (urlOf(b) || urlOf(b.querySelector('*')));
+    if (!shown || !sameImg(shown, pick.u)) return; // kullanıcı sonra başka resim seçti ya da logoyu kaldırdı
+    const plat = platformOf(dlg.input ? dlg.input.value : '') || platformOf(catSrc);
+    if (!plat) return;
+    const { logoPick } = await stGet({ logoPick: {} });
+    if (logoPick[plat]) return;
+    logoPick[plat] = pick.u;
+    stSet({ logoPick });
   }
 
   /** Seçiciyi kapat: pencere başlığına tıkla (Escape pencerenin kendisini kapatabilir). */
@@ -1363,6 +1443,7 @@
       const el = box || document.scrollingElement;
       el.scrollTop = 0; nudge(box); nudge();
       await sleep(400);
+      walkSeen = {};
       let learned = await learnLogos();
       let stable = 0;
       for (let i = 0; i < 3000 && stable < 2; i++) {
@@ -1378,11 +1459,19 @@
         learned += await learnLogos();
         stable = el.scrollHeight > hgt ? 0 : stable + 1;
       }
-      const { logoSeen } = await new Promise((res) => chrome.storage.local.get({ logoSeen: {} }, res));
-      const plats = new Set(Object.keys(logoSeen).map(platformOf).filter(Boolean));
-      catStatus('Logolar öğrenildi: ' + Object.keys(logoSeen).length + ' kategori, ' + plats.size + ' platform', 'ok');
-      return { ok: true, categories: Object.keys(logoSeen).length, platforms: [...plats] };
+      // Liste baştan sona gezildi: kayıt yalnız şimdi var olan kategorilerden oluşsun (adı değişen/silinenler yanlış oy vermesin).
+      let { logoSeen } = await stGet({ logoSeen: {} });
+      if (walkSeen && Object.keys(walkSeen).length) {
+        logoSeen = walkSeen;
+        stSet({ logoSeen, logoStatV: STAT_V, logoStat: logoStatOf(logoSeen), logoPlatforms: PLATFORMS.map(([k]) => [k, platformLabel(k)]) });
+      }
+      const stat = logoStatOf(logoSeen);
+      const plats = Object.keys(stat);
+      const unsure = plats.filter((k) => stat[k].length > 1).map(platformLabel);
+      catStatus('Logolar öğrenildi: ' + Object.keys(logoSeen).length + ' kategori, ' + plats.length + ' platform' + (unsure.length ? ' · birden fazla logo kullanılan: ' + unsure.join(', ') + ' (Logo tablosundan sabitle)' : ''), 'ok');
+      return { ok: true, categories: Object.keys(logoSeen).length, platforms: plats, unsure };
     } finally {
+      walkSeen = null;
       catRunning = false; busy(false);
     }
   }
@@ -1732,7 +1821,7 @@
       const nm = dlg.input.value;
       catStatus('Ad zaten Azerice · logo seçiliyor…');
       const lg = await pickCategoryLogo(nm, await opts());
-      const changed = /^logo: /.test(lg) && !/bulunamadı|yok|anlaşılmadı/.test(lg);
+      const changed = !!(logoDiag && logoDiag.secildi); // logo gerçekten seçildi (kutuda göründü)
       if (!changed || !save) return { ok: false, already: true, name: nm, note: nm + ' · ad zaten Azerice' + (lg ? ' · ' + lg : '') + (changed && !save ? ' · deneme: Save\'e basılmadı' : '') };
       await sleep(250);
       const d3 = categoryDialog();
@@ -2183,7 +2272,7 @@
     const dlg = categoryDialog();
     if (!dlg || ours(e.target) || !dlg.box.contains(e.target)) return;
     const b = e.target.closest && e.target.closest('button, a, input[type=submit]');
-    if (b && SAVE_WORDS.includes(lower(b.value || btnText(b)))) { rememberCategory(dlg); rememberLogoPick(dlg.input ? dlg.input.value : ''); }
+    if (b && SAVE_WORDS.includes(lower(b.value || btnText(b)))) { rememberCategory(dlg); rememberLogoPick(dlg); }
   }, true);
 
   // ---- mini panelden gelen istekler ----

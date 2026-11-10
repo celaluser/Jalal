@@ -48,7 +48,14 @@ async function page(b, catCfg, storage, file) {
   return p;
 }
 async function runCat(p) {
-  await p.evaluate(() => { window.__lastStatus = ''; window.__tick = setInterval(() => { const s = document.querySelector('.tgw-cbar .tgw-status'); if (s && s.textContent) window.__lastStatus = s.textContent; }, 30); });
+  // Durum yazısı değişikliklerini kaçırmadan yakala (çubuk yazıdan hemen sonra kalkabilir: aralıklı okuma son yazıyı kaçırıyordu).
+  await p.evaluate(() => {
+    window.__lastStatus = '';
+    if (window.__mo) window.__mo.disconnect();
+    const read = (n) => { const e = n && (n.nodeType === 1 ? n : n.parentElement); const s = e && e.closest && e.closest('.tgw-status'); if (s && s.closest('.tgw-cbar') !== null && s.textContent) window.__lastStatus = s.textContent; else if (s && s.textContent && !s.isConnected) window.__lastStatus = s.textContent; };
+    window.__mo = new MutationObserver((recs) => { for (const r of recs) { read(r.target); r.addedNodes.forEach((n) => { read(n); if (n.querySelector) { const s = n.querySelector('.tgw-cbar .tgw-status, .tgw-status'); if (s && s.textContent) window.__lastStatus = s.textContent; } }); } });
+    window.__mo.observe(document.documentElement, { subtree: true, childList: true, characterData: true });
+  });
   await p.evaluate(() => window.__send({ type: 'tgw-run' }));
   await p.waitForFunction(() => /kaydedildi|deneme|Save|bulunamadı|çevrilemedi/i.test(window.__lastStatus) && !document.querySelector('.tgw-cbar.tgw-running'), null, { timeout: 30000, polling: 100 })
     .catch(async (e) => { console.log('--- ZAMAN AŞIMI:', JSON.stringify(await p.evaluate(() => ({ st: window.__lastStatus, tab: window.__tab, saved: window.__savedCat })))); throw e; });
@@ -103,7 +110,7 @@ const saved = (p) => p.evaluate(() => window.__savedCat || null);
     let p = await page(b, { name: 'Netflix Premium Account' });
     let st = await runCat(p);
     eq(await saved(p), { name: 'AZ Netflix Premium Account', logo: '' }, 'ad kaydedildi, logo yok');
-    ok(/öğrenilmiş logo yok/.test(st), 'durum: ' + st);
+    ok(/Netflix için logo belli değil/.test(st), 'durum: ' + st);
     await p.close();
     p = await page(b, { name: 'Premium Paketler' });
     st = await runCat(p);
@@ -133,7 +140,7 @@ const saved = (p) => p.evaluate(() => window.__savedCat || null);
     const p = await page(b, { name: 'YouTube Baxış [ Yeni Native ads ] Sürətli Working' });
     const st = await runCat(p);
     eq(await saved(p), { name: 'YouTube Baxış [ Yeni Native ads ] Sürətli Working', logo: C + 'yt.png' }, 'ad aynı, logo YouTube, kaydedildi');
-    ok(/ad zaten Azerice · logo: YouTube · kaydedildi/.test(st), 'durum: ' + st);
+    ok(/ad zaten Azerice · logo: YouTube \(otomatik\) · kaydedildi/.test(st), 'durum: ' + st);
     eq((await p.evaluate(() => window.__calls.filter((c) => c.a === 'translate'))).length, 0, 'çeviri isteği yok');
     await p.close();
   }
@@ -159,7 +166,7 @@ const saved = (p) => p.evaluate(() => window.__savedCat || null);
   {
     const p = await page(b, { name: 'Telegram Members' });
     let st = await runCat(p);
-    ok(/öğrenilmiş logo yok/.test(st), 'önce bilinmiyor: ' + st);
+    ok(/Telegram için logo belli değil/.test(st), 'önce bilinmiyor: ' + st);
     await p.evaluate(() => window.__reopen('Telegram Members'));
     await p.click('#addicon'); await p.click('a[data-t=uploaded]'); await p.click('#grid img[data-f="tg.png"]'); await p.click('#csave');
     await p.waitForTimeout(300);
@@ -201,6 +208,60 @@ const saved = (p) => p.evaluate(() => window.__savedCat || null);
     eq((await saved(p)).logo, C + '99s3cn8it67h6c9l.png', 'Instagram logosu (ikinci aday)');
     ok(/logo: Instagram/.test(st), 'durum: ' + st);
     ok(p.__errs.length === 0, 'JS hatası yok');
+    await p.close();
+  }
+
+  console.log('L14 Logo tablosunda sabitlenen logo, listede en çok kullanılandan önce gelir');
+  {
+    const p = await page(b, { name: 'TikTok Followers' }, { logoPick: { tiktok: C + 'tt-b.png' } });
+    const st = await runCat(p);
+    eq((await saved(p)).logo, C + 'tt-b.png', 'sabit logo seçildi (çoğunluk tt-a olduğu hâlde)');
+    ok(/logo: TikTok · kaydedildi/.test(st), 'durumda "(otomatik)" yok: ' + st);
+    await p.close();
+  }
+
+  console.log('L15 özel kural: adında kelime geçerse o logo (listede olmayan ağ; platformdan da önce gelir)');
+  {
+    let p = await page(b, { name: 'Zorbly Live Followers' }, { logoRules: [{ word: 'Zorbly', url: C + 'other.png' }] });
+    let st = await runCat(p);
+    eq((await saved(p)).logo, C + 'other.png', 'tanınmayan ağ: kuraldaki logo');
+    ok(/logo: Zorbly · kaydedildi/.test(st), 'durum: ' + st);
+    await p.close();
+    p = await page(b, { name: 'TikTok Premium Followers' }, { logoRules: [{ word: 'premium', url: C + 'fb.gif' }] });
+    await runCat(p);
+    eq((await saved(p)).logo, C + 'fb.gif', 'kural platform logosundan önce gelir');
+    await p.close();
+    p = await page(b, { name: 'Website Visitors' });
+    st = await runCat(p);
+    ok(/adda tanınan bir platform yok/.test(st), 'platformsuz ad: ' + st);
+    await p.close();
+  }
+
+  console.log('L16 elle seçim yalnız kaydedilen pencere içinse öğrenilir; sabit logo kendiliğinden değişmez');
+  {
+    let p = await page(b, { name: 'Telegram Members' });
+    await p.click('#addicon'); await p.click('a[data-t=uploaded]'); await p.click('#grid img[data-f="tg.png"]');
+    // vazgeçildi: başka kategori açılıp (logosuz) kaydedildi
+    await p.evaluate(() => window.__reopen('Spotify Plays'));
+    await p.click('#csave');
+    await p.waitForTimeout(300);
+    eq(await p.evaluate(() => window.__store.logoPick || {}), {}, 'vazgeçilen tıklama başka platforma yazılmadı');
+    await p.close();
+    p = await page(b, { name: 'Telegram Members' }, { logoPick: { telegram: C + 'ig.png' } });
+    await p.click('#addicon'); await p.click('a[data-t=uploaded]'); await p.click('#grid img[data-f="tg.png"]'); await p.click('#csave');
+    await p.waitForTimeout(300);
+    eq((await p.evaluate(() => window.__store.logoPick)).telegram, C + 'ig.png', 'tabloda sabit olan, elle tek seferlik seçimle değişmedi');
+    await p.close();
+  }
+
+  console.log('L17 logo tablosu verisi: platform özeti (logoStat), Uploaded resimleri (logoAll up=1), platform listesi');
+  {
+    const p = await page(b, { name: 'TikTok Followers' });
+    await runCat(p);
+    const st = await p.evaluate(() => window.__store);
+    eq((st.logoStat.tiktok || []).map((e) => [e.url.split('/').pop(), e.n]), [['tt-a.gif', 3], ['tt-b.png', 1]], 'TikTok: iki farklı logo, sayılarıyla');
+    ok(Object.values(st.logoAll).filter((x) => x.up).length === 7, 'Uploaded\'daki 7 resim seçilebilir olarak kaydedildi: ' + Object.values(st.logoAll).filter((x) => x.up).length);
+    ok(st.logoPlatforms.some(([k, l]) => k === 'tiktok' && l === 'TikTok') && st.logoPlatforms.length > 60, 'platform listesi: ' + st.logoPlatforms.length);
     await p.close();
   }
 

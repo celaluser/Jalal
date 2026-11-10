@@ -14,7 +14,7 @@ const cases = [
  ['Twitter','twitter'],['X Followers','twitter'],['Twitter/X','twitter'],['Твиттер','twitter'],['X (Twitter)','twitter'],['10x Faster','null'],
  ['WhatsApp','whatsapp'],['Vatsap','whatsapp'],['Ватсап','whatsapp'],
  ['ВК друзья','vk'],['VKontakte','vk'],['Одноклассники','odnoklassniki'],['Spotify Plays','spotify'],['Спотифай','spotify'],
- ['Free Services 1000','null'],['Website Traffic','null'],['Kick Followers','kick'],['Snap Chat','snapchat'],
+ ['Free Services 1000','null'],['Website Traffic','website'],['Bigo Live Followers','bigo'],['Normal Followers','null'],['Kick Followers','kick'],['Snap Chat','snapchat'],
 ];
 let bad = 0;
 for (const [n, w] of cases) { const r = String(platformOf(n)); if (r !== w) { bad++; console.log('✗', n, '→', r, '(beklenen ' + w + ')'); } }

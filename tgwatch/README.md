@@ -51,6 +51,15 @@ kategorilerde en çok hangi resim kullanılıyorsa yeni TikTok kategorisine o se
 kalın/italik Unicode adlar da tanınır). Öğrenme: liste kaydırılırken kendiliğinden, ya da mini panel → Ayarlar → **Logoları şimdi öğren**
 (Services sayfasında listeyi baştan sona gezer). Ayarlar: **Kategoriye logo seç** (açık), **Mevcut logoyu değiştir** (kapalı: yalnız logosu
 olmayan kategoriye seçer). **En güvenilir yol:** bir platform için logoyu bir kez kendin seçip Save'e basarsan eklenti "bu platform = bu resim" diye seçicinin kendi adresini öğrenir ve sonra hep onu kullanır. Adres tutmazsa resimler içeriğe göre karşılaştırılır (resim sunucusu izin verirse). Adı zaten Azerice olan kategoride ad değişmez, yalnız logo seçilip kaydedilir. Platform anlaşılmazsa ya da o platform için öğrenilmiş logo yoksa logo seçilmez, ad yine kaydedilir.
+**Logo tablosu (eklenti 1.18.0) — kesin seçim:** mini panel → Ayarlar → **Logo tablosu** ayrı bir sayfa açar: her platformun yanında seçilecek logo görünür.
+Durumlar: **Sabit** (sen sabitledin, hep bu), **Otomatik · N kategoride** (listede tek logo kullanılmış), **N farklı logo kullanılmış — birini seç** (küçük resimlerden birine tıkla, sabitlenir),
+**Logo yok**. "Uploaded'da görülmedi" uyarısı: resim listede bir kategoride var ama Uploaded sekmesinde yok; eklenti onu seçemez, Uploaded'daki bir resmi seç.
+**Otomatik N platformu sabitle** tek logolu olanların hepsini sabitler. **Özel kurallar:** "adında şu kelime geçerse → bu logo" (listede olmayan ağ, ya da "Reels", "Premium" gibi özel kategoriler);
+özel kural her şeyden önce gelir. Seçim sırası: özel kural → sabit logo → listede o platformda en çok kullanılan logo. Seçim ızgarası Uploaded sekmesinde görülen resimleri gösterir
+(eklenti seçiciyi her açtığında oradaki resimleri kaydeder; hiç görülmediyse herhangi bir kategoride Edit → logo → Uploaded'ı bir kez aç) ya da resim adresi yapıştırılır.
+"Logoları şimdi öğren" listeyi baştan sona gezince kayıt yalnız şimdi var olan kategorilerden kurulur (adı değişen/silinen kategoriler yanlış oy vermez).
+Elle seçilen logo yalnız kaydedilen pencereye aitse ve platform tabloda sabit değilse öğrenilir (eskiden vazgeçilen bir tıklama, sonra kaydedilen başka kategorinin platformuna yazılabiliyordu).
+Tanınan ağ sayısı ~80 (Bigo, Clubhouse, WeChat, Viber, Bluesky, Yandex/Dzen, Rutube, Trustpilot, Website Traffic… eklendi).
 **Denenmedi:** gerçek paneldeki logo kutusu ve seçici (logo yokken "Add icon" bağlantısı, varken ad kutusunun solundaki logo; "Icons / Emoji / Uploaded"
 sekmeleri, "Upload file" düğmesi varsayıldı).
 

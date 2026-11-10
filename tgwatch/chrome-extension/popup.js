@@ -252,9 +252,11 @@ $('learnLogos').onclick = () => {
   $('learnMsg').textContent = 'Services sayfasında liste geziliyor…';
   chrome.tabs.sendMessage(tabId, { type: 'tgw-learn-logos' }, (r) => {
     void chrome.runtime.lastError;
-    $('learnMsg').textContent = !r ? 'Bu sekmede panelin Services sayfası açık değil' : r.ok ? r.categories + ' kategori, ' + r.platforms.length + ' platform öğrenildi' : r.error;
+    $('learnMsg').textContent = !r ? 'Bu sekmede panelin Services sayfası açık değil' : r.ok
+      ? r.categories + ' kategori, ' + r.platforms.length + ' platform öğrenildi' + (r.unsure && r.unsure.length ? ' · kontrol et: ' + r.unsure.join(', ') + ' → Logo tablosu' : '') : r.error;
   });
 };
+$('logoTable').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('logos.html') });
 $('opt').onclick = (e) => { e.preventDefault(); chrome.runtime.openOptionsPage(); };
 $('tg').onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: $('tg').href }); };
 init();
