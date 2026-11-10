@@ -246,7 +246,7 @@ const lists = (page) => bar(page, '.list').first().innerText();
     eq(s.dialogsCancelled.length, 3, '3 kategoride iptal edildi');
     const dgn = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { kt: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(dgn.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.3.2' && dj.satirTurleri && dj.actionsZinciri, 'teşhis metni hatasız üretildi (JSON)');
+    ok(dj && dj.surum === '1.3.3' && dj.satirTurleri && dj.actionsZinciri, 'teşhis metni hatasız üretildi (JSON)');
     await pop.close(); await p.close();
   }
 

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Servis Pasifle</title>
+<style>
+ body{margin:0;width:auto;font:13px/1.4 system-ui,sans-serif;background:#1e2a24;color:#e8ecf4}
+ main{padding:10px;display:flex;flex-direction:column;gap:8px}
+ h1{font-size:14px;margin:0}
+ .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+ button{cursor:pointer;border:0;border-radius:6px;padding:6px 10px;background:#2d4a3c;color:#fff;font:inherit}
+ button:hover{background:#3a604d}button:disabled{opacity:.4;cursor:default}
+ #run{background:#9b2c3a}#run:hover{background:#b73646}
+ .lk{background:none;color:#8fd0ff;padding:0 4px;font-size:12px}
+ #list,#res{max-height:170px;overflow:auto;background:#121a16;border-radius:6px;padding:4px 6px}
+ #list label,#res div{display:flex;gap:4px;padding:1px 0;border-bottom:1px solid #20302a}#list label span{flex:1}
+ input[type=number]{width:60px;background:#121a16;color:#fff;border:1px solid #3c5a4a;border-radius:4px;padding:2px 4px}
+ #st{white-space:pre-wrap;color:#c9d8d0}small{color:#9fb3a8}.warn{color:#ffb4a8}.auto{color:#8fe0b0}
+ label{display:flex;gap:4px;align-items:center}
+</style></head>
+<body><main>
+ <h1>⏻ Servis Pasifle <small id="ver"></small></h1>
+ <div id="off" hidden class="warn">Bu sekmede panelin <b>/admin/services</b> sayfası açık değil.</div>
+ <div id="ui">
+  <div class="row"><label><input type="radio" name="m" id="mMass"> Toplu (kutucuk → Disable all)</label><label><input type="radio" name="m" id="mSingle"> Tek tek</label></div>
+  <div class="row"><button id="scan">Not Assigned'daki aktif servisleri bul</button></div>
+  <small id="stats"></small>
+  <div class="row" id="selrow" hidden><small>Pasife alınacak:</small><button class="lk" id="all">hepsi</button><button class="lk" id="none">hiçbiri</button></div>
+  <div id="list" hidden></div>
+  <div class="row"><button id="run" disabled>Pasife al (0)</button><button id="stop" disabled>Durdur</button></div>
+  <div class="row"><label><input id="dry" type="checkbox"> Deneme modu</label><label>en çok <input id="max" type="number" min="1" max="5000"></label></div>
+  <div class="row"><label><input id="auto" type="checkbox"> Otomatik: her</label><input id="every" type="number" min="1" max="120"><label>dk yenile + kontrol et</label></div>
+  <small id="autoInfo" class="auto"></small>
+  <div id="st"></div>
+  <div id="res" hidden></div>
+  <div class="row"><button id="diag">Teşhisi kopyala</button></div>
+ </div>
+</main><script src="sp.js"></script></body></html>

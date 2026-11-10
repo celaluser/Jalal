@@ -6,7 +6,7 @@
   if (window.__katTemizle) return;
   window.__katTemizle = true;
 
-  const VERSION = '1.3.2';
+  const VERSION = '1.3.3';
   const SETTINGS_KEY = 'kt_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const HANDLE = '.service-table__handle, [class*="__handle"], .handle, .drag-handle';
@@ -85,6 +85,21 @@
     }
     return norm(t);
   }
+
+  // ---------------------------------------------------------------- araçlar arası kilit
+  // Aynı sayfada birden çok araç (Kategori Temizle / Servis Pasifle / Pasif Servis Taşı) aynı anda listeyi kullanmasın:
+  // çalışan araç <html data-panel-arac="…"> yazar. Sayfa yenilenince kendiliğinden temizlenir.
+  const ME = 'kt'; const LOCK = 'data-panel-arac';
+  const LOCK_NAME = { kt: 'Kategori Temizle', sp: 'Servis Pasifle', pt: 'Pasif Servis Taşı' };
+  const lockHolder = () => document.documentElement.getAttribute(LOCK) || '';
+  const lockFree = () => { const h = lockHolder(); return !h || h === ME; };
+  function lockTake() { if (!lockFree()) return false; document.documentElement.setAttribute(LOCK, ME); return true; }
+  function lockDrop() { if (lockHolder() === ME) document.documentElement.removeAttribute(LOCK); }
+  /** Elle başlatılan iş: başka araç çalışıyorsa başlamaz; bitince kilidi bırakır. */
+  const guarded = (fn) => async (...args) => {
+    if (!lockTake()) { setStatus('⚠ Şu an "' + (LOCK_NAME[lockHolder()] || lockHolder()) + '" çalışıyor: önce o bitsin.'); return undefined; }
+    try { return await fn(...args); } finally { if (!S.running) lockDrop(); }
+  };
 
   // ---------------------------------------------------------------- durum
   const S = {
@@ -839,6 +854,7 @@
     }
   }
 
+  const gScan = guarded(scan); const gRun = guarded(run);
   function stop() {
     if (!S.running) return;
     S.stop = true;
@@ -909,7 +925,8 @@
 
   // ---------------------------------------------------------------- arayüz (shadow DOM: sayfa aramalarına karışmaz)
   let host = null; let root = null; let minimized = false;
-  try { minimized = localStorage.getItem('kt_min') === '1'; } catch (e) { /* yok */ }
+  // Birleşik eklentide (Panel Araçları) üç çubuk yan yana durur: ilk açılışta küçük başlar.
+  try { const m = localStorage.getItem('kt_min'); minimized = m === '1' || (m === null && !!globalThis.__PANEL_ARACLARI); } catch (e) { /* yok */ }
 
   const CSS = `
     :host{all:initial}
@@ -1006,11 +1023,11 @@
     const t = ev.target.closest && ev.target.closest('[data-a]');
     if (!t || t.disabled || t.hasAttribute('disabled')) return;
     const a = t.getAttribute('data-a');
-    if (a === 'min') { minimized = !minimized; try { localStorage.setItem('kt_min', minimized ? '1' : '0'); } catch (e) { /* yok */ } render(); }
-    else if (a === 'scan') scan();
+    if (a === 'min') { minimized = !minimized; try { localStorage.setItem('kt_min', minimized ? '1' : '0'); } catch (e) { /* yok */ } render(); document.dispatchEvent(new CustomEvent('panel-arac-yerles')); }
+    else if (a === 'scan') gScan();
     else if (a === 'mode') { patchSettings({ mode: t.getAttribute('data-v') }); if (S.phase === 'ready') S.status = scanSummary(); render(); }
     else if (a === 'all' || a === 'none') { setAllExcluded(a === 'none'); render(); }
-    else if (a === 'run') run();
+    else if (a === 'run') gRun();
     else if (a === 'stop') stop();
     else if (a === 'diag') { const ok = await copyText(diag()); S.status = ok ? 'Teşhis panoya kopyalandı; sohbete yapıştır.' : '⚠ Panoya kopyalanamadı (izin yok).'; render(); }
   }
@@ -1042,8 +1059,8 @@
       if (!msg || msg.kt !== true) return false;
       const done = () => respond(publicState());
       switch (msg.cmd) {
-        case 'scan': scan(); setTimeout(done, 50); return true;
-        case 'run': run(); setTimeout(done, 50); return true;
+        case 'scan': gScan(); setTimeout(done, 50); return true;
+        case 'run': gRun(); setTimeout(done, 50); return true;
         case 'stop': stop(); done(); return false;
         case 'settings': patchSettings(msg.patch); if (S.phase === 'ready' && msg.patch && msg.patch.mode) S.status = scanSummary(); render(); done(); return false;
         case 'exclude': if (msg.all !== undefined) setAllExcluded(!!msg.all); else if (msg.on) S.excluded.add(msg.key); else S.excluded.delete(msg.key); render(); done(); return false;

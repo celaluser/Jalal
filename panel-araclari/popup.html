@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Panel Araçları</title>
+<style>
+ html,body{margin:0}
+ body{width:344px;background:#141922;color:#e8ecf4;font:13px/1.4 system-ui,sans-serif}
+ nav{display:flex;gap:2px;padding:6px 6px 0}
+ nav button{flex:1;cursor:pointer;border:0;border-radius:8px 8px 0 0;padding:7px 4px;background:#1d2430;color:#9aa7ba;font:600 12px system-ui,sans-serif}
+ nav button:hover{color:#e8ecf4}
+ nav button[aria-selected=true]{color:#fff}
+ nav button[data-t=kt][aria-selected=true]{background:#1b2130}
+ nav button[data-t=sp][aria-selected=true]{background:#1e2a24}
+ nav button[data-t=pt][aria-selected=true]{background:#2e2418}
+ nav button:focus-visible{outline:2px solid #8fb0ff;outline-offset:-2px}
+ iframe{display:block;width:100%;height:420px;border:0}
+ iframe[hidden]{display:none}
+</style></head>
+<body>
+<nav role="tablist" aria-label="Araçlar">
+ <button role="tab" data-t="kt" id="t-kt" aria-controls="f-kt" title="Boş pasif kategorileri sil · dolu pasif kategorileri Not Assigned'a taşı">🗑 Kategori</button>
+ <button role="tab" data-t="sp" id="t-sp" aria-controls="f-sp" title="Not Assigned'daki aktif servisleri pasife al">⏻ Pasifle</button>
+ <button role="tab" data-t="pt" id="t-pt" aria-controls="f-pt" title="Aktif kategorilerdeki pasif servisleri Not Assigned'a taşı">⇄ Taşı</button>
+</nav>
+<iframe id="f-kt" title="Kategori Temizle" role="tabpanel" aria-labelledby="t-kt" hidden></iframe>
+<iframe id="f-sp" title="Servis Pasifle" role="tabpanel" aria-labelledby="t-sp" hidden></iframe>
+<iframe id="f-pt" title="Pasif Servis Taşı" role="tabpanel" aria-labelledby="t-pt" hidden></iframe>
+<script src="popup.js"></script>
+</body></html>

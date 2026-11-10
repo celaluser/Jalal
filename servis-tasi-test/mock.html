@@ -36,7 +36,14 @@
 // - liste sanallaştırılmış; taşımadan sonra yeniden çizilir (servisler kapanır, başa döner)
 const e = React.createElement, { useState, useEffect } = React;
 const cfg = Object.assign({ virtual: true, delay: 400, resetAfter: true, moveFail: false, confirmCount: null, badCheckbox: null, someCollapsed: [], cats: [] }, window.__cfg || {});
-const server = window.__server = { cats: JSON.parse(JSON.stringify(cfg.cats)), moves: [], violations: [], massOther: [], massDeleteAll: 0, assignOpened: 0, assignClosed: 0, assignOk: 0, confirmCancels: 0, deletes: 0 };
+// cfg.persist: "sunucu" verisi sayfa yenilense de kalsın (otomatik mod testleri): sekmeye bağlı sessionStorage
+const savedSrv = cfg.persist ? sessionStorage.getItem('__mockServer') : null;
+const server = window.__server = savedSrv ? JSON.parse(savedSrv) : { cats: JSON.parse(JSON.stringify(cfg.cats)), moves: [], violations: [], massOther: [], massDeleteAll: 0, assignOpened: 0, assignClosed: 0, assignOk: 0, confirmCancels: 0, deletes: 0 };
+if (cfg.persist) {
+  const persist = () => { try { sessionStorage.setItem('__mockServer', JSON.stringify(server)); } catch (e) { /* yok */ } };
+  setInterval(persist, 150); window.addEventListener('pagehide', persist);
+  sessionStorage.setItem('__loads', String((+sessionStorage.getItem('__loads') || 0) + 1));
+}
 let sel = new Set(); // seçili servis kimlikleri
 window.__selCount = () => sel.size;
 let rerender = () => {};

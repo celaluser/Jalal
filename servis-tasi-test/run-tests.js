@@ -253,7 +253,7 @@ const naIds = (s) => s.cats.find((c) => c.name === 'Not Assigned').svcs.map((x) 
     eq(s.moves, [], 'deneme: taşıma yok'); ok(s.assignOpened >= 1 && s.assignOpened === s.assignClosed, 'Assign açıldı ve kapandı');
     const d = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { pt: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(d.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.0.0' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
+    ok(dj && dj.surum === '1.1.0' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
     await pop.close(); await p.close();
   }
 
@@ -275,6 +275,49 @@ const naIds = (s) => s.cats.find((c) => c.name === 'Not Assigned').svcs.map((x) 
     const ticks = (await sw.evaluate(() => self.__ticks)) - t0sw;
     ok(ticks > 20, 'beklemeler service worker üzerinden (' + ticks + ' uyanış)');
     await other.close(); await p.close();
+  }
+
+  console.log('P16 otomatik mod: açılınca hemen taşır; alarm gelince sayfa yenilenir ve yeniden kontrol edilir; başka araç çalışırken tur atlanır; kapatınca alarm silinir');
+  if (want('P16')) {
+    const sw = ctx.serviceWorkers()[0] || await ctx.waitForEvent('serviceworker');
+    const p = await newPage(ctx, { persist: true });
+    const tabId = await sw.evaluate(async () => { const t = await chrome.tabs.query({ url: 'https://panelbaku.com/admin/services*' }); return t[t.length - 1].id; });
+    const autoState = () => p.evaluate(() => JSON.parse(sessionStorage.getItem('pt_auto') || 'null'));
+    const waitHist = (n) => p.waitForFunction((k) => { const a = JSON.parse(sessionStorage.getItem('pt_auto') || 'null'); return a && (a.history || []).length >= k; }, n, { timeout: 240000, polling: 250 });
+    const tick = () => sw.evaluate((n) => self.__autoTick(n), 'pt-auto:' + tabId);
+    await setDry(p, false);
+    await bar(p, '[data-s=auto]').check();
+    await waitHist(1);
+    let a = await autoState();
+    eq([a.on, a.real, a.history[0].bulunan, a.history[0].yapilan, a.history[0].hata], [true, true, EXP.length, EXP.length, 0], 'ilk tur hemen: ' + EXP.length + ' pasif servis bulundu ve taşındı');
+    let s = await server(p);
+    eq(sorted(s.moves.map((m) => m.id)), sorted(EXP), 'sunucu: yalnız aktif kategorilerdeki pasif servisler Not Assigned\'a gitti'); eq(s.violations, [], 'ihlal yok');
+    const al = await sw.evaluate(async () => (await chrome.alarms.getAll()).map((x) => ({ name: x.name, p: x.periodInMinutes })));
+    ok(al.some((x) => x.name === 'pt-auto:' + tabId && x.p === 10), 'alarm kuruldu: her 10 dk (' + JSON.stringify(al) + ')');
+    ok(/Otomatik AÇIK \(GERÇEK\)/.test(await bar(p, '#ptAuto').innerText()), 'çubukta "Otomatik AÇIK (GERÇEK)"');
+    // alarm → yenile → ikinci tur: taşınacak kalmadı
+    eq(await tick(), 'yenilendi', 'alarm: sayfa yenilendi');
+    await p.waitForFunction(() => +sessionStorage.getItem('__loads') >= 2 && document.querySelector('#pt-host'), null, { timeout: 30000 });
+    await waitHist(2);
+    a = await autoState();
+    eq([a.history[0].neden, a.history[0].bulunan, a.history[0].yapilan], ['yenileme', 0, 0], 'yenilenen sayfada ikinci tur: taşınacak pasif servis yok');
+    eq(sorted((await server(p)).moves.map((m) => m.id)), sorted(EXP), 'ikinci turda fazladan taşıma yok');
+    // başka araç çalışıyor: alarm turu atlanır, elle tarama da başlamaz
+    await p.evaluate(() => document.documentElement.setAttribute('data-panel-arac', 'sp'));
+    eq(await tick(), 'atla-icerik', 'başka araç çalışırken alarm → tur atlandı');
+    ok(/başka bir araç/.test((await autoState()).lastSkip.why), 'neden yazıldı: ' + (await autoState()).lastSkip.why);
+    await bar(p, '[data-a=scan]').click();
+    await p.waitForFunction((f) => /Servis Pasifle.*çalışıyor/.test(eval('(' + f + ')')()), stText.toString(), { timeout: 10000 });
+    ok(true, 'elle "bul": "Servis Pasifle çalışıyor: önce o bitsin"');
+    await p.evaluate(() => document.documentElement.removeAttribute('data-panel-arac'));
+    // kapat
+    await bar(p, '[data-s=auto]').uncheck();
+    await p.waitForTimeout(400);
+    const al2 = await sw.evaluate(async () => (await chrome.alarms.getAll()).map((x) => x.name));
+    ok(!al2.includes('pt-auto:' + tabId), 'kapatınca alarm silindi');
+    eq(await tick(), 'kapali', 'eski alarm gelirse: kapalı, yenileme yok');
+    eq(p.__errors, [], 'JS hatası yok');
+    await p.close();
   }
 
   console.log('P14 Services dışı sayfada çubuk yok');

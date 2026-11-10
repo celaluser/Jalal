@@ -32,6 +32,14 @@ function paint(s) {
   $('list').hidden = !show; $('selrow').hidden = !show;
   const html = s.items.map((x) => '<label><input type="checkbox" data-k="' + esc(x.key) + '"' + (x.off ? '' : ' checked') + (s.running ? ' disabled' : '') + '> <span>' + esc(x.name) + ' <small>· ' + esc(x.cat.slice(0, 40)) + (x.catActive ? '' : ' (pasif kat.)') + '</small></span></label>').join('');
   if (html !== last) { $('list').innerHTML = html; last = html; }
+  const a = s.auto;
+  const hm = (t) => (t ? new Date(t).toTimeString().slice(0, 5) : '--:--');
+  $('auto').checked = !!(a && a.on);
+  if (document.activeElement !== $('every')) $('every').value = (a && a.every) || s.settings.every || 10;
+  $('autoInfo').className = a && !a.on && a.off && a.off !== 'elle kapatıldı' ? 'warn' : 'auto';
+  $('autoInfo').textContent = a && a.on
+    ? '● Otomatik AÇIK (' + (a.real ? 'GERÇEK' : 'DENEME') + ') · sonraki: ' + hm(a.next) + (a.last ? ' · son ' + hm(a.last.at) + ': ' + (a.last.bulunan || 0) + ' bulundu, ' + (a.real ? (a.last.yapilan || 0) + ' taşındı' : (a.last.deneme || 0) + ' deneme') : '') + (a.skip && (!a.last || a.skip.at > a.last.at) ? ' · son tur atlandı: ' + a.skip.why : '')
+    : (a && a.off && a.off !== 'elle kapatıldı' ? a.off : '');
   $('st').textContent = s.status;
   $('st').className = /^⚠/.test(s.status) ? 'warn' : '';
   const r = s.res;
@@ -52,6 +60,8 @@ async function tick() { paint(await send({ cmd: 'state' })); }
   $('dry').onchange = async () => paint(await send({ cmd: 'settings', patch: { dryRun: $('dry').checked } }));
   $('max').onchange = async () => paint(await send({ cmd: 'settings', patch: { max: $('max').value } }));
   $('batch').onchange = async () => paint(await send({ cmd: 'settings', patch: { batch: $('batch').value } }));
+  $('auto').onchange = async () => paint(await send({ cmd: 'auto', on: $('auto').checked, every: $('every').value }));
+  $('every').onchange = async () => paint(await send({ cmd: 'auto', every: $('every').value }));
   $('diag').onclick = async () => {
     const r = await send({ cmd: 'diag' });
     let ok = false;

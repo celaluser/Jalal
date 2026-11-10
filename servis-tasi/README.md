@@ -42,3 +42,9 @@ Assign penceresi + onay, taşımadan sonra yeniden çizim, tümü açıkken kapa
 cd servis-tasi-test && npm i && node run-tests.js        # tek test: node run-tests.js P4
 HEADED=1 xvfb-run -a node run-tests.js P12               # gerçek pencerede sekme değişimi
 ```
+
+## Otomatik mod (1.1.0)
+Çubukta ya da mini panelde **Otomatik: her N dk yenile + taşı** (varsayılan 10 dk). Açılınca ilk tur hemen yapılır; sonra her N dakikada
+sayfa yenilenir ve pasif servisler yeniden aranıp Not Assigned'a taşınır. Deneme modu açıkken otomatik mod da yalnız dener.
+Sekme Services sayfasında değilse, son 1 dakikada panelde tıkladıysan/yazdıysan, pencere açıksa ya da başka bir araç
+(Kategori Temizle / Servis Pasifle) çalışıyorsa o tur atlanır. 3 tur üst üste hata → otomatik kapanır. Durum sekmeye bağlıdır.

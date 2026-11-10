@@ -9,7 +9,7 @@
   if (window.__pasifServisTasi) return;
   window.__pasifServisTasi = true;
 
-  const VERSION = '1.0.0';
+  const VERSION = '1.1.0';
   const SETTINGS_KEY = 'pt_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const TOGGLE = '.service-table__header-hide-all, [class*="header-hide-all"]';
@@ -25,7 +25,10 @@
     if (port) return port;
     try {
       port = chrome.runtime.connect({ name: 'pt' });
-      port.onMessage.addListener((m) => { const f = m && m.t === 'wake' && waiters.get(m.id); if (f) f(); });
+      port.onMessage.addListener((m) => {
+        if (m && m.t === 'autoInfo') { S.autoInfo = m.info; render(); return; }
+        const f = m && m.t === 'wake' && waiters.get(m.id); if (f) f();
+      });
       port.onDisconnect.addListener(() => { void chrome.runtime.lastError; port = null; });
     } catch (e) { port = null; }
     return port;
@@ -83,6 +86,22 @@
   }
   const isNA = (t) => catKey(cleanName(t || '')) === 'not assigned';
 
+  // ---------------------------------------------------------------- araçlar arası kilit
+  // Aynı sayfada birden çok araç (Kategori Temizle / Servis Pasifle / Pasif Servis Taşı) aynı anda listeyi kullanmasın:
+  // çalışan araç <html data-panel-arac="…"> yazar. Sayfa yenilenince kendiliğinden temizlenir.
+  const ME = 'pt'; const LOCK = 'data-panel-arac';
+  const LOCK_NAME = { kt: 'Kategori Temizle', sp: 'Servis Pasifle', pt: 'Pasif Servis Taşı' };
+  const lockHolder = () => document.documentElement.getAttribute(LOCK) || '';
+  const lockFree = () => { const h = lockHolder(); return !h || h === ME; };
+  function lockTake() { if (!lockFree()) return false; document.documentElement.setAttribute(LOCK, ME); return true; }
+  function lockDrop() { if (lockHolder() === ME) document.documentElement.removeAttribute(LOCK); }
+  /** Elle başlatılan iş: başka araç çalışıyorsa başlamaz; bitince kilidi bırakır (otomatik tur kilidi kendisi tutar). */
+  const guarded = (fn) => async (...args) => {
+    if (autoBusy) return undefined;
+    if (!lockTake()) { setStatus('⚠ Şu an "' + (LOCK_NAME[lockHolder()] || lockHolder()) + '" çalışıyor: önce o bitsin.'); return undefined; }
+    try { return await fn(...args); } finally { if (!S.running) lockDrop(); }
+  };
+
   // ---------------------------------------------------------------- durum
   const S = {
     phase: 'idle', status: 'Hazır. "Pasif servisleri bul"a bas.', running: false, stop: false,
@@ -90,19 +109,21 @@
     excluded: new Set(), stats: null, notes: [],
     res: { moved: [], dry: [], skipped: [], errors: [], pending: [] },
     diagNeeded: false, log: [], seen: { menu: [], dialog: [], toast: [] },
+    autoInfo: null, // service worker'dan: { next, every }
   };
   // Güvenlik: deneme modu her sayfa yüklenişinde AÇIK başlar. Diğer ayarlar hatırlanır.
-  const settings = { dryRun: true, max: 500, batch: 50, includePasif: false };
+  const settings = { dryRun: true, max: 500, batch: 50, includePasif: false, every: 10 };
   try {
     const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
     if (v.max) settings.max = Math.max(1, Math.min(10000, parseInt(v.max, 10) || 500));
     if (v.batch) settings.batch = Math.max(1, Math.min(500, parseInt(v.batch, 10) || 50));
     if (typeof v.includePasif === 'boolean') settings.includePasif = v.includePasif;
+    if (v.every) settings.every = Math.max(1, Math.min(120, parseInt(v.every, 10) || 10));
   } catch (e) { /* yok */ }
-  const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ max: settings.max, batch: settings.batch, includePasif: settings.includePasif })); } catch (e) { /* yok */ } };
+  const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ max: settings.max, batch: settings.batch, includePasif: settings.includePasif, every: settings.every })); } catch (e) { /* yok */ } };
   function patchSettings(p) {
     if (!p) return;
-    if (typeof p.dryRun === 'boolean') settings.dryRun = p.dryRun;
+    if (typeof p.dryRun === 'boolean') { settings.dryRun = p.dryRun; const a = autoGet(); if (a && a.on) { a.real = !p.dryRun; autoSet(a); } }
     if (p.max !== undefined) settings.max = Math.max(1, Math.min(10000, parseInt(p.max, 10) || 500));
     if (p.batch !== undefined) settings.batch = Math.max(1, Math.min(500, parseInt(p.batch, 10) || 50));
     if (typeof p.includePasif === 'boolean' && !S.running) settings.includePasif = p.includePasif;
@@ -602,13 +623,119 @@
     }
   }
   function stop() { if (!S.running) return; S.stop = true; setStatus('Durdurma istendi; sıradaki adımdan önce duracak…'); }
+  const gScan = guarded(scan); const gRun = guarded(run);
+
+  // ---------------------------------------------------------------- otomatik mod (her N dk yenile + pasif servisleri taşı)
+  // Durum sekmeye bağlı (sessionStorage): yalnızca açıldığı sekmede çalışır, sayfa yenilense de sürer, sekme kapanınca biter.
+  const AUTO_KEY = 'pt_auto';
+  function autoGet() { try { return JSON.parse(sessionStorage.getItem(AUTO_KEY) || 'null'); } catch (e) { return null; } }
+  function autoSet(a) { try { sessionStorage.setItem(AUTO_KEY, JSON.stringify(a)); } catch (e) { /* yok */ } }
+  function swAuto(on, every, restart) { const p = getPort(); if (p) { try { p.postMessage({ t: 'auto', on, every, restart: !!restart }); } catch (e) { port = null; } } }
+  function swAutoInfo() { const p = getPort(); if (p) { try { p.postMessage({ t: 'autoInfo' }); } catch (e) { port = null; } } }
+
+  // Kullanıcı panelde çalışıyorsa yenileme: gerçek (isTrusted) tıklama/tuş, eklenti çubukları hariç.
+  let lastUserInput = 0;
+  const markUser = (e) => { if (!e.isTrusted) return; const path = e.composedPath ? e.composedPath() : []; if (path.some((n) => n && /^(kt|sp|pt)-host$/.test(n.id || ''))) return; lastUserInput = Date.now(); };
+  document.addEventListener('pointerdown', markUser, true);
+  document.addEventListener('keydown', markUser, true);
+
+  function autoEnable(on) {
+    const prev = autoGet() || {};
+    if (on) {
+      const every = Math.max(1, Math.min(120, parseInt(prev.every || settings.every || 10, 10) || 10));
+      autoSet({ on: true, real: !settings.dryRun, every, history: prev.history || [], bad: 0, startedAt: Date.now() });
+      swAuto(true, every, true);
+      autoCycle('açıldı'); // ilk kontrol hemen
+    } else {
+      autoSet(Object.assign(prev, { on: false, offReason: 'elle kapatıldı' }));
+      swAuto(false);
+    }
+    render();
+  }
+  function autoEvery(v) {
+    const every = Math.max(1, Math.min(120, parseInt(v, 10) || 10));
+    settings.every = every; saveSettings();
+    const a = autoGet();
+    if (a) { a.every = every; autoSet(a); if (a.on) swAuto(true, every, true); }
+    render();
+  }
+
+  let autoBusy = false;
+  /** Bir otomatik tur: tara → pasif servis varsa Not Assigned'a taşı → geçmişe yaz. 3 tur üst üste hata/uyarı → otomatik kapanır. */
+  async function autoCycle(why) {
+    const a0 = autoGet();
+    if (!a0 || !a0.on || autoBusy || S.running) return;
+    autoBusy = true;
+    const rec = { at: Date.now(), neden: why, gercek: !!a0.real };
+    try {
+      // aynı sayfada başka araç (Kategori Temizle / Servis Pasifle) çalışıyorsa bitmesini bekle
+      if (!(await waitFor(lockTake, 15 * 60000, 500))) throw new Error('başka araç 15 dk içinde bitmedi');
+      settings.dryRun = !a0.real;
+      S.excluded.clear();
+      await scan();
+      rec.bulunan = S.phase === 'ready' ? workList().length : 0;
+      if (S.phase === 'ready' && workList().length) await run();
+      rec.yapilan = S.res.moved.length; rec.deneme = S.res.dry.length; rec.atlanan = S.res.skipped.length; rec.hata = S.res.errors.length;
+      rec.durum = S.status.slice(0, 140);
+    } catch (e) {
+      rec.hata = (rec.hata || 0) + 1; rec.durum = 'hata: ' + (e && e.message);
+    } finally {
+      lockDrop();
+      const a = autoGet() || a0;
+      const bad = /^⚠/.test(rec.durum || '') || rec.hata > 0;
+      a.history = [rec].concat(a.history || []).slice(0, 30);
+      a.lastAt = rec.at;
+      a.bad = bad ? (a.bad || 0) + 1 : 0;
+      if (a.on && a.bad >= 3) { a.on = false; a.offReason = '3 tur üst üste hata/uyarı — otomatik kapatıldı. Teşhisi kopyala.'; swAuto(false); S.diagNeeded = true; }
+      autoSet(a);
+      autoBusy = false;
+      swAutoInfo();
+      render();
+    }
+  }
+
+  /** Alarm geldi: uygunsa sayfayı yenile (yenilenen sayfa turu kendisi başlatır), değilse bu turu atla. */
+  function autoTick() {
+    const a = autoGet();
+    if (!a || !a.on) return { skip: true, off: true };
+    const skip = (why) => { a.lastSkip = { at: Date.now(), why }; autoSet(a); log('otomatik tur atlandı: ' + why); render(); return { skip: true, why }; };
+    if (!onServicesList()) return skip('Services sayfasında değil');
+    if (S.running || autoBusy) return skip('önceki iş sürüyor');
+    if (!lockFree()) return skip('başka bir araç çalışıyor');
+    if (anyDialog()) return skip('panelde açık pencere var');
+    const ae = document.activeElement;
+    if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return skip('panelde yazı alanı odakta');
+    if (Date.now() - lastUserInput < 60000) return skip('son 1 dakikada panelde işlem yapıldı');
+    setTimeout(() => location.reload(), 150);
+    return { reloading: true };
+  }
+
+  /** Sayfa yüklendi: otomatik açıksa panel çizilince turu başlat. */
+  async function autoBoot() {
+    const a = autoGet();
+    if (!a || !a.on || !onServicesList()) { if (a && a.on) swAutoInfo(); return; }
+    swAuto(true, a.every); // alarm yoksa kur (varsa takvimi bozma)
+    setStatus('Otomatik: panelin yüklenmesi bekleniyor…');
+    const ok = await waitFor(() => document.querySelector('.service-table__category, .service-table__body'), 90000, 300);
+    if (!ok) {
+      const b = autoGet() || a;
+      b.history = [{ at: Date.now(), neden: 'yenileme', durum: '⚠ panel 90 sn içinde yüklenmedi', hata: 1 }].concat(b.history || []).slice(0, 30);
+      b.bad = (b.bad || 0) + 1;
+      if (b.bad >= 3) { b.on = false; b.offReason = '3 tur üst üste hata — otomatik kapatıldı.'; swAuto(false); }
+      autoSet(b); render();
+      return;
+    }
+    await sleep(1500);
+    await autoCycle('yenileme');
+  }
+  const hhmm = (t) => (t ? new Date(t).toTimeString().slice(0, 5) : '--:--');
 
   // ---------------------------------------------------------------- teşhis
   function diag() {
     const strip = (h) => h.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>');
     const s = selection();
     return JSON.stringify({
-      surum: VERSION, adres: location.pathname, durum: S.status, istatistik: S.stats, notlar: S.notes, sonuc: S.res,
+      surum: VERSION, adres: location.pathname, durum: S.status, kilit: lockHolder(), otomatik: (() => { const a = autoGet(); return a ? { acik: a.on, gercek: a.real, her: a.every, son: a.lastAt && new Date(a.lastAt).toTimeString().slice(0, 8), sonraki: S.autoInfo && new Date(S.autoInfo.next).toTimeString().slice(0, 8), atlanan: a.lastSkip, kapanma: a.offReason, gecmis: (a.history || []).slice(0, 8) } : null; })(), istatistik: S.stats, notlar: S.notes, sonuc: S.res,
       secim: s ? { n: s.n, actions: !!s.btn, kutucuk: !!s.cb } : null,
       sonBasliklar: catHeaders().slice(-4).map((h) => ({ ad: h.name.slice(0, 50), aktif: h.active, na: h.na, sayi: h.count, kapali: h.collapsed })),
       sonServisler: serviceRows().slice(-5).map((r) => ({ id: r.sid, ad: r.name.slice(0, 50), durum: r.state, yazi: r.st, sinifPasif: r.clsOff, kutucuk: !!r.cb, html: strip(r.row.outerHTML).slice(0, 400) })),
@@ -629,7 +756,8 @@
 
   // ---------------------------------------------------------------- arayüz (shadow DOM)
   let host = null; let root = null; let minimized = false;
-  try { minimized = localStorage.getItem('pt_min') === '1'; } catch (e) { /* yok */ }
+  // Birleşik eklentide (Panel Araçları) üç çubuk yan yana durur: ilk açılışta küçük başlar.
+  try { const m = localStorage.getItem('pt_min'); minimized = m === '1' || (m === null && !!globalThis.__PANEL_ARACLARI); } catch (e) { /* yok */ }
   const CSS = `
     :host{all:initial}
     .bar{position:fixed;bottom:12px;z-index:2147483646;width:310px;font:12px/1.4 system-ui,sans-serif;color:#f2ece4;background:#2e2418;border:1px solid #6a5134;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
@@ -648,7 +776,7 @@
     .lk{all:unset;cursor:pointer;color:#ffd08f;font-size:11px;margin-left:6px}
     label{display:flex;gap:4px;align-items:center}
     input[type=number]{width:56px;background:#1c160f;color:#fff;border:1px solid #6a5134;border-radius:4px;padding:2px 4px}
-    small{color:#c2b29b}
+    small{color:#c2b29b}.auto{color:#ffd08f}
   `;
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function ensureBar() {
@@ -664,13 +792,19 @@
     document.documentElement.appendChild(host);
     render();
   }
-  /** Diğer eklentilerin çubukları da varsa yanlarına otur. */
+  /** Çubuklar soldan sağa dizilir (Kategori Temizle, Servis Pasifle, Pasif Servis Taşı): soldakilerin gerçek genişliği kadar kayar. */
   function placeBar() {
     const b = root && root.getElementById('bar');
     if (!b) return;
-    const k = ['kt-host', 'sp-host'].filter((id) => document.getElementById(id)).length;
-    b.style.left = (12 + 304 * k) + 'px';
+    let left = 12;
+    for (const id of ['kt-host', 'sp-host']) {
+      const h = document.getElementById(id);
+      const ob = h && h.shadowRoot && h.shadowRoot.getElementById('bar');
+      if (ob) left += Math.round(ob.getBoundingClientRect().width) + 8;
+    }
+    b.style.left = left + 'px';
   }
+  document.addEventListener('panel-arac-yerles', () => setTimeout(placeBar, 0)); // soldaki çubuk küçüldü/büyüdü
   let pressed = false; let wantRender = false;
   document.addEventListener('pointerdown', (e) => { if (host && e.composedPath().includes(host)) pressed = true; }, true);
   document.addEventListener('pointerup', () => { if (!pressed) return; pressed = false; setTimeout(() => { if (wantRender) render(); }, 0); }, true);
@@ -697,6 +831,15 @@
     }
     p.push('<div class="row"><button class="b red" data-a="run"' + (busyNow || S.phase !== 'ready' || !work ? ' disabled' : '') + '>' + (settings.dryRun ? 'Dene' : 'Taşı') + ' (' + work + ')</button><button class="b" data-a="stop"' + (busyNow ? '' : ' disabled') + '>Durdur</button></div>');
     p.push('<div class="row"><label><input type="checkbox" data-s="dry"' + (settings.dryRun ? ' checked' : '') + '> Deneme modu</label><label>bir seferde <input type="number" min="1" max="500" data-s="batch" value="' + settings.batch + '"></label><label>en çok <input type="number" min="1" max="10000" data-s="max" value="' + settings.max + '"></label></div>');
+    const a = autoGet();
+    const every = (a && a.every) || settings.every || 10;
+    p.push('<div class="row"><label><input type="checkbox" data-s="auto"' + (a && a.on ? ' checked' : '') + '> Otomatik: her</label><input type="number" min="1" max="120" data-s="every" value="' + every + '"><label>dk yenile + taşı</label></div>');
+    if (a && a.on) {
+      const h = (a.history || [])[0];
+      p.push('<small class="auto" id="ptAuto">● Otomatik AÇIK (' + (a.real ? '<b>GERÇEK</b>' : 'DENEME') + ') · sonraki: ' + hhmm(S.autoInfo && S.autoInfo.next) + (h ? ' · son ' + hhmm(h.at) + ': ' + (h.bulunan || 0) + ' bulundu, ' + (a.real ? (h.yapilan || 0) + ' taşındı' : (h.deneme || 0) + ' deneme') + (h.hata ? ', ' + h.hata + ' hata' : '') : '') + (a.lastSkip && (!h || a.lastSkip.at > h.at) ? '<br>son tur atlandı (' + hhmm(a.lastSkip.at) + '): ' + esc(a.lastSkip.why) : '') + '</small>');
+    } else if (a && a.offReason && a.offReason !== 'elle kapatıldı') {
+      p.push('<small class="warn">' + esc(a.offReason) + '</small>');
+    }
     p.push('<div class="st' + (/^⚠/.test(S.status) ? ' warn' : '') + '" id="st">' + esc(S.status) + '</div>');
     if (r.moved.length || r.dry.length || r.skipped.length || r.errors.length) {
       const sec = (a, t) => a.length ? '<div><b>' + t + ' (' + a.length + ')</b></div>' + a.map((x) => '<div>' + esc(x.name) + ' <small>' + esc(x.reason || '') + '</small></div>').join('') : '';
@@ -713,9 +856,9 @@
     const t = ev.target.closest && ev.target.closest('[data-a]');
     if (!t || t.disabled || t.hasAttribute('disabled')) return;
     const a = t.getAttribute('data-a');
-    if (a === 'min') { minimized = !minimized; try { localStorage.setItem('pt_min', minimized ? '1' : '0'); } catch (e) { /* yok */ } render(); }
-    else if (a === 'scan') scan();
-    else if (a === 'run') run();
+    if (a === 'min') { minimized = !minimized; try { localStorage.setItem('pt_min', minimized ? '1' : '0'); } catch (e) { /* yok */ } render(); document.dispatchEvent(new CustomEvent('panel-arac-yerles')); }
+    else if (a === 'scan') gScan();
+    else if (a === 'run') gRun();
     else if (a === 'stop') stop();
     else if (a === 'all' || a === 'none') { setAll(a === 'none'); render(); }
     else if (a === 'diag') { const ok = await copyText(diag()); S.status = ok ? 'Teşhis panoya kopyalandı; sohbete yapıştır.' : '⚠ Panoya kopyalanamadı.'; render(); }
@@ -726,6 +869,8 @@
     if (s === 'dry') patchSettings({ dryRun: t.checked });
     if (s === 'max') patchSettings({ max: t.value });
     if (s === 'batch') patchSettings({ batch: t.value });
+    if (s === 'auto') autoEnable(t.checked);
+    if (s === 'every') autoEvery(t.value);
     if (s === 'includePasif') { patchSettings({ includePasif: t.checked }); if (S.phase === 'ready') S.status = workList().length ? workList().length + ' pasif servis taşınmaya hazır. Henüz hiçbir şey değişmedi.' : 'Taşınacak pasif servis yok.'; }
     const x = t.getAttribute && t.getAttribute('data-x');
     if (x) { if (t.checked) S.excluded.delete(x); else S.excluded.add(x); }
@@ -739,6 +884,7 @@
       version: VERSION, onPage: onServicesList(), phase: S.phase, running: S.running, status: S.status, stats: S.stats, notes: S.notes, res: S.res,
       items: shown.map((x) => ({ key: x.sid, name: label(x), cat: x.cat, catActive: x.catActive, off: S.excluded.has(x.sid) })),
       work: S.phase === 'ready' ? workList().length : 0, settings: Object.assign({}, settings),
+      auto: (() => { const a = autoGet(); return a ? { on: a.on, real: a.real, every: a.every, next: S.autoInfo && S.autoInfo.next, last: (a.history || [])[0] || null, skip: a.lastSkip || null, off: a.offReason || '' } : null; })(),
     };
   }
   try {
@@ -746,8 +892,10 @@
       if (!msg || msg.pt !== true) return false;
       const done = () => respond(publicState());
       switch (msg.cmd) {
-        case 'scan': scan(); setTimeout(done, 50); return true;
-        case 'run': run(); setTimeout(done, 50); return true;
+        case 'scan': gScan(); setTimeout(done, 50); return true;
+        case 'run': gRun(); setTimeout(done, 50); return true;
+        case 'autoTick': respond(autoTick()); return false;
+        case 'auto': if (msg.every !== undefined) autoEvery(msg.every); if (msg.on !== undefined) autoEnable(!!msg.on); done(); return false;
         case 'stop': stop(); done(); return false;
         case 'settings': patchSettings(msg.patch); render(); done(); return false;
         case 'exclude': if (msg.all !== undefined) setAll(!!msg.all); else if (msg.on) S.excluded.add(msg.key); else S.excluded.delete(msg.key); render(); done(); return false;
@@ -763,4 +911,6 @@
     throttle = setTimeout(() => { throttle = null; ensureBar(); }, 800);
   }).observe(document.documentElement, { childList: true, subtree: true });
   ensureBar();
+  setInterval(() => { const a = autoGet(); if (a && a.on && !S.running) { swAutoInfo(); } }, 20000);
+  autoBoot();
 })();

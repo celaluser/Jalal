@@ -8,7 +8,7 @@
   if (window.__servisPasifle) return;
   window.__servisPasifle = true;
 
-  const VERSION = '1.2.1';
+  const VERSION = '1.2.2';
   const SETTINGS_KEY = 'sp_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const TOGGLE = '.service-table__header-hide-all, [class*="header-hide-all"]';
@@ -84,6 +84,22 @@
     return norm(t);
   }
   const isNA = (t) => catKey(cleanName(t || '')) === 'not assigned';
+
+  // ---------------------------------------------------------------- araçlar arası kilit
+  // Aynı sayfada birden çok araç (Kategori Temizle / Servis Pasifle / Pasif Servis Taşı) aynı anda listeyi kullanmasın:
+  // çalışan araç <html data-panel-arac="…"> yazar. Sayfa yenilenince kendiliğinden temizlenir.
+  const ME = 'sp'; const LOCK = 'data-panel-arac';
+  const LOCK_NAME = { kt: 'Kategori Temizle', sp: 'Servis Pasifle', pt: 'Pasif Servis Taşı' };
+  const lockHolder = () => document.documentElement.getAttribute(LOCK) || '';
+  const lockFree = () => { const h = lockHolder(); return !h || h === ME; };
+  function lockTake() { if (!lockFree()) return false; document.documentElement.setAttribute(LOCK, ME); return true; }
+  function lockDrop() { if (lockHolder() === ME) document.documentElement.removeAttribute(LOCK); }
+  /** Elle başlatılan iş: başka araç çalışıyorsa başlamaz; bitince kilidi bırakır (otomatik tur kilidi kendisi tutar). */
+  const guarded = (fn) => async (...args) => {
+    if (autoBusy) return undefined;
+    if (!lockTake()) { setStatus('⚠ Şu an "' + (LOCK_NAME[lockHolder()] || lockHolder()) + '" çalışıyor: önce o bitsin.'); return undefined; }
+    try { return await fn(...args); } finally { if (!S.running) lockDrop(); }
+  };
 
   // ---------------------------------------------------------------- durum
   const S = {
@@ -681,6 +697,7 @@
   }
 
   function stop() { if (!S.running) return; S.stop = true; setStatus('Durdurma istendi; sıradaki servisten önce duracak…'); }
+  const gScan = guarded(scan); const gRun = guarded(run);
 
   // ---------------------------------------------------------------- otomatik mod (her N dk yenile + kontrol et)
   // Durum sekmeye bağlı (sessionStorage): yalnızca açıldığı sekmede çalışır, sayfa yenilense de sürer, sekme kapanınca biter.
@@ -692,7 +709,7 @@
 
   // Kullanıcı panelde çalışıyorsa yenileme: gerçek (isTrusted) tıklama/tuş, eklentinin kendi çubuğu hariç.
   let lastUserInput = 0;
-  const markUser = (e) => { if (!e.isTrusted) return; if (host && e.composedPath && e.composedPath().includes(host)) return; lastUserInput = Date.now(); };
+  const markUser = (e) => { if (!e.isTrusted) return; const path = e.composedPath ? e.composedPath() : []; if (path.some((n) => n && /^(kt|sp|pt)-host$/.test(n.id || ''))) return; lastUserInput = Date.now(); };
   document.addEventListener('pointerdown', markUser, true);
   document.addEventListener('keydown', markUser, true);
 
@@ -725,6 +742,8 @@
     autoBusy = true;
     const rec = { at: Date.now(), neden: why, gercek: !!a0.real };
     try {
+      // aynı sayfada başka araç (Kategori Temizle / Pasif Servis Taşı) çalışıyorsa bitmesini bekle
+      if (!(await waitFor(lockTake, 15 * 60000, 500))) throw new Error('başka araç 15 dk içinde bitmedi');
       settings.dryRun = !a0.real;
       await scan();
       rec.bulunan = S.phase === 'ready' ? workList().length : 0;
@@ -734,6 +753,7 @@
     } catch (e) {
       rec.hata = (rec.hata || 0) + 1; rec.durum = 'hata: ' + (e && e.message);
     } finally {
+      lockDrop();
       const a = autoGet() || a0;
       const bad = /^⚠/.test(rec.durum || '') || rec.hata > 0;
       a.history = [rec].concat(a.history || []).slice(0, 30);
@@ -754,6 +774,7 @@
     const skip = (why) => { a.lastSkip = { at: Date.now(), why }; autoSet(a); log('otomatik tur atlandı: ' + why); render(); return { skip: true, why }; };
     if (!onServicesList()) return skip('Services sayfasında değil');
     if (S.running || autoBusy) return skip('önceki iş sürüyor');
+    if (!lockFree()) return skip('başka bir araç çalışıyor');
     if (anyDialog()) return skip('panelde açık pencere var');
     const ae = document.activeElement;
     if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return skip('panelde yazı alanı odakta');
@@ -809,7 +830,8 @@
 
   // ---------------------------------------------------------------- arayüz (shadow DOM)
   let host = null; let root = null; let minimized = false;
-  try { minimized = localStorage.getItem('sp_min') === '1'; } catch (e) { /* yok */ }
+  // Birleşik eklentide (Panel Araçları) üç çubuk yan yana durur: ilk açılışta küçük başlar.
+  try { const m = localStorage.getItem('sp_min'); minimized = m === '1' || (m === null && !!globalThis.__PANEL_ARACLARI); } catch (e) { /* yok */ }
   const CSS = `
     :host{all:initial}
     .bar{position:fixed;bottom:12px;z-index:2147483646;width:300px;font:12px/1.4 system-ui,sans-serif;color:#e8ecf4;background:#1e2a24;border:1px solid #3c5a4a;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
@@ -848,8 +870,20 @@
     render();
   }
   /** Kategori Temizle çubuğu da varsa yanına otur (üst üste binmesin). */
-  function placeBar() { const b = root && root.getElementById('bar'); if (b) b.style.left = document.getElementById('kt-host') ? '316px' : '12px'; }
+  /** Çubuklar soldan sağa dizilir (Kategori Temizle, Servis Pasifle, Pasif Servis Taşı): soldakilerin gerçek genişliği kadar kayar. */
+  function placeBar() {
+    const b = root && root.getElementById('bar');
+    if (!b) return;
+    let left = 12;
+    for (const id of ['kt-host']) {
+      const h = document.getElementById(id);
+      const ob = h && h.shadowRoot && h.shadowRoot.getElementById('bar');
+      if (ob) left += Math.round(ob.getBoundingClientRect().width) + 8;
+    }
+    b.style.left = left + 'px';
+  }
 
+  document.addEventListener('panel-arac-yerles', () => setTimeout(placeBar, 0)); // soldaki çubuk küçüldü/büyüdü
   let pressed = false; let wantRender = false;
   document.addEventListener('pointerdown', (e) => { if (host && e.composedPath().includes(host)) pressed = true; }, true);
   document.addEventListener('pointerup', () => { if (!pressed) return; pressed = false; setTimeout(() => { if (wantRender) render(); }, 0); }, true);
@@ -904,10 +938,10 @@
     const t = ev.target.closest && ev.target.closest('[data-a]');
     if (!t || t.disabled || t.hasAttribute('disabled')) return;
     const a = t.getAttribute('data-a');
-    if (a === 'min') { minimized = !minimized; try { localStorage.setItem('sp_min', minimized ? '1' : '0'); } catch (e) { /* yok */ } render(); }
-    else if (a === 'scan') scan();
+    if (a === 'min') { minimized = !minimized; try { localStorage.setItem('sp_min', minimized ? '1' : '0'); } catch (e) { /* yok */ } render(); document.dispatchEvent(new CustomEvent('panel-arac-yerles')); }
+    else if (a === 'scan') gScan();
     else if (a === 'method') { patchSettings({ method: t.getAttribute('data-v') }); render(); }
-    else if (a === 'run') run();
+    else if (a === 'run') gRun();
     else if (a === 'stop') stop();
     else if (a === 'all' || a === 'none') { setAll(a === 'none'); render(); }
     else if (a === 'diag') { const ok = await copyText(diag()); S.status = ok ? 'Teşhis panoya kopyalandı; sohbete yapıştır.' : '⚠ Panoya kopyalanamadı.'; render(); }
@@ -938,8 +972,8 @@
       if (!msg || msg.sp !== true) return false;
       const done = () => respond(publicState());
       switch (msg.cmd) {
-        case 'scan': scan(); setTimeout(done, 50); return true;
-        case 'run': run(); setTimeout(done, 50); return true;
+        case 'scan': gScan(); setTimeout(done, 50); return true;
+        case 'run': gRun(); setTimeout(done, 50); return true;
         case 'stop': stop(); done(); return false;
         case 'settings': patchSettings(msg.patch); render(); done(); return false;
         case 'exclude': if (msg.all !== undefined) setAll(!!msg.all); else if (msg.on) S.excluded.add(msg.key); else S.excluded.delete(msg.key); render(); done(); return false;
