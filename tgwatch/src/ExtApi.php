@@ -42,6 +42,10 @@ final class ExtApi
                 'learn' => [200, ['ok' => true] + $this->learn(self::items($req))],
                 'teach' => [200, ['ok' => true] + $this->teach($req)],
                 'word_info' => [200, ['ok' => true] + $this->wordInfo($req)],
+                'word_undo' => [200, ['ok' => true] + $this->wordUndo($req)],
+                'bank_search' => [200, ['ok' => true] + $this->bankSearch($req)],
+                'bank_save' => [200, ['ok' => true] + $this->bankEdit($req, false)],
+                'bank_del' => [200, ['ok' => true] + $this->bankEdit($req, true)],
                 'balance' => [200, ['ok' => true] + Balances::check($this->db)],
                 'imported' => [200, ['ok' => true] + (new ImportShare($this->db, $this->tg ?? App::telegram(), $this->config))->report($req)],
                 'ext_files' => [200, ['ok' => true] + self::extFiles()],
@@ -211,62 +215,205 @@ final class ExtApi
         return ['learned' => $learned, 'skipped' => $skipped];
     }
 
-    /** Sözlüğe tek terim: aynı kelimenin eski karşılığı (büyük/küçük harf fark etmez) değiştirilir, tahmin işareti kalkar. */
-    private function teach(array $req): array
+    private const UNDO_KEY = 'word_undo';
+    private const UNDO_MAX = 15;
+
+    private static function cleanWord($v): string
     {
-        $clean = static fn($v): string => trim(preg_replace('/\s+/u', ' ', (string)$v) ?? '');
-        $en = $clean($req['en'] ?? '');
-        $az = $clean($req['az'] ?? '');
-        $keep = !empty($req['keep']);
-        if ($en === '' || mb_strlen($en) > 80 || !preg_match('/\p{L}/u', $en)) {
-            throw new \InvalidArgumentException('Kaynak kelime 1–80 karakter olmalı');
-        }
-        if (!$keep && ($az === '' || mb_strlen($az) > 120)) {
-            throw new \InvalidArgumentException('Azerice karşılık 1–120 karakter olmalı');
-        }
-        $dict = Dictionary::load($this->db);
+        return trim(preg_replace('/\s+/u', ' ', (string)$v) ?? '');
+    }
+
+    /** "Bu kelime hiç yazılmasın" kuralı: sözlüğün "sil" listesine giren tam kelime kalıbı (Engine::stripBy sonuna "u" ekler). */
+    private static function removeRule(string $en): string
+    {
+        return substr(Memory::wordRegex($en), 0, -1); // "/…/iu" → "/…/i"
+    }
+
+    /** Kelimenin sözlükteki şimdiki durumu. @return array{az:string,key:?string,keep:bool,guess:bool,remove:bool} */
+    private static function wordState(array $dict, string $en): array
+    {
         $low = mb_strtolower($en);
-        $olds = [$en]; // bankada çevrilmeden kalmış hâli ("Almost Azalma olmaz")
+        $az = '';
+        $key = null;
+        foreach ($dict['phrases'] as $k => $v) {
+            if (mb_strtolower((string)$k) === $low) {
+                $az = (string)$v;
+                $key = (string)$k;
+            }
+        }
+        $in = static fn(array $list): bool => in_array($low, array_map(static fn($x) => mb_strtolower((string)$x), $list), true);
+        $rule = mb_strtolower(self::removeRule($en));
+        $remove = false;
+        foreach ($dict['remove'] ?? [] as $r) {
+            $r = mb_strtolower((string)$r);
+            $remove = $remove || $r === $rule || $r === $low;
+        }
+        return ['az' => $az, 'key' => $key, 'keep' => $in($dict['keep'] ?? []), 'guess' => $in($dict['guesses'] ?? []), 'remove' => $remove];
+    }
+
+    /** Kelimeye ait bütün sözlük kayıtlarını çıkarır (karşılık, tahmin işareti, "aynen kalsın", "sil"). */
+    private static function dropWord(array $dict, string $en): array
+    {
+        $low = mb_strtolower($en);
         foreach (array_keys($dict['phrases']) as $k) {
             if (mb_strtolower((string)$k) === $low) {
-                $olds[] = (string)$dict['phrases'][$k]; // sözlükteki eski karşılık
                 unset($dict['phrases'][$k]);
             }
         }
-        $dict['guesses'] = array_values(array_filter($dict['guesses'] ?? [], static fn($g) => mb_strtolower((string)$g) !== $low));
-        $dict['keep'] = array_values(array_filter($dict['keep'] ?? [], static fn($g) => mb_strtolower((string)$g) !== $low));
+        $rule = mb_strtolower(self::removeRule($en));
+        $not = static fn($g): bool => mb_strtolower((string)$g) !== $low;
+        $dict['guesses'] = array_values(array_filter($dict['guesses'] ?? [], $not));
+        $dict['keep'] = array_values(array_filter($dict['keep'] ?? [], $not));
+        $dict['remove'] = array_values(array_filter($dict['remove'] ?? [], static fn($g): bool => !in_array(mb_strtolower((string)$g), [$low, $rule], true)));
+        return $dict;
+    }
+
+    /**
+     * Sözlüğe tek terim: aynı kelimenin eski karşılığı (büyük/küçük harf fark etmez) değiştirilir, tahmin işareti kalkar.
+     * keep: çevrilmesin (aynen kalsın). remove: adlarda hiç yazılmasın (çeviriden önce silinir).
+     * Bankadaki eski kayıtlar (adlar + açıklamalar) da düzeltilir; değişiklik word_undo ile geri alınabilir.
+     */
+    private function teach(array $req): array
+    {
+        $en = self::cleanWord($req['en'] ?? '');
+        $az = self::cleanWord($req['az'] ?? '');
+        $keep = !empty($req['keep']);
+        $remove = !$keep && !empty($req['remove']);
+        if ($en === '' || mb_strlen($en) > 80 || !preg_match('/\p{L}/u', $en)) {
+            throw new \InvalidArgumentException('Kaynak kelime 1–80 karakter olmalı');
+        }
+        if (!$keep && !$remove && ($az === '' || mb_strlen($az) > 120)) {
+            throw new \InvalidArgumentException('Azerice karşılık 1–120 karakter olmalı');
+        }
+        $dict = Dictionary::load($this->db);
+        $before = self::wordState($dict, $en);
+        $olds = [$en]; // bankada çevrilmeden kalmış hâli ("Almost Azalma olmaz")
+        if ($before['az'] !== '') {
+            $olds[] = $before['az']; // sözlükteki eski karşılık
+        }
+        $dict = self::dropWord($dict, $en);
         if ($keep) {
             $dict['keep'][] = $en;
+        } elseif ($remove) {
+            $dict['remove'][] = self::removeRule($en);
         } else {
             $dict['phrases'][$en] = $az;
         }
         Dictionary::save($this->db, $dict);
         // Banka sözlükten önce gelir: kelimenin eski hâliyle kayıtlı adlar düzeltilmezse eski çeviri gelmeye devam ederdi.
-        $bank = (new Memory($this->db))->replaceWord($en, $olds, $keep ? $en : $az);
-        $this->db->log('info', 'ext', 'Eklenti sözlüğe ekledi: ' . $en . ($keep ? ' (olduğu gibi kalsın)' : ' → ' . $az) . ($bank ? "; bankada $bank kayıt düzeltildi" : ''));
-        return ['en' => $en, 'az' => $keep ? $en : $az, 'keep' => $keep, 'bank' => $bank];
+        $rows = [];
+        $fix = (new Memory($this->db))->replaceWord($en, $olds, $remove ? '' : ($keep ? $en : $az), $rows);
+        $to = $remove ? '(silinsin)' : ($keep ? '(aynen kalsın)' : $az);
+        $stack = $this->db->getJson(self::UNDO_KEY, []);
+        $stack = is_array($stack) ? $stack : [];
+        $stack[] = ['at' => time(), 'en' => $en, 'to' => $to, 'before' => $before, 'rows' => $rows];
+        $this->db->setJson(self::UNDO_KEY, array_slice($stack, -self::UNDO_MAX));
+        $this->db->log('info', 'ext', 'Eklenti sözlüğe ekledi: ' . $en . ' → ' . $to
+            . ($fix['names'] || $fix['desc'] ? "; bankada {$fix['names']} ad, {$fix['desc']} açıklama düzeltildi" : ''));
+        return ['en' => $en, 'az' => $remove ? '' : ($keep ? $en : $az), 'keep' => $keep, 'remove' => $remove, 'bank' => $fix['names'], 'desc' => $fix['desc'], 'undo' => true];
     }
 
-    /** Kelimenin şimdiki durumu: sözlükteki karşılığı / "aynen kalsın" / yok; bankada kaç adda geçtiği ve birkaç örnek. */
+    /** Son kelime değişikliğini geri al (peek: yalnızca neyin geri alınacağını söyle). */
+    private function wordUndo(array $req): array
+    {
+        $stack = $this->db->getJson(self::UNDO_KEY, []);
+        $stack = is_array($stack) ? array_values($stack) : [];
+        $last = $stack ? $stack[count($stack) - 1] : null;
+        $label = $last ? ['en' => (string)$last['en'], 'to' => (string)$last['to'], 'at' => (int)$last['at'], 'rows' => count($last['rows'] ?? [])] : null;
+        if (!empty($req['peek'])) {
+            return ['last' => $label, 'count' => count($stack)];
+        }
+        if (!$last) {
+            throw new \InvalidArgumentException('Geri alınacak kelime değişikliği yok');
+        }
+        $en = (string)$last['en'];
+        $b = is_array($last['before'] ?? null) ? $last['before'] : [];
+        $dict = self::dropWord(Dictionary::load($this->db), $en);
+        if (($b['az'] ?? '') !== '') {
+            $dict['phrases'][(string)($b['key'] ?? $en)] = (string)$b['az'];
+        }
+        if (!empty($b['keep'])) {
+            $dict['keep'][] = $en;
+        }
+        if (!empty($b['guess'])) {
+            $dict['guesses'][] = $en;
+        }
+        if (!empty($b['remove'])) {
+            $dict['remove'][] = self::removeRule($en);
+        }
+        Dictionary::save($this->db, $dict);
+        $n = (new Memory($this->db))->restoreRows(is_array($last['rows'] ?? null) ? $last['rows'] : []);
+        array_pop($stack);
+        $this->db->setJson(self::UNDO_KEY, $stack);
+        $was = ($b['az'] ?? '') !== '' ? (string)$b['az'] : (!empty($b['keep']) ? '(aynen kalsın)' : (!empty($b['remove']) ? '(silinsin)' : '(sözlükte yok)'));
+        $this->db->log('info', 'ext', "Eklenti kelime değişikliğini geri aldı: $en → $was; bankada $n kayıt eski hâline döndü");
+        $next = $stack ? $stack[count($stack) - 1] : null;
+        return ['en' => $en, 'was' => $was, 'restored' => $n, 'last' => $next ? ['en' => (string)$next['en'], 'to' => (string)$next['to'], 'at' => (int)$next['at'], 'rows' => count($next['rows'] ?? [])] : null];
+    }
+
+    /** Kelimenin şimdiki durumu: sözlükteki karşılığı / "aynen kalsın" / "silinsin" / yok; bankada kaç adda ve açıklamada geçtiği. */
     private function wordInfo(array $req): array
     {
-        $en = trim(preg_replace('/\s+/u', ' ', (string)($req['en'] ?? '')) ?? '');
+        $en = self::cleanWord($req['en'] ?? '');
         if ($en === '' || mb_strlen($en) > 80 || !preg_match('/\p{L}/u', $en)) {
             throw new \InvalidArgumentException('Kaynak kelime 1–80 karakter olmalı');
         }
+        $st = self::wordState(Dictionary::load($this->db), $en);
+        $uses = (new Memory($this->db))->wordUses($en);
+        return ['en' => $en, 'az' => $st['az'], 'state' => $st['az'] !== '' ? 'phrase' : ($st['keep'] ? 'keep' : ($st['remove'] ? 'remove' : 'none')), 'guess' => $st['guess'],
+            'bank' => $uses['count'], 'desc' => $uses['desc'], 'samples' => $uses['samples']];
+    }
+
+    /** Bankada ve sözlükte arama (eklentinin "Banka" sekmesi). */
+    private function bankSearch(array $req): array
+    {
+        $q = self::cleanWord($req['q'] ?? '');
+        if (mb_strlen($q) < 2 || mb_strlen($q) > 80) {
+            throw new \InvalidArgumentException('Arama 2–80 karakter olmalı');
+        }
+        $low = mb_strtolower($q);
         $dict = Dictionary::load($this->db);
-        $low = mb_strtolower($en);
-        $az = '';
+        $words = [];
         foreach ($dict['phrases'] as $k => $v) {
-            if (mb_strtolower((string)$k) === $low) {
-                $az = (string)$v;
+            if (count($words) < 20 && (str_contains(mb_strtolower((string)$k), $low) || str_contains(mb_strtolower((string)$v), $low))) {
+                $words[] = ['en' => (string)$k, 'az' => (string)$v, 'state' => 'phrase'];
             }
         }
-        $in = static fn(array $list): bool => in_array($low, array_map(static fn($x) => mb_strtolower((string)$x), $list), true);
-        $keep = $in($dict['keep'] ?? []);
-        $uses = (new Memory($this->db))->wordUses($en);
-        return ['en' => $en, 'az' => $az, 'state' => $az !== '' ? 'phrase' : ($keep ? 'keep' : 'none'), 'guess' => $in($dict['guesses'] ?? []),
-            'bank' => $uses['count'], 'samples' => $uses['samples']];
+        foreach ($dict['keep'] ?? [] as $k) {
+            if (count($words) < 30 && str_contains(mb_strtolower((string)$k), $low)) {
+                $words[] = ['en' => (string)$k, 'az' => '', 'state' => 'keep'];
+            }
+        }
+        return ['q' => $q, 'words' => $words, 'rows' => (new Memory($this->db))->search($q, 30)];
+    }
+
+    /** Bankadaki tek kaydın Azericesini değiştir (az) ya da kaydı sil (delete). */
+    private function bankEdit(array $req, bool $delete): array
+    {
+        $id = (int)($req['id'] ?? 0);
+        $row = $this->db->one("SELECT id, kind, en, az FROM tm WHERE id = ? AND kind IN ('service', 'category')", [$id]);
+        if (!$row) {
+            throw new \InvalidArgumentException('Banka kaydı bulunamadı');
+        }
+        $mem = new Memory($this->db);
+        if ($delete) {
+            $this->db->run('DELETE FROM tm WHERE id = ?', [$id]);
+            $mem->rebuildSegments();
+            $this->db->log('info', 'ext', 'Eklenti bankadan sildi: ' . $row['en'] . ' → ' . $row['az']);
+            return ['id' => $id, 'deleted' => true];
+        }
+        $az = trim((string)($req['az'] ?? ''));
+        if ($az === '' || mb_strlen($az) > 500) {
+            throw new \InvalidArgumentException('Azerice ad 1–500 karakter olmalı');
+        }
+        if ($az !== $row['az']) {
+            if (!$this->db->run("UPDATE OR IGNORE tm SET az = ?, origin = 'manual', updated_at = ? WHERE id = ?", [$az, time(), $id])) {
+                throw new \InvalidArgumentException('Bu kaynak için aynı çeviri zaten kayıtlı');
+            }
+            $mem->rebuildSegments();
+            $this->db->log('info', 'ext', 'Eklenti bankada düzeltti: ' . $row['en'] . ' → ' . $az);
+        }
+        return ['id' => $id, 'az' => $az];
     }
 
     /** Sunucudaki eklenti sürümü (chrome-extension/manifest.json): eklenti kendininkiyle karşılaştırıp "yeni sürüm var" der. */

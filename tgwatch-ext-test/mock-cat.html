@@ -57,6 +57,15 @@ grid.onclick = (e) => { const img = e.target.closest('img'); if (!img) return; c
 document.querySelector('.modal-title').onclick = () => { picker.style.display = 'none'; };
 window.__reopen = (name, lg) => { document.getElementById('cname').value = name; setLogo(lg || ''); document.getElementById('cdlg').style.display = ''; window.__savedCat = null; };
 document.getElementById('csave').onclick = () => { window.__savedCat = { name: document.getElementById('cname').value, logo: (logo.querySelector('img') || {}).src || '' }; document.getElementById('cdlg').style.display = 'none'; };
+// × pencereyi kaydetmeden kapatır; cfg.closed: pencere kapalı başlar, Actions → "Edit category" ile açılır
+document.querySelector('#cdlg .close').onclick = () => { window.__closes = (window.__closes || 0) + 1; picker.style.display = 'none'; document.getElementById('cdlg').style.display = 'none'; };
+if (cfg.closed) document.getElementById('cdlg').style.display = 'none';
+document.getElementById('list').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); const row = e.target.closest('.cat');
+  if (b && row && !row.querySelector('.menu')) { const m = document.createElement('div'); m.className = 'menu'; m.innerHTML = '<a href="#" class="edit">Edit category</a>'; row.appendChild(m); return; }
+  const ed = e.target.closest('a.edit');
+  if (ed) { e.preventDefault(); ed.parentElement.remove(); window.__opens = (window.__opens || 0) + 1; const im = row.querySelector('.service-table__category-image').style.backgroundImage.match(/url\(["']?([^"')]+)/); window.__reopen(row.querySelector('.service-table__category-name').textContent, im ? im[1] : ''); }
+});
 // gerçek hissi: rastgele resim yüklemesi yok; görünürlük için boyut veriyoruz
 for (const s of document.querySelectorAll('img')) s.width = 40;
 </script></body></html>

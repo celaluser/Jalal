@@ -271,6 +271,21 @@ const saved = (p) => p.evaluate(() => window.__savedCat || null);
     const r = await p.evaluate(() => window.__send({ type: 'tgw-learn-logos' }));
     ok(r.ok && r.categories === 8, 'öğrenilen kategori: ' + JSON.stringify(r));
     eq([...r.platforms].sort(), ['facebook', 'instagram', 'tiktok', 'youtube'], 'platformlar');
+    eq([r.uploaded, r.unsure], [7, ['TikTok']], 'açık penceredeki Uploaded sekmesi de tarandı; kararsız platform bildirildi');
+    ok(await p.isVisible('#cdlg') && !(await saved(p)), 'zaten açık olan pencere açık bırakıldı, Save\'e basılmadı');
+    await p.close();
+  }
+
+  console.log('L18 "Logoları şimdi öğren" Uploaded\'ı kendiliğinden tarar: bir kategorinin Edit penceresini açar, resimleri kaydeder, kaydetmeden kapatır');
+  {
+    const p = await page(b, { name: 'x', closed: true });
+    const r = await p.evaluate(() => window.__send({ type: 'tgw-learn-logos' }));
+    eq([r.ok, r.uploaded, r.uploadedError], [true, 7, ''], 'sonuç');
+    eq(await p.evaluate(() => [window.__opens || 0, window.__closes || 0, window.__savedCat || null, document.getElementById('cdlg').style.display]), [1, 1, null, 'none'], 'pencere 1 kez açıldı, × ile kapatıldı, Save yok');
+    const all = await p.evaluate(() => window.__store.logoAll);
+    eq(Object.values(all).filter((x) => x.up).map((x) => x.u.split('/').pop()).sort(), ['fb.gif', 'ig.png', 'other.png', 'tg.png', 'tt-a.gif', 'tt-b.png', 'yt.png'], 'Uploaded\'daki 7 resim seçilebilir kaydedildi');
+    ok(!(await p.evaluate(() => window.__store.logoPick)), 'hiçbir logo sabitlenmedi/değişmedi');
+    ok(p.__errs.length === 0, 'JS hatası yok ' + p.__errs.join(' | '));
     await p.close();
   }
 

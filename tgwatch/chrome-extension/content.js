@@ -483,30 +483,64 @@
     x.type = 'button';
     x.title = 'Kapat (Esc)';
     acts.append(ok, keep, x);
-    f.append(l1, l2, acts, msg);
+    // ikinci satır: "hiç yazılmasın" (kelimeyi adlardan sil) ve son değişikliği geri al
+    const acts2 = h('div', 'tgw-pop-a tgw-pop-a2');
+    const rm = h('button', 'tgw-btn tgw-ghost', 'Hiç yazılmasın');
+    rm.type = 'button';
+    rm.title = 'Bu kelime adlarda hiç yazılmasın: çeviriden önce silinir, bankadaki adlardan da çıkarılır';
+    const undo = h('button', 'tgw-btn tgw-ghost', '↶ Geri al');
+    undo.type = 'button';
+    undo.hidden = true;
+    acts2.append(rm, undo);
+    f.append(l1, l2, acts, acts2, msg);
     pop.appendChild(f);
     for (const ev of ['click', 'mousedown', 'keydown', 'keyup', 'keypress', 'input']) pop.addEventListener(ev, (e) => e.stopPropagation());
     pop.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTeach(); });
     x.addEventListener('click', closeTeach);
-    const go = async (asKeep) => {
+    const lock = (v) => { ok.disabled = keep.disabled = rm.disabled = undo.disabled = v; };
+    /** mode: true/'keep' (aynen kalsın) | 'remove' (hiç yazılmasın) | false (karşılık yaz) */
+    const go = async (mode) => {
+      const asKeep = mode === true || mode === 'keep';
+      const asRemove = mode === 'remove';
       const src = en.value.trim();
       const dst = az.value.trim();
-      if (!src || (!asKeep && !dst)) { msg.textContent = asKeep ? 'Kaynak kelimeyi yaz' : 'Azerice karşılığı yaz'; (asKeep ? en : az).focus(); return; }
-      ok.disabled = keep.disabled = true;
+      if (!src || (!asKeep && !asRemove && !dst)) { msg.className = 'tgw-pop-msg'; msg.textContent = !src ? 'Kaynak kelimeyi yaz' : 'Azerice karşılığı yaz'; (!src ? en : az).focus(); return; }
+      lock(true);
       msg.className = 'tgw-pop-msg';
       msg.textContent = 'tgwatch\'a öğretiliyor…';
-      const res = await api('teach', asKeep ? { en: src, keep: true } : { en: src, az: dst });
-      if (!res.ok) { msg.textContent = res.error || 'tgwatch hatası'; ok.disabled = keep.disabled = false; return; }
+      const res = await api('teach', asKeep ? { en: src, keep: true } : asRemove ? { en: src, remove: true } : { en: src, az: dst });
+      if (!res.ok) { msg.textContent = res.error || 'tgwatch hatası'; lock(false); return; }
+      if (asRemove && !res.remove) { msg.textContent = 'tgwatch sunucusu eski: "hiç yazılmasın" desteklenmiyor — sunucuyu güncelle.'; lock(false); return; }
       send({ type: 'stat', learned: 1 });
-      // Banka sözlükten önce gelir: sunucu eski kayıtları da düzeltir (res.bank). Eski sunucu bu alanı göndermez.
-      const bankNote = res.bank === undefined ? ' · tgwatch sunucusu eski: bankadaki eski kayıtlar düzeltilmedi' : (res.bank ? ' · bankada ' + res.bank + ' kayıt düzeltildi' : '');
+      // Banka sözlükten önce gelir: sunucu eski kayıtları da düzeltir (res.bank adlar, res.desc açıklamalar). Eski sunucu bu alanları göndermez.
+      const bankNote = res.bank === undefined ? ' · tgwatch sunucusu eski: bankadaki eski kayıtlar düzeltilmedi'
+        : (res.bank || res.desc ? ' · bankada ' + (res.bank || 0) + ' kayıt' + (res.desc ? ', ' + res.desc + ' açıklama' : '') + ' düzeltildi' : '');
       msg.className = 'tgw-pop-msg tgw-pop-ok';
-      msg.textContent = (asKeep ? '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” çevrilmeyecek' : '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” → “' + res.az + '”') + bankNote;
+      msg.textContent = (asRemove ? '✓ “' + res.en + '” artık adlarda yazılmayacak' : asKeep ? '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” çevrilmeyecek' : '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” → “' + res.az + '”') + bankNote;
       status(msg.textContent.slice(2) + ' · satırlar düzeltiliyor…', 'ok');
       await sleep(900);
       closeTeach();
-      await retranslate(id, src, asKeep ? src : res.az, bankNote);
+      await retranslate(id, src, asRemove ? '' : asKeep ? src : res.az, bankNote, asRemove ? 'remove' : '');
     };
+    rm.addEventListener('click', () => go('remove'));
+    // son kelime değişikliğini geri al (sözlük + banka), sonra o kelimenin geçtiği satırları yeniden çevir
+    api('word_undo', { peek: true }).then((r) => {
+      if (!pop || !r || !r.ok || !r.last) return;
+      undo.hidden = false;
+      undo.title = 'Son değişikliği geri al: “' + r.last.en + '” → ' + r.last.to + (r.last.rows ? ' (' + r.last.rows + ' banka kaydı)' : '');
+    });
+    undo.addEventListener('click', async () => {
+      lock(true);
+      msg.className = 'tgw-pop-msg';
+      msg.textContent = 'Geri alınıyor…';
+      const r = await api('word_undo', {});
+      if (!r.ok) { msg.textContent = r.error || 'tgwatch hatası'; lock(false); return; }
+      msg.className = 'tgw-pop-msg tgw-pop-ok';
+      msg.textContent = '↶ Geri alındı: “' + r.en + '” yine ' + r.was;
+      await sleep(900);
+      closeTeach();
+      await retranslate(id, r.en, '', ' · bankada ' + (r.restored || 0) + ' kayıt eski hâline döndü', 'undo');
+    });
     if (edit) {
       // şimdiki karşılığı göster (kullanıcı kaynağı uzatırsa/değiştirirse yeniden sorulur)
       let seq = 0;
@@ -519,8 +553,8 @@
         if (!r.ok) { if (/Bilinmeyen işlem/.test(r.error || '')) { msg.className = 'tgw-pop-msg tgw-pop-info'; msg.textContent = 'tgwatch sunucusu eski: şimdiki karşılık gösterilemiyor (yine de değiştirebilirsin).'; } return; }
         if (r.state === 'phrase' && !az.value.trim()) az.value = r.az;
         msg.className = 'tgw-pop-msg tgw-pop-info';
-        msg.textContent = (r.state === 'phrase' ? 'Şimdi: “' + r.az + '”' : r.state === 'keep' ? 'Şimdi: çevrilmiyor (aynen kalsın)' : 'Sözlükte yok')
-          + (r.bank ? ' · bankada ' + r.bank + ' adda geçiyor' : '');
+        msg.textContent = (r.state === 'phrase' ? 'Şimdi: “' + r.az + '”' : r.state === 'keep' ? 'Şimdi: çevrilmiyor (aynen kalsın)' : r.state === 'remove' ? 'Şimdi: adlarda hiç yazılmıyor' : 'Sözlükte yok')
+          + (r.bank ? ' · bankada ' + r.bank + ' adda' + (r.desc ? ', ' + r.desc + ' açıklamada' : '') + ' geçiyor' : r.desc ? ' · ' + r.desc + ' açıklamada geçiyor' : '');
       };
       en.addEventListener('change', info);
       info();
@@ -532,7 +566,7 @@
     host.appendChild(pop);
     const r = anchor.getBoundingClientRect();
     const w = 320;
-    const want = { x: Math.max(8, Math.min(innerWidth - w - 8, r.left)), y: r.bottom + 6 + 190 > innerHeight ? Math.max(8, r.top - 196) : r.bottom + 6 };
+    const want = { x: Math.max(8, Math.min(innerWidth - w - 8, r.left)), y: r.bottom + 6 + 226 > innerHeight ? Math.max(8, r.top - 232) : r.bottom + 6 };
     pop.style.left = want.x + 'px';
     pop.style.top = want.y + 'px';
     // Pencerede transform varsa "fixed" konum pencereye göre olur: farkı düzelt.
@@ -544,7 +578,8 @@
   }
 
   /** Öğretilen kelimeyi içeren (bilinmeyen listesinde olan) tüm satırları yeniden çevirip yaz. */
-  async function retranslate(firstId, word, az, note) {
+  /** how: '' (öğretildi/değişti) | 'remove' (kelime silindi) | 'undo' (değişiklik geri alındı) */
+  async function retranslate(firstId, word, az, note, how) {
     if (running) return;
     const parts = lower(word).split(' ');
     const wre = wordRe(word);
@@ -575,7 +610,7 @@
         mark(r, tr.via === 'bank' || !left.length ? 'ok' : 'warn', 'Orijinal: ' + state.get(rid).src + (left.length ? '\nBilinmeyen: ' + left.join(', ') : '\nKelime öğretildi'));
         fixed++;
       }
-      status('✓ Sözlüğe eklendi: “' + word + '”' + (az && az !== word ? ' → “' + az + '”' : ' (çevrilmeyecek)') + (note || '') + ' · ' + fixed + ' satır düzeltildi. tgwatch → Çeviri → Sözlük\'te görünür.', 'ok');
+      status((how === 'undo' ? '↶ Geri alındı: “' + word + '”' : how === 'remove' ? '✓ “' + word + '” artık adlarda yazılmayacak' : '✓ Sözlüğe eklendi: “' + word + '”' + (az && az !== word ? ' → “' + az + '”' : ' (çevrilmeyecek)')) + (note || '') + ' · ' + fixed + ' satır düzeltildi. tgwatch → Çeviri → Sözlük\'te görünür.', 'ok');
     } finally {
       setRunning(false);
     }
@@ -1420,6 +1455,52 @@
     stSet({ logoPick });
   }
 
+  /** Kategori penceresini KAYDETMEDEN kapat (Cancel / Close / ×). Save'e asla basılmaz. */
+  async function dismissCategoryDialog() {
+    const d = categoryDialog();
+    if (!d) return true;
+    const btns = [...d.box.querySelectorAll('button, a, [role=button]')].filter((b) => visible(b) && !ours(b) && b !== d.save && !SAVE_WORDS.includes(lower(b.value || btnText(b))));
+    const b = btns.find((x) => /^(cancel|close|kapat|iptal|bağla|ləğv et)$/i.test(norm(x.value || btnText(x))))
+      || btns.find((x) => x.matches('.close, .btn-close, [data-dismiss=modal], [data-bs-dismiss=modal], [aria-label=Close], [aria-label=close]') || /^[×✕x]$/i.test(norm(x.textContent)));
+    if (!b) return false;
+    b.click();
+    return !!(await waitFor(() => !categoryDialog(), 4000, 100));
+  }
+  /**
+   * Uploaded sekmesini kendiliğinden tara: bir kategorinin Edit penceresi açılır → logo / "Add icon" → Uploaded →
+   * oradaki bütün resimler (kaydırarak) "seçilebilir" diye kaydedilir → seçici ve pencere Save'e BASILMADAN kapatılır.
+   * Pencere zaten açıksa o kullanılır ve açık bırakılır.
+   */
+  async function scanUploaded() {
+    let dlg = categoryDialog();
+    let opened = false;
+    if (!dlg) {
+      const row = categoryRows()[0];
+      if (!row) return { ok: false, error: 'Actions düğmesi olan kategori yok' };
+      const r = await openCategoryEditor(row);
+      row.el.classList.remove('tgw-flash');
+      if (r.error) return { ok: false, error: r.error };
+      dlg = r.dlg; opened = true;
+    }
+    const done = async (res) => {
+      if (picker()) { closePicker(); await waitFor(() => !picker(), 1500, 80); }
+      if (opened) { const closed = await dismissCategoryDialog(); catSrc = null; catFilled = null; if (!closed) res.note = 'Edit category penceresi kapatılamadı: kendin kapat (Save\'e basma)'; }
+      return res;
+    };
+    const link = iconLink(dlg);
+    const trigger = (link && link.el) || logoBox(dlg);
+    if (!trigger) return done({ ok: false, error: 'logo kutusu ("Add icon") bulunamadı' });
+    trigger.click();
+    const pk = await waitFor(uploadedTab, 4000, 80) && picker();
+    if (!pk) return done({ ok: false, error: 'logo seçici açılmadı' });
+    pk.tab.click();
+    await waitFor(() => { const p2 = picker(); return p2 && p2.box && pickerImages(p2.box).length; }, 3000, 100);
+    await collectPicker();
+    await scrollPickerFor(() => false); // sanallaştırılmış ızgara: sona kadar kaydır, her adımda topla
+    const { logoAll } = await stGet({ logoAll: {} });
+    return done({ ok: true, uploaded: Object.values(logoAll).filter((x) => x && x.up).length });
+  }
+
   /** Seçiciyi kapat: pencere başlığına tıkla (Escape pencerenin kendisini kapatabilir). */
   function closePicker() {
     const d = categoryDialog();
@@ -1468,8 +1549,15 @@
       const stat = logoStatOf(logoSeen);
       const plats = Object.keys(stat);
       const unsure = plats.filter((k) => stat[k].length > 1).map(platformLabel);
-      catStatus('Logolar öğrenildi: ' + Object.keys(logoSeen).length + ' kategori, ' + plats.length + ' platform' + (unsure.length ? ' · birden fazla logo kullanılan: ' + unsure.join(', ') + ' (Logo tablosundan sabitle)' : ''), 'ok');
-      return { ok: true, categories: Object.keys(logoSeen).length, platforms: plats, unsure };
+      // Uploaded sekmesi de taransın: logo tablosundaki seçim ızgarası ve "Uploaded'da görülmedi" uyarısı buna dayanır.
+      catStatus('Uploaded sekmesi taranıyor (bir kategorinin Edit penceresi açılıp kaydedilmeden kapatılır)…');
+      el.scrollTop = 0; nudge(box); nudge();
+      await sleep(400);
+      let up = null;
+      try { up = await scanUploaded(); } catch (e) { up = { ok: false, error: String(e && e.message || e) }; }
+      const upNote = up.ok ? ' · Uploaded: ' + up.uploaded + ' resim' + (up.note ? ' · ' + up.note : '') : ' · Uploaded taranamadı: ' + up.error;
+      catStatus('Logolar öğrenildi: ' + Object.keys(logoSeen).length + ' kategori, ' + plats.length + ' platform' + upNote + (unsure.length ? ' · birden fazla logo kullanılan: ' + unsure.join(', ') + ' (Logo tablosundan sabitle)' : ''), up.ok && !up.note ? 'ok' : 'warn');
+      return { ok: true, categories: Object.keys(logoSeen).length, platforms: plats, unsure, uploaded: up.ok ? up.uploaded : null, uploadedError: up.ok ? (up.note || '') : up.error };
     } finally {
       walkSeen = null;
       catRunning = false; busy(false);

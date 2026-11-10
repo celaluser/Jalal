@@ -2229,8 +2229,94 @@ test('Eklenti API: teach bankadaki eski kayıtları da düzeltir (çevrilmeden k
     ok(str_contains($one('Facebook Followers | Almost No Drop | 60 Days Refill'), 'Almost Azalma olmaz'));
     // kelimenin geçmediği kayda ve başka kelimenin içindeki harflere dokunulmaz
     eq('Facebook Bəyəni | Tez', (new TgWatch\Memory($db))->lookup('service', 'Facebook Likes | Fast'));
-    eq(0, (new TgWatch\Memory($db))->replaceWord('Face', ['Face'], 'Üz'), '"Face" tam kelime değil ("Facebook" içinde)');
+    eq(['names' => 0, 'desc' => 0], (new TgWatch\Memory($db))->replaceWord('Face', ['Face'], 'Üz'), '"Face" tam kelime değil ("Facebook" içinde)');
     eq(400, $api->handle(['action' => 'word_info', 'en' => ''])[0]);
+});
+test('Eklenti API: kelime silme ("hiç yazılmasın"), açıklama bankası, geri alma (word_undo)', function () {
+    [$db] = env();
+    $api = new TgWatch\ExtApi($db, []);
+    $mem = new TgWatch\Memory($db);
+    $one = static function (string $name) use ($api): string {
+        return $api->handle(['action' => 'translate', 'items' => [['id' => 1, 'name' => $name]]])[1]['items'][0]['az'];
+    };
+    $api->handle(['action' => 'teach', 'en' => 'Almost', 'keep' => true]);
+    $api->handle(['action' => 'learn', 'items' => [
+        ['id' => 1, 'src' => 'Facebook Followers | Almost No Drop | No Refill', 'az' => 'Facebook Takipçi | Almost Azalma olmaz | Sürətli'],
+        ['id' => 2, 'src' => 'Facebook Likes | [Almost] | Fast', 'az' => 'Facebook Bəyəni | [Almost] | Tez'],
+    ]]);
+    $desc = "Start: Instant\nAlmost no drop\nSpeed: 10K per day";
+    $mem->learn('desc', $desc, "Başlama: Dərhal\nAlmost azalma yoxdur\nSürət: gündə 10K", 'import');
+    [, $i] = $api->handle(['action' => 'word_info', 'en' => 'Almost']);
+    eq(['keep', 2, 1], [$i['state'], $i['bank'], $i['desc']], 'kelime 2 adda ve 1 açıklamada geçiyor');
+
+    // 1) açıklama bankası da düzelir, satır yapısı bozulmaz
+    [, $t] = $api->handle(['action' => 'teach', 'en' => 'Almost', 'az' => 'Demək olar ki']);
+    eq([2, 1, true], [$t['bank'], $t['desc'], $t['undo']]);
+    eq("Başlama: Dərhal\nDemək olar ki azalma yoxdur\nSürət: gündə 10K", $mem->lookup('desc', $desc), 'açıklamada kelime değişti, satırlar aynı');
+
+    // 2) geri al: sözlük ve banka eski hâline döner
+    [, $p] = $api->handle(['action' => 'word_undo', 'peek' => true]);
+    eq(['Almost', 'Demək olar ki', 3], [$p['last']['en'], $p['last']['to'], $p['last']['rows']], 'geri alınacak değişiklik');
+    [$c, $u] = $api->handle(['action' => 'word_undo']);
+    eq([200, 'Almost', '(aynen kalsın)', 3], [$c, $u['en'], $u['was'], $u['restored']]);
+    eq('keep', $api->handle(['action' => 'word_info', 'en' => 'Almost'])[1]['state'], 'sözlük: yine "aynen kalsın"');
+    eq('Facebook Takipçi | Almost Azalma olmaz | Sürətli', $mem->lookup('service', 'Facebook Followers | Almost No Drop | No Refill'));
+    eq("Başlama: Dərhal\nAlmost azalma yoxdur\nSürət: gündə 10K", $mem->lookup('desc', $desc));
+    ok(str_contains($one('Facebook Followers | Almost No Drop | 30 Days Refill'), 'Almost Azalma olmaz'), 'parça bankası da eski hâlinde');
+
+    // 3) "hiç yazılmasın": kelime adlardan ve bankadan silinir, boş kalan [ ] ve ayraç toplanır
+    [$c, $t] = $api->handle(['action' => 'teach', 'en' => 'Almost', 'remove' => true]);
+    eq([200, true, '', 2, 1], [$c, $t['remove'], $t['az'], $t['bank'], $t['desc']]);
+    eq('remove', $api->handle(['action' => 'word_info', 'en' => 'almost'])[1]['state']);
+    eq('Facebook Takipçi | Azalma olmaz | Sürətli', $db->one("SELECT az FROM tm WHERE en LIKE 'Facebook Followers | Almost No Drop%'")['az']);
+    eq('Facebook Bəyəni | Tez', $db->one("SELECT az FROM tm WHERE en LIKE 'Facebook Likes | [Almost]%'")['az'], 'boş [ ] ve çift ayraç toplandı');
+    eq("Başlama: Dərhal\nazalma yoxdur\nSürət: gündə 10K", $mem->lookup('desc', $desc));
+    $az = $one('Instagram Followers | Almost No Drop | 60 Days Refill');
+    ok(!preg_match('/almost/i', $az) && str_contains($az, 'Azalma olmaz'), 'yeni adlarda kelime yazılmıyor: ' . $az);
+    ok(str_contains($one('Instagram Almostly Followers'), 'Almostly'), 'başka kelimenin içindeki harflere dokunulmaz');
+
+    // 4) silmeyi geri al, sonra bir karşılık ver: "sil" kuralı kalkar
+    $api->handle(['action' => 'word_undo']);
+    eq('keep', $api->handle(['action' => 'word_info', 'en' => 'Almost'])[1]['state']);
+    ok(str_contains($one('Instagram Followers | Almost No Drop | 60 Days Refill'), 'Almost'), 'geri alınınca kelime yine yazılır');
+    $api->handle(['action' => 'teach', 'en' => 'Almost', 'remove' => true]);
+    $api->handle(['action' => 'teach', 'en' => 'Almost', 'az' => 'Təxminən']);
+    ok(str_contains($one('Instagram Likes | Almost Instant'), 'Təxminən'), 'karşılık verilince artık silinmiyor');
+    // geri alınacak bir şey kalmayınca hata
+    for ($k = 0; $k < 20; $k++) {
+        if ($api->handle(['action' => 'word_undo'])[0] !== 200) {
+            break;
+        }
+    }
+    eq(null, $api->handle(['action' => 'word_undo', 'peek' => true])[1]['last']);
+    eq(400, $api->handle(['action' => 'word_undo'])[0], 'geri alınacak değişiklik yok');
+});
+test('Eklenti API: bank_search (banka + sözlük), bank_save, bank_del', function () {
+    [$db] = env();
+    $api = new TgWatch\ExtApi($db, []);
+    $api->handle(['action' => 'teach', 'en' => 'Zorbly', 'az' => 'Zorbli']);
+    $api->handle(['action' => 'learn', 'items' => [
+        ['id' => 1, 'src' => 'TikTok Zorbly Views | Fast', 'az' => 'TikTok Zorbli Baxış | Tez'],
+        ['id' => 2, 'src' => 'TikTok Likes | Slow', 'az' => 'TikTok Bəyəni | Yavaş'],
+    ]]);
+    eq(400, $api->handle(['action' => 'bank_search', 'q' => 'z'])[0], 'tek harfle aranmaz');
+    [$c, $r] = $api->handle(['action' => 'bank_search', 'q' => 'zorbl']);
+    eq([200, 1, 'TikTok Zorbly Views | Fast', 'TikTok Zorbli Baxış | Tez'], [$c, count($r['rows']), $r['rows'][0]['en'], $r['rows'][0]['az']]);
+    eq([['en' => 'Zorbly', 'az' => 'Zorbli', 'state' => 'phrase']], $r['words'], 'sözlükteki eşleşme');
+    eq(1, count($api->handle(['action' => 'bank_search', 'q' => 'YAVAŞ'])[1]['rows']), 'Azerice tarafta, büyük/küçük harf fark etmez');
+    $id = $r['rows'][0]['id'];
+    eq(400, $api->handle(['action' => 'bank_save', 'id' => $id, 'az' => ''])[0]);
+    eq(400, $api->handle(['action' => 'bank_save', 'id' => 999999, 'az' => 'x'])[0]);
+    [$c, $s] = $api->handle(['action' => 'bank_save', 'id' => $id, 'az' => 'TikTok Zorbli İzlənmə | Tez']);
+    eq([200, 'TikTok Zorbli İzlənmə | Tez'], [$c, $s['az']]);
+    $row = $db->one('SELECT az, origin FROM tm WHERE id = ?', [$id]);
+    eq(['TikTok Zorbli İzlənmə | Tez', 'manual'], [$row['az'], $row['origin']], 'elle düzeltme: en yüksek öncelik');
+    [, $b] = $api->handle(['action' => 'translate', 'items' => [['id' => 1, 'name' => 'TikTok Zorbly Views | Fast']]]);
+    eq('TikTok Zorbli İzlənmə | Tez', $b['items'][0]['az'], 'çeviri yeni kaydı kullanır');
+    [$c, $d] = $api->handle(['action' => 'bank_del', 'id' => $id]);
+    eq([200, true], [$c, $d['deleted']]);
+    eq(null, $db->one('SELECT id FROM tm WHERE id = ?', [$id]));
+    eq(0, count($api->handle(['action' => 'bank_search', 'q' => 'zorbly views'])[1]['rows']));
 });
 test('Eklenti API: teach bilinmeyen kelimeyi sözlüğe ekler (eski karşılığı değiştirir, ya da olduğu gibi bırakır); balance sağlayıcı bakiyeleri', function () {
     [$db] = env();

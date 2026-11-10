@@ -14,6 +14,7 @@
 
 <nav class="tabs" role="tablist" aria-label="Bölümler">
   <button role="tab" id="t-panel" aria-controls="p-panel" data-tab="panel">Panel</button>
+  <button role="tab" id="t-bank" aria-controls="p-bank" data-tab="bank">Banka</button>
   <button role="tab" id="t-bal" aria-controls="p-bal" data-tab="bal">Bakiye</button>
   <button role="tab" id="t-set" aria-controls="p-set" data-tab="set">Ayarlar</button>
   <button role="tab" id="t-upd" aria-controls="p-upd" data-tab="upd">Güncelleme<i class="dot" id="upd-dot" hidden></i></button>
@@ -34,19 +35,31 @@
     </div>
     <div class="row" id="tab-open" hidden><button id="open-panel" class="btn ghost">Import ekranını aç</button></div>
   </section>
-  <section class="card" id="word">
-    <div class="card-h"><span>Kelimenin çevirisini değiştir</span></div>
-    <div class="wf">
-      <input id="w-en" type="text" placeholder="Kaynak (ör. Almost)" autocomplete="off" spellcheck="false">
-      <input id="w-az" type="text" placeholder="Azerice karşılığı" autocomplete="off" spellcheck="false">
-    </div>
-    <p id="w-info" class="muted small">Sözlükteki karşılığı ve bankadaki eski kayıtları birlikte değiştirir.</p>
-    <div class="row"><button id="w-save" class="btn">Değiştir</button><button id="w-keep" class="btn ghost" title="Marka/özel ad: çevrilmesin">Aynen kalsın</button></div>
-  </section>
   <section class="stats">
     <div><b id="s-today">0</b><small>bugün çevrilen</small></div>
     <div><b id="s-total">0</b><small>toplam</small></div>
     <div><b id="s-learned">0</b><small>bankaya öğretilen</small></div>
+  </section>
+</div>
+
+<div role="tabpanel" id="p-bank" aria-labelledby="t-bank" hidden>
+  <section class="card" id="word">
+    <div class="card-h"><span>Kelimenin çevirisini değiştir</span></div>
+    <div class="wf">
+      <input id="w-en" type="text" placeholder="Kaynak (ör. Almost)" autocomplete="off" spellcheck="false" aria-label="Kaynak kelime">
+      <input id="w-az" type="text" placeholder="Azerice karşılığı" autocomplete="off" spellcheck="false" aria-label="Azerice karşılığı">
+    </div>
+    <p id="w-info" class="muted small">Sözlükteki karşılığı ve bankadaki eski kayıtları (adlar + açıklamalar) birlikte değiştirir.</p>
+    <div class="row"><button id="w-save" class="btn">Değiştir</button></div>
+    <div class="row w-alt"><button id="w-keep" class="mini" title="Marka/özel ad: çevrilmesin, olduğu gibi yazılsın">Aynen kalsın</button><button id="w-remove" class="mini" title="Bu kelime adlarda hiç yazılmasın: çeviriden önce silinir, bankadaki adlardan da çıkarılır">Hiç yazılmasın</button></div>
+    <div class="row w-alt" id="w-undo-row" hidden><button id="w-undo" class="mini">↶ Geri al</button><small id="w-undo-what" class="muted"></small></div>
+  </section>
+  <section class="card" id="bank">
+    <div class="card-h"><span>Bankada ara</span></div>
+    <form id="b-form" class="wf one"><input id="b-q" type="search" placeholder="Kelime ya da ad (EN / AZ)" autocomplete="off" spellcheck="false" aria-label="Bankada ara"><button class="mini" type="submit">Ara</button></form>
+    <p id="b-msg" class="muted small"></p>
+    <ul id="b-words" class="b-list"></ul>
+    <ul id="b-rows" class="b-list"></ul>
   </section>
 </div>
 

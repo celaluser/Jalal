@@ -52,40 +52,119 @@ async function init() {
   refresh();
 }
 
-// ---- kelimenin çevirisini değiştir: sözlük + bankadaki eski kayıtlar (tgwatch "teach") ----
+// ---- kelimenin çevirisini değiştir: sözlük + bankadaki eski kayıtlar (tgwatch "teach"); geri al; bankada ara/düzelt/sil ----
 const callApi = (action, payload) => new Promise((res) => chrome.runtime.sendMessage({ type: 'api', action, payload }, (r) => res(chrome.runtime.lastError || !r ? { ok: false, error: 'tgwatch cevap vermedi' } : r)));
+const OLD = (r) => /Bilinmeyen işlem/.test((r && r.error) || '');
+const W_HINT = 'Sözlükteki karşılığı ve bankadaki eski kayıtları (adlar + açıklamalar) birlikte değiştirir.';
 const wInfo = (text, kind) => { const e = $('w-info'); e.textContent = text; e.className = 'muted small' + (kind ? ' ' + kind : ''); };
 let wSeq = 0;
 let wTimer = null;
+const stateText = (r) => (r.state === 'phrase' ? 'Şimdi: “' + r.az + '”' : r.state === 'keep' ? 'Şimdi: çevrilmiyor (aynen kalsın)' : r.state === 'remove' ? 'Şimdi: adlarda hiç yazılmıyor' : 'Sözlükte yok');
 async function wordInfo() {
   const en = $('w-en').value.trim();
-  if (!en) { wInfo('Sözlükteki karşılığı ve bankadaki eski kayıtları birlikte değiştirir.'); return; }
+  if (!en) { wInfo(W_HINT); return; }
   const my = ++wSeq;
   const r = await callApi('word_info', { en });
   if (my !== wSeq) return;
-  if (!r.ok) { wInfo(/Bilinmeyen işlem/.test(r.error || '') ? 'tgwatch sunucusu eski: şimdiki karşılık gösterilemiyor.' : (r.error || 'tgwatch hatası'), 'bad'); return; }
+  if (!r.ok) { wInfo(OLD(r) ? 'tgwatch sunucusu eski: şimdiki karşılık gösterilemiyor.' : (r.error || 'tgwatch hatası'), 'bad'); return; }
   if (r.state === 'phrase' && !$('w-az').value.trim()) $('w-az').value = r.az;
-  wInfo((r.state === 'phrase' ? 'Şimdi: “' + r.az + '”' : r.state === 'keep' ? 'Şimdi: çevrilmiyor (aynen kalsın)' : 'Sözlükte yok')
-    + (r.bank ? ' · bankada ' + r.bank + ' adda geçiyor' + (r.samples && r.samples[0] ? ' (ör. ' + r.samples[0].az + ')' : '') : ' · bankada geçmiyor'));
+  wInfo(stateText(r) + (r.bank ? ' · bankada ' + r.bank + ' adda' + (r.desc ? ', ' + r.desc + ' açıklamada' : '') + ' geçiyor' + (r.samples && r.samples[0] ? ' (ör. ' + r.samples[0].az + ')' : '')
+    : r.desc ? ' · ' + r.desc + ' açıklamada geçiyor' : ' · bankada geçmiyor'));
 }
 $('w-en').addEventListener('input', () => { clearTimeout(wTimer); $('w-az').value = ''; wTimer = setTimeout(wordInfo, 450); });
-async function wordSave(keep) {
+const fixNote = (r) => (r.bank === undefined ? ' · sunucu eski: bankadaki eski kayıtlar düzeltilmedi'
+  : (r.bank || r.desc) ? ' · bankada ' + (r.bank || 0) + ' ad' + (r.desc ? ', ' + r.desc + ' açıklama' : '') + ' düzeltildi' : ' · bankada düzeltilecek kayıt yoktu');
+/** mode: '' (karşılık yaz) | 'keep' (aynen kalsın) | 'remove' (hiç yazılmasın) */
+async function wordSave(mode) {
   const en = $('w-en').value.trim();
   const az = $('w-az').value.trim();
   if (!en) { wInfo('Kaynak kelimeyi yaz', 'bad'); $('w-en').focus(); return; }
-  if (!keep && !az) { wInfo('Azerice karşılığı yaz', 'bad'); $('w-az').focus(); return; }
-  $('w-save').disabled = $('w-keep').disabled = true;
+  if (!mode && !az) { wInfo('Azerice karşılığı yaz', 'bad'); $('w-az').focus(); return; }
+  const btns = ['w-save', 'w-keep', 'w-remove', 'w-undo'].map($);
+  btns.forEach((b) => { b.disabled = true; });
   wSeq++;
   wInfo('tgwatch\'a gönderiliyor…');
-  const r = await callApi('teach', keep ? { en, keep: true } : { en, az });
-  $('w-save').disabled = $('w-keep').disabled = false;
+  const r = await callApi('teach', mode === 'keep' ? { en, keep: true } : mode === 'remove' ? { en, remove: true } : { en, az });
+  btns.forEach((b) => { b.disabled = false; });
   if (!r.ok) { wInfo(r.error || 'tgwatch hatası', 'bad'); return; }
-  wInfo('✓ “' + r.en + '”' + (r.keep ? ' çevrilmeyecek' : ' → “' + r.az + '”')
-    + (r.bank === undefined ? ' · sunucu eski: bankadaki eski kayıtlar düzeltilmedi' : r.bank ? ' · bankada ' + r.bank + ' kayıt düzeltildi' : ' · bankada düzeltilecek kayıt yoktu'), 'ok');
+  if (mode === 'remove' && !r.remove) { wInfo('tgwatch sunucusu eski: "hiç yazılmasın" desteklenmiyor — sunucuyu güncelle.', 'bad'); return; }
+  wInfo('✓ “' + r.en + '”' + (r.remove ? ' artık adlarda yazılmayacak' : r.keep ? ' çevrilmeyecek' : ' → “' + r.az + '”') + fixNote(r), 'ok');
+  undoPeek();
 }
-$('w-save').onclick = () => wordSave(false);
-$('w-keep').onclick = () => wordSave(true);
-$('w-az').addEventListener('keydown', (e) => { if (e.key === 'Enter') wordSave(false); });
+$('w-save').onclick = () => wordSave('');
+$('w-keep').onclick = () => wordSave('keep');
+$('w-remove').onclick = () => wordSave('remove');
+$('w-az').addEventListener('keydown', (e) => { if (e.key === 'Enter') wordSave(''); });
+function showUndo(last) {
+  $('w-undo-row').hidden = !last;
+  if (last) $('w-undo-what').textContent = 'son: “' + last.en + '” → ' + last.to + (last.rows ? ' · ' + last.rows + ' kayıt' : '');
+}
+async function undoPeek() { const r = await callApi('word_undo', { peek: true }); showUndo(r.ok ? r.last : null); }
+$('w-undo').onclick = async () => {
+  $('w-undo').disabled = true;
+  const r = await callApi('word_undo', {});
+  $('w-undo').disabled = false;
+  if (!r.ok) { wInfo(r.error || 'tgwatch hatası', 'bad'); return; }
+  wInfo('↶ Geri alındı: “' + r.en + '” yine ' + r.was + (r.restored ? ' · bankada ' + r.restored + ' kayıt eski hâline döndü' : ''), 'ok');
+  showUndo(r.last);
+};
+
+// bankada ara: sözlük eşleşmeleri (tıkla → yukarıdaki kutuya gelir) + banka kayıtları (düzelt / sil)
+const bMsg = (t, kind) => { const e = $('b-msg'); e.textContent = t; e.className = 'muted small' + (kind ? ' ' + kind : ''); };
+const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+function bankRow(x) {
+  const li = mk('li');
+  const en = mk('span', 'en'); en.append(mk('span', 'tag', x.kind === 'category' ? 'kategori' : 'servis'), x.en);
+  const az = mk('span', 'az', x.az);
+  const acts = mk('div', 'acts');
+  const edit = mk('button', 'mini', 'Düzelt'); edit.type = 'button';
+  const del = mk('button', 'mini danger', 'Sil'); del.type = 'button';
+  acts.append(edit, del);
+  li.append(en, az, acts);
+  edit.onclick = () => {
+    const ta = mk('textarea'); ta.value = x.az; ta.setAttribute('aria-label', 'Azerice ad');
+    const save = mk('button', 'mini', 'Kaydet'); save.type = 'button';
+    const cancel = mk('button', 'mini', 'Vazgeç'); cancel.type = 'button';
+    az.replaceWith(ta); acts.replaceChildren(save, cancel); ta.focus();
+    cancel.onclick = () => li.replaceWith(bankRow(x));
+    save.onclick = async () => {
+      save.disabled = true;
+      const r = await callApi('bank_save', { id: x.id, az: ta.value.trim() });
+      if (!r.ok) { save.disabled = false; bMsg(r.error || 'tgwatch hatası', 'bad'); return; }
+      x.az = r.az; li.replaceWith(bankRow(x)); bMsg('✓ Kaydedildi: bu ad bundan sonra böyle çevrilir.', 'ok');
+    };
+  };
+  let armed = false;
+  del.onclick = async () => {
+    if (!armed) { armed = true; del.textContent = 'Emin misin? Sil'; setTimeout(() => { armed = false; del.textContent = 'Sil'; }, 4000); return; }
+    del.disabled = true;
+    const r = await callApi('bank_del', { id: x.id });
+    if (!r.ok) { del.disabled = false; bMsg(r.error || 'tgwatch hatası', 'bad'); return; }
+    li.remove(); bMsg('Bankadan silindi: ' + x.en, 'ok');
+  };
+  return li;
+}
+function wordRow(w) {
+  const li = mk('li');
+  const en = mk('span', 'en'); en.append(mk('span', 'tag', 'sözlük'), w.en);
+  li.append(en, mk('span', 'az', w.state === 'keep' ? '(aynen kalsın)' : w.az));
+  const acts = mk('div', 'acts');
+  const b = mk('button', 'mini', 'Değiştir'); b.type = 'button';
+  b.onclick = () => { $('w-en').value = w.en; $('w-az').value = w.state === 'keep' ? '' : w.az; wordInfo(); $('w-az').focus(); $('word').scrollIntoView({ block: 'start' }); };
+  acts.append(b); li.append(acts);
+  return li;
+}
+$('b-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const q = $('b-q').value.trim();
+  if (q.length < 2) { bMsg('En az 2 harf yaz.', 'bad'); return; }
+  bMsg('Aranıyor…');
+  const r = await callApi('bank_search', { q });
+  if (!r.ok) { bMsg(OLD(r) ? 'tgwatch sunucusu eski: banka araması yok — sunucuyu güncelle.' : (r.error || 'tgwatch hatası'), 'bad'); return; }
+  $('b-words').replaceChildren(...r.words.map(wordRow));
+  $('b-rows').replaceChildren(...r.rows.map(bankRow));
+  bMsg(!r.words.length && !r.rows.length ? 'Sonuç yok.' : r.words.length + ' sözlük terimi, ' + r.rows.length + ' banka kaydı' + (r.rows.length >= 30 ? ' (ilk 30; aramayı daralt)' : ''));
+});
 
 // ---- sağlayıcı bakiyeleri: 10 dakikadan eskiyse kendiliğinden yenilenir, "Yenile" ile hemen ----
 const money = (v) => {
@@ -188,6 +267,7 @@ function showTab(name) {
     $(b.getAttribute('aria-controls')).hidden = !on;
   }
   if (name === 'bal' && !balLoaded) { balLoaded = true; balances(false); }
+  if (name === 'bank') undoPeek();
   try { chrome.storage.local.set({ popTab: name }); } catch (e) { /* yok */ }
 }
 for (const b of document.querySelectorAll('.tabs [role=tab]')) {
@@ -253,7 +333,9 @@ $('learnLogos').onclick = () => {
   chrome.tabs.sendMessage(tabId, { type: 'tgw-learn-logos' }, (r) => {
     void chrome.runtime.lastError;
     $('learnMsg').textContent = !r ? 'Bu sekmede panelin Services sayfası açık değil' : r.ok
-      ? r.categories + ' kategori, ' + r.platforms.length + ' platform öğrenildi' + (r.unsure && r.unsure.length ? ' · kontrol et: ' + r.unsure.join(', ') + ' → Logo tablosu' : '') : r.error;
+      ? r.categories + ' kategori, ' + r.platforms.length + ' platform öğrenildi'
+        + (r.uploaded != null ? ' · Uploaded: ' + r.uploaded + ' resim' : '') + (r.uploadedError ? ' · Uploaded: ' + r.uploadedError : '')
+        + (r.unsure && r.unsure.length ? ' · kontrol et: ' + r.unsure.join(', ') + ' → Logo tablosu' : '') : r.error;
   });
 };
 $('logoTable').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('logos.html') });

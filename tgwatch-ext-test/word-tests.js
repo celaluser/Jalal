@@ -17,7 +17,8 @@ function stub(oldServer) {
     window.__calls = [];
     window.__dict = { followers: 'Takipçi', 'no drop': 'Azalma olmaz', likes: 'Bəyəni', fast: 'Sürətli' };
     window.__keep = ['almost'];
-    const tr = (name) => { let s = name; for (const [k, v] of Object.entries(window.__dict)) s = s.replace(new RegExp('\\\\b' + k + '\\\\b', 'gi'), v); return s; };
+    window.__undo = [];
+    const tr = (name) => { let s = name; for (const [k, v] of Object.entries(window.__dict)) s = s.replace(new RegExp('\\\\b' + k + '\\\\b', 'gi'), v); return s.replace(/ {2,}/g, ' ').trim(); };
     const fakeApi = (action, p) => {
       window.__calls.push({ action, p });
       if (action === 'translate') return { ok: true, items: p.items.map((it) => ({ id: it.id, az: tr(it.name), via: 'bank', unknown: [] })) };
@@ -29,10 +30,22 @@ function stub(oldServer) {
       }
       if (action === 'teach') {
         const k = p.en.toLowerCase();
-        if (p.keep) { delete window.__dict[k]; window.__keep.push(k); } else window.__dict[k] = p.az;
-        const r = { ok: true, en: p.en, az: p.keep ? p.en : p.az, keep: !!p.keep };
-        if (!${oldServer ? 'true' : 'false'}) r.bank = 3;
-        return r;
+        if (${oldServer ? 'true' : 'false'}) { // eski sunucu: remove/undo bilmez, bank alanı yok
+          if (p.keep) { delete window.__dict[k]; window.__keep.push(k); } else window.__dict[k] = p.az || p.en;
+          return { ok: true, en: p.en, az: p.keep ? p.en : p.az, keep: !!p.keep };
+        }
+        window.__undo.push({ en: p.en, dict: Object.assign({}, window.__dict), keep: window.__keep.slice(), to: p.remove ? '(silinsin)' : p.keep ? '(aynen kalsın)' : p.az });
+        window.__keep = window.__keep.filter((x) => x !== k);
+        if (p.keep) { delete window.__dict[k]; window.__keep.push(k); } else window.__dict[k] = p.remove ? '' : p.az;
+        return { ok: true, en: p.en, az: p.remove ? '' : p.keep ? p.en : p.az, keep: !!p.keep, remove: !!p.remove, bank: 3, desc: 1, undo: true };
+      }
+      if (action === 'word_undo') {
+        if (${oldServer ? 'true' : 'false'}) return { ok: false, error: 'Bilinmeyen işlem' };
+        const last = window.__undo[window.__undo.length - 1];
+        if (p.peek) return { ok: true, last: last ? { en: last.en, to: last.to, rows: 3 } : null };
+        if (!last) return { ok: false, error: 'Geri alınacak kelime değişikliği yok' };
+        window.__undo.pop(); window.__dict = last.dict; window.__keep = last.keep;
+        return { ok: true, en: last.en, was: '(aynen kalsın)', restored: 3, last: null };
       }
       return { ok: true };
     };
@@ -87,7 +100,7 @@ const calls = (p, a) => p.evaluate((x) => window.__calls.filter((c) => c.action 
     eq(await names(p), ['Facebook Takipçi | Demək olar ki Azalma olmaz | Sürətli', 'Facebook Bəyəni | Sürətli', 'Facebook Takipçi | Demək olar ki Azalma olmaz | 30 Days', 'YouTube Views'], 'kelimenin geçtiği iki satır düzeldi, diğerleri aynı');
     eq((await calls(p, 'teach')).map((c) => c.p), [{ en: 'Almost', az: 'Demək olar ki' }], 'tgwatch\'a tek teach isteği');
     const st = await p.textContent('.tgw-status');
-    ok(/bankada 3 kayıt düzeltildi/.test(st) && /2 satır düzeltildi/.test(st), 'durum: ' + st);
+    ok(/bankada 3 kayıt, 1 açıklama düzeltildi/.test(st) && /2 satır düzeltildi/.test(st), 'durum: ' + st);
     ok(p.__errs.length === 0, 'JS hatası yok ' + p.__errs.join(' | '));
 
     // çevrilmiş kelimeyi değiştir: kutu şimdiki karşılıkla dolu gelir
@@ -105,6 +118,33 @@ const calls = (p, a) => p.evaluate((x) => window.__calls.filter((c) => c.action 
     await p.close();
   }
 
+  console.log('W3 "Hiç yazılmasın": kelime adlardan silinir; "↶ Geri al": sözlük eski hâline döner ve satırlar yeniden çevrilir');
+  {
+    const p = await page(b, false);
+    await p.locator('.tgw-orig .tgw-ow', { hasText: /^Almost$/ }).first().click();
+    await p.waitForSelector('.tgw-pop');
+    ok(await p.locator('.tgw-pop button', { hasText: '↶ Geri al' }).isHidden(), 'geri alınacak bir şey yokken düğme gizli');
+    await p.locator('.tgw-pop button', { hasText: 'Hiç yazılmasın' }).click();
+    await p.waitForFunction(() => window.__rows[2].name === 'Facebook Takipçi | Azalma olmaz | 30 Days' && !window.__rows.some((r) => r.open), null, { timeout: 30000 });
+    await p.waitForTimeout(600);
+    eq(await names(p), ['Facebook Takipçi | Azalma olmaz | Sürətli', 'Facebook Bəyəni | Sürətli', 'Facebook Takipçi | Azalma olmaz | 30 Days', 'YouTube Views'], '"Almost" iki satırdan silindi');
+    eq((await calls(p, 'teach')).map((c) => c.p), [{ en: 'Almost', remove: true }], 'teach: remove');
+    ok(/“Almost” artık adlarda yazılmayacak/.test(await p.textContent('.tgw-status')), 'durum: ' + await p.textContent('.tgw-status'));
+    // geri al
+    await p.locator('.tgw-orig .tgw-ow', { hasText: /^Almost$/ }).first().click();
+    await p.waitForFunction(() => /adlarda hiç yazılmıyor|aynen|Sözlükte/.test((document.querySelector('.tgw-pop-msg') || {}).textContent || ''));
+    const u = p.locator('.tgw-pop button', { hasText: '↶ Geri al' });
+    await u.waitFor({ state: 'visible' });
+    ok(/“Almost” → \(silinsin\)/.test(await u.getAttribute('title')), 'düğme neyin geri alınacağını söyler: ' + await u.getAttribute('title'));
+    await u.click();
+    await p.waitForFunction(() => window.__rows[2].name === 'Facebook Takipçi | Almost Azalma olmaz | 30 Days' && !window.__rows.some((r) => r.open), null, { timeout: 30000 });
+    await p.waitForTimeout(600);
+    eq((await names(p))[0], 'Facebook Takipçi | Almost Azalma olmaz | Sürətli', 'geri alındı: kelime yine yazılıyor');
+    ok(/↶ Geri alındı: “Almost”.*bankada 3 kayıt eski hâline döndü/.test(await p.textContent('.tgw-status')), 'durum: ' + await p.textContent('.tgw-status'));
+    ok(p.__errs.length === 0, 'JS hatası yok ' + p.__errs.join(' | '));
+    await p.close();
+  }
+
   console.log('W2 eski sunucu (word_info yok, teach "bank" göndermiyor): değiştirme yine çalışır, uyarı gösterilir');
   {
     const p = await page(b, true);
@@ -115,6 +155,11 @@ const calls = (p, a) => p.evaluate((x) => window.__calls.filter((c) => c.action 
     await p.waitForFunction(() => window.__rows[0].name.includes('Təxminən') && !window.__rows.some((r) => r.open), null, { timeout: 30000 });
     await p.waitForTimeout(600);
     ok(/sunucusu eski: bankadaki eski kayıtlar düzeltilmedi/.test(await p.textContent('.tgw-status')), 'durumda "sunucu eski" uyarısı');
+    await p.locator('.tgw-orig .tgw-ow', { hasText: /^Likes$/ }).first().click();
+    await p.waitForSelector('.tgw-pop');
+    await p.locator('.tgw-pop button', { hasText: 'Hiç yazılmasın' }).click();
+    await p.waitForFunction(() => /"hiç yazılmasın" desteklenmiyor/.test((document.querySelector('.tgw-pop-msg') || {}).textContent || ''));
+    ok(true, 'eski sunucuda "hiç yazılmasın": açık uyarı, satırlara dokunulmaz');
     ok(p.__errs.length === 0, 'JS hatası yok');
     await p.close();
   }
