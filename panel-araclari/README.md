@@ -11,9 +11,9 @@
 ## Her araçta aynı düzen
 1. **Bul** → kısa özet
 2. **Liste:** başlıkta seçili/toplam; **Ara** (ad ya da ID), **Hepsi / Hiçbiri / Ters** (aramadayken yalnız görünenlere), **ID yapıştır** (yapıştırdığın ID'ler seçilir, gerisi bırakılır), **ID kopyala** (`62727,26272,2627`)
-3. **Dene / Taşı / Sil / Pasife al** + **Durdur**; çalışırken **ilerleme çubuğu** ve kalan süre
+3. **Taşı / Sil / Pasife al** + **Durdur**; çalışırken **ilerleme çubuğu** ve kalan süre
 4. Durum, **Sonuç** (her grubun ID'leri ayrı kopyalanır)
-5. **Ayarlar** (katlanır; kapalıyken özet görünür) — başlıktaki **DENEME/GERÇEK** etiketine tıklayınca mod değişir
+5. **Ayarlar** (katlanır; kapalıyken özet görünür)
 6. **Teşhisi kopyala** · **Günlüğü indir (.txt)**
 
 ## Mini panel (Alt+Shift+P)
@@ -23,6 +23,6 @@ Sekmeler: Kategori · Pasifle · Taşı · **Geçmiş** · **Koruma**.
 
 ## Diğer
 - Araçlar arası kilit: biri çalışırken diğeri başlamaz. Otomatik mod (Pasifle, Taşı): her N dk yenile + kontrol; iki alarm art arda gelirse bir kez yenilenir.
-- Deneme modu her sayfa yüklenişinde açık başlar.
+- **Deneme modu yok (2.1.0):** araçlar her zaman gerçek çalışır. Güvenlik için yine önce liste gösterilir, sen düğmeye basmadan hiçbir şey değişmez; her işlemden hemen önce yeniden kontrol edilir; koruma listesi ve "en çok N" sınırı geçerlidir.
 - Kurulum: `chrome://extensions` → Paketlenmemiş öğe yükle → `panel-araclari`. Eski üç ayrı eklentiyi kaldır.
 - Kaynak: ayrı eklentiler (`kategori-temizle/`, `servis-pasifle/`, `servis-tasi/`); bu klasör `python3 build-panel-araclari.py` ile üretilir.

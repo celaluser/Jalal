@@ -48,3 +48,5 @@ HEADED=1 xvfb-run -a node run-tests.js P12               # gerçek pencerede sek
 sayfa yenilenir ve pasif servisler yeniden aranıp Not Assigned'a taşınır. Deneme modu açıkken otomatik mod da yalnız dener.
 Sekme Services sayfasında değilse, son 1 dakikada panelde tıkladıysan/yazdıysan, pencere açıksa ya da başka bir araç
 (Kategori Temizle / Servis Pasifle) çalışıyorsa o tur atlanır. 3 tur üst üste hata → otomatik kapanır. Durum sekmeye bağlıdır.
+
+> **Not (güncel sürüm):** Deneme modu kaldırıldı; araç her zaman gerçek çalışır. Bu belgedeki deneme modu anlatımları eski sürümler içindir. Güvenlik: önce liste gösterilir, düğmeye basmadan hiçbir şey değişmez; her işlemden önce yeniden kontrol edilir; koruma listesi ve "en çok N" sınırı geçerlidir.

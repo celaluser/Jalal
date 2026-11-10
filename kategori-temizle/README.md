@@ -57,3 +57,5 @@ cd kategori-temizle-test && npm i && node run-tests.js      # tek test: node run
 HEADED=1 xvfb-run -a node run-tests.js T15                # gerçek pencerede sekme değişimi
 ```
 (Playwright'ın kurulu olması gerekir; gerçek eklenti Chromium'a yüklenir.) 23 test: iki mod, işareti kaldırılan kategori, yalnız taşıma, boş silme, taşıma + silme, deneme, durdur, sunucu hatası, seçim uyuşmazlığı, panelin "Disable category" demesi, sanallaştırma, koyu tema, arka plan sekmesi.
+
+> **Not (güncel sürüm):** Deneme modu kaldırıldı; araç her zaman gerçek çalışır. Bu belgedeki deneme modu anlatımları eski sürümler içindir. Güvenlik: önce liste gösterilir, düğmeye basmadan hiçbir şey değişmez; her işlemden önce yeniden kontrol edilir; koruma listesi ve "en çok N" sınırı geçerlidir.

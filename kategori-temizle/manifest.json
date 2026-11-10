@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Kategori Temizle — boş pasif kategoriler",
   "short_name": "Kategori Temizle",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Perfect Panel Services sayfasında pasif kategorileri bulur: boş olanları siler, dolu olanların servislerini Not Assigned'a taşıyıp siler. Deneme modu, durdur, en çok N; arka planda da çalışır.",
   "minimum_chrome_version": "103",
   "permissions": [

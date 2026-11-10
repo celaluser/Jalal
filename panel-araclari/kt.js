@@ -31,7 +31,7 @@ function paint(s) {
   $('mMove').className = 'tab' + (mv ? ' on' : '');
   $('mDel').disabled = $('mMove').disabled = s.running;
   if (document.activeElement !== $('max')) $('max').value = s.settings.max;
-  $('dry').checked = s.settings.dryRun;
+  if ($('dry')) $('dry').checked = s.settings.dryRun;
   $('moveDelete').checked = s.settings.moveDelete;
   $('mdRow').hidden = !mv;
   $('scan').textContent = mv ? 'Dolu pasif kategorileri bul' : 'Boş pasif kategorileri bul';
@@ -115,7 +115,7 @@ $('pasteIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') pasteGo
   $('all').onclick = async () => paint(await send({ cmd: 'exclude', all: false }));
   $('none').onclick = async () => paint(await send({ cmd: 'exclude', all: true }));
   $('list').onchange = async (ev) => { const k = ev.target.getAttribute('data-k'); if (k) paint(await send({ cmd: 'exclude', key: k, on: !ev.target.checked })); };
-  $('dry').onchange = async () => paint(await send({ cmd: 'settings', patch: { dryRun: $('dry').checked } }));
+  if ($('dry')) $('dry').onchange = async () => paint(await send({ cmd: 'settings', patch: { dryRun: $('dry').checked } }));
   $('moveDelete').onchange = async () => paint(await send({ cmd: 'settings', patch: { moveDelete: $('moveDelete').checked } }));
   $('max').onchange = async () => paint(await send({ cmd: 'settings', patch: { max: $('max').value } }));
   $('diag').onclick = async () => {

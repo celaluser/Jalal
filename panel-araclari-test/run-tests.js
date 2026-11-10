@@ -58,6 +58,10 @@ function cats() {
   const geo = await W(() => { const r = document.getElementById('pa-dock').shadowRoot.querySelector('.w').getBoundingClientRect(); const b = document.getElementById('pt-host').shadowRoot.getElementById('bar').getBoundingClientRect(); return { w: Math.round(r.width), inside: b.left >= r.left - 1 && b.right <= r.right + 1, right: Math.round(innerWidth - r.right), bottom: Math.round(innerHeight - r.bottom) }; });
   ok(geo.inside && geo.right === 12 && geo.bottom === 12, 'araç içeriği pencerenin içinde, pencere sağ altta: ' + JSON.stringify(geo));
 
+  console.log('A10 deneme modu yok: düğme ve ayar görünmez, araçlar gerçek modda');
+  eq(await W(() => ['kt-host', 'sp-host', 'pt-host'].map((id) => { const r = document.getElementById(id).shadowRoot; return !!r.querySelector('[data-s=dry]') || !!r.querySelector('.mode'); })), [false, false, false], 'hiçbir araçta deneme modu düğmesi/ayarı yok');
+  ok(/Taşı \(0\)/.test(await W(() => document.getElementById('pt-host').shadowRoot.querySelector('[data-a=run]').textContent)), 'çalıştır düğmesi "Taşı" (Dene değil)');
+
   console.log('A2 araçlar arası kilit: biri çalışırken diğeri başlamaz');
   await p.evaluate(() => document.documentElement.setAttribute('data-panel-arac', 'kt'));
   await p.evaluate(() => document.getElementById('pt-host').shadowRoot.querySelector('[data-a=scan]').click());
@@ -133,7 +137,6 @@ function cats() {
   await sw.evaluate(async () => chrome.alarms.clearAll());
 
   console.log('A5 birleşik eklentide gerçek iş: Pasif Servis Taşı aktif kategorideki 2 pasif servisi Not Assigned\'a taşır');
-  await p.evaluate(() => { const r = document.getElementById('pt-host').shadowRoot; const d = r.querySelector('[data-s=dry]'); if (d.checked) d.click(); });
   await p.waitForTimeout(200);
   await p.evaluate(() => document.getElementById('pt-host').shadowRoot.querySelector('[data-a=scan]').click());
   await p.waitForFunction(() => /hazır|yok|⚠/.test(document.getElementById('pt-host').shadowRoot.getElementById('st').textContent), null, { timeout: 60000 });

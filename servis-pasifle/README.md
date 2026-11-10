@@ -54,3 +54,5 @@ cd servis-pasifle-test && npm i && node run-tests.js     # tek test: node run-te
 HEADED=1 xvfb-run -a node run-tests.js S12               # gerçek pencerede sekme değişimi
 HEADED=1 xvfb-run -a node run-tests.js S18               # otomatik mod, sekme arka plandayken
 ```
+
+> **Not (güncel sürüm):** Deneme modu kaldırıldı; araç her zaman gerçek çalışır. Bu belgedeki deneme modu anlatımları eski sürümler içindir. Güvenlik: önce liste gösterilir, düğmeye basmadan hiçbir şey değişmez; her işlemden önce yeniden kontrol edilir; koruma listesi ve "en çok N" sınırı geçerlidir.

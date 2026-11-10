@@ -8,7 +8,7 @@
   if (window.__servisPasifle) return;
   window.__servisPasifle = true;
 
-  const VERSION = '1.4.0';
+  const VERSION = '1.5.0';
   const SETTINGS_KEY = 'sp_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const TOGGLE = '.service-table__header-hide-all, [class*="header-hide-all"]';
@@ -119,13 +119,14 @@
     log: [],
     seen: { menu: [], dialog: [], toast: [] },
   };
-  // Güvenlik: deneme modu kalıcı değil; her sayfa yüklenişinde AÇIK başlar. "En çok N" hatırlanır.
   // method: 'mass' = kutucukları işaretle → toplu Actions → Disable all · 'single' = her servis için Actions → Disable service
-  const settings = { dryRun: true, max: 100, every: 5, method: 'mass' };
+  // Deneme modu kaldırıldı (kullanıcı isteği): araçlar her zaman gerçek çalışır. Yalnız otomatik testler __pa_test_dry ile açar.
+  const TEST_DRY = (() => { try { return localStorage.getItem('__pa_test_dry') === '1'; } catch (e) { return false; } })();
+  const settings = { dryRun: TEST_DRY, max: 100, every: 5, method: 'mass' };
   try { const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); if (v.max) settings.max = Math.max(1, Math.min(5000, parseInt(v.max, 10) || 100)); if (v.every) settings.every = Math.max(1, Math.min(120, parseInt(v.every, 10) || 5)); if (v.method === 'mass' || v.method === 'single') settings.method = v.method; } catch (e) { /* yok */ }
   const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ max: settings.max, every: settings.every, method: settings.method })); } catch (e) { /* yok */ } };
   function patchSettings(p) {
-    if (p && typeof p.dryRun === 'boolean') { settings.dryRun = p.dryRun; const a = autoGet(); if (a && a.on) { a.real = !p.dryRun; autoSet(a); } }
+    if (TEST_DRY && p && typeof p.dryRun === 'boolean') { settings.dryRun = p.dryRun; const a = autoGet(); if (a && a.on) { a.real = !p.dryRun; autoSet(a); } }
     if (p && p.max !== undefined) settings.max = Math.max(1, Math.min(5000, parseInt(p.max, 10) || 100));
     if (p && (p.method === 'mass' || p.method === 'single') && !S.running) settings.method = p.method;
     saveSettings();
@@ -758,7 +759,7 @@
     try {
       // aynı sayfada başka araç (Kategori Temizle / Pasif Servis Taşı) çalışıyorsa bitmesini bekle
       if (!(await waitFor(lockTake, 15 * 60000, 500))) throw new Error('başka araç 15 dk içinde bitmedi');
-      settings.dryRun = !a0.real;
+      settings.dryRun = TEST_DRY ? !a0.real : false; // deneme modu yok: otomatik tur hep gerçek
       await scan();
       rec.bulunan = S.phase === 'ready' ? workList().length : 0;
       if (S.phase === 'ready' && workList().length) await run();
@@ -1020,7 +1021,7 @@
   }
   const visibleKeys = () => [...root.querySelectorAll('.blk.pick .it:not([hidden]) input[data-x]')].filter((c) => !c.disabled).map((c) => c.getAttribute('data-x'));
   const ui = {
-    head: (icon, title) => '<div class="hd"><span class="ic">' + icon + '</span><b>' + title + '</b><button class="mode ' + (settings.dryRun ? 'dry' : 'real') + '" data-a="drytoggle"' + (S.running ? ' disabled' : '') + ' title="' + (settings.dryRun ? 'Deneme modu: hiçbir şey değişmez — tıkla: gerçek moda geç' : 'Gerçek mod: değişiklik yapılır — tıkla: deneme moduna dön') + '">' + (settings.dryRun ? 'DENEME' : 'GERÇEK') + '</button><button data-a="min" title="Küçült/Büyüt" aria-label="Küçült">' + (minimized ? '▢' : '–') + '</button></div>',
+    head: (icon, title) => '<div class="hd"><span class="ic">' + icon + '</span><b>' + title + '</b>' + (TEST_DRY ? '<button class="mode ' + (settings.dryRun ? 'dry' : 'real') + '" data-a="drytoggle">' + (settings.dryRun ? 'DENEME' : 'GERÇEK') + '</button>' : '') + '<button data-a="min" title="Küçült/Büyüt" aria-label="Küçült">' + (minimized ? '▢' : '–') + '</button></div>',
     /** Seçim listesi: ara, ID yapıştır, hepsi/hiçbiri/ters, ID'leri kopyala. Korunan öğe işaretlenemez. */
     pick: (id, title, items, sel, busy) => '<div class="blk pick"><div class="bh"><span>' + title + ' <em>' + sel + ' / ' + items.length + ' seçili</em></span><span class="acts"><button class="lk" data-a="copyids" data-g="sel" title="Seçili olanların ID\'lerini virgülle kopyala (62727,26272,…)">ID kopyala</button></span></div>'
       + '<div class="tools"><input type="search" class="flt" placeholder="Ara: ad ya da ID" value="' + esc(filterText) + '" aria-label="Listede ara"><button class="lk" data-a="all"' + (busy ? ' disabled' : '') + '>Hepsi</button><button class="lk" data-a="none"' + (busy ? ' disabled' : '') + '>Hiçbiri</button><button class="lk" data-a="invert"' + (busy ? ' disabled' : '') + ' title="Seçimi tersine çevir">Ters</button><button class="lk" data-a="pasteids"' + (busy ? ' disabled' : '') + ' title="ID listesi yapıştır: yalnız onlar seçilsin">ID yapıştır</button></div>'
@@ -1069,7 +1070,7 @@
       copyIds(idList(r[g] || []), (RES_GROUPS.find((x) => x[0] === g) || ['', ''])[1].toLowerCase()); return true;
     }
     if (a === 'log') { downloadLog(); return true; }
-    if (a === 'drytoggle') { patchSettings({ dryRun: !settings.dryRun }); render(); return true; }
+    if (a === 'drytoggle' && TEST_DRY) { patchSettings({ dryRun: !settings.dryRun }); render(); return true; }
     return false;
   }
   const RES_GROUPS = [['done', 'Pasife alınan'], ['dry', 'Deneme'], ['skipped', 'Atlanan'], ['errors', 'Hata'], ['pending', 'İşlenmeyen']];
@@ -1117,9 +1118,9 @@
     if (a && (a.history || []).length) p.push('<div class="blk"><div class="bh"><span>Otomatik turlar</span></div><div class="list" id="spHist">' + a.history.slice(0, 5).map((h) => '<div>' + hhmm(h.at) + ' · ' + (h.bulunan || 0) + ' bulundu · ' + (h.gercek ? (h.yapilan || 0) + ' pasife alındı' : (h.deneme || 0) + ' deneme') + (h.hata ? ' · ' + h.hata + ' hata' : '') + (/^⚠/.test(h.durum || '') ? ' · <small>' + esc(h.durum) + '</small>' : '') + '</div>').join('') + '</div></div>');
     if (S.notes.length) p.push('<small>' + S.notes.map(esc).join('<br>') + '</small>');
     p.push(ui.settings([
-      ui.row('Deneme modu', '<span class="in"><input type="checkbox" data-s="dry"' + (settings.dryRun ? ' checked' : '') + '></span>', 'Açıkken hiçbir servis pasife alınmaz'),
+      ...(TEST_DRY ? [ui.row('Deneme modu', '<span class="in"><input type="checkbox" data-s="dry"' + (settings.dryRun ? ' checked' : '') + '></span>', 'Açıkken hiçbir servis pasife alınmaz')] : []),
       ui.row('En çok', '<span class="in"><input type="number" min="1" max="5000" data-s="max" value="' + settings.max + '"> servis</span>'),
-    ].concat(autoRows), (settings.dryRun ? 'deneme' : 'gerçek') + (a && a.on ? ' · otomatik açık' : '')));
+    ].concat(autoRows), (a && a.on ? 'otomatik açık' : '')));
     p.push(ui.foot(), '</div>');
     bar.className = 'bar' + (minimized ? ' min' : '');
     bar.innerHTML = p.join('');

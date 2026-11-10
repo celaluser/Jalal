@@ -47,7 +47,7 @@ const EXPECT = ['Old Telegram', 'Facebook Page', 'Spotify Plays', 'Discord Membe
 async function newPage(ctx, cfg) {
   const page = await ctx.newPage();
   await page.addInitScript((c) => { window.__cfg = c; }, Object.assign({ cats: cats() }, cfg));
-  await page.addInitScript(() => { try { localStorage.clear(); localStorage.setItem('kt_set', '1'); } catch (e) { /* yok */ } });
+  await page.addInitScript(() => { try { localStorage.clear(); localStorage.setItem('kt_set', '1'); localStorage.setItem('__pa_test_dry', '1'); } catch (e) { /* yok */ } });
   await page.route('https://panelbaku.com/**', async (route) => {
     const u = new globalThis.URL(route.request().url());
     if (u.pathname === '/_react.js') return route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(__dirname,'node_modules/react/umd/react.development.js')) });
@@ -246,7 +246,7 @@ const lists = (page) => bar(page, '.list').first().innerText();
     eq(s.dialogsCancelled.length, 3, '3 kategoride iptal edildi');
     const dgn = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { kt: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(dgn.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.5.0' && dj.satirTurleri && dj.actionsZinciri, 'teşhis metni hatasız üretildi (JSON)');
+    ok(dj && dj.surum === '1.6.0' && dj.satirTurleri && dj.actionsZinciri, 'teşhis metni hatasız üretildi (JSON)');
     await pop.close(); await p.close();
   }
 

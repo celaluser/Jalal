@@ -34,7 +34,7 @@ const OTHER_ON = () => cats().filter((c) => c.name !== 'Not Assigned').flatMap((
 async function newPage(ctx, cfg) {
   const page = await ctx.newPage();
   await page.addInitScript((c) => { window.__cfg = c; }, Object.assign({ cats: cats() }, cfg));
-  await page.addInitScript(() => { try { localStorage.clear(); localStorage.setItem('sp_set', '1'); } catch (e) { /* yok */ } });
+  await page.addInitScript(() => { try { localStorage.clear(); localStorage.setItem('sp_set', '1'); localStorage.setItem('__pa_test_dry', '1'); } catch (e) { /* yok */ } });
   await page.addInitScript((m) => { try { localStorage.setItem('sp_settings', JSON.stringify({ method: m })); } catch (e) { /* yok */ } }, (cfg && cfg.method) || 'single');
   await page.route('https://panelbaku.com/**', async (route) => {
     const u = new globalThis.URL(route.request().url());
@@ -226,7 +226,7 @@ const onState = (page) => page.evaluate(() => Object.fromEntries(window.__server
     eq(s.disabled, [], 'deneme: pasife alınan yok'); eq(s.menuOpens.length, 6, '6 menü açıldı');
     const d = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { sp: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(d.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.4.0' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
+    ok(dj && dj.surum === '1.5.0' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
     await pop.close(); await p.close();
   }
 

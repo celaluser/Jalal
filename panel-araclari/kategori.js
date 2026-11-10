@@ -7,7 +7,7 @@
   if (window.__katTemizle) return;
   window.__katTemizle = true;
 
-  const VERSION = '1.5.0';
+  const VERSION = '1.6.0';
   const SETTINGS_KEY = 'kt_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const HANDLE = '.service-table__handle, [class*="__handle"], .handle, .drag-handle';
@@ -123,12 +123,13 @@
     seen: { menu: [], dialog: [], toast: [] },
   };
   // mode: 'delete' = boş pasifleri sil · 'move' = dolu pasiflerin servislerini Not Assigned'a taşı (moveDelete: sonra kategoriyi sil)
-  const settings = { dryRun: true, max: 50, mode: 'delete', moveDelete: true };
-  // Güvenlik: deneme modu kalıcı değil; her sayfa yüklenişinde AÇIK başlar. Yalnızca "en çok N" hatırlanır.
+  // Deneme modu kaldırıldı (kullanıcı isteği): araçlar her zaman gerçek çalışır. Yalnız otomatik testler __pa_test_dry ile açar.
+  const TEST_DRY = (() => { try { return localStorage.getItem('__pa_test_dry') === '1'; } catch (e) { return false; } })();
+  const settings = { dryRun: TEST_DRY, max: 50, mode: 'delete', moveDelete: true };
   try { const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); if (v.max) settings.max = Math.max(1, Math.min(1000, parseInt(v.max, 10) || 50)); if (v.mode === 'move' || v.mode === 'delete') settings.mode = v.mode; if (typeof v.moveDelete === 'boolean') settings.moveDelete = v.moveDelete; } catch (e) { /* depolama kapalı */ }
   const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ max: settings.max, mode: settings.mode, moveDelete: settings.moveDelete })); } catch (e) { /* yok */ } };
   function patchSettings(p) {
-    if (p && typeof p.dryRun === 'boolean') settings.dryRun = p.dryRun;
+    if (TEST_DRY && p && typeof p.dryRun === 'boolean') settings.dryRun = p.dryRun;
     if (p && (p.mode === 'move' || p.mode === 'delete') && !S.running) settings.mode = p.mode;
     if (p && typeof p.moveDelete === 'boolean') settings.moveDelete = p.moveDelete;
     if (p && p.max !== undefined) settings.max = Math.max(1, Math.min(1000, parseInt(p.max, 10) || 50));
@@ -1107,7 +1108,7 @@
   }
   const visibleKeys = () => [...root.querySelectorAll('.blk.pick .it:not([hidden]) input[data-x]')].filter((c) => !c.disabled).map((c) => c.getAttribute('data-x'));
   const ui = {
-    head: (icon, title) => '<div class="hd"><span class="ic">' + icon + '</span><b>' + title + '</b><button class="mode ' + (settings.dryRun ? 'dry' : 'real') + '" data-a="drytoggle"' + (S.running ? ' disabled' : '') + ' title="' + (settings.dryRun ? 'Deneme modu: hiçbir şey değişmez — tıkla: gerçek moda geç' : 'Gerçek mod: değişiklik yapılır — tıkla: deneme moduna dön') + '">' + (settings.dryRun ? 'DENEME' : 'GERÇEK') + '</button><button data-a="min" title="Küçült/Büyüt" aria-label="Küçült">' + (minimized ? '▢' : '–') + '</button></div>',
+    head: (icon, title) => '<div class="hd"><span class="ic">' + icon + '</span><b>' + title + '</b>' + (TEST_DRY ? '<button class="mode ' + (settings.dryRun ? 'dry' : 'real') + '" data-a="drytoggle">' + (settings.dryRun ? 'DENEME' : 'GERÇEK') + '</button>' : '') + '<button data-a="min" title="Küçült/Büyüt" aria-label="Küçült">' + (minimized ? '▢' : '–') + '</button></div>',
     /** Seçim listesi: ara, ID yapıştır, hepsi/hiçbiri/ters, ID'leri kopyala. Korunan öğe işaretlenemez. */
     pick: (id, title, items, sel, busy) => '<div class="blk pick"><div class="bh"><span>' + title + ' <em>' + sel + ' / ' + items.length + ' seçili</em></span><span class="acts"><button class="lk" data-a="copyids" data-g="sel" title="Seçili olanların ID\'lerini virgülle kopyala (62727,26272,…)">ID kopyala</button></span></div>'
       + '<div class="tools"><input type="search" class="flt" placeholder="Ara: ad ya da ID" value="' + esc(filterText) + '" aria-label="Listede ara"><button class="lk" data-a="all"' + (busy ? ' disabled' : '') + '>Hepsi</button><button class="lk" data-a="none"' + (busy ? ' disabled' : '') + '>Hiçbiri</button><button class="lk" data-a="invert"' + (busy ? ' disabled' : '') + ' title="Seçimi tersine çevir">Ters</button><button class="lk" data-a="pasteids"' + (busy ? ' disabled' : '') + ' title="ID listesi yapıştır: yalnız onlar seçilsin">ID yapıştır</button></div>'
@@ -1156,7 +1157,7 @@
       copyIds(idList(r[g] || []), (RES_GROUPS.find((x) => x[0] === g) || ['', ''])[1].toLowerCase()); return true;
     }
     if (a === 'log') { downloadLog(); return true; }
-    if (a === 'drytoggle') { patchSettings({ dryRun: !settings.dryRun }); render(); return true; }
+    if (a === 'drytoggle' && TEST_DRY) { patchSettings({ dryRun: !settings.dryRun }); render(); return true; }
     return false;
   }
   const RES_GROUPS = [['moved', 'Taşınan'], ['deleted', 'Silinen'], ['dry', 'Deneme'], ['skipped', 'Atlanan'], ['errors', 'Hata'], ['pending', 'İşlenmeyen']];
@@ -1191,11 +1192,11 @@
     p.push(ui.res('ktRes', r));
     if (S.notes.length) p.push('<small>' + S.notes.map(esc).join('<br>') + '</small>');
     const rows = [
-      ui.row('Deneme modu', '<span class="in"><input type="checkbox" data-s="dry"' + (settings.dryRun ? ' checked' : '') + '></span>', 'Açıkken hiçbir şey silinmez/taşınmaz'),
+      ...(TEST_DRY ? [ui.row('Deneme modu', '<span class="in"><input type="checkbox" data-s="dry"' + (settings.dryRun ? ' checked' : '') + '></span>', 'Açıkken hiçbir şey silinmez/taşınmaz')] : []),
       ui.row('En çok', '<span class="in"><input type="number" min="1" max="1000" data-s="max" value="' + settings.max + '"> kategori</span>'),
     ];
     if (mv) rows.push(ui.row('Taşıdıktan sonra sil', '<span class="in"><input type="checkbox" data-s="moveDelete"' + (settings.moveDelete ? ' checked' : '') + (busy ? ' disabled' : '') + '></span>', 'Boşalan pasif kategoriyi de sil'));
-    p.push(ui.settings(rows, (settings.dryRun ? 'deneme' : 'gerçek') + ' · en çok ' + settings.max));
+    p.push(ui.settings(rows, 'en çok ' + settings.max));
     p.push(ui.foot(), '</div>');
     bar.className = 'bar' + (minimized ? ' min' : '');
     bar.innerHTML = p.join('');

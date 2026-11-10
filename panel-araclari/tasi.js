@@ -10,7 +10,7 @@
   if (window.__pasifServisTasi) return;
   window.__pasifServisTasi = true;
 
-  const VERSION = '1.3.0';
+  const VERSION = '1.4.0';
   const SETTINGS_KEY = 'pt_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const TOGGLE = '.service-table__header-hide-all, [class*="header-hide-all"]';
@@ -113,8 +113,9 @@
     diagNeeded: false, log: [], seen: { menu: [], dialog: [], toast: [] },
     autoInfo: null, // service worker'dan: { next, every }
   };
-  // Güvenlik: deneme modu her sayfa yüklenişinde AÇIK başlar. Diğer ayarlar hatırlanır.
-  const settings = { dryRun: true, max: 500, batch: 50, includePasif: false, every: 10 };
+  // Deneme modu kaldırıldı (kullanıcı isteği): araçlar her zaman gerçek çalışır. Yalnız otomatik testler __pa_test_dry ile açar.
+  const TEST_DRY = (() => { try { return localStorage.getItem('__pa_test_dry') === '1'; } catch (e) { return false; } })();
+  const settings = { dryRun: TEST_DRY, max: 500, batch: 50, includePasif: false, every: 10 };
   try {
     const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
     if (v.max) settings.max = Math.max(1, Math.min(10000, parseInt(v.max, 10) || 500));
@@ -125,7 +126,7 @@
   const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ max: settings.max, batch: settings.batch, includePasif: settings.includePasif, every: settings.every })); } catch (e) { /* yok */ } };
   function patchSettings(p) {
     if (!p) return;
-    if (typeof p.dryRun === 'boolean') { settings.dryRun = p.dryRun; const a = autoGet(); if (a && a.on) { a.real = !p.dryRun; autoSet(a); } }
+    if (TEST_DRY && typeof p.dryRun === 'boolean') { settings.dryRun = p.dryRun; const a = autoGet(); if (a && a.on) { a.real = !p.dryRun; autoSet(a); } }
     if (p.max !== undefined) settings.max = Math.max(1, Math.min(10000, parseInt(p.max, 10) || 500));
     if (p.batch !== undefined) settings.batch = Math.max(1, Math.min(500, parseInt(p.batch, 10) || 50));
     if (typeof p.includePasif === 'boolean' && !S.running) settings.includePasif = p.includePasif;
@@ -685,7 +686,7 @@
     try {
       // aynı sayfada başka araç (Kategori Temizle / Servis Pasifle) çalışıyorsa bitmesini bekle
       if (!(await waitFor(lockTake, 15 * 60000, 500))) throw new Error('başka araç 15 dk içinde bitmedi');
-      settings.dryRun = !a0.real;
+      settings.dryRun = TEST_DRY ? !a0.real : false; // deneme modu yok: otomatik tur hep gerçek
       S.excluded.clear();
       await scan();
       rec.bulunan = S.phase === 'ready' ? workList().length : 0;
@@ -945,7 +946,7 @@
   }
   const visibleKeys = () => [...root.querySelectorAll('.blk.pick .it:not([hidden]) input[data-x]')].filter((c) => !c.disabled).map((c) => c.getAttribute('data-x'));
   const ui = {
-    head: (icon, title) => '<div class="hd"><span class="ic">' + icon + '</span><b>' + title + '</b><button class="mode ' + (settings.dryRun ? 'dry' : 'real') + '" data-a="drytoggle"' + (S.running ? ' disabled' : '') + ' title="' + (settings.dryRun ? 'Deneme modu: hiçbir şey değişmez — tıkla: gerçek moda geç' : 'Gerçek mod: değişiklik yapılır — tıkla: deneme moduna dön') + '">' + (settings.dryRun ? 'DENEME' : 'GERÇEK') + '</button><button data-a="min" title="Küçült/Büyüt" aria-label="Küçült">' + (minimized ? '▢' : '–') + '</button></div>',
+    head: (icon, title) => '<div class="hd"><span class="ic">' + icon + '</span><b>' + title + '</b>' + (TEST_DRY ? '<button class="mode ' + (settings.dryRun ? 'dry' : 'real') + '" data-a="drytoggle">' + (settings.dryRun ? 'DENEME' : 'GERÇEK') + '</button>' : '') + '<button data-a="min" title="Küçült/Büyüt" aria-label="Küçült">' + (minimized ? '▢' : '–') + '</button></div>',
     /** Seçim listesi: ara, ID yapıştır, hepsi/hiçbiri/ters, ID'leri kopyala. Korunan öğe işaretlenemez. */
     pick: (id, title, items, sel, busy) => '<div class="blk pick"><div class="bh"><span>' + title + ' <em>' + sel + ' / ' + items.length + ' seçili</em></span><span class="acts"><button class="lk" data-a="copyids" data-g="sel" title="Seçili olanların ID\'lerini virgülle kopyala (62727,26272,…)">ID kopyala</button></span></div>'
       + '<div class="tools"><input type="search" class="flt" placeholder="Ara: ad ya da ID" value="' + esc(filterText) + '" aria-label="Listede ara"><button class="lk" data-a="all"' + (busy ? ' disabled' : '') + '>Hepsi</button><button class="lk" data-a="none"' + (busy ? ' disabled' : '') + '>Hiçbiri</button><button class="lk" data-a="invert"' + (busy ? ' disabled' : '') + ' title="Seçimi tersine çevir">Ters</button><button class="lk" data-a="pasteids"' + (busy ? ' disabled' : '') + ' title="ID listesi yapıştır: yalnız onlar seçilsin">ID yapıştır</button></div>'
@@ -994,7 +995,7 @@
       copyIds(idList(r[g] || []), (RES_GROUPS.find((x) => x[0] === g) || ['', ''])[1].toLowerCase()); return true;
     }
     if (a === 'log') { downloadLog(); return true; }
-    if (a === 'drytoggle') { patchSettings({ dryRun: !settings.dryRun }); render(); return true; }
+    if (a === 'drytoggle' && TEST_DRY) { patchSettings({ dryRun: !settings.dryRun }); render(); return true; }
     return false;
   }
   const RES_GROUPS = [['moved', 'Taşınan'], ['dry', 'Deneme'], ['skipped', 'Atlanan'], ['errors', 'Hata'], ['pending', 'İşlenmeyen']];
@@ -1038,11 +1039,11 @@
     p.push(ui.res('ptRes', r));
     if (S.notes.length) p.push('<small>' + S.notes.map(esc).join('<br>') + '</small>');
     p.push(ui.settings([
-      ui.row('Deneme modu', '<span class="in"><input type="checkbox" data-s="dry"' + (settings.dryRun ? ' checked' : '') + '></span>', 'Açıkken hiçbir servis taşınmaz'),
+      ...(TEST_DRY ? [ui.row('Deneme modu', '<span class="in"><input type="checkbox" data-s="dry"' + (settings.dryRun ? ' checked' : '') + '></span>', 'Açıkken hiçbir servis taşınmaz')] : []),
       ui.row('Pasif kategoriler de', '<span class="in"><input type="checkbox" data-s="includePasif"' + (settings.includePasif ? ' checked' : '') + (busyNow ? ' disabled' : '') + '></span>', 'Pasif kategorilerdeki pasif servisleri de taşı'),
       ui.row('Bir seferde', '<span class="in"><input type="number" min="1" max="500" data-s="batch" value="' + settings.batch + '"> servis</span>'),
       ui.row('En çok', '<span class="in"><input type="number" min="1" max="10000" data-s="max" value="' + settings.max + '"> servis</span>'),
-    ].concat(autoRows), (settings.dryRun ? 'deneme' : 'gerçek') + (a && a.on ? ' · otomatik açık' : '')));
+    ].concat(autoRows), (a && a.on ? 'otomatik açık' : '')));
     p.push(ui.foot(), '</div>');
     bar.className = 'bar' + (minimized ? ' min' : '');
     bar.innerHTML = p.join('');

@@ -22,7 +22,7 @@ function paint(s) {
   if (!s || !s.onPage) return;
   $('ver').textContent = 'v' + s.version;
   if (document.activeElement !== $('max')) $('max').value = s.settings.max;
-  $('dry').checked = s.settings.dryRun;
+  if ($('dry')) $('dry').checked = s.settings.dryRun;
   $('mMass').checked = s.settings.method === 'mass'; $('mSingle').checked = s.settings.method !== 'mass'; $('mMass').disabled = $('mSingle').disabled = s.running;
   $('scan').disabled = s.running;
   const n = s.phase === 'ready' ? Math.min(s.work, s.settings.max) : 0;
@@ -108,7 +108,7 @@ $('pasteIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') pasteGo
   $('list').onchange = async (ev) => { const k = ev.target.getAttribute('data-k'); if (k) paint(await send({ cmd: 'exclude', key: k, on: !ev.target.checked })); };
   $('mMass').onchange = async () => paint(await send({ cmd: 'settings', patch: { method: 'mass' } }));
   $('mSingle').onchange = async () => paint(await send({ cmd: 'settings', patch: { method: 'single' } }));
-  $('dry').onchange = async () => paint(await send({ cmd: 'settings', patch: { dryRun: $('dry').checked } }));
+  if ($('dry')) $('dry').onchange = async () => paint(await send({ cmd: 'settings', patch: { dryRun: $('dry').checked } }));
   $('max').onchange = async () => paint(await send({ cmd: 'settings', patch: { max: $('max').value } }));
   $('auto').onchange = async () => paint(await send({ cmd: 'auto', on: $('auto').checked, every: $('every').value }));
   $('every').onchange = async () => paint(await send({ cmd: 'auto', every: $('every').value }));
