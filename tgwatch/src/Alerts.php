@@ -22,6 +22,7 @@ final class Alerts
         'unpublished' => ['Onaylandı ama panele eklenmedi', 'Onaylı servisler 24 saatten uzun süredir "yayın bekliyor" durumundaysa (günde bir kez)'],
         'stale' => ['Uzun süredir bekleyen iş', 'Bir iş 12 saatten uzun süredir onay bekliyorsa (günde bir kez)'],
         'change' => ['Servis değişikliği', 'Fiyat değişikliği ya da kapatılan servis duyurusu gelince'],
+        'balance' => ['Sağlayıcı bakiyesi', 'Bakiye Ayarlar → Özellikler → "Düşük bakiye eşiği"nin altına inince ya da sağlayıcı bakiye sorusuna cevap vermeyince'],
         'rival' => ['Rakip fiyatı', 'Bir rakip senden belirlediğin yüzde kadar ucuza düşünce ya da fiyatı değişince'],
         'weekly' => ['Haftalık özet', 'Her pazartesi 09:00\'dan sonra geçen haftanın özeti'],
         'login' => ['Panele giriş', 'Panele her başarılı girişte (kim, nereden)'],

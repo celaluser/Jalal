@@ -209,26 +209,29 @@ function drawBal(b) {
     $('bal-tot').append('Toplam: ');
     tot.forEach(([c, v], i) => { const e = document.createElement('b'); e.textContent = money(v) + (c ? ' ' + c : ''); if (i) $('bal-tot').append(' · '); $('bal-tot').append(e); });
   }
-  $('bal-msg').textContent = 'Son kontrol: ' + ago(b.at * 1000);
+  $('bal-msg').textContent = 'Son kontrol: ' + ago(b.at * 1000) + ' · her dakika kendiliğinden güncellenir';
 }
 async function balances(force) {
-  const { bal } = await get({ bal: null });
+  const { bal, balErr } = await get({ bal: null, balErr: '' });
   if (bal && bal.items) drawBal(bal);
-  if (!force && bal && Date.now() - bal.at * 1000 < 10 * 60000) return;
+  if (balErr && !force) $('bal-msg').textContent = balErr;
+  // arka plan her dakika çeker; yalnız hiç kayıt yoksa ya da "Yenile"ye basıldıysa burada sorulur
+  if (!force && bal && bal.items) return;
   $('bal-ref').disabled = true;
   $('bal-msg').textContent = 'Bakiyeler soruluyor…';
-  chrome.runtime.sendMessage({ type: 'api', action: 'balance' }, (r) => {
+  chrome.runtime.sendMessage({ type: 'api', action: 'balance', payload: force ? { force: 1 } : {} }, (r) => {
     $('bal-ref').disabled = false;
     if (chrome.runtime.lastError || !r || !r.ok) {
       $('bal-msg').textContent = (r && r.error) || 'tgwatch cevap vermedi';
       if (r && /Bilinmeyen işlem/.test(r.error || '')) $('bal-msg').textContent = 'tgwatch eski sürüm: sunucudaki src klasörünü güncelle.';
       return;
     }
-    const b = { items: r.items, totals: r.totals, at: r.at };
-    chrome.storage.local.set({ bal: b });
-    drawBal(b);
+    drawBal({ items: r.items, totals: r.totals, at: r.at });
   });
 }
+// arka plan yeni bakiye getirince açık mini panel de kendiliğinden güncellenir
+chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.bal && ch.bal.newValue && ch.bal.newValue.items) drawBal(ch.bal.newValue); });
+setInterval(() => { const b = $('bal-msg'); if (b && /Son kontrol/.test(b.textContent)) get({ bal: null }).then(({ bal }) => { if (bal && bal.items) drawBal(bal); }); }, 30000);
 $('bal-ref').onclick = () => balances(true);
 
 // ---- yeni sürüm ----

@@ -70,10 +70,28 @@ async function checkUpdate(known) {
   } catch (e) { /* rozet yok */ }
   return upd;
 }
-function schedule() {
-  try { chrome.alarms.create('tgw-upd', { periodInMinutes: 360 }); } catch (e) { /* alarms yok */ }
+// ---- sağlayıcı bakiyeleri: her dakika tgwatch'tan (sunucu cron'u her dakika sorgulayıp kaydeder) ----
+// Mini panel açık olmasa da çekilir ve saklanır; panel açılınca hemen güncel değer görünür.
+async function pullBalances(force) {
+  const s = await settings();
+  if (!s.api || !s.key) return null;
+  const r = await callApi('balance', force ? { force: 1 } : {});
+  if (!r || !r.ok) { await chrome.storage.local.set({ balErr: (r && r.error) || 'tgwatch cevap vermedi', balErrAt: Date.now() }); return r; }
+  const bal = { items: r.items, totals: r.totals, at: r.at, pulled: Date.now() };
+  await chrome.storage.local.set({ bal, balErr: '' });
+  return r;
 }
-chrome.alarms && chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'tgw-upd') checkUpdate(); });
+self.__pullBalances = pullBalances; // test kancası
+function schedule() {
+  try {
+    chrome.alarms.create('tgw-upd', { periodInMinutes: 360 });
+    chrome.alarms.create('tgw-bal', { delayInMinutes: 0.1, periodInMinutes: 1 });
+  } catch (e) { /* alarms yok */ }
+}
+chrome.alarms && chrome.alarms.onAlarm.addListener((a) => {
+  if (a.name === 'tgw-upd') checkUpdate();
+  if (a.name === 'tgw-bal') pullBalances(false);
+});
 
 chrome.runtime.onInstalled.addListener(() => { register(); schedule(); checkUpdate(); });
 chrome.runtime.onStartup.addListener(() => { register(); schedule(); checkUpdate(); });
@@ -107,6 +125,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     callApi(msg.action, msg.payload).then((res) => {
       if (msg.action === 'learn' && res && res.ok && res.learned) bump({ learned: res.learned });
       if (msg.action === 'ping' && res && res.ok) checkUpdate(res);
+      if (msg.action === 'balance' && res && res.ok) chrome.storage.local.set({ bal: { items: res.items, totals: res.totals, at: res.at, pulled: Date.now() }, balErr: '' });
       sendResponse(res);
     });
     return true;
@@ -126,3 +145,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   return false;
 });
+
+// Eklenti yeniden yüklenince/güncellenince de bakiye alarmı kurulsun (onInstalled/onStartup dışında service worker uyanışı).
+chrome.alarms && chrome.alarms.get('tgw-bal', (a) => { if (!a) schedule(); });

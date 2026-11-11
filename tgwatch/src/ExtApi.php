@@ -46,7 +46,7 @@ final class ExtApi
                 'bank_search' => [200, ['ok' => true] + $this->bankSearch($req)],
                 'bank_save' => [200, ['ok' => true] + $this->bankEdit($req, false)],
                 'bank_del' => [200, ['ok' => true] + $this->bankEdit($req, true)],
-                'balance' => [200, ['ok' => true] + Balances::check($this->db)],
+                'balance' => [200, ['ok' => true] + $this->balance($req)],
                 'imported' => [200, ['ok' => true] + (new ImportShare($this->db, $this->tg ?? App::telegram(), $this->config))->report($req)],
                 'ext_files' => [200, ['ok' => true] + self::extFiles()],
                 default => [400, ['ok' => false, 'error' => 'Bilinmeyen işlem']],
@@ -213,6 +213,16 @@ final class ExtApi
             $this->db->log('info', 'ext', "Eklenti: Perfect Panel import'undan $learned ad bankaya öğrenildi");
         }
         return ['learned' => $learned, 'skipped' => $skipped];
+    }
+
+    /** Bakiye: cron'un son kaydı (en çok 3 dk eski) ya da force=1 ile anında sorgu. Kayıt yoksa/eskiyse sorgulanıp kaydedilir. */
+    private function balance(array $req): array
+    {
+        $c = Balances::cached($this->db);
+        if (empty($req['force']) && $c && time() - (int)$c['at'] < 180) {
+            return $c + ['cached' => true];
+        }
+        return Balances::checkAndSave($this->db, $this->config, $this->tg) + ['cached' => false];
     }
 
     private const UNDO_KEY = 'word_undo';

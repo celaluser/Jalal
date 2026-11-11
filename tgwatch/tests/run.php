@@ -2193,6 +2193,47 @@ test('Ayarlar: paylaşım kanalı ve şablon doğrulaması', function () {
     eq(false, TgWatch\Settings::check('share_line', str_repeat('x', 601))[0]);
     eq([true, ''], TgWatch\Settings::check('share_link', ''));
 });
+test('Bakiye: cron belirlenen aralıkla sorgulayıp kaydeder; eklenti kaydı okur (force ile anında); eşik altına inince bir kez uyarı, üstüne çıkınca düzeldi', function () {
+    [$db, $tg] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('provider','P1','https://p1','k',1),('provider','P2','https://p2','k',1)");
+    $bal = ['https://p1' => '{"balance":"4.5","currency":"USD"}', 'https://p2' => '{"balance":"900","currency":"TRY"}'];
+    $calls = 0;
+    TgWatch\SmmApi::$fake = static function (string $url) use (&$bal, &$calls) { $calls++; return $bal[$url]; };
+    $cfg = array_merge(App::config(), ['balance_minutes' => 1, 'balance_low' => 'USD=5, TRY=200']);
+    try {
+        $r = TgWatch\Balances::cron($db, $cfg, $tg);
+        eq([4.5, 900.0], [$r['items'][0]['balance'], $r['items'][1]['balance']], 'ilk cron sorguladı');
+        eq(2, $calls);
+        eq(null, TgWatch\Balances::cron($db, $cfg, $tg), 'süre dolmadan tekrar sorgulamaz');
+        eq(2, $calls);
+        $msgs = array_values(array_filter($tg->calls, static fn($c) => $c[0] === 'sendMessage'));
+        eq(1, count($msgs), 'yalnız P1 (USD 4.5 < 5) için uyarı');
+        ok(str_contains($msgs[0][1]['text'], 'Düşük bakiye') && str_contains($msgs[0][1]['text'], 'P1'), $msgs[0][1]['text']);
+        // eklenti: kayıt okunur (sağlayıcıya yeni istek yok); force=1 anında sorgular
+        $api = new TgWatch\ExtApi($db, $cfg, $tg);
+        [$c, $b] = $api->handle(['action' => 'balance']);
+        eq([200, true, 2], [$c, $b['cached'], $calls], 'eklenti kaydı okudu');
+        $bal['https://p1'] = '{"balance":"50","currency":"USD"}';
+        [, $b] = $api->handle(['action' => 'balance', 'force' => 1]);
+        eq([false, 50.0, 4], [$b['cached'], $b['items'][0]['balance'], $calls], 'force: anında sorgu');
+        // süre doldu: cron yeniden sorgular; P1 eşiğin üstüne çıktı → düzeldi mesajı
+        $last = $db->getJson('balances_last'); $last['at'] -= 120; $db->setJson('balances_last', $last);
+        TgWatch\Balances::cron($db, $cfg, $tg);
+        $msgs = array_values(array_filter($tg->calls, static fn($c) => $c[0] === 'sendMessage'));
+        ok(count($msgs) === 2 && str_contains($msgs[1][1]['text'], 'yeniden eşiğin üstünde'), 'düzeldi mesajı');
+        // sağlayıcı cevap vermezse uyarı (bir kez)
+        $bal['https://p2'] = 'oops';
+        $last = $db->getJson('balances_last'); $last['at'] -= 120; $db->setJson('balances_last', $last);
+        TgWatch\Balances::cron($db, $cfg, $tg);
+        $last = $db->getJson('balances_last'); $last['at'] -= 120; $db->setJson('balances_last', $last);
+        TgWatch\Balances::cron($db, $cfg, $tg);
+        $err = array_filter($tg->calls, static fn($c) => $c[0] === 'sendMessage' && str_contains($c[1]['text'], 'Bakiye okunamadı'));
+        eq(1, count($err), 'okunamadı uyarısı bir kez');
+        eq(['USD' => 5.0, 'TRY' => 200.0, '*' => 1.5], TgWatch\Balances::thresholds('usd=5; TRY: 200, *=1.5'));
+    } finally {
+        TgWatch\SmmApi::$fake = null;
+    }
+});
 echo "Chrome eklentisi API\n";
 test('Eklenti API: teach bankadaki eski kayıtları da düzeltir (çevrilmeden kalmış kelime, sözlükteki eski karşılık); word_info şimdiki durumu verir', function () {
     [$db] = env();

@@ -43,6 +43,12 @@ panel `https://ALANADIN/system/tgwatch/public/`, webhook `https://ALANADIN/syste
 Zip'i açarken gizli dosyaların (`.htaccess`) da çıktığından emin ol. **Sağlık** sayfasındaki "Web koruması" satırı bunu kontrol eder.
 İstersen tgwatch'ı public_html dışına koyup sadece `public/` içeriğini web'e kopyalayabilirsin (o zaman `app_path.php` içindeki yolu düzelt).
 
+## Sağlayıcı bakiyeleri: her dakika (tgwatch 1.4.0, eklenti 1.20.0)
+- **Sunucu (cron):** her cron turunda "Sağlayıcı bakiyeleri kaç dakikada bir sorgulansın" (Ayarlar → Özellikler, varsayılan **1 dk**) dolduysa bütün sağlayıcılara `action=balance` sorulur ve sonuç kaydedilir. Gerçek sıklık cron'un sıklığından fazla olamaz: cron-job.org'da her dakika çalıştır.
+- **Eklenti:** mini panel açık olmasa da arka planda **her dakika** tgwatch'taki son kaydı çeker ve saklar (sağlayıcılara yeni istek atmaz). Bakiye sekmesini açınca güncel değer hemen görünür; açıkken de kendiliğinden yenilenir. **Yenile** sağlayıcılara anında sorar. Sunucudaki kayıt 3 dakikadan eskiyse eklentinin isteği de anında sorgu yapar (cron durmuşsa bile güncel kalır).
+- **Düşük bakiye uyarısı:** Ayarlar → Özellikler → "Düşük bakiye eşiği", ör. `USD=5, TRY=200` (`*=10` hepsi için). Bakiye eşiğin altına inince bota **bir kez** uyarı (6 saatte bir hatırlatma), üstüne çıkınca "düzeldi". Sağlayıcı bakiye sorusuna cevap vermezse de uyarı gelir. Uyarılar sayfasında "Sağlayıcı bakiyesi" ile kapatılır.
+- `/balans` komutu da anında sorgular ve kaydı günceller.
+
 ## Kategori logosu (eklenti 1.16.0)
 
 Kategori adını çevirirken eklenti logoyu da seçer: logo kutusuna tıklar → **Uploaded** sekmesi → uygun resim → (sonra) **Save**.

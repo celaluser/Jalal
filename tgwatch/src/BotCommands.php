@@ -208,7 +208,7 @@ final class BotCommands
     /** Sağlayıcı bakiyeleri: her sağlayıcının API'sine action=balance; para birimine göre toplam. */
     private function balance(int|string $chat): void
     {
-        $r = Balances::check($this->db);
+        $r = Balances::checkAndSave($this->db, App::config());
         if (!$r['items']) {
             $this->say($chat, 'Sağlayıcı yok. tgwatch\'ta <b>Ayarlar → Kaynaklar</b> sayfasından sağlayıcı (API adresi + anahtar) ekle.');
             return;
