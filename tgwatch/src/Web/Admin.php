@@ -25,6 +25,7 @@ final class Admin
     use ToolPages;
     use LearnPages;
     use RivalPages;
+    use ApiPages;
 
     private const PER_PAGE = 30;
     private const OPEN = ['new', 'awaiting', 'editing'];
@@ -108,6 +109,7 @@ final class Admin
             'job_prompt' => $this->jobPrompt((int)($_GET['id'] ?? 0)),
             'logs' => $this->logs(),
             'health' => $this->health(false),
+            'api' => $this->apiPage(),
             default => $this->dash(),
         };
     }
@@ -1168,7 +1170,7 @@ final class Admin
     {
         $id = (int)($_POST['id'] ?? 0);
         try {
-            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p) || $this->postTools($p) || $this->postLearn($p) || $this->postRival($p) || $this->postRivalLearn($p)) {
+            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p) || $this->postTools($p) || $this->postLearn($p) || $this->postRival($p) || $this->postRivalLearn($p) || $this->postApi($p)) {
                 return;
             }
             switch ($p) {

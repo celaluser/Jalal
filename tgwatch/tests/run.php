@@ -2234,6 +2234,24 @@ test('Bakiye: cron belirlenen aralıkla sorgulayıp kaydeder; eklenti kaydı oku
         TgWatch\SmmApi::$fake = null;
     }
 });
+test('API istatistikleri: istek/hata/süre günlük ve işlem başına; son istekler; sürüm; sıfırlama', function () {
+    [$db] = env();
+    TgWatch\ApiStats::record($db, 'translate', 200, 120.4, '1.2.3.4', '1.20.0');
+    TgWatch\ApiStats::record($db, 'translate', 200, 79.6, '1.2.3.4', '1.20.0');
+    TgWatch\ApiStats::record($db, 'balance', 200, 15, '1.2.3.4', '1.20.0');
+    TgWatch\ApiStats::record($db, 'teach', 400, 5, '1.2.3.4', '1.20.0', 'Kaynak kelime 1–80 karakter olmalı');
+    TgWatch\ApiStats::record($db, '—', 403, 1, '9.9.9.9', '', 'Anahtar yanlış');
+    $s = TgWatch\ApiStats::summary($db, 14);
+    eq([5, 2], [$s['total']['req'], $s['total']['err']], 'toplam');
+    eq([5, 2], [$s['today']['req'], $s['today']['err']], 'bugün');
+    eq(14, count($s['days']));
+    eq([3, 2], end($s['days'])['values'], 'bugünün sütunu: 3 başarılı, 2 hatalı');
+    eq(['translate', 2, 0, 100], [$s['actions'][0]['action'], $s['actions'][0]['req'], $s['actions'][0]['err'], (int)round($s['actions'][0]['ms'] / $s['actions'][0]['req'])], 'en çok istenen işlem ve ortalama süre');
+    eq(['—', 403, 'Anahtar yanlış'], [$s['calls'][0]['action'], (int)$s['calls'][0]['code'], $s['calls'][0]['error']], 'son istek en üstte');
+    eq('1.20.0', $s['ext'], 'bağlanan eklenti sürümü');
+    TgWatch\ApiStats::reset($db);
+    eq(0, TgWatch\ApiStats::summary($db)['total']['req']);
+});
 echo "Chrome eklentisi API\n";
 test('Eklenti API: teach bankadaki eski kayıtları da düzeltir (çevrilmeden kalmış kelime, sözlükteki eski karşılık); word_info şimdiki durumu verir', function () {
     [$db] = env();

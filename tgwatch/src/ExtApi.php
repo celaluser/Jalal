@@ -29,6 +29,24 @@ final class ExtApi
         return strlen($key) >= 16 && $given !== '' && hash_equals($key, $given);
     }
 
+    /** API işlemleri: panel → API sekmesindeki belge. [ad => [açıklama, örnek istek gövdesi]] */
+    public const ACTIONS = [
+        'ping' => ['Bağlantıyı sınar; tgwatch ve sunucudaki eklenti sürümünü döndürür.', '{"action":"ping"}'],
+        'translate' => ['Servis/kategori adlarını çevirir (banka → kurallar → Claude). En çok 1000 ad.', '{"action":"translate","items":[{"id":"1","name":"Instagram Followers | Fast"}]}'],
+        'translate_desc' => ['Servis açıklamalarını çevirir (banka + Google + DeepSeek). En çok 20.', '{"action":"translate_desc","items":[{"id":"1","text":"Start: 0-1 hour"}]}'],
+        'learn' => ['Import\'ta kaydedilen son adları bankaya öğretir.', '{"action":"learn","items":[{"src":"…","az":"…","kind":"service"}]}'],
+        'learn_desc' => ['Açıklama çiftlerini bankaya öğretir.', '{"action":"learn_desc","items":[{"en":"…","az":"…"}]}'],
+        'teach' => ['Sözlüğe kelime: karşılık, "aynen kalsın" (keep) ya da "hiç yazılmasın" (remove); bankadaki eski kayıtları da düzeltir.', '{"action":"teach","en":"Almost","az":"Demək olar ki"}'],
+        'word_info' => ['Kelimenin sözlükteki durumu ve bankada kaç kayıtta geçtiği.', '{"action":"word_info","en":"Almost"}'],
+        'word_undo' => ['Son kelime değişikliğini geri alır (peek: yalnız ne olduğunu söyler).', '{"action":"word_undo","peek":true}'],
+        'bank_search' => ['Bankada ve sözlükte arama.', '{"action":"bank_search","q":"almost"}'],
+        'bank_save' => ['Banka kaydının Azericesini düzeltir.', '{"action":"bank_save","id":12,"az":"…"}'],
+        'bank_del' => ['Banka kaydını siler.', '{"action":"bank_del","id":12}'],
+        'balance' => ['Sağlayıcı bakiyeleri: cron\'un son kaydı (force:1 ile anında sorgu).', '{"action":"balance"}'],
+        'imported' => ['Import bitti bildirimi: bota özet, istenirse kanala paylaşım.', '{"action":"imported","items":[…]}'],
+        'ext_files' => ['Eklentinin güncel dosyaları (kendini güncelleme).', '{"action":"ext_files"}'],
+    ];
+
     /** @return array{0:int,1:array} [HTTP kodu, JSON gövdesi] */
     public function handle(array $req): array
     {

@@ -43,6 +43,14 @@ panel `https://ALANADIN/system/tgwatch/public/`, webhook `https://ALANADIN/syste
 Zip'i açarken gizli dosyaların (`.htaccess`) da çıktığından emin ol. **Sağlık** sayfasındaki "Web koruması" satırı bunu kontrol eder.
 İstersen tgwatch'ı public_html dışına koyup sadece `public/` içeriğini web'e kopyalayabilirsin (o zaman `app_path.php` içindeki yolu düzelt).
 
+## API sekmesi (tgwatch 1.5.0, eklenti 1.21.0)
+Kenar menüde ayrı bir **API** bölümü: Chrome eklentisinin bağlandığı API'nin her şeyi tek sayfada.
+- **Bağlantı:** API adresi ve anahtar (kopyala), bağlantı durumu ("Bağlı · son istek 2 dk önce"), bağlanan eklentinin sürümü ile sunucudaki sürüm, **Yeni anahtar üret** (eski anahtar hemen geçersiz olur), eklentiyi indir.
+- **İstatistikler** (7/14/30/90 gün): bugünkü istek, toplam, hata oranı, ortalama süre; günlük başarılı/hatalı grafiği; işlem başına istek, hata, ortalama süre, son istek zamanı.
+- **Son istekler:** son 40 istek (zaman, işlem, HTTP kodu, süre, IP, eklenti sürümü, hata metni). Yanlış anahtarla gelen istekler de (403) görünür. **İstatistikleri sıfırla**.
+- **API işlemleri:** her işlemin ne yaptığı ve örnek gövdesi; `curl` ile deneme komutu.
+- Kayıt: `api_stats` (günlük sayaç, 400 gün) ve `api_calls` (son ~300 istek). İstatistik yazılamazsa API cevabı etkilenmez. Eklenti sürümünü `X-Tgwatch-Ext` başlığıyla gönderir (1.21.0+).
+
 ## Sağlayıcı bakiyeleri: her dakika (tgwatch 1.4.0, eklenti 1.20.0)
 - **Sunucu (cron):** her cron turunda "Sağlayıcı bakiyeleri kaç dakikada bir sorgulansın" (Ayarlar → Özellikler, varsayılan **1 dk**) dolduysa bütün sağlayıcılara `action=balance` sorulur ve sonuç kaydedilir. Gerçek sıklık cron'un sıklığından fazla olamaz: cron-job.org'da her dakika çalıştır.
 - **Eklenti:** mini panel açık olmasa da arka planda **her dakika** tgwatch'taki son kaydı çeker ve saklar (sağlayıcılara yeni istek atmaz). Bakiye sekmesini açınca güncel değer hemen görünür; açıkken de kendiliğinden yenilenir. **Yenile** sağlayıcılara anında sorar. Sunucudaki kayıt 3 dakikadan eskiyse eklentinin isteği de anında sorgu yapar (cron durmuşsa bile güncel kalır).

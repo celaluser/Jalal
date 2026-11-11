@@ -13,7 +13,7 @@ async function callApi(action, payload) {
   try {
     const r = await fetch(s.api, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Tgwatch-Key': s.key },
+      headers: { 'Content-Type': 'application/json', 'X-Tgwatch-Key': s.key, 'X-Tgwatch-Ext': chrome.runtime.getManifest().version },
       body: JSON.stringify(Object.assign({ action }, payload || {})),
       credentials: 'omit',
       cache: 'no-store',

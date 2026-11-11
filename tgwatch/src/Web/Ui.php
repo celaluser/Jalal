@@ -13,7 +13,7 @@ use TgWatch\Flow;
 final class Ui
 {
     /**
-     * Gezinme: 6 bölüm. Her bölümün alt sayfaları sayfanın üstünde segment kontrolü (sekmeler) olarak çıkar;
+     * Gezinme: 7 bölüm. Her bölümün alt sayfaları sayfanın üstünde segment kontrolü (sekmeler) olarak çıkar;
      * kenar menü ve mobil alt çubuk yalnızca bölümleri gösterir. [ad, ikon, [sayfa => sekme adı]]
      */
     public const SECTIONS = [
@@ -22,6 +22,7 @@ final class Ui
         'channels' => ['Kanallar', 'channels', ['channels' => 'Kanallar']],
         'translate' => ['Çeviri', 'dict', ['dict' => 'Sözlük', 'bank' => 'Çeviri bankası', 'learn' => 'Öğrenme', 'ai' => 'Çeviri ayarları']],
         'insights' => ['Analiz', 'chart', ['catalog' => 'Servisler', 'audit' => 'Fiyat denetimi', 'reports' => 'Raporlar', 'rivals' => 'Rakip kıyası', 'rival_list' => 'Rakip listesi', 'rival_learn' => 'Rakipten öğren']],
+        'api' => ['API', 'link', ['api' => 'API']],
         'system' => ['Ayarlar', 'gear', ['settings' => 'Ayarlar', 'sources' => 'Kaynaklar', 'profile' => 'Profil', 'alerts' => 'Uyarılar', 'botcmds' => 'Bot komutları', 'health' => 'Sağlık', 'logs' => 'Kayıtlar']],
     ];
 
