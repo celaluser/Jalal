@@ -16,6 +16,15 @@
 5. **Ayarlar** (katlanır; kapalıyken özet görünür)
 6. **Teşhisi kopyala** · **Günlüğü indir (.txt)**
 
+## Kaldığı yerden devam (2.2.0)
+İş sürerken sayfa yenilenir ya da sekme kapanırsa, aracı yeniden açınca **"Yarım kalan iş: N / M öğe kaldı"** kutusu çıkar.
+**Kaldığı yerden devam** → liste yeniden taranır, yalnız kalan öğeler seçilir ve iş sürer (yapılmış olanlar taramada kendiliğinden ayıklanır,
+aynı öğe iki kez işlenmez). **Unut** kaydı siler. Kayıt 24 saat tutulur; hatalı kalanlar da "kalan" sayılır. Durdur'a bastıysan da aynı kutu çıkar.
+
+## Taşı: hedef kategori (2.2.0)
+Ayarlar → **Hedef kategori**: boşsa Not Assigned; bir kategori adı yazarsan pasif servisler oraya taşınır (öneri listesi son taramadaki kategorilerden).
+Hedef listede yoksa tarama durur. Onay penceresindeki hedef ve sondaki doğrulama da bu kategoriye göre yapılır; hedefteki servisler listeye alınmaz.
+
 ## Mini panel (Alt+Shift+P)
 Sekmeler: Kategori · Pasifle · Taşı · **Geçmiş** · **Koruma**.
 - **Koruma:** buraya yazdığın servis/kategori ID'lerine hiçbir araç dokunmaz (otomatik mod dahil); listelerde "KORUMALI" görünür, işaretlenemez.

@@ -9,7 +9,7 @@
   if (window.__servisPasifle) return;
   window.__servisPasifle = true;
 
-  const VERSION = '1.5.0';
+  const VERSION = '1.6.0';
   const SETTINGS_KEY = 'sp_settings';
   const DIALOG = '[role=dialog], .modal, .modal-dialog, .modal-content';
   const TOGGLE = '.service-table__header-hide-all, [class*="header-hide-all"]';
@@ -99,8 +99,8 @@
   const guarded = (fn) => async (...args) => {
     if (autoBusy) return undefined;
     if (!lockTake()) { setStatus('⚠ Şu an "' + (LOCK_NAME[lockHolder()] || lockHolder()) + '" çalışıyor: önce o bitsin.'); return undefined; }
-    if (fn === run) { S.__total = workList().length; S.__t0 = Date.now(); }
-    try { return await fn(...args); } finally { if (!S.running) lockDrop(); }
+    if (fn === run) { S.__total = workList().length; S.__t0 = Date.now(); S.__jobPending = true; }
+    try { return await fn(...args); } finally { if (!S.running) { lockDrop(); S.__jobPending = false; } }
   };
 
   // ---------------------------------------------------------------- durum
@@ -704,6 +704,7 @@
       S.phase = 'idle'; S.targets = [];
       setStatus((S.stop ? 'Durduruldu. ' : 'Bitti. ') + bits.join(', ') + '.');
       recordRun(S.status);
+      jobTick(true);
     } catch (e) {
       fail('Hata: ' + (e && e.message));
     } finally {
@@ -927,6 +928,8 @@
     .kr > span:first-child{display:flex;flex-direction:column;min-width:0}.kr > span:first-child small{font-size:11px;line-height:1.3}
     .kr .in{display:flex;align-items:center;gap:6px;flex:none;white-space:nowrap;color:var(--mt);font-size:12px}
     .ft{display:flex;gap:8px}.ft .b{flex:1}
+    .resume{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:8px;background:var(--wr-sf);color:var(--tx);font-size:12.5px}.resume span{color:var(--mt)}.resume b{color:var(--wr)}
+    button.b.pri{background:var(--ac);border-color:var(--ac);color:var(--on-ac)}
     ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:8px}
   `;
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -1021,6 +1024,43 @@
     if (c) c.textContent = q ? root.querySelectorAll('.blk.pick .it:not([hidden])').length + ' gösteriliyor' : '';
   }
   const visibleKeys = () => [...root.querySelectorAll('.blk.pick .it:not([hidden]) input[data-x]')].filter((c) => !c.disabled).map((c) => c.getAttribute('data-x'));
+  // ---- yarım kalan iş: sayfa yenilenir ya da sekme kapanırsa kaldığı yerden devam (localStorage, 24 saat) ----
+  const JOB_KEY = ME + '_job';
+  function jobGet() { try { const j = JSON.parse(localStorage.getItem(JOB_KEY) || 'null'); return j && Array.isArray(j.keys) && Date.now() - j.at < 864e5 ? j : null; } catch (e) { return null; } }
+  function jobSet(j) { try { if (j) localStorage.setItem(JOB_KEY, JSON.stringify(j)); else localStorage.removeItem(JOB_KEY); } catch (e) { /* yok */ } }
+  const jobLeft = (j) => (j ? j.keys.filter((k) => !j.ok.includes(k)) : []);
+  function jobStart() { const list = workList(); jobSet({ at: Date.now(), started: Date.now(), mode: JOB.mode(), keys: list.map(JOB.key), names: list.map(JOB.name), ok: [] }); }
+  /** Yapılan (ya da artık gerekmeyen: atlanan) öğeleri işaretle; final'de kalan yoksa iş silinir. Hatalı ve işlenmeyenler kalır. */
+  function jobTick(final) {
+    const j = jobGet();
+    if (!j) return;
+    const r = S.res || {};
+    const okN = new Set([].concat(r.done || [], r.deleted || [], r.moved || [], r.skipped || [], r.dry || []).map((x) => x && x.name));
+    j.ok = j.keys.filter((k, i) => j.ok.includes(k) || okN.has(j.names[i]));
+    j.at = Date.now();
+    if (final && !jobLeft(j).length) jobSet(null); else jobSet(j);
+  }
+  async function resumeJob() {
+    const j = jobGet();
+    const left = new Set(jobLeft(j));
+    if (!left.size) { jobSet(null); render(); return; }
+    JOB.apply(j.mode || {});
+    await gScan();
+    if (S.phase !== 'ready') return;
+    S.excluded = new Set(JOB.all().filter((k) => !left.has(k)));
+    if (!workList().length) { jobSet(null); setStatus('Yarım kalan işin kalanı zaten yapılmış ya da artık listede yok.'); return; }
+    setStatus('Kaldığı yerden devam: ' + workList().length + ' öğe…');
+    gRun();
+  }
+  function resumeBox() {
+    if (S.running) return '';
+    const j = jobGet();
+    const left = jobLeft(j);
+    if (!left.length) return '';
+    const t = new Date(j.at);
+    return '<div class="resume"><b>Yarım kalan iş</b><span>' + left.length + ' / ' + j.keys.length + ' öğe kaldı · son ' + t.toTimeString().slice(0, 5) + ' · yapılmış olanlar taramada kendiliğinden ayıklanır</span><div class="row"><button class="b pri" data-a="resume">Kaldığı yerden devam</button><button class="b" data-a="dropjob">Unut</button></div></div>';
+  }
+  const JOB = { key: (t) => t.sid, name: (t) => t.sid + ' — ' + t.name, all: () => S.targets.map((t) => t.sid), mode: () => ({ method: settings.method }), apply: (m) => patchSettings(m) };
   const ui = {
     head: (icon, title) => '<div class="hd"><span class="ic">' + icon + '</span><b>' + title + '</b>' + (TEST_DRY ? '<button class="mode ' + (settings.dryRun ? 'dry' : 'real') + '" data-a="drytoggle">' + (settings.dryRun ? 'DENEME' : 'GERÇEK') + '</button>' : '') + '<button data-a="min" title="Küçült/Büyüt" aria-label="Küçült">' + (minimized ? '▢' : '–') + '</button></div>',
     /** Seçim listesi: ara, ID yapıştır, hepsi/hiçbiri/ters, ID'leri kopyala. Korunan öğe işaretlenemez. */
@@ -1045,7 +1085,7 @@
       const eta = tot && done && S.__t0 ? Math.round((Date.now() - S.__t0) / done * (tot - done) / 1000) : 0;
       return '<div class="prog"><div class="pb' + (tot ? '' : ' ind') + '"><i style="width:' + pct + '%"></i></div><small><span>' + (tot ? done + ' / ' + tot : 'çalışıyor…') + '</span><span>' + (eta ? '~' + (eta > 90 ? Math.round(eta / 60) + ' dk' : eta + ' sn') + ' kaldı' : '') + '</span></small></div>';
     },
-    status: () => '<div class="st' + (/^⚠/.test(S.status) ? ' warn' : '') + '" id="st" role="status">' + esc(S.status) + '</div>' + (flash ? '<div class="toast">' + esc(flash) + '</div>' : ''),
+    status: () => resumeBox() + '<div class="st' + (/^⚠/.test(S.status) ? ' warn' : '') + '" id="st" role="status">' + esc(S.status) + '</div>' + (flash ? '<div class="toast">' + esc(flash) + '</div>' : ''),
     settings: (rows, note) => '<details class="set"' + (setOpen ? ' open' : '') + '><summary>Ayarlar' + (note ? '<span class="mt">' + note + '</span>' : '') + '</summary><div class="kv">' + rows.join('') + '</div></details>',
     row: (label, ctl, hint) => '<label class="kr"><span>' + label + (hint ? '<small>' + hint + '</small>' : '') + '</span>' + ctl + '</label>',
     foot: () => '<div class="ft"><button class="b" data-a="diag">Teşhisi kopyala</button><button class="b" data-a="log" title="Teşhis + adım günlüğü + sonuçlar (.txt)">Günlüğü indir (.txt)</button></div>',
@@ -1071,6 +1111,8 @@
       copyIds(idList(r[g] || []), (RES_GROUPS.find((x) => x[0] === g) || ['', ''])[1].toLowerCase()); return true;
     }
     if (a === 'log') { downloadLog(); return true; }
+    if (a === 'resume') { resumeJob(); return true; }
+    if (a === 'dropjob') { jobSet(null); render(); return true; }
     if (a === 'drytoggle' && TEST_DRY) { patchSettings({ dryRun: !settings.dryRun }); render(); return true; }
     return false;
   }
@@ -1083,8 +1125,9 @@
     wantRender = false;
     const bar = root.getElementById('bar');
     if (!bar) return;
+    if (S.running && S.__jobPending) { S.__jobPending = false; jobStart(); } else if (S.running && Date.now() - (S.__jt || 0) > 700) { S.__jt = Date.now(); jobTick(false); }
     const focused = root.activeElement;
-    if (focused && focused.tagName === 'INPUT' && (focused.type === 'number' || focused.type === 'search' || focused.closest('.paste'))) { const st = bar.querySelector('#st'); if (st) st.textContent = S.status; return; }
+    if (focused && focused.tagName === 'INPUT' && focused.type !== 'checkbox') { const st = bar.querySelector('#st'); if (st) st.textContent = S.status; return; }
     const busyNow = S.running; const r = S.res;
     const work = S.phase === 'ready' ? Math.min(workList().length, settings.max) : 0;
     const mass = settings.method === 'mass';

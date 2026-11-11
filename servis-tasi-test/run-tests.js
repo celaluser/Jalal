@@ -35,7 +35,7 @@ const EXP_ALL = offIn(() => true);             // + pasif kategorilerdekiler
 async function newPage(ctx, cfg) {
   const page = await ctx.newPage();
   await page.addInitScript((c) => { window.__cfg = c; }, Object.assign({ cats: cats() }, cfg));
-  await page.addInitScript(() => { try { localStorage.clear(); localStorage.setItem('pt_set', '1'); localStorage.setItem('__pa_test_dry', '1'); } catch (e) { /* yok */ } });
+  await page.addInitScript(() => { try { if (sessionStorage.getItem('__lsInit')) return; sessionStorage.setItem('__lsInit', '1'); localStorage.clear(); localStorage.setItem('pt_set', '1'); localStorage.setItem('__pa_test_dry', '1'); } catch (e) { /* yok */ } }); // yalnız sekmenin ilk yüklenişinde temizle (yenilemede iş kaydı kalsın)
   await page.route('https://panelbaku.com/**', async (route) => {
     const u = new globalThis.URL(route.request().url());
     if (u.pathname === '/_react.js') return route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(__dirname, 'node_modules/react/umd/react.development.js')) });
@@ -253,7 +253,7 @@ const naIds = (s) => s.cats.find((c) => c.name === 'Not Assigned').svcs.map((x) 
     eq(s.moves, [], 'deneme: taşıma yok'); ok(s.assignOpened >= 1 && s.assignOpened === s.assignClosed, 'Assign açıldı ve kapandı');
     const d = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { pt: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(d.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.4.0' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
+    ok(dj && dj.surum === '1.5.0' && Array.isArray(dj.sonServisler), 'teşhis metni hatasız üretildi');
     await pop.close(); await p.close();
   }
 
@@ -316,6 +316,61 @@ const naIds = (s) => s.cats.find((c) => c.name === 'Not Assigned').svcs.map((x) 
     const al2 = await sw.evaluate(async () => (await chrome.alarms.getAll()).map((x) => x.name));
     ok(!al2.includes('pt-auto:' + tabId), 'kapatınca alarm silindi');
     eq(await tick(), 'kapali', 'eski alarm gelirse: kapalı, yenileme yok');
+    eq(p.__errors, [], 'JS hatası yok');
+    await p.close();
+  }
+
+  console.log('P17 hedef kategori: pasif servisler Not Assigned yerine seçilen kategoriye taşınır; hedef yoksa durur');
+  if (want('P17')) {
+    const T = 'Linkedin Xidmətləri';
+    const p = await newPage(ctx, { target: T });
+    await bar(p, '[data-s=target]').fill('linkedin xidmətləri');
+    await bar(p, '[data-s=target]').press('Tab');
+    await scan(p);
+    ok(/"linkedin xidmətləri" taşınacak/.test(await bar(p, '.blk.pick .bh').innerText()), 'liste başlığında hedef: ' + await bar(p, '.blk.pick .bh').innerText());
+    await setDry(p, false);
+    await bar(p, '[data-a=run]').click(); await done(p);
+    const s = await server(p);
+    eq(sorted(s.moves.map((m) => m.id)), sorted(EXP), 'aynı pasif servisler taşındı');
+    ok(s.moves.every((m) => m.to === T), 'hepsi "' + T + '" kategorisine');
+    eq(s.violations, [], 'ihlal yok (Not Assigned\'a giden yok)');
+    ok(/"linkedin xidmətləri" kategorisine taşındı.*✓/.test(await resText(p)), 'sonuç ve doğrulama hedefe göre');
+    await bar(p, '[data-s=target]').fill('Böyle Kategori Yok');
+    await bar(p, '[data-s=target]').press('Tab');
+    await bar(p, '[data-a=scan]').click();
+    await p.waitForFunction((f) => /⚠/.test(eval('(' + f + ')')()), stText.toString(), { timeout: 60000 });
+    ok(/Hedef kategori "Böyle Kategori Yok" listede bulunamadı/.test(await status(p)), 'olmayan hedef: ' + await status(p));
+    await bar(p, '[data-s=target]').fill('');
+    await bar(p, '[data-s=target]').press('Tab');
+    eq(p.__errors, [], 'JS hatası yok');
+    await p.close();
+  }
+
+  console.log('P18 kaldığı yerden devam: iş sürerken sayfa yenilenir → "Yarım kalan iş" çıkar → devam edince yalnız kalanlar taşınır');
+  if (want('P18')) {
+    const p = await newPage(ctx, { persist: true, delay: 700 });
+    await scan(p); await setDry(p, false); await setNum(p, 'batch', 2);
+    await bar(p, '[data-a=run]').click();
+    await p.waitForFunction(() => window.__server.moves.length >= 2, null, { timeout: 60000 });
+    await p.waitForTimeout(300);
+    const before = (await server(p)).moves.length;
+    const job = await p.evaluate(() => JSON.parse(localStorage.getItem('pt_job') || 'null'));
+    ok(job && job.keys.length === EXP.length, 'iş kaydı: ' + (job && job.keys.length) + ' öğe');
+    await p.reload();
+    await p.waitForSelector('#pt-host', { state: 'attached' });
+    await p.waitForTimeout(1200);
+    const banner = await bar(p, '.resume').innerText();
+    const m = banner.match(/(\d+) \/ (\d+) öğe kaldı/);
+    ok(m && +m[2] === EXP.length && +m[1] >= EXP.length - before && +m[1] <= EXP.length, 'yenileme sonrası: ' + banner.replace(/\s+/g, ' '));
+    await setDry(p, false); // yalnız testte: yenilenen sayfa test bayrağıyla yine deneme modunda açılır
+    await bar(p, '[data-a=resume]').click();
+    await done(p);
+    const s = await server(p);
+    eq(sorted(s.moves.map((m) => m.id)), sorted(EXP), 'sonunda hepsi taşındı (tekrar taşınan yok)');
+    eq(new Set(s.moves.map((m) => m.id)).size, s.moves.length, 'aynı servis iki kez taşınmadı');
+    eq(s.violations, [], 'ihlal yok');
+    eq(await p.evaluate(() => localStorage.getItem('pt_job')), null, 'iş bitince kayıt silindi');
+    eq(await bar(p, '.resume').count(), 0, 'banner kalktı');
     eq(p.__errors, [], 'JS hatası yok');
     await p.close();
   }

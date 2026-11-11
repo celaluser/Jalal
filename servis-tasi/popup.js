@@ -21,6 +21,8 @@ function paint(s) {
   if (!s || !s.onPage) return;
   $('ver').textContent = 'v' + s.version;
   for (const k of ['max', 'batch']) if (document.activeElement !== $(k)) $(k).value = s.settings[k];
+  if (document.activeElement !== $('target')) $('target').value = s.settings.target || '';
+  $('ptTitle').textContent = (s.settings.target ? '"' + s.settings.target + '"' : 'Not Assigned\'a') + ' taşınacak';
   if ($('dry')) $('dry').checked = s.settings.dryRun;
   $('inc').checked = s.settings.includePasif; $('inc').disabled = s.running;
   $('scan').disabled = s.running;
@@ -107,6 +109,7 @@ $('pasteIn').addEventListener('keydown', (e) => { if (e.key === 'Enter') pasteGo
   $('inc').onchange = async () => paint(await send({ cmd: 'settings', patch: { includePasif: $('inc').checked } }));
   if ($('dry')) $('dry').onchange = async () => paint(await send({ cmd: 'settings', patch: { dryRun: $('dry').checked } }));
   $('max').onchange = async () => paint(await send({ cmd: 'settings', patch: { max: $('max').value } }));
+  $('target').onchange = async () => paint(await send({ cmd: 'settings', patch: { target: $('target').value } }));
   $('batch').onchange = async () => paint(await send({ cmd: 'settings', patch: { batch: $('batch').value } }));
   $('auto').onchange = async () => paint(await send({ cmd: 'auto', on: $('auto').checked, every: $('every').value }));
   $('every').onchange = async () => paint(await send({ cmd: 'auto', every: $('every').value }));

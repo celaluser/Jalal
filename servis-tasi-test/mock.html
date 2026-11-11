@@ -103,7 +103,7 @@ function App() {
         const c = catOf(id); const s = c.svcs.find((x) => x.id === id);
         if (s.on) server.violations.push('move-enabled:' + id);
         if (isNA(c)) server.violations.push('move-from-na:' + id);
-        if (!isNA(target)) server.violations.push('move-to:' + target.name);
+        if (cfg.target ? target.name !== cfg.target : !isNA(target)) server.violations.push('move-to:' + target.name);
         c.svcs = c.svcs.filter((x) => x.id !== id); target.svcs.push(s);
         server.moves.push({ id, from: c.name, to: target.name });
       }

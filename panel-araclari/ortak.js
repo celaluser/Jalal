@@ -122,6 +122,7 @@ globalThis.__PANEL_ARACLARI = true;
     if (document.documentElement.getAttribute('data-panel-arac') === k) return ['run', 'çalışıyor'];
     const st = r && r.host && r.host.shadowRoot && r.host.shadowRoot.getElementById('st');
     if (st && /^⚠/.test(st.textContent || '')) return ['warn', 'uyarı var'];
+    try { const j = JSON.parse(localStorage.getItem(k + '_job') || 'null'); if (j && Array.isArray(j.keys) && j.keys.some((x) => !j.ok.includes(x)) && Date.now() - j.at < 864e5) return ['warn', 'yarım kalan iş var']; } catch (e) { /* yok */ }
     try { const a = JSON.parse(sessionStorage.getItem(k + '_auto') || 'null'); if (a && a.on) return ['auto', 'otomatik açık']; } catch (e) { /* yok */ }
     return null;
   }

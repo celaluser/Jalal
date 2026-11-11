@@ -246,7 +246,7 @@ const lists = (page) => bar(page, '.list').first().innerText();
     eq(s.dialogsCancelled.length, 3, '3 kategoride iptal edildi');
     const dgn = await pop.evaluate(async (tab) => new Promise((r) => chrome.tabs.sendMessage(tab, { kt: true, cmd: 'diag' }, r)), tabId);
     let dj = null; try { dj = JSON.parse(dgn.text); } catch (e) { /* yok */ }
-    ok(dj && dj.surum === '1.6.0' && dj.satirTurleri && dj.actionsZinciri, 'teşhis metni hatasız üretildi (JSON)');
+    ok(dj && dj.surum === '1.7.0' && dj.satirTurleri && dj.actionsZinciri, 'teşhis metni hatasız üretildi (JSON)');
     await pop.close(); await p.close();
   }
 
@@ -405,6 +405,29 @@ const lists = (page) => bar(page, '.list').first().innerText();
     ok(/Spotify Plays[^\n]*AKTİF/.test(rt1), 'silme modunda neden: panel AKTİF gösteriyor');
     ok(/Late Full Inactive[^\n]*AKTİF/.test(rt2), 'taşıma modunda neden: panel AKTİF gösteriyor');
     eq(s.violations, [], 'ihlal yok');
+    await p.close();
+  }
+
+  console.log('T24 kaldığı yerden devam: yarım kalan iş kaydı (2 kategori kaldı) → "Kaldığı yerden devam" yalnız onları siler');
+  if (want('T24')) {
+    const p = await newPage(ctx, {});
+    await scan(p); await setDry(p, false);
+    // yarım kalmış bir iş: 6 adaydan 4'ü yapılmış, 2'si (Spotify Plays, Discord Members) kalmış
+    await p.evaluate(() => {
+      const r = document.querySelector('#kt-host').shadowRoot;
+      const items = [...r.querySelectorAll('#ktEmpty input[data-x]')].map((c) => ({ key: c.getAttribute('data-x'), name: c.closest('.it').querySelector('span').textContent.trim() }));
+      const left = ['Spotify Plays', 'Discord Members'];
+      localStorage.setItem('kt_job', JSON.stringify({ at: Date.now(), started: Date.now(), mode: { mode: 'delete', moveDelete: true }, keys: items.map((x) => x.key), names: items.map((x) => x.name), ok: items.filter((x) => !left.includes(x.name)).map((x) => x.key) }));
+      r.querySelector('[data-a=all]').click(); // yeniden çiz
+    });
+    ok(/2 \/ 6 öğe kaldı/.test(await bar(p, '.resume').innerText()), 'kutu: ' + (await bar(p, '.resume').innerText()).replace(/\s+/g, ' '));
+    await bar(p, '[data-a=resume]').click();
+    await p.waitForFunction(() => /Kaldığı yerden devam|Bitti/.test(document.querySelector('#kt-host').shadowRoot.querySelector('#st').textContent), null, { timeout: 60000 });
+    await setDry(p, false); // yalnız testte: devam taramasından sonra da gerçek mod
+    await done(p);
+    const s = await server(p);
+    eq([...s.deleted].sort(), ['Discord Members', 'Spotify Plays'], 'yalnız kalan 2 kategori silindi');
+    eq(await p.evaluate(() => localStorage.getItem('kt_job')), null, 'iş bitince kayıt silindi');
     await p.close();
   }
 
