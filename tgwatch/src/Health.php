@@ -34,8 +34,8 @@ final class Health
         $r[] = ['admin_password_hash', str_starts_with((string)$c['admin_password_hash'], '$') ? self::OK : self::FAIL, $c['admin_password_hash'] === '' ? 'boş — php tools/make_hash.php' : 'ayarlı'];
         if ($c['bot_mode'] === 'webhook') {
             $okUrl = str_starts_with((string)$c['webhook_url'], 'https://');
-            $r[] = ['webhook_url', $okUrl ? self::OK : self::FAIL, $okUrl ? $c['webhook_url'] : 'https:// ile başlamalı (ya da bot_mode => polling)'];
-            $r[] = ['webhook_secret', preg_match('/^[A-Za-z0-9_-]{16,256}$/', (string)$c['webhook_secret']) ? self::OK : self::FAIL, $c['webhook_secret'] === '' ? 'boş — php tools/make_hash.php --secret' : 'ayarlı'];
+            $r[] = ['webhook_url', $okUrl ? self::OK : self::FAIL, $okUrl ? $c['webhook_url'] : 'boş — Ayarlar → Telegram botu → Webhook adresi: https://…/public/bot.php (ya da Bot modu: Polling)'];
+            $r[] = ['webhook_secret', preg_match('/^[A-Za-z0-9_-]{16,256}$/', (string)$c['webhook_secret']) ? self::OK : self::FAIL, $c['webhook_secret'] === '' ? 'boş — Ayarlar → Telegram botu → Webhook anahtarı: "Yeni rastgele anahtar üret"i işaretle, kaydet' : 'ayarlı'];
         } else {
             $r[] = ['bot_mode', self::OK, 'polling (butonlar cron aralığında işlenir)'];
         }

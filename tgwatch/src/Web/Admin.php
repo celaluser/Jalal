@@ -1376,7 +1376,7 @@ final class Admin
                         $url = (string)$this->config['webhook_url'];
                         $secret = (string)$this->config['webhook_secret'];
                         if (!str_starts_with($url, 'https://') || !preg_match('/^[A-Za-z0-9_-]{16,256}$/', $secret)) {
-                            throw new \RuntimeException('config.php içinde webhook_url (https://…) ve webhook_secret ayarlı olmalı.');
+                            throw new \RuntimeException('Önce Ayarlar → Ayarlar → Telegram botu: Webhook adresi (https://…/public/bot.php) yaz, Webhook anahtarı için "Yeni rastgele anahtar üret"i işaretle, altta panel şifreni yazıp Kaydet. Sonra buraya dönüp Webhook\'u kur.');
                         }
                         $tg->call('setWebhook', ['url' => $url, 'secret_token' => $secret, 'allowed_updates' => ['message', 'callback_query'], 'max_connections' => 5]);
                         $report = "Webhook kuruldu: $url\nBirkaç saniye sonra Durumu göster’e basın, sonra bota /start yazın.";
