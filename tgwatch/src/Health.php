@@ -57,7 +57,8 @@ final class Health
         $dir = (string)$c['data_dir'];
         $r[] = ['data_dir yazılabilir', is_dir($dir) && is_writable($dir) ? self::OK : self::FAIL, $dir];
         if (App::insideDocRoot(TGWATCH_ROOT)) {
-            $missing = array_filter(['', '/src', '/tools', '/tests', '/data'], static fn($d) => !is_file(TGWATCH_ROOT . $d . '/.htaccess'));
+            // Yalnızca var olan klasörlere bakılır (tests/ sunucu paketinde yok; olmayan klasörün korunması gerekmez).
+            $missing = array_filter(['', '/src', '/tools', '/tests', '/data', '/chrome-extension'], static fn($d) => is_dir(TGWATCH_ROOT . $d) && !is_file(TGWATCH_ROOT . $d . '/.htaccess'));
             $r[] = ['Web koruması', $missing ? self::FAIL : self::OK, $missing
                 ? '.htaccess eksik: ' . implode(', ', array_map(static fn($d) => ($d ?: '/') , $missing)) . ' — zip\'teki gizli dosyalar (.htaccess) açılmamış olabilir'
                 : 'tgwatch public_html içinde; .htaccess dosyaları yerinde, veritabanı adı rastgele'];
