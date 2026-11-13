@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tgwatch güncelleme</title>
+<link rel="stylesheet" href="update.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true"><path class="m1" d="M3.2 28.5V20C3.2 15 6.11 12 8.1 9c1.7 3.2 3.08 6 2.82 11V28.5z"/><path class="m2" d="M12.4 28.5V13.6C12.4 8.6 15.4 5.6 17.6 2.6c1.76 3.2 2.96 6 2.64 11V28.5z"/><path class="m3" d="M21.6 28.5V23.5C21.6 18.5 24.42 15.5 26.2 12.5c1.64 3.2 3.2 6 3 11V28.5z"/></svg>
+    <div><h1>Eklentiyi güncelle</h1><p class="muted">Şu an: <b id="mine">…</b> · tgwatch'ta: <b id="server">…</b></p></div>
+  </header>
+
+  <section class="step" id="s1">
+    <h2><span class="n">1</span>Eklenti klasörü</h2>
+    <p class="muted">Chrome'a "Paketlenmemiş öğe yükle" ile seçtiğin klasör (içinde <code>manifest.json</code>, <code>content.js</code> olan). Bir kez seçersin, hatırlanır; Chrome yazma izni ister.</p>
+    <p id="dir-msg" class="note"></p>
+    <div class="row"><button id="pick" class="btn">Klasörü seç</button><button id="forget" class="btn ghost" hidden>Başka klasör</button></div>
+  </section>
+
+  <section class="step" id="s2">
+    <h2><span class="n">2</span>Yeni sürüm</h2>
+    <div class="row">
+      <button id="from-server" class="btn" disabled>tgwatch'tan al ve kur</button>
+      <label class="btn ghost file" id="zip-l" aria-disabled="true">Zip dosyası seç…<input type="file" id="zip" accept=".zip,application/zip" disabled></label>
+    </div>
+    <p class="muted small">Zip: tgwatch-eklenti.zip ya da tgwatch-guncelleme.zip (içindeki chrome-extension klasörü kullanılır).</p>
+  </section>
+
+  <section class="step" id="s3">
+    <h2><span class="n">3</span>Sonuç</h2>
+    <ol id="log" class="log"></ol>
+    <div class="row"><button id="reload" class="btn" hidden>Eklentiyi yeniden yükle</button></div>
+  </section>
+</main>
+<script src="update.js"></script>
+</body>
+</html>

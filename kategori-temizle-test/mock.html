@@ -1,0 +1,257 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Services (mock)</title>
+<style>
+ html,body{margin:0;background:#fff;color:#222;font:14px system-ui}
+ body.dark{background:#0e1118;color:#c9d2e8}
+ body.dark .cat-row{background:#151a26;border-color:#222a3c}
+ body.dark .svc-row{background:#10141e;border-color:#1b2232}
+ .expand{margin-left:auto;color:#2a6fc9;border-bottom:1px dashed #2a6fc9;cursor:pointer;font-size:12px}
+ .service-table__category-collapse{margin-left:auto}
+ .vwrap{position:relative}
+ .vwrap > div{position:absolute;left:0;right:0;box-sizing:border-box}
+ .top{height:40px;background:#334;color:#fff;display:flex;align-items:center;padding:0 12px}
+ .thead{display:flex;gap:10px;align-items:center;padding:6px 12px;background:#f3f3f3;border-bottom:1px solid #ddd}
+ .mass{display:flex;gap:10px;align-items:center;padding:6px 12px;background:#eef3ff;border-bottom:1px solid #ccd}
+ .service-table__header-hide-all{cursor:pointer;padding:2px 6px}
+ .cat-row{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;background:#f7f7f7;border-bottom:1px solid #ddd}
+ .cat-row .name{flex:0 1 auto}.badge{background:#2a7;color:#fff;font-size:10px;padding:1px 5px;border-radius:4px}
+ .svc-row{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;background:#fff;border-bottom:1px solid #eee}
+ .svc-row .sname{flex:1}
+ button.actions{background:#fff;color:#222;border:1px solid #bbb;padding:3px 8px;border-radius:4px;cursor:pointer}
+ .menu{position:fixed;z-index:50;background:#fff;border:1px solid #bbb;border-radius:6px;min-width:150px}
+ .menu a{display:block;padding:6px 12px;color:#222;cursor:pointer}.menu a:hover{background:#eee}
+ .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60}
+ .modal{position:fixed;z-index:61;left:50%;top:20%;transform:translateX(-50%);background:#fff;color:#222;border:1px solid #999;padding:16px;border-radius:8px;width:380px}
+ .modal-content button{margin-right:8px;padding:5px 12px}
+ .rs-control{border:1px solid #bbb;border-radius:4px;padding:4px 8px;position:relative}
+ .rs-control input{border:0;outline:0;width:100%}
+ .rs-menu{border:1px solid #bbb;border-radius:4px;margin-top:2px;max-height:160px;overflow:auto;background:#fff}
+ .rs-option{padding:5px 8px;cursor:pointer}.rs-option:hover{background:#e8f0ff}
+ .rs-single{color:#222}
+ .toast{position:fixed;right:12px;top:12px;z-index:70;padding:8px 12px;border-radius:6px;color:#fff}
+ .toast.ok{background:#1f7a4a}.toast.err{background:#a02a2a}
+ #scroller{height:440px;overflow:auto}
+</style></head>
+<body><div class="top">Perfect Panel (mock)</div><div id="root"></div>
+<script>if((window.__cfg||{}).dark)document.addEventListener('DOMContentLoaded',()=>document.body.classList.add('dark'));</script><script src="https://panelbaku.com/_react.js"></script><script src="https://panelbaku.com/_react-dom.js"></script>
+<script>
+// Taklit Perfect Panel > Services. Gerçek panelden öğrenilenler:
+// - kategori satırı: div.service-table__category#category-NNN (+ service-table__category-disabled), içinde gizli Actions menüsü yazısı
+// - "Expand (N)" (service-table__category-collapse), boş kategoride öğe var ama yazısız
+// - menü: Edit category / Enable|Disable category / Sort by / Select all category services (+ Delete category yalnızca boşsa)
+// - seçim olunca üstte "N services selected" + toplu Actions (içinde tehlikeli "Delete all")
+// - Assign category penceresi: aramalı seçim (react-select benzeri), Save changes / Close
+// - liste sanallaştırılmış olabilir; işlemden sonra yeniden çizer
+const e = React.createElement, { useState, useEffect } = React;
+const cfg = Object.assign({ pageSize: 15, dark: false, virtual: false, delay: 300, moveDelay: 400, failNames: [], moveFail: [], selectShort: [], inner: false, dialogShowsName: true, loadDelay: 250, cats: [] }, window.__cfg || {});
+const server = window.__server = {
+  cats: JSON.parse(JSON.stringify(cfg.cats)), deleted: [], attempts: [], violations: [], dialogsOpened: [], dialogsCancelled: [],
+  serviceMenuDeletes: 0, massDeleteAll: 0, massOther: [], moves: [], assignOpened: 0, assignClosed: 0, selectAllClicks: [],
+};
+let sel = new Set(); // seçili servisler: "catId:i"
+window.__selCount = () => sel.size;
+let rerender = () => {};
+window.__mutate = (name, patch) => { const c = server.cats.find((x) => x.name === name); Object.assign(c, patch); rerender(); };
+const isNA = (c) => /^not assigned$/i.test(c.name);
+function svcName(c, i) { return (c.id * 100 + i) + ' - ' + c.name + ' service ' + i; }
+
+function Menu({ m, close }) {
+  useEffect(() => { const h = () => close(); setTimeout(() => document.addEventListener('click', h), 0); return () => document.removeEventListener('click', h); }, []);
+  return ReactDOM.createPortal(e('div', { className: 'menu', role: 'menu', style: { left: m.x, top: m.y } },
+    m.items.map(([t, fn]) => e('a', { key: t, onClick: () => { fn(); close(); } }, e('i', { className: 'far fa-x' }), ' ' + t))), document.body);
+}
+
+function Confirm({ c, onCancel, onDelete, busy }) {
+  return ReactDOM.createPortal(e('div', null,
+    e('div', { className: 'backdrop' }),
+    e('div', { className: 'modal', role: 'dialog' }, e('div', { className: 'modal-content' },
+      e('h3', null, 'Delete category'),
+      e('p', null, cfg.dialogShowsName ? 'Are you sure you want to delete category "' + c.name + '"?' : 'Are you sure? This cannot be undone.'),
+      e('button', { onClick: onCancel }, 'Cancel'),
+      e('button', { onClick: onDelete, disabled: busy }, 'Delete')))), document.body);
+}
+
+/** Assign category: aramalı seçim kutusu (react-select benzeri; seçenek menüsü yazınca açılır). */
+function Assign({ onClose, onSave, busy }) {
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+  const [val, setVal] = useState(null);
+  const opts = server.cats.filter((c) => !q || c.name.toLowerCase().includes(q.toLowerCase()));
+  return ReactDOM.createPortal(e('div', null,
+    e('div', { className: 'backdrop' }),
+    e('div', { className: 'modal', role: 'dialog' }, e('div', { className: 'modal-content' },
+      e('h4', null, 'Assign category'), e('button', { className: 'close', 'aria-label': 'close', onClick: onClose }, '×'),
+      e('label', null, 'Categories'),
+      e('div', { className: 'rs-control', onMouseDown: () => setOpen(true) },
+        val && !q ? e('div', { className: 'rs-single' }, val.name) : null,
+        e('input', { type: 'text', value: q, placeholder: val ? '' : 'Choose category', onChange: (ev) => { setQ(ev.target.value); setOpen(true); }, onFocus: () => setOpen(true) })),
+      open && e('div', { className: 'rs-menu', role: 'listbox' }, opts.map((c) => e('div', { key: c.id, className: 'rs-option', role: 'option', onClick: () => { setVal(c); setQ(''); setOpen(false); } }, c.name))),
+      e('div', { style: { marginTop: 12 } },
+        e('button', { className: 'btn btn-primary', disabled: !val || busy, onClick: () => onSave(val) }, 'Save changes'),
+        e('button', { className: 'btn btn-default', onClick: onClose }, 'Close'))))), document.body);
+}
+
+/** Gerçek panel: Save changes sonrası ikinci onay — "Assign to category … assign N services to category X?" [Assign] [Cancel] */
+function AssignConfirm({ n, target, onOk, onCancel, busy }) {
+  return ReactDOM.createPortal(e('div', null,
+    e('div', { className: 'backdrop' }),
+    e('div', { className: 'modal', role: 'dialog' }, e('div', { className: 'modal-content', style: { textAlign: 'center' } },
+      e('h4', null, 'Assign to category'),
+      e('div', null, 'Are you sure you want to assign'), e('div', null, e('b', null, String(n)), ' services'), e('div', null, 'to category ', e('b', null, target), '?'),
+      e('div', { style: { marginTop: 12 } },
+        e('button', { className: 'btn btn-danger', disabled: busy, onClick: onOk }, 'Assign'),
+        e('button', { className: 'btn btn-default', onClick: onCancel }, 'Cancel'))))), document.body);
+}
+
+function App() {
+  const [, force] = useState(0);
+  const [key, setKey] = useState(0);
+  const [loaded, setLoaded] = useState(cfg.pageSize);
+  const [expanded, setExpanded] = useState(!!cfg.startExpanded);
+  const [openCats, setOpenCats] = useState(new Set());
+  const [menu, setMenu] = useState(null); // portal menü (cfg.portalMenu)
+  const [menuOpen, setMenuOpen] = useState(null); // satır içi menü anahtarı (gerçek panel: bootstrap dropdown)
+  const [confirm, setConfirm] = useState(null);
+  const [assign, setAssign] = useState(false);
+  const [aconf, setAconf] = useState(null); // ikinci onay: hedef kategori
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState(null);
+  rerender = () => force((n) => n + 1);
+  const cats = server.cats;
+  const scrollEl = () => ((cfg.inner || cfg.virtual) ? document.getElementById('scroller') : document.scrollingElement);
+  const flash = (t, k) => { setToast({ t, k }); setTimeout(() => setToast(null), 2500); };
+  const redraw = () => { setKey((k) => k + 1); setExpanded(false); setOpenCats(new Set()); setLoaded(cfg.pageSize); const s = scrollEl(); if (s) s.scrollTop = 0; };
+
+  useEffect(() => {
+    const el = (cfg.inner || cfg.virtual) ? document.getElementById('scroller') : window;
+    let pending = false;
+    const check = () => {
+      const s = scrollEl();
+      if (cfg.virtual || pending || loaded >= cats.length) return;
+      if (s.scrollTop + s.clientHeight >= s.scrollHeight - 60) { pending = true; setTimeout(() => { setLoaded((n) => n + cfg.pageSize); pending = false; }, cfg.loadDelay); }
+    };
+    const vr = () => { if (cfg.virtual) force((n) => n + 1); };
+    el.addEventListener('scroll', check); el.addEventListener('scroll', vr); check();
+    return () => { el.removeEventListener('scroll', check); el.removeEventListener('scroll', vr); };
+  });
+
+  useEffect(() => { const h = () => setMenuOpen(null); document.addEventListener('click', h); return () => document.removeEventListener('click', h); }, []);
+  /** Gerçek panel gibi: Actions düğmesi + satır içinde gizli ul.dropdown-menu; yalnızca tıklanınca açılır. */
+  const dd = (k, items, cls) => cfg.portalMenu
+    ? e('button', { className: 'actions ' + (cls || ''), onClick: (ev) => { ev.stopPropagation(); openMenu(ev, items); } }, 'Actions ▾')
+    : e('div', { className: 'dropdown btn-group btn-group-xs' + (menuOpen === k ? ' open' : ''), style: { position: 'relative', display: 'inline-block' } },
+      e('button', { className: 'actions dropdown-toggle btn btn-xs btn-default ' + (cls || ''), 'aria-expanded': menuOpen === k, onClick: (ev) => { ev.stopPropagation(); setMenuOpen(menuOpen === k ? null : k); } }, 'Actions ', e('span', { className: 'caret' })),
+      e('ul', { role: 'menu', className: 'dropdown-menu', style: { display: menuOpen === k ? 'block' : 'none', position: 'absolute', zIndex: 40, background: '#fff', border: '1px solid #bbb', listStyle: 'none', margin: 0, padding: '4px 0', minWidth: 200, left: 0, top: '100%' } },
+        items.map(([t, fn]) => e('li', { key: t, role: 'presentation' }, e('a', { role: 'menuitem', href: '#', style: { display: 'block', padding: '4px 12px', color: '#222' }, onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); setMenuOpen(null); fn(); } }, t)))));
+  const openMenu = (ev, items) => { const r = ev.currentTarget.getBoundingClientRect(); setMenu({ x: Math.max(0, r.left - 100), y: r.bottom, items }); };
+  const toggleCat = (c) => setOpenCats((s) => { const n = new Set(s); if (n.has(c.id)) n.delete(c.id); else n.add(c.id); return n; });
+
+  const catMenu = (c) => {
+    const looksActive = c.menuActive !== undefined ? c.menuActive : c.active;
+    const items = [['Edit category', () => {}], [looksActive ? 'Disable category' : 'Enable category', () => { server.massOther.push('status:' + c.name); }], ['Sort by', () => {}],
+      ['Select all category services', () => {
+        server.selectAllClicks.push(c.name);
+        const n = cfg.selectShort.includes(c.name) ? Math.max(0, c.services - 1) : c.services;
+        for (let i = 0; i < n; i++) sel.add(c.id + ':' + i);
+        setOpenCats((s) => new Set(s).add(c.id));
+        rerender();
+      }]];
+    if (c.services === 0) items.push(['Delete category', () => { server.dialogsOpened.push(c.name); setConfirm(c); }]);
+    return items;
+  };
+  const massMenu = () => ['Enable all', 'Disable all', 'Edit rates', 'Edit names and descriptions', 'Sort by', 'Assign category', 'Update currency conversion rate', 'Drip-feed', 'Delete custom rates', 'Make all visible', 'Hide all', 'Delete all']
+    .map((t) => [t, () => {
+      if (t === 'Assign category') { server.assignOpened++; setAssign(true); }
+      else if (t === 'Delete all') { server.massDeleteAll++; }
+      else server.massOther.push(t);
+    }]);
+
+  const doDelete = (c) => {
+    setBusy(true);
+    server.attempts.push(c.name);
+    const real = server.cats.find((x) => x.name === c.name);
+    if (real.active || real.services > 0) server.violations.push('delete:' + c.name);
+    setTimeout(() => {
+      setBusy(false);
+      if (cfg.failNames.includes(c.name)) { setConfirm(null); flash('Error: could not delete category', 'err'); }
+      else {
+        server.cats = server.cats.filter((x) => x.name !== c.name);
+        server.deleted.push(c.name);
+        setConfirm(null); flash('Category deleted', 'ok');
+        redraw(); // gerçek panel gibi: yeniden çiz, servisleri kapat, başa dön
+      }
+    }, cfg.delay);
+  };
+  const doMove = (target) => {
+    setBusy(true);
+    const byCat = new Map();
+    for (const k of sel) { const [cid] = k.split(':'); byCat.set(Number(cid), (byCat.get(Number(cid)) || 0) + 1); }
+    setTimeout(() => {
+      setBusy(false);
+      const names = [...byCat.keys()].map((id) => server.cats.find((c) => c.id === id).name);
+      if (names.some((n) => cfg.moveFail.includes(n))) { setAssign(false); setAconf(null); flash('Error: services were not moved', 'err'); return; }
+      for (const [cid, n] of byCat) {
+        const c = server.cats.find((x) => x.id === cid);
+        if (c.active) server.violations.push('move-from-active:' + c.name);
+        if (!isNA(target)) server.violations.push('move-to:' + target.name);
+        c.services -= n;
+        server.moves.push({ from: c.name, to: target.name, n });
+      }
+      target.services += [...byCat.values()].reduce((a, b) => a + b, 0);
+      sel = new Set(); server.assignClosed++;
+      setAssign(false); setAconf(null); flash('Services updated', 'ok');
+      redraw();
+    }, cfg.moveDelay);
+  };
+
+  const color = (c) => (c.color && !cfg.dark ? '#3a3a3a' : c.color) || (cfg.dark ? (c.active ? '#ffffff' : '#6b7a99') : (c.active ? '#1d1d1d' : '#c4c4c4'));
+  const catRow = (c, style) => e('div', { key: 'c' + c.id, id: 'category-' + c.id, style, className: 'cat-row service-table__category' + ((!c.active && !cfg.noDisabledClass) ? ' service-table__category-disabled' : '') + (c.cls ? ' ' + c.cls : '') },
+    e('span', { className: 'service-table__handle' }, '⋮⋮'),
+    c.badgeBefore && e('span', { className: 'badge' }, 'ᴺᴱᵂ'),
+    e('span', { className: 'name service-table__category-name', style: { color: color(c) } }, c.name),
+    c.badgeAfter && e('span', { className: 'badge' }, 'ᴺᴱᵂ'),
+    !(isNA(c) && cfg.naNoActions) && e('div', { className: 'service-table__category-actions' }, dd('c' + c.id, catMenu(c))),
+    e('div', { className: 'service-table__category-collapse ' + (openCats.has(c.id) || expanded ? 'show-category' : 'hide-category'), onClick: () => toggleCat(c) },
+      (c.collapseText || c.services > 0) && e('a', { className: 'expand service-table__category-collapse-name' }, c.collapseText || ((openCats.has(c.id) || expanded ? 'Collapse (' : 'Expand (') + c.services + ')'))));
+  const svcRow = (c, i, style) => e('div', { key: 's' + c.id + ':' + i, style, className: 'svc-row service-table__row service-table__row-service' + (c.active ? '' : ' service-table__row-disabled') },
+    e('input', { type: 'checkbox', checked: sel.has(c.id + ':' + i), onChange: () => { const k = c.id + ':' + i; if (sel.has(k)) sel.delete(k); else sel.add(k); rerender(); } }),
+    e('span', { className: 'sname' }, svcName(c, i)),
+    e('div', { className: 'service-table__td service-table__action' }, dd('s' + c.id + ':' + i, [['Edit service', () => {}], ['Duplicate', () => {}], ['Delete service', () => { server.serviceMenuDeletes++; }]])));
+
+  // düz liste: kategori + (açıksa) servisleri
+  const shown = cfg.virtual ? cats : cats.slice(0, loaded);
+  const items = [];
+  for (const c of shown) {
+    items.push(['c', c]);
+    if (expanded || openCats.has(c.id)) for (let i = 0; i < c.services; i++) items.push(['s', c, i]);
+  }
+  let list;
+  if (cfg.virtual) {
+    const s = document.getElementById('scroller'); const st = s ? s.scrollTop : 0; const first = Math.max(0, Math.floor(st / 40) - 3);
+    list = e('div', { key: 'V' + key, className: 'vwrap', style: { height: items.length * 40 } },
+      items.slice(first, first + 18).map((it, j) => (it[0] === 'c' ? catRow(it[1], { top: (first + j) * 40 }) : svcRow(it[1], it[2], { top: (first + j) * 40 }))));
+  } else {
+    list = e('div', { key: 'L' + key, id: cfg.inner ? undefined : 'list' }, items.map((it) => (it[0] === 'c' ? catRow(it[1]) : svcRow(it[1], it[2]))));
+  }
+
+  return e('div', null,
+    e('div', { className: 'thead service-table__header' },
+      e('div', { className: 'mass-actions' + (sel.size ? ' mass-actions__active' : '') },
+        e('input', { type: 'checkbox', name: 'mass_action', value: 'checkAll', checked: sel.size > 0, onChange: () => {
+          if (sel.size && !(cfg.massCheckSelectsAll && !server.massAllOnce)) { sel = new Set(); }
+          else { server.massAllOnce = true; for (const c of server.cats) for (let i = 0; i < c.services; i++) sel.add(c.id + ':' + i); }
+          rerender();
+        } }),
+        sel.size > 0 && e('div', { className: 'mass-actions__selected' }, e('div', { className: 'mass-actions__selected-title' }, sel.size + ' services selected'),
+          e('div', { className: 'mass-actions__selected-actions' }, dd('mass', massMenu(), 'btn')))),
+      e('span', null, 'Service'), e('span', { style: { flex: 1 } }, ' Status  Min  Max'),
+      e('span', { className: 'far service-table__header-hide-all ' + (expanded ? 'fa-compress-alt' : 'fa-expand-alt'), onClick: () => { setExpanded((x) => !x); setOpenCats(new Set()); } }, expanded ? '[–]' : '[+]')),
+    (cfg.inner || cfg.virtual) ? e('div', { id: 'scroller' }, list) : list,
+    menu && e(Menu, { m: menu, close: () => setMenu(null) }),
+    confirm && e(Confirm, { c: confirm, busy, onCancel: () => { server.dialogsCancelled.push(confirm.name); setConfirm(null); }, onDelete: () => doDelete(confirm) }),
+    assign && !aconf && e(Assign, { busy, onClose: () => { server.assignClosed++; setAssign(false); }, onSave: (t) => { server.saveClicks = (server.saveClicks || 0) + 1; setAconf(t); } }),
+    aconf && e(AssignConfirm, { n: cfg.confirmCount || sel.size, target: cfg.confirmTarget || aconf.name, busy, onOk: () => { server.assignOk = (server.assignOk || 0) + 1; doMove(aconf); }, onCancel: () => { server.confirmCancels = (server.confirmCancels || 0) + 1; setAconf(null); setAssign(false); } }),
+    toast && ReactDOM.createPortal(e('div', { className: 'toast ' + toast.k, role: 'alert' }, toast.t), document.body));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(e(App));
+</script></body></html>

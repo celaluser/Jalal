@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><title>Panel Araçları</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header class="top">
+  <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><path class="m1" d="M3.2 28.5V20C3.2 15 6.11 12 8.1 9c1.7 3.2 3.08 6 2.82 11V28.5z"/><path class="m2" d="M12.4 28.5V13.6C12.4 8.6 15.4 5.6 17.6 2.6c1.76 3.2 2.96 6 2.64 11V28.5z"/><path class="m3" d="M21.6 28.5V23.5C21.6 18.5 24.42 15.5 26.2 12.5c1.64 3.2 3.2 6 3 11V28.5z"/></svg>
+  <div class="brand"><b>Panel Araçları</b><small id="sub">Perfect Panel · Services</small></div>
+  <span id="ver" class="pill"></span>
+</header>
+<nav class="tabs" role="tablist" aria-label="Araçlar">
+ <button role="tab" data-t="kt" id="t-kt" aria-controls="f-kt" title="Boş pasif kategorileri sil · dolu pasif kategorileri Not Assigned'a taşı"><span class="i">🗑</span>Kategori<i class="d" hidden></i></button>
+ <button role="tab" data-t="sp" id="t-sp" aria-controls="f-sp" title="Not Assigned'daki aktif servisleri pasife al"><span class="i">⊘</span>Pasifle<i class="d" hidden></i></button>
+ <button role="tab" data-t="pt" id="t-pt" aria-controls="f-pt" title="Aktif kategorilerdeki pasif servisleri Not Assigned'a taşı"><span class="i">⇄</span>Taşı<i class="d" hidden></i></button>
+ <button role="tab" data-t="hist" id="t-hist" aria-controls="p-hist" title="Biten işler"><span class="i">⟲</span>Geçmiş</button>
+ <button role="tab" data-t="prot" id="t-prot" aria-controls="p-prot" title="Hiçbir aracın dokunmayacağı ID'ler"><span class="i">🛡</span>Koruma</button>
+</nav>
+<iframe id="f-kt" title="Kategori Temizle" role="tabpanel" aria-labelledby="t-kt" hidden></iframe>
+<iframe id="f-sp" title="Servis Pasifle" role="tabpanel" aria-labelledby="t-sp" hidden></iframe>
+<iframe id="f-pt" title="Pasif Servis Taşı" role="tabpanel" aria-labelledby="t-pt" hidden></iframe>
+<section id="p-hist" role="tabpanel" aria-labelledby="t-hist" hidden>
+  <div class="hbar">
+    <select id="h-tool" aria-label="Araç"><option value="">Tüm araçlar</option><option value="kt">Kategori Temizle</option><option value="sp">Servis Pasifle</option><option value="pt">Pasif Servis Taşı</option></select>
+    <label class="chk"><input type="checkbox" id="h-real"> Yalnız gerçek</label>
+  </div>
+  <ul id="h-list" class="hlist"></ul>
+  <p id="h-empty" class="muted">Henüz biten iş yok. Bir araç işini bitirince burada görünür (deneme dahil).</p>
+  <div class="row"><button id="h-copy" class="btn">Metin olarak kopyala</button><button id="h-clear" class="btn danger">Temizle</button></div>
+  <p id="h-msg" class="muted small"></p>
+</section>
+<section id="p-prot" role="tabpanel" aria-labelledby="t-prot" hidden>
+  <p class="muted small">Buradaki servis ve kategori ID'lerine <b>hiçbir araç dokunmaz</b> (otomatik mod dahil): listede "KORUMALI" görünür, işaretlenemez. Virgül, boşluk ya da satırla ayır.</p>
+  <textarea id="pr-in" spellcheck="false" placeholder="62727, 26272&#10;2627" aria-label="Korunan ID'ler"></textarea>
+  <div class="row"><button id="pr-save" class="btn pri">Kaydet</button><button id="pr-copy" class="btn">Kopyala</button></div>
+  <p id="pr-msg" class="muted small"></p>
+</section>
+<footer class="foot">
+  <label class="chk"><input type="checkbox" id="notif"> Masaüstü bildirimi</label>
+  <span class="kbd" title="Bu mini paneli aç">Alt+Shift+P</span>
+</footer>
+<script src="popup.js"></script>
+</body></html>
