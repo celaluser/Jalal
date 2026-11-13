@@ -25,6 +25,7 @@ final class Admin
     use ToolPages;
     use LearnPages;
     use RivalPages;
+    use ApiPages;
 
     private const PER_PAGE = 30;
     private const OPEN = ['new', 'awaiting', 'editing'];
@@ -108,6 +109,7 @@ final class Admin
             'job_prompt' => $this->jobPrompt((int)($_GET['id'] ?? 0)),
             'logs' => $this->logs(),
             'health' => $this->health(false),
+            'api' => $this->apiPage(),
             default => $this->dash(),
         };
     }
@@ -1168,7 +1170,7 @@ final class Admin
     {
         $id = (int)($_POST['id'] ?? 0);
         try {
-            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p) || $this->postTools($p) || $this->postLearn($p) || $this->postRival($p) || $this->postRivalLearn($p)) {
+            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p) || $this->postTools($p) || $this->postLearn($p) || $this->postRival($p) || $this->postRivalLearn($p) || $this->postApi($p)) {
                 return;
             }
             switch ($p) {
@@ -1376,7 +1378,7 @@ final class Admin
                         $url = (string)$this->config['webhook_url'];
                         $secret = (string)$this->config['webhook_secret'];
                         if (!str_starts_with($url, 'https://') || !preg_match('/^[A-Za-z0-9_-]{16,256}$/', $secret)) {
-                            throw new \RuntimeException('Önce Ayarlar → Ayarlar → Telegram botu: Webhook adresi (https://…/public/bot.php) yaz, Webhook anahtarı için "Yeni rastgele anahtar üret"i işaretle, altta panel şifreni yazıp Kaydet. Sonra buraya dönüp Webhook\'u kur.');
+                            throw new \RuntimeException('config.php içinde webhook_url (https://…) ve webhook_secret ayarlı olmalı.');
                         }
                         $tg->call('setWebhook', ['url' => $url, 'secret_token' => $secret, 'allowed_updates' => ['message', 'callback_query'], 'max_connections' => 5]);
                         $report = "Webhook kuruldu: $url\nBirkaç saniye sonra Durumu göster’e basın, sonra bota /start yazın.";

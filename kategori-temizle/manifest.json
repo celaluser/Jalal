@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Kategori Temizle — boş pasif kategoriler",
+  "short_name": "Kategori Temizle",
+  "version": "1.7.0",
+  "description": "Perfect Panel Services sayfasında pasif kategorileri bulur: boş olanları siler, dolu olanların servislerini Not Assigned'a taşıyıp siler. Deneme modu, durdur, en çok N; arka planda da çalışır.",
+  "minimum_chrome_version": "103",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://panelbaku.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://panelbaku.com/admin/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Kategori Temizle",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

@@ -220,6 +220,8 @@ trait BankPages
             . '<p class="muted">Bu ay: ' . (int)$u['requests'] . ' istek' . ($limit ? ' / ' . $limit : '') . ', ' . number_format((int)$u['input']) . ' giriş + ' . number_format((int)$u['output']) . ' çıkış token, tahmini $' . number_format((float)$u['cost'], 4) . '. Fiyatlar yaklaşık; kesin tutar Anthropic konsolundadır. Sınır 0 ise sınırsız.</p>'
             . '</div>'
 
+            . $this->descSettings()
+
             . '<h2>Fiyat önerisi</h2><div class="panel panel-pad stack"><p class="muted">Yeni servis için önerilen satış fiyatı: <b>satış = sağlayıcı fiyatı × çarpan + sabit</b>. Boş bırakırsanız formül, kendi servisleriniz sağlayıcı servisleriyle eşleştirilirken otomatik bulunur'
             . (($f = (new \TgWatch\Enrich($this->db))->formula()) ? ' (şu an: ' . Ui::e($f) . ')' : ' (henüz bulunamadı)') . '. Sağlayıcı ile paneliniz farklı para birimi kullanıyorsa çarpan kuru da içerir.</p>'
             . '<div class="field-row"><label>Çarpan<input type="text" name="markup_a" value="' . Ui::e((string)$this->db->get('markup_a', '')) . '" placeholder="otomatik" class="narrow" inputmode="decimal"></label>'
@@ -240,6 +242,64 @@ trait BankPages
             unset($_SESSION['ai_test']);
         }
         $this->render('Çeviri ayarları', $h, ['active' => 'ai']);
+    }
+
+    /** Çeviri ayarları → Açıklama çevirisi (eklenti: banka + Google + DeepSeek). */
+    private function descSettings(): string
+    {
+        $dt = new \TgWatch\DescTranslator($this->db, $this->config);
+        $opts = '';
+        foreach (\TgWatch\DescTranslator::MODES as $k => $v) {
+            $opts .= '<label class="check"><input type="radio" name="desc_mode" value="' . $k . '"' . ($dt->mode() === $k ? ' checked' : '') . '> ' . Ui::e($v) . '</label>';
+        }
+        $models = '';
+        foreach (\TgWatch\DescTranslator::DEEPSEEK_MODELS as $k => $v) {
+            $models .= '<option value="' . $k . '"' . ($dt->deepseekModel() === $k ? ' selected' : '') . '>' . Ui::e($v) . '</option>';
+        }
+        $key = function (string $name, string $val, string $ph): string {
+            return '<label class="grow">' . Ui::e($name) . ' ' . ($val !== '' ? '<span class="hint">(kayıtlı: ' . self::mask($val) . ')</span>' : '')
+                . '<input type="password" name="' . ($name === 'Google API anahtarı' ? 'google_key' : 'deepseek_key') . '" placeholder="' . ($val !== '' ? 'Değiştirmek için yeni anahtarı yazın' : $ph) . '" autocomplete="new-password"></label>'
+                . ($val !== '' ? '<label class="check"><input type="checkbox" name="' . ($name === 'Google API anahtarı' ? 'google_key_clear' : 'deepseek_key_clear') . '" value="1"> Sil</label>' : '');
+        };
+        $u = $dt->usage();
+        $lim = $dt->monthlyLimit();
+        return '<h2>Açıklama çevirisi</h2><div class="panel panel-pad stack">'
+            . '<p class="muted">Eklenti servis <b>açıklamalarını</b> da çevirebilir (mini panel → Ayarlar → "Açıklamaları da çevir"). Karma modda: önce tgwatch bankası '
+            . '(aynı açıklama daha önce çevrildiyse), sonra Google Translate taslağı, sonra DeepSeek bu taslağı sözlük terimlerinizle düzeltir. '
+            . 'Ad kurallarındaki kelime kelime çeviri açıklamalara uygulanmaz; anahtar yoksa açıklama olduğu gibi kalır.</p>'
+            . $opts
+            . '<div class="field-row">' . $key('Google API anahtarı', $dt->googleKey(), 'AIza… (Cloud Translation API)') . '</div>'
+            . '<div class="field-row">' . $key('DeepSeek API anahtarı', $dt->deepseekKey(), 'sk-… (platform.deepseek.com)') . '</div>'
+            . '<div class="field-row"><label class="grow">DeepSeek modeli<select name="deepseek_model">' . $models . '</select></label>'
+            . '<label>Aylık istek sınırı<input type="number" name="desc_limit" min="0" value="' . $lim . '" class="narrow"></label></div>'
+            . '<p class="muted">Bu ay: banka ' . (int)$u['bank'] . ', Google ' . (int)$u['google'] . ' istek (' . number_format((int)$u['chars']) . ' karakter), DeepSeek ' . (int)$u['deepseek'] . ' istek'
+            . ($lim ? ' · sınır ' . $lim . ' (Google + DeepSeek)' : ' · sınırsız') . '. Ücretler sağlayıcıların konsolundadır.</p></div>';
+    }
+
+    private function saveDescSettings(): void
+    {
+        $m = (string)($_POST['desc_mode'] ?? '');
+        if (isset(\TgWatch\DescTranslator::MODES[$m])) {
+            $this->db->set('desc_mode', $m);
+        }
+        $dm = (string)($_POST['deepseek_model'] ?? '');
+        if (isset(\TgWatch\DescTranslator::DEEPSEEK_MODELS[$dm])) {
+            $this->db->set('deepseek_model', $dm);
+        }
+        if (isset($_POST['desc_limit'])) {
+            $this->db->set('desc_monthly_limit', (string)max(0, (int)$_POST['desc_limit']));
+        }
+        foreach (['google' => 'google_api_key', 'deepseek' => 'deepseek_api_key'] as $f => $k) {
+            $v = trim((string)($_POST[$f . '_key'] ?? ''));
+            if (!empty($_POST[$f . '_key_clear'])) {
+                $this->db->set($k, '');
+            } elseif ($v !== '') {
+                if (preg_match('/\s/', $v) || strlen($v) < 20) {
+                    throw new \InvalidArgumentException(($f === 'google' ? 'Google' : 'DeepSeek') . ' anahtarı geçersiz görünüyor (boşluk içeriyor ya da çok kısa).');
+                }
+                $this->db->set($k, $v);
+            }
+        }
     }
 
     // ---------------------------------------------------------------- claude.ai elle çeviri
@@ -431,6 +491,7 @@ trait BankPages
                 }
                 $rules = trim((string)($_POST['style_rules'] ?? ''));
                 $this->db->set('style_rules', $rules === trim(Ai::DEFAULT_RULES) ? '' : $rules);
+                $this->saveDescSettings();
                 $d = Dictionary::load($this->db);
                 $d['remove'] = array_values(array_filter(array_map('trim', preg_split('/\R/u', (string)($_POST['remove'] ?? '')) ?: []), static fn($x) => $x !== ''));
                 Dictionary::save($this->db, $d);

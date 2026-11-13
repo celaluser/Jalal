@@ -14,10 +14,50 @@
 
   const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
   const lower = (s) => norm(s).toLowerCase().replace(/i\u0307/g, 'i'); // dil bağımsız ("Import" → "ımport" olmasın); "İ" → i + nokta düzeltmesi
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Arka plan sekmesi: sayfanın zamanlayıcıları kısılır. Her bekleme hem burada hem service worker'da başlar; önce biten sayılır
+  // (önde: sayfa, arkada: service worker). Bağlantı koparsa (eklenti yenilendi) sayfa zamanlayıcısı yeter.
+  let port = null; let seq = 0;
+  const waiters = new Map();
+  function getPort() {
+    if (port) return port;
+    try {
+      port = chrome.runtime.connect({ name: 'tgw' });
+      port.onMessage.addListener((m) => { const f = m && m.t === 'wake' && waiters.get(m.id); if (f) f(); });
+      port.onDisconnect.addListener(() => { void chrome.runtime.lastError; port = null; });
+    } catch (e) { port = null; }
+    return port;
+  }
+  const sleep = (ms) => new Promise((resolve) => {
+    const id = ++seq;
+    let h = null;
+    const fin = () => { if (!waiters.has(id)) return; waiters.delete(id); clearTimeout(h); resolve(); };
+    waiters.set(id, fin);
+    h = setTimeout(fin, ms);
+    const p = getPort();
+    if (p) { try { p.postMessage({ t: 'sleep', id, ms }); } catch (e) { port = null; } }
+  });
+  /** İş sürerken sekme otomatik kapatılmasın (Bellek Tasarrufu). */
+  let busyN = 0;
+  function busy(on) {
+    busyN = Math.max(0, busyN + (on ? 1 : -1));
+    const p = getPort();
+    if (p) { try { p.postMessage({ t: 'busy', on: busyN > 0 }); } catch (e) { port = null; } }
+  }
+  /** Kaydır; arka plandaki sekmede yumuşak kaydırma ilerlemez ve scroll olayı gecikir: anında kaydır + olayı hemen tetikle. */
+  function scrollBoxTo(box, top) {
+    const hidden = document.hidden;
+    if (box) {
+      if (hidden) { box.scrollTop = top; try { box.dispatchEvent(new Event('scroll')); } catch (e) { /* yok */ } }
+      else box.scrollTo({ top, behavior: 'smooth' });
+    }
+    const wt = top === 0 ? 0 : document.documentElement.scrollHeight;
+    if (hidden) { window.scrollTo(0, wt); try { window.dispatchEvent(new Event('scroll')); } catch (e) { /* yok */ } }
+    else window.scrollTo({ top: wt, behavior: 'smooth' });
+  }
+  const nudge = (el) => { try { (el || window).dispatchEvent(new Event('scroll')); } catch (e) { /* yok */ } };
   const btnText = (b) => norm(b.innerText !== undefined ? b.innerText : b.textContent);
   const visible = (el) => !!el && el.isConnected && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-  const ours = (el) => !!(el.closest && el.closest('.tgw-bar, .tgw-badge, .tgw-orig, .tgw-cbar, .tgw-side, .tgw-word, .tgw-pop'));
+  const ours = (el) => !!(el.closest && el.closest('.tgw-bar, .tgw-badge, .tgw-orig, .tgw-cbar, .tgw-side, .tgw-word, .tgw-pop, .tgw-descbar'));
 
   function h(tag, cls, text) {
     const el = document.createElement(tag);
@@ -166,9 +206,142 @@
 
   function opts() {
     return new Promise((resolve) => {
-      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true, notify: true };
+      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stripMinMax: true, stripSpeed: true, descTranslate: true, descMode: '', catLogo: true, catLogoReplace: false };
       try { chrome.storage.local.get(d, (s) => resolve(s || d)); } catch (e) { resolve(d); }
     });
+  }
+
+  /**
+   * Parantez boşluğu: "[Metin]" → "[ Metin ]", "(Metin)" → "( Metin )". İçerideki fazla boşluk teke iner;
+   * yalnızca eşleşen çiftlere dokunulur (tek başına ")" ya da ":)" gibi işaretler değişmez), boş "[]" / "()" olduğu gibi kalır.
+   */
+  function spaceBrackets(s) {
+    let out = String(s == null ? '' : s);
+    for (let i = 0; i < 4; i++) { // iç içe parantezler için birkaç tur
+      const before = out;
+      out = out.replace(/\[[ \t]*([^\[\]]*?)[ \t]*\]/g, (m, x) => (x ? '[ ' + x + ' ]' : m))
+        .replace(/\([ \t]*([^()]*?)[ \t]*\)/g, (m, x) => (x ? '( ' + x + ' )' : m));
+      if (out === before) break;
+    }
+    return out;
+  }
+  /**
+   * Min/Max değerleri: "Max 500K", "Maks 10M", "Min 100", "Maksimum: 1M", "Ən çox 50K" … addan çıkarılır.
+   * Yalnızca bunlardan oluşan parantez ([ Max 1M ], ( Min 100 - Max 10M )) tamamen kalkar; geride kalan çift ayırıcı ("| |") teke iner.
+   * Sayısız kelimeler ("Minecraft", "Max Kalite") ve hız gibi diğer değerler ("Gündə 500K") değişmez.
+   */
+  const MINMAX_SRC = '(?:\\b(?:min(?:imum)?|max(?:imum)?|maks(?:imum)?)|ən\\s+az|ən\\s+çox)\\.?\\s*[:=]?\\s*\\d[\\d.,]*\\s*(?:k|m|b)?(?![\\p{L}\\p{N}])';
+  /**
+   * Günlük hız: "500K/D", "10K / Day", "Gündə 500K", "Gün 50K", "Günlük 1M", "Daily 20K", "Speed 10K", "50K per day" …
+   * Yalnızca bir MİKTAR varsa silinir: "30 Gün Qarantili", "365 Gün" gibi süreler değişmez.
+   */
+  const VAL_SRC = '\\d[\\d.,]*\\s*(?:k|m|b)?';
+  const SPEED_SRC = '(?:\\b(?:gündə|gunde|günlük|gunluk|gün|gun|daily|per\\s+day|day|speed|sürət|surat)\\s*[:=]?\\s*' + VAL_SRC + '(?:\\s*/\\s*(?:d|day|gün|gun))?'
+    + '|\\b' + VAL_SRC + '\\s*(?:/\\s*(?:d|day|days|gün|gun|günlük|daily)|\\s+(?:per\\s+day|a\\s+day|daily|gündə|günlük)))(?![\\p{L}\\p{N}])';
+  const stripMinMax = (s) => stripTokens(s, MINMAX_SRC);
+  const stripSpeed = (s) => stripTokens(s, SPEED_SRC);
+  function stripTokens(s, SRC) {
+    let out = String(s == null ? '' : s);
+    const has = (t) => new RegExp(SRC, 'iu').test(t);
+    if (!has(out)) return out;
+    const all = new RegExp(SRC, 'giu');
+    const SEP = '[|/,;–-]';
+    const tidy = (t) => t.replace(all, ' ').replace(/\s+/g, ' ')
+      .replace(new RegExp('(' + SEP + ')(\\s*' + SEP + ')+', 'g'), '$1')
+      .replace(new RegExp('^\\s*' + SEP + '\\s*'), '').replace(new RegExp('\\s*' + SEP + '\\s*$'), '')
+      .replace(/\s+/g, ' ').trim();
+    // parantez içleri: yalnız min/max ise parantez tamamen kalkar
+    out = out.replace(/\[([^\[\]]*)\]/g, (m, x) => { if (!has(x)) return m; const c = tidy(x); return c ? '[' + c + ']' : ''; })
+      .replace(/\(([^()]*)\)/g, (m, x) => { if (!has(x)) return m; const c = tidy(x); return c ? '(' + c + ')' : ''; });
+    return tidy(out);
+  }
+  /** Ayarlara göre adı biçimlendir (çevrilen her servis/kategori adı bu yoldan yazılır): min/max, günlük hız, sonra parantez boşluğu. */
+  const fmtName = (name, o) => {
+    let t = name;
+    if (!o || o.stripMinMax !== false) t = stripMinMax(t);
+    if (!o || o.stripSpeed !== false) t = stripSpeed(t);
+    if (!o || o.bracketSpace !== false) t = spaceBrackets(t);
+    return t;
+  };
+
+  // ---- açıklama çevirisi (tgwatch: banka + Google + DeepSeek) ----
+  const DESC_LABEL = /^(description|açıklama|açıqlama|təsvir)\s*:?$/;
+  /** Açıklama alanı: "Description" yazısından sonraki ilk textarea/metin kutusu/zengin editör; yoksa satırdaki textarea. */
+  function descField(scope, exclude) {
+    const cands = [...scope.querySelectorAll('textarea, input[type=text], input:not([type]), [contenteditable=""], [contenteditable="true"]')]
+      .filter((i) => visible(i) && !ours(i) && i !== exclude && !i.readOnly && !i.disabled);
+    if (!cands.length) return null;
+    const label = [...scope.querySelectorAll('label, div, span, strong, b, p, h4, h5, h6, td, th')]
+      .find((el) => el.children.length === 0 && DESC_LABEL.test(lower(el.textContent)));
+    if (label) {
+      const after = cands.find((i) => label.compareDocumentPosition(i) & Node.DOCUMENT_POSITION_FOLLOWING);
+      if (after) return after;
+    }
+    return cands.find((i) => i.tagName === 'TEXTAREA' || i.isContentEditable) || null;
+  }
+  const readField = (el) => (el.isContentEditable ? el.innerText : el.value);
+  function writeField(el, text) {
+    if (!el.isContentEditable) return setValue(el, text);
+    el.focus();
+    el.innerText = text;
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+  }
+  const DESC_VIA = { bank: 'bankadan', mix: 'banka + Google + DeepSeek', deepseek: 'DeepSeek', google: 'Google' };
+  /** Alandaki açıklamayı tgwatch ile çevirip yazar; dönüş: {ok, note, src}. Ad kuralları (min/max, parantez) açıklamaya uygulanmaz. */
+  async function translateDescField(el, o) {
+    const src = readField(el);
+    if (!norm(src)) return { ok: false, note: '' };
+    if (AZ_ONLY.test(src)) return { ok: false, note: 'açıklama zaten Azerice' };
+    const res = await api('translate_desc', { mode: o.descMode || undefined, items: [{ id: 'd', text: src }] });
+    if (!res.ok) return { ok: false, note: 'açıklama: ' + (res.error || 'tgwatch hatası') };
+    const it = res.items && res.items[0];
+    if (!it || !it.az) return { ok: false, note: 'açıklama çevrilmedi' + (it && it.note ? ' (' + it.note + ')' : '') };
+    writeField(el, it.az);
+    if (it.via !== 'bank') api('learn_desc', { items: [{ en: src, az: it.az }] });
+    return { ok: true, src, note: 'açıklama ' + (DESC_VIA[it.via] || it.via) + (it.note ? ' (' + it.note + ')' : '') };
+  }
+  /** İmport satırında açıklama (ayar açıksa): satır açıkken çağrılır. */
+  async function rowDesc(id, o) {
+    if (!o.descTranslate) return '';
+    const row = findRow(id);
+    if (!row) return '';
+    const el = descField(row.el, nameInput(row));
+    if (!el) return '\nAçıklama alanı bulunamadı';
+    const r = await translateDescField(el, o);
+    if (r.ok && !(state.get(id) || {}).descSrc) remember(id, { descSrc: r.src });
+    return r.note ? '\n' + r.note.charAt(0).toUpperCase() + r.note.slice(1) : '';
+  }
+
+  // ---- "Edit description" penceresi (Services sayfası): "tgwatch: çevir" düğmesi ----
+  function descDialogs() {
+    return [...document.querySelectorAll(DIALOG)].filter((d) => visible(d) && !ours(d) && /description|açıklama/i.test(norm(d.textContent).slice(0, 400)) && !d.querySelector('.tgw-descbtn'));
+  }
+  function addDescButtons() {
+    for (const d of descDialogs()) {
+      const el = descField(d, null);
+      if (!el) continue;
+      const box = d.matches('.modal-content') ? d : d.querySelector('.modal-content') || d;
+      if (box.querySelector('.tgw-descbtn')) continue;
+      const b = h('button', 'tgw-descbtn', 'tgwatch: açıklamayı çevir');
+      b.type = 'button';
+      b.style.cssText = 'margin:6px 0;padding:4px 10px;border-radius:6px;border:1px solid #2f6f4f;background:#e9f7ef;color:#1d4d35;cursor:pointer;font-size:12px';
+      const note = h('span', 'tgw-descnote');
+      note.style.cssText = 'margin-left:8px;font-size:12px;color:#555';
+      b.addEventListener('click', async (ev) => {
+        ev.preventDefault(); ev.stopPropagation();
+        const field = descField(d, null);
+        if (!field) { note.textContent = 'açıklama alanı bulunamadı'; return; }
+        b.disabled = true; note.textContent = 'çevriliyor…';
+        const r = await translateDescField(field, await opts());
+        b.disabled = false;
+        note.textContent = r.ok ? '✓ ' + r.note + ' — kontrol edip kaydet' : (r.note || 'çevrilecek yazı yok');
+      });
+      const wrap = h('div', 'tgw-descbar');
+      wrap.append(b, note);
+      el.insertAdjacentElement('beforebegin', wrap);
+    }
   }
 
   // ---- satır durumu ----
@@ -204,10 +377,13 @@
     if (o && o.dataset.src === st.src) return;
     if (!o) {
       o = h('span', 'tgw-orig');
-      o.title = 'Orijinal ad — tıkla, kopyala';
+      o.title = 'Orijinal ad — bir kelimeye tıkla: çevirisini değiştir · boşluğa tıkla: kopyala';
       o.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        // kelimeye tıklandıysa: o kelimenin bankadaki/sözlükteki karşılığını değiştir
+        const w = e.target.closest && e.target.closest('.tgw-ow');
+        if (w) { openTeach(o.__rid, w.textContent, w, true); return; }
         navigator.clipboard && navigator.clipboard.writeText(o.dataset.src).then(() => {
           o.classList.add('tgw-copied');
           setTimeout(() => o.classList.remove('tgw-copied'), 900);
@@ -216,8 +392,24 @@
       host.insertBefore(o, host.firstChild);
     }
     o.dataset.src = st.src;
-    o.textContent = st.src;
+    o.__rid = row.id;
+    fillWords(o, st.src);
   }
+  /** Metni kelime kelime yaz: her kelime tıklanabilir (.tgw-ow), aradaki işaretler düz metin. */
+  function fillWords(el, text) {
+    el.textContent = '';
+    let last = 0;
+    for (const m of String(text).matchAll(/\p{L}[\p{L}'’-]*\p{L}|\p{L}/gu)) {
+      if (m.index > last) el.appendChild(document.createTextNode(text.slice(last, m.index)));
+      const w = h('span', 'tgw-ow', m[0]);
+      w.title = '“' + m[0] + '” — tıkla: bu kelimenin çevirisini değiştir (sözlük + banka)';
+      el.appendChild(w);
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) el.appendChild(document.createTextNode(text.slice(last)));
+  }
+  /** Tam kelime/ifade kalıbı (sunucudaki Memory::wordRegex ile aynı). */
+  const wordRe = (w) => new RegExp('(?<![\\p{L}\\p{N}])' + norm(w).split(' ').map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+') + '(?![\\p{L}\\p{N}])', 'iu');
 
   function paint(row) {
     const mk = marks.get(row.id);
@@ -264,11 +456,12 @@
   let pop = null;
   function closeTeach() { if (pop) { pop.remove(); pop = null; } }
 
-  function openTeach(id, word, anchor) {
+  /** edit = true: bilinen kelimenin karşılığını değiştir (şimdiki karşılık tgwatch'tan sorulup kutuya yazılır). */
+  function openTeach(id, word, anchor, edit) {
     closeTeach();
     pop = h('div', 'tgw-pop');
     pop.setAttribute('role', 'dialog');
-    pop.setAttribute('aria-label', 'Kelimeyi öğret');
+    pop.setAttribute('aria-label', edit ? 'Kelimenin çevirisini değiştir' : 'Kelimeyi öğret');
     const f = h('form', 'tgw-pop-f');
     const l1 = h('label', '', 'Kaynak');
     const en = h('input');
@@ -281,7 +474,7 @@
     l2.appendChild(az);
     const msg = h('div', 'tgw-pop-msg');
     const acts = h('div', 'tgw-pop-a');
-    const ok = h('button', 'tgw-btn', 'Öğret ve düzelt');
+    const ok = h('button', 'tgw-btn', edit ? 'Değiştir ve düzelt' : 'Öğret ve düzelt');
     ok.type = 'submit';
     const keep = h('button', 'tgw-btn tgw-ghost', 'Aynen kalsın');
     keep.type = 'button';
@@ -290,27 +483,82 @@
     x.type = 'button';
     x.title = 'Kapat (Esc)';
     acts.append(ok, keep, x);
-    f.append(l1, l2, acts, msg);
+    // ikinci satır: "hiç yazılmasın" (kelimeyi adlardan sil) ve son değişikliği geri al
+    const acts2 = h('div', 'tgw-pop-a tgw-pop-a2');
+    const rm = h('button', 'tgw-btn tgw-ghost', 'Hiç yazılmasın');
+    rm.type = 'button';
+    rm.title = 'Bu kelime adlarda hiç yazılmasın: çeviriden önce silinir, bankadaki adlardan da çıkarılır';
+    const undo = h('button', 'tgw-btn tgw-ghost', '↶ Geri al');
+    undo.type = 'button';
+    undo.hidden = true;
+    acts2.append(rm, undo);
+    f.append(l1, l2, acts, acts2, msg);
     pop.appendChild(f);
     for (const ev of ['click', 'mousedown', 'keydown', 'keyup', 'keypress', 'input']) pop.addEventListener(ev, (e) => e.stopPropagation());
     pop.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeTeach(); });
     x.addEventListener('click', closeTeach);
-    const go = async (asKeep) => {
+    const lock = (v) => { ok.disabled = keep.disabled = rm.disabled = undo.disabled = v; };
+    /** mode: true/'keep' (aynen kalsın) | 'remove' (hiç yazılmasın) | false (karşılık yaz) */
+    const go = async (mode) => {
+      const asKeep = mode === true || mode === 'keep';
+      const asRemove = mode === 'remove';
       const src = en.value.trim();
       const dst = az.value.trim();
-      if (!src || (!asKeep && !dst)) { msg.textContent = asKeep ? 'Kaynak kelimeyi yaz' : 'Azerice karşılığı yaz'; (asKeep ? en : az).focus(); return; }
-      ok.disabled = keep.disabled = true;
+      if (!src || (!asKeep && !asRemove && !dst)) { msg.className = 'tgw-pop-msg'; msg.textContent = !src ? 'Kaynak kelimeyi yaz' : 'Azerice karşılığı yaz'; (!src ? en : az).focus(); return; }
+      lock(true);
+      msg.className = 'tgw-pop-msg';
       msg.textContent = 'tgwatch\'a öğretiliyor…';
-      const res = await api('teach', asKeep ? { en: src, keep: true } : { en: src, az: dst });
-      if (!res.ok) { msg.textContent = res.error || 'tgwatch hatası'; ok.disabled = keep.disabled = false; return; }
+      const res = await api('teach', asKeep ? { en: src, keep: true } : asRemove ? { en: src, remove: true } : { en: src, az: dst });
+      if (!res.ok) { msg.textContent = res.error || 'tgwatch hatası'; lock(false); return; }
+      if (asRemove && !res.remove) { msg.textContent = 'tgwatch sunucusu eski: "hiç yazılmasın" desteklenmiyor — sunucuyu güncelle.'; lock(false); return; }
       send({ type: 'stat', learned: 1 });
+      // Banka sözlükten önce gelir: sunucu eski kayıtları da düzeltir (res.bank adlar, res.desc açıklamalar). Eski sunucu bu alanları göndermez.
+      const bankNote = res.bank === undefined ? ' · tgwatch sunucusu eski: bankadaki eski kayıtlar düzeltilmedi'
+        : (res.bank || res.desc ? ' · bankada ' + (res.bank || 0) + ' kayıt' + (res.desc ? ', ' + res.desc + ' açıklama' : '') + ' düzeltildi' : '');
       msg.className = 'tgw-pop-msg tgw-pop-ok';
-      msg.textContent = asKeep ? '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” çevrilmeyecek' : '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” → “' + res.az + '”';
+      msg.textContent = (asRemove ? '✓ “' + res.en + '” artık adlarda yazılmayacak' : asKeep ? '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” çevrilmeyecek' : '✓ tgwatch sözlüğüne eklendi: “' + res.en + '” → “' + res.az + '”') + bankNote;
       status(msg.textContent.slice(2) + ' · satırlar düzeltiliyor…', 'ok');
       await sleep(900);
       closeTeach();
-      await retranslate(id, src, asKeep ? src : res.az);
+      await retranslate(id, src, asRemove ? '' : asKeep ? src : res.az, bankNote, asRemove ? 'remove' : '');
     };
+    rm.addEventListener('click', () => go('remove'));
+    // son kelime değişikliğini geri al (sözlük + banka), sonra o kelimenin geçtiği satırları yeniden çevir
+    api('word_undo', { peek: true }).then((r) => {
+      if (!pop || !r || !r.ok || !r.last) return;
+      undo.hidden = false;
+      undo.title = 'Son değişikliği geri al: “' + r.last.en + '” → ' + r.last.to + (r.last.rows ? ' (' + r.last.rows + ' banka kaydı)' : '');
+    });
+    undo.addEventListener('click', async () => {
+      lock(true);
+      msg.className = 'tgw-pop-msg';
+      msg.textContent = 'Geri alınıyor…';
+      const r = await api('word_undo', {});
+      if (!r.ok) { msg.textContent = r.error || 'tgwatch hatası'; lock(false); return; }
+      msg.className = 'tgw-pop-msg tgw-pop-ok';
+      msg.textContent = '↶ Geri alındı: “' + r.en + '” yine ' + r.was;
+      await sleep(900);
+      closeTeach();
+      await retranslate(id, r.en, '', ' · bankada ' + (r.restored || 0) + ' kayıt eski hâline döndü', 'undo');
+    });
+    if (edit) {
+      // şimdiki karşılığı göster (kullanıcı kaynağı uzatırsa/değiştirirse yeniden sorulur)
+      let seq = 0;
+      const info = async () => {
+        const src = en.value.trim();
+        if (!src) return;
+        const my = ++seq;
+        const r = await api('word_info', { en: src });
+        if (my !== seq || !pop || ok.disabled) return;
+        if (!r.ok) { if (/Bilinmeyen işlem/.test(r.error || '')) { msg.className = 'tgw-pop-msg tgw-pop-info'; msg.textContent = 'tgwatch sunucusu eski: şimdiki karşılık gösterilemiyor (yine de değiştirebilirsin).'; } return; }
+        if (r.state === 'phrase' && !az.value.trim()) az.value = r.az;
+        msg.className = 'tgw-pop-msg tgw-pop-info';
+        msg.textContent = (r.state === 'phrase' ? 'Şimdi: “' + r.az + '”' : r.state === 'keep' ? 'Şimdi: çevrilmiyor (aynen kalsın)' : r.state === 'remove' ? 'Şimdi: adlarda hiç yazılmıyor' : 'Sözlükte yok')
+          + (r.bank ? ' · bankada ' + r.bank + ' adda' + (r.desc ? ', ' + r.desc + ' açıklamada' : '') + ' geçiyor' : r.desc ? ' · ' + r.desc + ' açıklamada geçiyor' : '');
+      };
+      en.addEventListener('change', info);
+      info();
+    }
     f.addEventListener('submit', (e) => { e.preventDefault(); go(false); });
     keep.addEventListener('click', () => go(true));
     // Kutu import penceresinin İÇİNE konur: panel penceresi odağı ve tıklamaları kendi içinde tutuyor (dışarıdaki kutuya yazılamaz).
@@ -318,7 +566,7 @@
     host.appendChild(pop);
     const r = anchor.getBoundingClientRect();
     const w = 320;
-    const want = { x: Math.max(8, Math.min(innerWidth - w - 8, r.left)), y: r.bottom + 6 + 190 > innerHeight ? Math.max(8, r.top - 196) : r.bottom + 6 };
+    const want = { x: Math.max(8, Math.min(innerWidth - w - 8, r.left)), y: r.bottom + 6 + 226 > innerHeight ? Math.max(8, r.top - 232) : r.bottom + 6 };
     pop.style.left = want.x + 'px';
     pop.style.top = want.y + 'px';
     // Pencerede transform varsa "fixed" konum pencereye göre olur: farkı düzelt.
@@ -330,10 +578,14 @@
   }
 
   /** Öğretilen kelimeyi içeren (bilinmeyen listesinde olan) tüm satırları yeniden çevirip yaz. */
-  async function retranslate(firstId, word, az) {
+  /** how: '' (öğretildi/değişti) | 'remove' (kelime silindi) | 'undo' (değişiklik geri alındı) */
+  async function retranslate(firstId, word, az, note, how) {
     if (running) return;
     const parts = lower(word).split(' ');
-    const ids = [...state.entries()].filter(([rid, st]) => st.src && (rid === firstId || (st.unknown || []).some((u) => parts.includes(lower(u))))).map(([rid]) => rid);
+    const wre = wordRe(word);
+    // tıklanan satır + kelimenin bilinmeyen olduğu satırlar + orijinal adında bu kelime geçen satırlar (elle düzelttiklerin hariç)
+    const ids = [...state.entries()].filter(([rid, st]) => st.src && (rid === firstId
+      || (st.unknown || []).some((u) => parts.includes(lower(u))) || (!st.edited && wre.test(st.src)))).map(([rid]) => rid);
     ids.sort((a, b) => (a === firstId ? -1 : b === firstId ? 1 : 0));
     setRunning(true);
     const o = await opts();
@@ -345,6 +597,8 @@
         const rid = ids[k];
         const tr = res.items[k];
         if (!tr || !tr.az || tr.via === 'none' || tr.via === 'already') continue;
+        tr.az = fmtName(tr.az, o);
+        if (rid !== firstId && tr.az === state.get(rid).filled) continue; // bu satırda değişen bir şey yok
         status('Düzeltiliyor · #' + rid);
         const row = await openRow(rid);
         if (!row) continue;
@@ -356,7 +610,7 @@
         mark(r, tr.via === 'bank' || !left.length ? 'ok' : 'warn', 'Orijinal: ' + state.get(rid).src + (left.length ? '\nBilinmeyen: ' + left.join(', ') : '\nKelime öğretildi'));
         fixed++;
       }
-      status('✓ Sözlüğe eklendi: “' + word + '”' + (az && az !== word ? ' → “' + az + '”' : ' (çevrilmeyecek)') + ' · ' + fixed + ' satır düzeltildi. tgwatch → Çeviri → Sözlük\'te görünür.', 'ok');
+      status((how === 'undo' ? '↶ Geri alındı: “' + word + '”' : how === 'remove' ? '✓ “' + word + '” artık adlarda yazılmayacak' : '✓ Sözlüğe eklendi: “' + word + '”' + (az && az !== word ? ' → “' + az + '”' : ' (çevrilmeyecek)')) + (note || '') + ' · ' + fixed + ' satır düzeltildi. tgwatch → Çeviri → Sözlük\'te görünür.', 'ok');
     } finally {
       setRunning(false);
     }
@@ -507,6 +761,7 @@
   }
 
   function setRunning(on) {
+    if (on !== running) busy(on);
     running = on;
     if (!bar) return;
     bar.classList.toggle('tgw-running', on);
@@ -559,15 +814,29 @@
       }
       // Zaten çevrilmiş (bu oturumda) ya da zaten Azerice olan satırlar yeniden çevrilmez.
       const rows = [];
+      const descOnly = []; // adı atlanan ama açıklaması çevrilecek satırlar
       for (const r of all) {
         const st = state.get(r.id);
         if (st && st.filled && lower(r.header.name) === lower(st.filled)) { skipped++; continue; }
         if (o.skipAz && AZ_ONLY.test(r.header.name)) {
           skipped++;
-          if (!marks.has(r.id)) mark(r, 'done', 'Ad zaten Azerice, dokunulmadı');
+          if (o.descTranslate && !(st && st.descDone)) descOnly.push(r);
+          else if (!marks.has(r.id)) mark(r, 'done', 'Ad zaten Azerice, dokunulmadı');
           continue;
         }
         rows.push(r);
+      }
+      // Adı Azerice olan satırlar: ada dokunmadan yalnız açıklama (ayar açıksa)
+      for (const r of descOnly) {
+        if (stopFlag) break;
+        status((o.dry ? 'Deneme · ' : '') + 'Açıklama · #' + r.id);
+        const row = await openRow(r.id);
+        if (!row) continue;
+        const dn = await rowDesc(r.id, o);
+        remember(r.id, { descDone: true });
+        if (!o.dry) await saveRow(r.id);
+        const rr = findRow(r.id) || row;
+        mark(rr, 'done', 'Ad zaten Azerice, dokunulmadı' + dn);
       }
       if (!rows.length) {
         status('Hepsi zaten çevrilmiş (' + skipped + ' satır). Gözden geçirip Import\'a bas.', 'ok');
@@ -603,21 +872,25 @@
         }
         if (tr && tr.via === 'already') {
           skipped++;
+          const dn = await rowDesc(id, o);
           if (!o.dry) await saveRow(id);
           const r = findRow(id) || row;
-          mark(r, 'done', 'Ad zaten Azerice, dokunulmadı');
+          mark(r, 'done', 'Ad zaten Azerice, dokunulmadı' + dn);
           continue;
         }
         if (!tr || !tr.az || tr.via === 'none') {
           bad++;
+          const dn = await rowDesc(id, o);
           if (!o.dry) await saveRow(id);
           const r = findRow(id) || row;
           remember(id, { unknown: tr ? (tr.unknown || []) : [] });
-          mark(r, 'bad', tr ? 'Bankada da kurallarda da karşılığı yok: ' + src : 'tgwatch cevap vermedi');
+          mark(r, 'bad', (tr ? 'Bankada da kurallarda da karşılığı yok: ' + src : 'tgwatch cevap vermedi') + dn);
           continue;
         }
+        tr.az = fmtName(tr.az, o);
         setValue(input, tr.az);
         remember(id, { filled: tr.az, final: tr.az, edited: false, unknown: tr.via === 'bank' || tr.via === 'claude' ? [] : (tr.unknown || []) });
+        const dn = await rowDesc(id, o);
         if (!o.dry && !(await saveRow(id))) {
           bad++;
           const r = findRow(id);
@@ -625,7 +898,7 @@
           continue;
         }
         const r = findRow(id) || row;
-        const why = 'Orijinal: ' + src + (tr.unknown && tr.unknown.length ? '\nBilinmeyen: ' + tr.unknown.join(', ') : '');
+        const why = 'Orijinal: ' + src + (tr.unknown && tr.unknown.length ? '\nBilinmeyen: ' + tr.unknown.join(', ') : '') + dn;
         if (tr.via === 'bank') { ok++; mark(r, 'ok', 'Bankadan birebir\n' + why); }
         else { warn++; mark(r, 'warn', (tr.via === 'mixed' ? 'Kısmen bankadan' : tr.via === 'claude' ? 'Claude ile (tgwatch denetiminden geçti)' : 'Kurallarla') + '\n' + why); }
         await sleep(Math.max(0, Number(o.delay) || 0));
@@ -657,8 +930,9 @@
         const row = await openRow(id);
         if (!row) continue;
         setValue(nameInput(row), st.src);
+        if (st.descSrc) { const d = descField(row.el, nameInput(row)); if (d) writeField(d, st.descSrc); }
         if (!o.dry) await saveRow(id);
-        remember(id, { filled: undefined, final: st.src, edited: false });
+        remember(id, { filled: undefined, final: st.src, edited: false, descSrc: undefined });
         const r = findRow(id);
         if (r) unmark(r);
         n++;
@@ -730,6 +1004,564 @@
       return { box: box.closest('[role=dialog], .modal') || box, title, input, save };
     }
     return null;
+  }
+
+
+  // ---- kategori logosu: adına uygun logoyu "Uploaded" sekmesinden seç ----
+  // Uploaded'daki resimlerin adı yok (dosya adları rastgele). Bu yüzden logo, mevcut kategorilerinden öğrenilir:
+  // adında "TikTok" geçen kategorilerde en çok hangi resim kullanılıyorsa yeni TikTok kategorisine o seçilir.
+  // Her platform: [anahtar, kelime kalıbı (boşluklu metinde), bitişik yazım kalıbı (harf dışı her şey atılmış metinde)].
+  // Bitişik kalıp "I.n.s.t.a.g.r.a.m", "You Tube", "Tik-Tok", "Face_book" gibi bölünmüş yazımları yakalar;
+  // yalnız uzun/ayırt edici adlar orada aranır (kısa "ig", "yt", "x" orada yanlış eşleşirdi).
+  const PLATFORMS = [
+    ['tiktok', /tik\s*[-_.]?\s*tok|tic\s*tok|тик\s*[-]?\s*ток/, /tiktok|tictok|ticktock|тикток/],
+    ['instagram', /insta(?!nt|ll)|\big\b|инста/, /instagram|instaqram|instagramm|инстаграм/],
+    ['youtube', /you\s*tube|\byt\b|ютуб|ютьюб|\byutub|\byoutub/, /youtube|yutube|yutub|ютуб|ютьюб/],
+    ['facebook', /face\s*book|\bfb\b|фейсбук|фэйсбук|feysbuk|fesbuk/, /facebook|facebok|feysbuk|fesbuk|фейсбук|фэйсбук/],
+    ['telegram', /telegram|teleqram|\btg\b|телеграм|телега/, /telegram|teleqram|телеграм/],
+    ['twitter', /twitter|tvitter|twiter|твиттер|твитер|\bx\.com\b|\btweet|ретвит|^\W*x\s+(?=[a-zа-яəçğıöşü])|\(\s*x\s*\)|\bx\s*\/\s*twitter/, /twitter|tvitter|твиттер/],
+    ['threads', /\bthreads\b|тредс/, null],
+    ['whatsapp', /whats\s*app|w?vatsap|watsap|ватсап|вотсап|вацап/, /whatsapp|vatsap|watsap|ватсап|вотсап/],
+    ['spotify', /spotify|спотифай/, /spotify|спотифай/],
+    ['twitch', /twitch|твич/, /twitch|твич/],
+    ['discord', /discord|дискорд/, /discord|дискорд/],
+    ['snapchat', /snap\s*chat|снэпчат|снапчат|\bsnap\b/, /snapchat|снэпчат|снапчат/],
+    ['linkedin', /linked\s*in|линкедин/, /linkedin|линкедин/],
+    ['pinterest', /pinterest|пинтерест/, /pinterest|пинтерест/],
+    ['reddit', /reddit|реддит|редит/, /reddit|реддит/],
+    ['kick', /\bkick\b|(?<![а-яё])кик(?![а-яё])/, null],
+    ['kwai', /\bkwai\b|(?<![а-яё])квай(?![а-яё])/, null],
+    ['vk', /\bvk\b|vkontakte|(?<![а-яё])вк(?![а-яё])|вконтакте/, /vkontakte|вконтакте/],
+    ['odnoklassniki', /odnoklassniki|\bok\.ru\b|одноклассники/, /odnoklassniki|одноклассники/],
+    ['soundcloud', /sound\s*cloud|саундклауд/, /soundcloud|саундклауд/],
+    ['netflix', /netflix|нетфликс/, /netflix|нетфликс/],
+    ['canva', /\bcanva\b/, null],
+    ['capcut', /cap\s*cut|капкут/, /capcut|капкут/],
+    ['onlyfans', /only\s*fans|онлифанс/, /onlyfans|онлифанс/],
+    ['pubg', /\bpubg\b|пабг|пубг/, null],
+    ['likee', /\blikee\b/, null],
+    ['google', /google|гугл/, /google/],
+    ['trovo', /trovo/, null], ['rumble', /rumble/, null], ['dailymotion', /daily\s*motion/, /dailymotion/], ['vimeo', /vimeo/, null],
+    ['steam', /\bsteam\b|(?<![а-яё])стим(?![а-яё])/, null], ['apple', /apple\s*music|itunes/, /applemusic/], ['deezer', /deezer/, null],
+    ['shazam', /shazam|шазам/, /shazam|шазам/], ['tumblr', /tumblr/, /tumblr/], ['quora', /quora/, null],
+    ['bigo', /\bbigo\b/, /bigolive/], ['clubhouse', /club\s*house/, /clubhouse/], ['wechat', /we\s*chat/, /wechat/], ['viber', /\bviber\b|вайбер/, null],
+    ['signal', /\bsignal\b/, null], ['imo', /\bimo\b/, null], ['zalo', /\bzalo\b/, null], ['weibo', /weibo/, null], ['bilibili', /bilibili/, /bilibili/],
+    ['douyin', /douyin/, null], ['medium', /\bmedium\.com\b|\bmedium\s+(claps|followers)/, null], ['github', /git\s*hub/, /github/], ['behance', /behance/, null],
+    ['dribbble', /dribb+le/, null], ['patreon', /patreon/, null], ['mixcloud', /mix\s*cloud/, /mixcloud/], ['audiomack', /audio\s*mack/, /audiomack/],
+    ['boomplay', /boom\s*play/, /boomplay/], ['tidal', /\btidal\b/, null], ['anghami', /anghami/, null], ['yandex', /yandex|яндекс|\bdzen\b|дзен/, /yandex|яндекс/],
+    ['rutube', /rutube|рутуб/, /rutube|рутуб/], ['coub', /\bcoub\b/, null], ['tripadvisor', /trip\s*advisor/, /tripadvisor/], ['trustpilot', /trust\s*pilot/, /trustpilot/],
+    ['opensea', /open\s*sea/, /opensea/], ['coinmarketcap', /coin\s*market\s*cap|\bcmc\b/, /coinmarketcap/], ['binance', /binance/, null], ['amazon', /amazon/, null],
+    ['line', /\bline\s+(friends|followers|voom)/, null], ['bluesky', /blue\s*sky|\bbsky\b/, /bluesky/], ['mastodon', /mastodon/, null], ['lemon8', /lemon\s*8/, null],
+    ['xiaohongshu', /xiaohongshu|red\s*note/, /xiaohongshu|rednote/], ['podcast', /podcast|подкаст/, null], ['iptv', /\biptv\b/, null],
+    ['website', /web\s*site\s+traffic|\btraffic\b|\btrafik\b|трафик/, /websitetraffic/],
+  ];
+  /** Görünen ad (logo tablosu ve durum yazıları). */
+  const PLATFORM_LABEL = { tiktok: 'TikTok', youtube: 'YouTube', linkedin: 'LinkedIn', whatsapp: 'WhatsApp', soundcloud: 'SoundCloud', onlyfans: 'OnlyFans', capcut: 'CapCut',
+    pubg: 'PUBG', vk: 'VK', dailymotion: 'Dailymotion', twitter: 'Twitter / X', odnoklassniki: 'Odnoklassniki (OK)', apple: 'Apple Music', wechat: 'WeChat', github: 'GitHub',
+    tripadvisor: 'TripAdvisor', opensea: 'OpenSea', coinmarketcap: 'CoinMarketCap', iptv: 'IPTV', website: 'Website Traffic', bigo: 'Bigo Live', xiaohongshu: 'Xiaohongshu (RedNote)',
+    imo: 'imo', lemon8: 'Lemon8', mixcloud: 'Mixcloud', bluesky: 'Bluesky' };
+  const platformLabel = (k) => PLATFORM_LABEL[k] || (k.charAt(0).toUpperCase() + k.slice(1));
+  // Latin harfe benzeyen harfler (Kiril/Yunan "а е о р с у х і…", küçük büyük harf "ɪɴsᴛᴀɢʀᴀᴍ") → Latin.
+  // Yalnız ikinci okumada kullanılır; ilk okuma Rusça yazımlar ("Инстаграм") için harfleri olduğu gibi bırakır.
+  const LOOKALIKE = {
+    'а': 'a', 'в': 'b', 'е': 'e', 'ё': 'e', 'к': 'k', 'м': 'm', 'н': 'h', 'о': 'o', 'р': 'p', 'с': 'c', 'т': 't', 'у': 'y', 'х': 'x',
+    'і': 'i', 'ї': 'i', 'ј': 'j', 'ѕ': 's', 'һ': 'h', 'ԁ': 'd', 'ԛ': 'q', 'ԝ': 'w', 'ɡ': 'g', 'ɑ': 'a', 'ı': 'i',
+    'α': 'a', 'β': 'b', 'ε': 'e', 'η': 'n', 'ι': 'i', 'κ': 'k', 'ν': 'v', 'ο': 'o', 'ρ': 'p', 'τ': 't', 'υ': 'u', 'χ': 'x', 'γ': 'y',
+    'ᴀ': 'a', 'ʙ': 'b', 'ᴄ': 'c', 'ᴅ': 'd', 'ᴇ': 'e', 'ꜰ': 'f', 'ɢ': 'g', 'ʜ': 'h', 'ɪ': 'i', 'ᴊ': 'j', 'ᴋ': 'k', 'ʟ': 'l', 'ᴍ': 'm',
+    'ɴ': 'n', 'ᴏ': 'o', 'ᴘ': 'p', 'ǫ': 'q', 'ʀ': 'r', 'ꜱ': 's', 'ᴛ': 't', 'ᴜ': 'u', 'ᴠ': 'v', 'ᴡ': 'w', 'ʏ': 'y', 'ᴢ': 'z',
+    '0': 'o', '@': 'a', '$': 's',
+  };
+  /**
+   * Adı platform aramasına hazırla. Dönüş: [olduğu gibi, benzer harfler Latin'e çevrilmiş] — ikisi aynı uzunlukta (konumlar aynı).
+   * NFKD + işaretleri at: "𝐈𝐧𝐬𝐭𝐚𝐠𝐫𝐚𝐦", "Ｉｎｓｔａ", "Ⓘⓝⓢⓣⓐ", "İnstagram" (büyük noktalı İ) → "instagram".
+   * Görünmez harfler (sıfır genişlikli boşluk vb.) atılır.
+   */
+  function platformText(name) {
+    // "й" NFKD'de "и" + işaret olur; işaret atılınca "Фейсбук" bozulurdu → önce saklanır
+    const t = String(name || '').replace(/[йЙ]/g, '\ue000').normalize('NFKD').replace(/[\u0300-\u036f\u200b-\u200f\u2060\u00ad\ufeff\ufe0f]/g, '').replace(/\ue000/g, 'й').toLowerCase();
+    const map = (c) => {
+      if (c === 'ı') return 'i';
+      if (/[a-z]/.test(c)) return c;
+      return LOOKALIKE[c] || c;
+    };
+    const plain = [...t].map((c) => (c === 'ı' ? 'i' : c)).join('');
+    // "0", "@", "$" yalnız harflerin arasında harf sayılır ("Inst@gram", "Y0uTube"); "1000" gibi sayılara dokunulmaz
+    const look = [...t].map((c, i, a) => {
+      if (/[0@$]/.test(c)) return /\p{L}/u.test(a[i - 1] || '') && /\p{L}/u.test(a[i + 1] || '') ? LOOKALIKE[c] : c;
+      return map(c);
+    }).join('');
+    return [plain, look];
+  }
+  /** Addaki ilk platform (yazım biçimi önemsiz: süslü/Kiril benzeri harfler, araya nokta/boşluk, Azerice/Rusça yazılış). */
+  function platformOf(name) {
+    const [plain, look] = platformText(name);
+    let best = null;
+    const hit = (k, i) => { if (!best || i < best.i) best = { k, i }; };
+    // bitişik metin: yalnız harfler (hangi alfabeden olursa), her harfin asıl konumu tutulur
+    const idx = []; let compact = '';
+    for (let i = 0; i < look.length; i++) if (/\p{L}/u.test(look[i])) { compact += look[i]; idx.push(i); }
+    for (const [k, re, glued] of PLATFORMS) {
+      for (const t of [plain, look]) { const m = re.exec(t); if (m) hit(k, m.index); }
+      if (glued) { const m = glued.exec(compact); if (m) hit(k, idx[m.index]); }
+    }
+    return best ? best.k : null;
+  }
+  const urlOf = (el) => {
+    if (!el) return '';
+    const img = el.tagName === 'IMG' ? el : el.querySelector('img');
+    if (img) {
+      const lazy = img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('data-lazy');
+      const src = img.getAttribute('src') || '';
+      if (lazy && (!src || /^data:|placeholder|blank|spacer|loading/i.test(src))) return new URL(lazy, location.href).href;
+      if (src && !/^data:image\/(gif|svg)/i.test(src)) return img.src;
+      if (img.srcset) return new URL(img.srcset.split(',')[0].trim().split(/\s+/)[0], location.href).href;
+    }
+    const bg = getComputedStyle(el).backgroundImage || '';
+    const m = bg.match(/url\(["']?([^"')]+)["']?\)/);
+    return m ? m[1] : '';
+  };
+  /** Karşılaştırma anahtarı: adresin dosya adı (sorgu/alan farkı önemsiz). */
+  const fileKey = (u) => { try { return new URL(u, location.href).pathname.split('/').pop().toLowerCase(); } catch (e) { return ''; } };
+  /** Aynı resim mi: dosya adı aynı; ya da uzantısız ad (≥8 harf) diğerinin içinde (önizleme "_thumb" vb. ekleri). */
+  const sameImg = (a, b) => {
+    const x = fileKey(a); const y = fileKey(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    const bx = x.replace(/\.[a-z0-9]+$/, ''); const by = y.replace(/\.[a-z0-9]+$/, '');
+    return (bx.length >= 8 && y.includes(bx)) || (by.length >= 8 && x.includes(by));
+  };
+  function rowLogo(row) {
+    const el = row.el.querySelector('[class*="category-image"], [class*="category-icon"], img');
+    return el ? urlOf(el) : '';
+  }
+  const stGet = (d) => new Promise((res) => { try { chrome.storage.local.get(d, (r) => res(r || d)); } catch (e) { res(d); } });
+  const stSet = (o) => { try { chrome.storage.local.set(o); } catch (e) { /* yok */ } };
+  let walkSeen = null; // "Logoları şimdi öğren" sürerken: bu gezintide görülenler (bitince eski/silinmiş kategoriler atılır)
+  const STAT_V = 2; // özet biçimi/platform listesi değişince artır: logo tablosu yeniden hesaplanır
+  /**
+   * Ekrandaki kategori satırlarından öğren (chrome.storage.local):
+   *  - logoSeen: platform adlı kategori → logo (en çok 3000),
+   *  - logoAll: görülen bütün resimler (logo tablosundaki seçim ızgarası için; up=1: Uploaded sekmesinde görüldü),
+   *  - logoStat: platform → [{url, n}] özeti (logo tablosu sayfası bunu okur).
+   */
+  async function learnLogos() {
+    const all = categoryRows().map((r) => ({ name: r.name, url: rowLogo(r) })).filter((x) => x.url);
+    const { logoSeen, logoAll, logoStatV } = await stGet({ logoSeen: {}, logoAll: {}, logoStatV: 0 });
+    let n = 0; let m = 0;
+    for (const x of all) {
+      const k = fileKey(x.url);
+      if (k && !logoAll[k]) { logoAll[k] = { u: x.url, up: 0 }; m++; }
+      if (!platformOf(x.name)) continue;
+      if (walkSeen) walkSeen[x.name] = x.url;
+      if (logoSeen[x.name] !== x.url) { logoSeen[x.name] = x.url; n++; }
+    }
+    if (n) {
+      const keys = Object.keys(logoSeen);
+      for (const k of keys.slice(0, Math.max(0, keys.length - 3000))) delete logoSeen[k];
+    }
+    if (n || m || logoStatV !== STAT_V) stSet(Object.assign({ logoSeen, logoStatV: STAT_V, logoStat: logoStatOf(logoSeen), logoPlatforms: PLATFORMS.map(([k]) => [k, platformLabel(k)]) }, m ? { logoAll } : {}));
+    return n;
+  }
+  /** platform → kullanılan logolar, çoktan aza. */
+  function logoStatOf(logoSeen) {
+    const by = {};
+    for (const [name, url] of Object.entries(logoSeen)) {
+      const p = platformOf(name);
+      if (!p) continue;
+      const k = fileKey(url);
+      const e = (by[p] = by[p] || {})[k] || (by[p][k] = { url, n: 0 });
+      e.n++;
+    }
+    const out = {};
+    for (const [p, m] of Object.entries(by)) out[p] = Object.values(m).sort((a, b) => b.n - a.n);
+    return out;
+  }
+  /** Seçicide (Uploaded) görünen resimleri "seçilebilir" olarak kaydet. */
+  async function collectPicker() {
+    const p = picker();
+    if (!p || !p.box) return 0;
+    const urls = pickerImages(p.box).map(urlOf).filter(Boolean);
+    if (!urls.length) return 0;
+    const { logoAll } = await stGet({ logoAll: {} });
+    let n = 0;
+    for (const u of urls) { const k = fileKey(u); if (k && (!logoAll[k] || !logoAll[k].up)) { logoAll[k] = { u, up: 1 }; n++; } }
+    if (n) stSet({ logoAll });
+    return n;
+  }
+  /** Addaki özel kural (logo tablosunda "adında şu kelime geçerse → bu logo"): en önde geçen kazanır. */
+  function ruleOf(name, rules) {
+    const [plain, look] = platformText(name);
+    let best = null;
+    for (const r of rules || []) {
+      if (!r || !r.word || !r.url) continue;
+      const re = wordRe(platformText(r.word)[0]);
+      for (const t of [plain, look]) { const m = re.exec(t); if (m && (!best || m.index < best.i)) best = { r, i: m.index }; }
+    }
+    return best ? best.r : null;
+  }
+  /**
+   * Bu ad için hangi logo: { key, label, cands, fixed }.
+   * Sıra: 1) özel kural, 2) tabloda sabitlenen platform logosu, 3) listede o platformda en çok kullanılanlar.
+   */
+  async function logoTarget(name, alt) {
+    const { logoSeen, logoPick, logoRules } = await stGet({ logoSeen: {}, logoPick: {}, logoRules: [] });
+    const rule = ruleOf(name, logoRules) || (alt ? ruleOf(alt, logoRules) : null);
+    if (rule) return { key: 'kural:' + rule.word, label: rule.word, cands: [rule.url], fixed: true };
+    const plat = platformOf(name) || (alt ? platformOf(alt) : null);
+    if (!plat) return null;
+    const cands = [];
+    if (logoPick[plat]) cands.push(logoPick[plat]);
+    for (const e of logoStatOf(logoSeen)[plat] || []) if (!cands.some((u) => sameImg(u, e.url))) cands.push(e.url);
+    return { key: plat, label: platformLabel(plat), cands, fixed: !!logoPick[plat] };
+  }
+  /** "Add icon" (logo yokken seçiciyi açan bağlantı) ya da "Change/Edit icon". */
+  function iconLink(dlg) {
+    const all = [...dlg.box.querySelectorAll('a, button, span, div, label, p')].filter((e) => visible(e) && !ours(e) && e.children.length <= 3
+      && /^(\+\s*)?(add|change|edit|select|choose|upload)\s+(an?\s+)?(icon|image|logo)$/i.test(norm(e.textContent)));
+    const deep = all.filter((e) => !all.some((x) => x !== e && e.contains(x)));
+    const el = deep[0];
+    return el ? { el: el.closest('a, button, [role=button]') || el, add: /^(\+\s*)?add/i.test(norm(el.textContent)) } : null;
+  }
+  /** Pencerede hâlâ "Add icon" var mı (logo seçilmemiş). */
+  const iconLinkAdd = (dlg) => { const l = iconLink(dlg); return !!(l && l.add); };
+  /** Gerçek fare tıklaması gibi: üstüne gel, bas, bırak, tıkla (React/kütüphaneler mousedown'da da seçebilir). */
+  function realClick(el) {
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2; const y = r.top + r.height / 2;
+    const base = { bubbles: true, cancelable: true, composed: true, view: window, clientX: x, clientY: y, button: 0 };
+    const P = window.PointerEvent;
+    const ev = (type, extra) => el.dispatchEvent(type.startsWith('pointer') && P ? new P(type, Object.assign({ pointerId: 1, pointerType: 'mouse', isPrimary: true }, base, extra)) : new MouseEvent(type, Object.assign({}, base, extra)));
+    ev('pointerover'); ev('mouseover'); ev('pointerenter'); ev('mouseenter');
+    ev('pointerdown', { buttons: 1 }); ev('mousedown', { buttons: 1 });
+    ev('pointerup', { buttons: 0 }); ev('mouseup', { buttons: 0 });
+    ev('click', { buttons: 0 });
+  }
+  /** Penceredeki logo kutusu: ad kutusunun solundaki/yakınındaki resimli ya da "icon/image/logo" sınıflı kare öğe. */
+  function logoBox(dlg) {
+    const ir = dlg.input.getBoundingClientRect();
+    const pk = picker();
+    const cands = [...dlg.box.querySelectorAll('div, span, a, button, img, label')].filter((e) => {
+      if (!visible(e) || ours(e) || e.contains(dlg.input) || e.closest('.modal-footer, .modal-header') || (pk && pk.box && pk.box.contains(e))) return false;
+      const r = e.getBoundingClientRect();
+      if (r.width < 24 || r.height < 24 || r.width > 160 || r.height > 160 || Math.abs(r.width - r.height) > 40) return false;
+      return !!urlOf(e) || /icon|image|logo|avatar|picture|photo/i.test(typeof e.className === 'string' ? e.className : '');
+    });
+    if (!cands.length) {
+      // sınıf adı tutmadıysa: ad kutusunun SOLUNDA, onunla aynı yükseklikte duran kare öğe (gerçek panelde logo kutusu orada)
+      for (const e of dlg.box.querySelectorAll('div, span, a, button, img, label')) {
+        if (!visible(e) || ours(e) || e.contains(dlg.input) || e.closest('.modal-footer, .modal-header') || (pk && pk.box && pk.box.contains(e))) continue;
+        const r = e.getBoundingClientRect();
+        if (r.width < 30 || r.height < 30 || r.width > 140 || r.height > 140 || Math.abs(r.width - r.height) > 30) continue;
+        if (r.right > ir.left + 4 || r.bottom < ir.top - 60 || r.top > ir.bottom + 20) continue;
+        cands.push(e);
+      }
+    }
+    if (!cands.length) return null;
+    const d = (e) => { const r = e.getBoundingClientRect(); return Math.hypot((r.left + r.right) / 2 - ir.left, (r.top + r.bottom) / 2 - (ir.top + ir.bottom) / 2); };
+    cands.sort((a, b) => d(a) - d(b));
+    // en yakın adayın en dış tıklanabilir hâli (içindeki img yerine kutunun kendisi)
+    let el = cands[0];
+    while (el.parentElement && el.parentElement !== dlg.box && cands.includes(el.parentElement)) el = el.parentElement;
+    return el;
+  }
+  /** Seçicinin "Uploaded" sekmesi (ilk açılışta Icons sekmesi seçili olur; orada resim / "Upload file" olmayabilir). */
+  function uploadedTab() {
+    const all = [...document.querySelectorAll('a, button, li, span, div, [role=tab]')].filter((e) => visible(e) && !ours(e) && e.children.length <= 3 && /^uploaded$/i.test(norm(e.textContent)));
+    const deep = all.filter((e) => !all.some((x) => x !== e && e.contains(x)));
+    const t = deep[0];
+    return t ? (t.closest('a, button, li, [role=tab]') || t) : null;
+  }
+  /** Açık seçici: "Uploaded" sekmesinin, içinde resim ya da "Upload file" olan en yakın atası. */
+  function picker() {
+    const tab = uploadedTab();
+    if (!tab) return null;
+    for (let box = tab.parentElement; box && box !== document.body; box = box.parentElement) {
+      const upl = [...box.querySelectorAll('button, a, label')].some((x) => /^upload\s*file$/i.test(norm(x.textContent)));
+      if (upl || pickerImages(box).length >= 2) return { box, tab };
+    }
+    return { box: null, tab };
+  }
+  const pickerImages = (box) => [...box.querySelectorAll('img, [style*="background-image"]')].filter((e) => visible(e) && !ours(e) && urlOf(e));
+  /**
+   * Kategori adına göre logoyu seç (pencere açıkken, Save'den önce). Dönüş: not (ör. "logo: TikTok") ya da ''.
+   * Mevcut logo varsa yalnızca "Mevcut logoyu değiştir" açıkken değişir.
+   */
+  async function pickCategoryLogo(name, o) {
+    logoDiag = { ad: name, zaman: new Date().toTimeString().slice(0, 8) };
+    const note = await pickLogoInner(name, o);
+    logoDiag.not = note;
+    return note;
+  }
+  async function pickLogoInner(name, o) {
+    if (o.catLogo === false) return '';
+    await learnLogos(); // pencerenin arkasındaki liste satırları
+    const target = await logoTarget(name, catSrc);
+    const plat = target && target.key;
+    logoDiag.platform = plat;
+    if (!target) return 'logo: adda tanınan bir platform yok (Logo tablosu → özel kural ekleyebilirsin)';
+    const cands = target.cands;
+    const want = cands[0] || '';
+    logoDiag.istenen = want;
+    logoDiag.sabit = target.fixed;
+    logoDiag.adaylar = cands.map(fileKey);
+    // seçicideki resimlerden, aday sırası en önde olan (öğrenilen ilk logo Uploaded'da yoksa sonraki denenir)
+    const rank = (e) => { const u = urlOf(e); const i = cands.findIndex((c) => sameImg(u, c)); return i < 0 ? 1e9 : i; };
+    const bestIn = (box) => { let b = null; for (const e of pickerImages(box)) { const r = rank(e); if (r < 1e9 && (!b || r < b.r)) b = { e, r }; } return b; };
+    const P = target.label;
+    if (!want) return 'logo: ' + P + ' için logo belli değil — mini panel → Logo tablosu\'ndan seç';
+    let dlg = categoryDialog();
+    if (!dlg) return 'kategori penceresi kayboldu';
+    logoDiag.pencere = shortHtml(dlg.input.closest('.modal-body') || dlg.box, 1500);
+    // Logo yoksa panel "Add icon" gösterir (seçici yalnız ona tıklayınca açılır); logo varsa resmin kendisine tıklanır.
+    const link = iconLink(dlg);
+    const box = logoBox(dlg);
+    logoDiag.addIcon = link ? shortHtml(link.el, 200) : null;
+    logoDiag.kutu = box ? shortHtml(box, 400) : null;
+    const cur = link && link.add ? '' : (box ? urlOf(box) || urlOf(box.querySelector('*')) : '');
+    logoDiag.mevcut = cur;
+    if (cur && cands.some((c) => sameImg(cur, c))) return 'logo zaten ' + P;
+    if (cur && !o.catLogoReplace) return 'logo zaten var, değiştirilmedi';
+    const trigger = (link && link.el) || (cur && box) || box;
+    if (!trigger) { catDiagNote = 'logo kutusu bulunamadı'; return 'logo kutusu ("Add icon") bulunamadı'; }
+    trigger.click();
+    const pk = await waitFor(uploadedTab, 4000, 80) && picker();
+    if (!pk) {
+      catDiagNote = 'logo seçici açılmadı';
+      logoDiag.uploadedYazisi = [...document.querySelectorAll('a, button, li, span, div')].filter((e) => visible(e) && /uploaded/i.test(norm(e.textContent)) && norm(e.textContent).length < 40).slice(0, 4).map((e) => shortHtml(e, 200));
+      return 'logo seçici açılmadı';
+    }
+    pk.tab.click();
+    logoDiag.uploadedTiklandi = true;
+    await waitFor(() => { const p2 = picker(); return p2 && p2.box && pickerImages(p2.box).length; }, 3000, 100);
+    await collectPicker(); // Uploaded'daki resimler logo tablosunda seçilebilir olsun
+    // ilk aday görünürse hemen; değilse 3 sn içinde görünen en iyi aday
+    let firstHit = null;
+    await waitFor(() => { const p2 = picker(); const b = p2 && p2.box && bestIn(p2.box); if (b) firstHit = b; return b && b.r === 0; }, 3000, 100);
+    let img = firstHit && firstHit.e;
+    if (!img || firstHit.r > 0) { const s2 = await scrollPickerFor((e) => rank(e) === 0); if (s2) img = s2; } // ilk aday aşağıda olabilir
+    if (!img) img = await scrollPickerFor((e) => rank(e) < 1e9); // gecikmeli yüklenen resimler
+    if (!img) { img = await visualMatch(want); if (img) logoDiag.gorselEslesme = true; } // adres farklıysa: resim içeriğine göre
+    const p4 = picker();
+    logoDiag.secici = p4 && p4.box ? shortHtml(p4.box, 500) : 'kutu bulunamadı';
+    if (!img) {
+      const p3 = picker();
+      logoDiag.uploadedResimler = p3 && p3.box ? pickerImages(p3.box).slice(0, 12).map((e) => fileKey(urlOf(e))) : 'seçici kayboldu';
+      closePicker();
+      return 'logo: ' + P + ' logosu Uploaded\'da bulunamadı — mini panel → Logo tablosu\'ndan Uploaded\'daki bir resmi seç';
+    }
+    const chosen = urlOf(img); // görsel eşleşmede listedeki adresten farklı olabilir
+    logoDiag.secilenResim = fileKey(chosen);
+    // Panelin resim seçicisi seçimi gerçek fare basışıyla (mousedown) alabilir: tam tıklama dizisi gönder.
+    // Kutuda görünmezse aynı dizi resmin bir-iki üst kabına da denenir (tıklama dinleyicisi orada olabilir).
+    const shown = () => { const d2 = categoryDialog(); if (!d2 || iconLinkAdd(d2)) return false; const b2 = logoBox(d2); const u = b2 && (urlOf(b2) || urlOf(b2.querySelector('*'))); return !!u && (sameImg(u, chosen) || cands.some((c) => sameImg(u, c))); };
+    let okSel = false;
+    const targets = [img, img.parentElement, img.parentElement && img.parentElement.parentElement].filter((x, i, a) => x && a.indexOf(x) === i && !x.matches('.ReactVirtualized__Grid__innerScrollContainer, [role=rowgroup], [role=grid]'));
+    for (const tgt of targets) {
+      if (!tgt.isConnected) break;
+      realClick(tgt);
+      logoDiag.tiklanan = (logoDiag.tiklanan || []).concat(tgt.tagName + '.' + String(tgt.className || '').slice(0, 40));
+      okSel = !!(await waitFor(shown, 2000, 80));
+      if (okSel || !picker()) break; // seçildi ya da seçici kapandı (seçim olmuş olabilir)
+    }
+    if (!okSel) okSel = !!(await waitFor(shown, 1500, 80));
+    if (picker()) closePicker();
+    await waitFor(() => !picker(), 1500, 80);
+    logoDiag.secildi = okSel;
+    return okSel ? 'logo: ' + P + (target.fixed ? '' : ' (otomatik)') : 'logo: ' + P + ' resmine tıklandı ama kutuda görünmedi';
+  }
+  /** Seçicinin kaydırılabilir alanını aşağı kaydırarak ara (resimler görününce yüklenir). */
+  async function scrollPickerFor(test) {
+    const p = picker();
+    if (!p || !p.box) return null;
+    const sc = [p.box, ...p.box.querySelectorAll('*')].find((e) => e.scrollHeight > e.clientHeight + 20 && /(auto|scroll)/.test(getComputedStyle(e).overflowY));
+    if (!sc) return null;
+    for (let y = 0; y <= sc.scrollHeight; y += Math.max(80, sc.clientHeight - 40)) {
+      sc.scrollTop = y; nudge(sc);
+      await sleep(250);
+      await collectPicker();
+      const p2 = picker();
+      const hit = p2 && p2.box && pickerImages(p2.box).find(test);
+      if (hit) { hit.scrollIntoView({ block: 'nearest' }); return hit; }
+    }
+    sc.scrollTop = 0;
+    return null;
+  }
+  /** Küçük gri parmak izi (16×16): resim sunucusu CORS izni vermezse null (o zaman görsel eşleşme yapılmaz). */
+  function imgHash(url) {
+    return new Promise((resolve) => {
+      const im = new Image();
+      im.crossOrigin = 'anonymous';
+      const t = setTimeout(() => resolve(null), 4000);
+      im.onload = () => {
+        clearTimeout(t);
+        try {
+          const c = document.createElement('canvas'); c.width = 16; c.height = 16;
+          const x = c.getContext('2d'); x.drawImage(im, 0, 0, 16, 16);
+          const d = x.getImageData(0, 0, 16, 16).data;
+          const v = []; for (let i = 0; i < d.length; i += 4) v.push(d[i + 3] < 30 ? 255 : (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11));
+          resolve(v);
+        } catch (e) { resolve(null); }
+      };
+      im.onerror = () => { clearTimeout(t); resolve(null); };
+      im.src = url;
+    });
+  }
+  /** Adres tutmazsa: istenen logoya en çok benzeyen Uploaded resmi (ortalama piksel farkı küçükse). */
+  async function visualMatch(want) {
+    const h0 = await imgHash(want);
+    if (!h0) { logoDiag.gorsel = 'resim sunucusu karşılaştırmaya izin vermedi (CORS)'; return null; }
+    const p = picker();
+    if (!p || !p.box) return null;
+    let best = null;
+    for (const e of pickerImages(p.box).slice(0, 200)) {
+      const h = await imgHash(urlOf(e));
+      if (!h) continue;
+      let diff = 0; for (let i = 0; i < h.length; i++) diff += Math.abs(h[i] - h0[i]);
+      diff /= h.length;
+      if (!best || diff < best.diff) best = { e, diff };
+    }
+    logoDiag.gorsel = best ? 'en yakın fark ' + best.diff.toFixed(1) : 'karşılaştırılacak resim yok';
+    return best && best.diff < 12 ? best.e : null;
+  }
+
+  // Kullanıcı seçicide bir resme tıklayıp Save'e basarsa: "bu platform = bu resim" öğrenilir — ama yalnız
+  //  - o platform tabloda henüz sabitlenmemişse (sabit seçim kendiliğinden değişmez),
+  //  - Save anında penceredeki logo gerçekten o resimse ve tıklama aynı pencerede, az önce olduysa.
+  // (Eskiden tıklanıp vazgeçilen bir resim, sonra kaydedilen başka kategorinin platformuna yazılabiliyordu.)
+  let pickedByUser = null;
+  // Panel seçimi fareye basınca (mousedown) yapıp seçiciyi kapatabilir; bu yüzden basış anı da dinlenir.
+  const onUserPick = (e) => {
+    if (!e.isTrusted || catRunning) return;
+    const p = picker();
+    if (!p || !p.box || !p.box.contains(e.target)) return;
+    collectPicker();
+    const el = e.target.closest('img, [style*="background-image"]') || e.target.querySelector && e.target.querySelector('img');
+    const u = el && urlOf(el);
+    const d = categoryDialog();
+    if (u) pickedByUser = { u, at: Date.now(), dlg: d ? d.box : null };
+  };
+  for (const t of ['pointerdown', 'mousedown', 'click']) document.addEventListener(t, onUserPick, true);
+  async function rememberLogoPick(dlg) {
+    const pick = pickedByUser; pickedByUser = null;
+    if (!pick || !dlg || pick.dlg !== dlg.box || Date.now() - pick.at > 10 * 60000) return;
+    const b = logoBox(dlg);
+    const shown = b && (urlOf(b) || urlOf(b.querySelector('*')));
+    if (!shown || !sameImg(shown, pick.u)) return; // kullanıcı sonra başka resim seçti ya da logoyu kaldırdı
+    const plat = platformOf(dlg.input ? dlg.input.value : '') || platformOf(catSrc);
+    if (!plat) return;
+    const { logoPick } = await stGet({ logoPick: {} });
+    if (logoPick[plat]) return;
+    logoPick[plat] = pick.u;
+    stSet({ logoPick });
+  }
+
+  /** Kategori penceresini KAYDETMEDEN kapat (Cancel / Close / ×). Save'e asla basılmaz. */
+  async function dismissCategoryDialog() {
+    const d = categoryDialog();
+    if (!d) return true;
+    const btns = [...d.box.querySelectorAll('button, a, [role=button]')].filter((b) => visible(b) && !ours(b) && b !== d.save && !SAVE_WORDS.includes(lower(b.value || btnText(b))));
+    const b = btns.find((x) => /^(cancel|close|kapat|iptal|bağla|ləğv et)$/i.test(norm(x.value || btnText(x))))
+      || btns.find((x) => x.matches('.close, .btn-close, [data-dismiss=modal], [data-bs-dismiss=modal], [aria-label=Close], [aria-label=close]') || /^[×✕x]$/i.test(norm(x.textContent)));
+    if (!b) return false;
+    b.click();
+    return !!(await waitFor(() => !categoryDialog(), 4000, 100));
+  }
+  /**
+   * Uploaded sekmesini kendiliğinden tara: bir kategorinin Edit penceresi açılır → logo / "Add icon" → Uploaded →
+   * oradaki bütün resimler (kaydırarak) "seçilebilir" diye kaydedilir → seçici ve pencere Save'e BASILMADAN kapatılır.
+   * Pencere zaten açıksa o kullanılır ve açık bırakılır.
+   */
+  async function scanUploaded() {
+    let dlg = categoryDialog();
+    let opened = false;
+    if (!dlg) {
+      const row = categoryRows()[0];
+      if (!row) return { ok: false, error: 'Actions düğmesi olan kategori yok' };
+      const r = await openCategoryEditor(row);
+      row.el.classList.remove('tgw-flash');
+      if (r.error) return { ok: false, error: r.error };
+      dlg = r.dlg; opened = true;
+    }
+    const done = async (res) => {
+      if (picker()) { closePicker(); await waitFor(() => !picker(), 1500, 80); }
+      if (opened) { const closed = await dismissCategoryDialog(); catSrc = null; catFilled = null; if (!closed) res.note = 'Edit category penceresi kapatılamadı: kendin kapat (Save\'e basma)'; }
+      return res;
+    };
+    const link = iconLink(dlg);
+    const trigger = (link && link.el) || logoBox(dlg);
+    if (!trigger) return done({ ok: false, error: 'logo kutusu ("Add icon") bulunamadı' });
+    trigger.click();
+    const pk = await waitFor(uploadedTab, 4000, 80) && picker();
+    if (!pk) return done({ ok: false, error: 'logo seçici açılmadı' });
+    pk.tab.click();
+    await waitFor(() => { const p2 = picker(); return p2 && p2.box && pickerImages(p2.box).length; }, 3000, 100);
+    await collectPicker();
+    await scrollPickerFor(() => false); // sanallaştırılmış ızgara: sona kadar kaydır, her adımda topla
+    const { logoAll } = await stGet({ logoAll: {} });
+    return done({ ok: true, uploaded: Object.values(logoAll).filter((x) => x && x.up).length });
+  }
+
+  /** Seçiciyi kapat: pencere başlığına tıkla (Escape pencerenin kendisini kapatabilir). */
+  function closePicker() {
+    const d = categoryDialog();
+    if (d && d.title) d.title.click();
+  }
+  let catDiagNote = '';
+  let logoDiag = null; // son logo denemesinin ayrıntıları (Teşhisi kopyala)
+  const shortHtml = (el, n) => (el ? el.outerHTML.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').replace(/data:[^"')]{40,}/g, 'data:…').slice(0, n || 600) : '');
+
+  /** Listeyi baştan sona adım adım gez (sanallaştırılmış liste) ve tüm kategorilerin logosunu öğren. */
+  async function walkLearnLogos() {
+    if (catRunning || running) return { ok: false, error: 'Başka bir iş sürüyor' };
+    catRunning = true; busy(true);
+    try {
+      ensureCatBar();
+      catStatus('Logolar öğreniliyor: liste kategorilere daraltılıyor…');
+      await collapseAll();
+      const first = categoryRows()[0];
+      if (!first) return { ok: false, error: 'Kategori satırı yok (Services sayfasında değil misin?)' };
+      const box = scroller(first.el);
+      const el = box || document.scrollingElement;
+      el.scrollTop = 0; nudge(box); nudge();
+      await sleep(400);
+      walkSeen = {};
+      let learned = await learnLogos();
+      let stable = 0;
+      for (let i = 0; i < 3000 && stable < 2; i++) {
+        const before = el.scrollTop;
+        el.scrollTop = before + Math.max(150, Math.floor(el.clientHeight * 0.7));
+        nudge(box); nudge();
+        await sleep(200);
+        learned += await learnLogos();
+        catStatus('Logolar öğreniliyor… ' + learned + ' yeni');
+        const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 4 || el.scrollTop === before;
+        if (!atEnd) { stable = 0; continue; }
+        const hgt = el.scrollHeight; await sleep(700);
+        learned += await learnLogos();
+        stable = el.scrollHeight > hgt ? 0 : stable + 1;
+      }
+      // Liste baştan sona gezildi: kayıt yalnız şimdi var olan kategorilerden oluşsun (adı değişen/silinenler yanlış oy vermesin).
+      let { logoSeen } = await stGet({ logoSeen: {} });
+      if (walkSeen && Object.keys(walkSeen).length) {
+        logoSeen = walkSeen;
+        stSet({ logoSeen, logoStatV: STAT_V, logoStat: logoStatOf(logoSeen), logoPlatforms: PLATFORMS.map(([k]) => [k, platformLabel(k)]) });
+      }
+      const stat = logoStatOf(logoSeen);
+      const plats = Object.keys(stat);
+      const unsure = plats.filter((k) => stat[k].length > 1).map(platformLabel);
+      // Uploaded sekmesi de taransın: logo tablosundaki seçim ızgarası ve "Uploaded'da görülmedi" uyarısı buna dayanır.
+      catStatus('Uploaded sekmesi taranıyor (bir kategorinin Edit penceresi açılıp kaydedilmeden kapatılır)…');
+      el.scrollTop = 0; nudge(box); nudge();
+      await sleep(400);
+      let up = null;
+      try { up = await scanUploaded(); } catch (e) { up = { ok: false, error: String(e && e.message || e) }; }
+      const upNote = up.ok ? ' · Uploaded: ' + up.uploaded + ' resim' + (up.note ? ' · ' + up.note : '') : ' · Uploaded taranamadı: ' + up.error;
+      catStatus('Logolar öğrenildi: ' + Object.keys(logoSeen).length + ' kategori, ' + plats.length + ' platform' + upNote + (unsure.length ? ' · birden fazla logo kullanılan: ' + unsure.join(', ') + ' (Logo tablosundan sabitle)' : ''), up.ok && !up.note ? 'ok' : 'warn');
+      return { ok: true, categories: Object.keys(logoSeen).length, platforms: plats, unsure, uploaded: up.ok ? up.uploaded : null, uploadedError: up.ok ? (up.note || '') : up.error };
+    } finally {
+      walkSeen = null;
+      catRunning = false; busy(false);
+    }
   }
 
   let cbar = null;
@@ -895,7 +1727,7 @@
       dndkit: !!document.querySelector('[aria-roledescription="sortable"]'), vue: !!document.querySelector('[data-v-app], [data-v-]') || !!window.__VUE__, react: !!document.querySelector('[data-reactroot]') || !!(document.getElementById('root') || {})._reactRootContainer,
       angular: !!document.querySelector('[ng-app], [ng-version], .ng-scope'),
     };
-    return JSON.stringify({ surum: chrome.runtime.getManifest ? chrome.runtime.getManifest().version : '', adres: location.pathname, kategori: rows.length, kutucuk: visibleChecks(), son: tail,
+    return JSON.stringify({ surum: chrome.runtime.getManifest ? chrome.runtime.getManifest().version : '', adres: location.pathname, kategori: rows.length, kutucuk: visibleChecks(), logo: logoDiag, son: tail,
       tutamac: hd ? { boyut: Math.round(hd.getBoundingClientRect().width) + 'x' + Math.round(hd.getBoundingClientRect().height), display: hcs.display, visibility: hcs.visibility, opacity: hcs.opacity, cursor: hcs.cursor } : 'yok',
       liste: box ? (box.tagName + '.' + (typeof box.className === 'string' ? box.className : '')).slice(0, 120) : '', kutuphane: lib, surukleme: dragLog, satirHtml: html }, null, 1);
   }
@@ -949,20 +1781,21 @@
 
   /** Sonuna kadar kaydır; yeni satır yüklenmesi durana kadar tekrarla. */
   async function scrollToEnd() {
+    learnLogos();
     let stable = 0;
     let lastCount = -1;
     for (let i = 0; i < 40 && stable < 3; i++) {
       const rows = categoryRows();
       const box = scroller(rows.length ? rows[rows.length - 1].el : null);
       // Yalnızca en alta in (bir satıra kaydırmak listeyi yukarı çekip panelin "sonraki sayfayı yükle"sini engeller). Kayma gözle görülsün.
-      if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
-      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+      scrollBoxTo(box, box ? box.scrollHeight : document.documentElement.scrollHeight);
       await waitFor(() => {
         const atEnd = (!box || box.scrollTop + box.clientHeight >= box.scrollHeight - 4)
           && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4;
         return atEnd;
       }, 4000, 100);
       await sleep(500);
+      learnLogos();
       const n = categoryRows().length + document.documentElement.scrollHeight / 1e6;
       stable = n === lastCount ? stable + 1 : 0;
       lastCount = n;
@@ -1006,7 +1839,8 @@
     const onList = !importOpen && !dlg && !anyDialog() && onServicesList(); // ağır tarama yalnızca düğmeye basınca
     if (onList && !catRunning && !autoTimer && pendingImport()) {
       // Import bitti, liste geldi: biraz bekle (panel listeyi yeniden çizer), sonra kendiliğinden çalış.
-      autoTimer = setTimeout(async () => {
+      autoTimer = true;
+      sleep(2000).then(async () => {
         autoTimer = null;
         const p = pendingImport();
         if (!p || catRunning || anyDialog() || !onServicesList()) return;
@@ -1014,7 +1848,7 @@
         const o = await opts();
         if (o.autoCat === false) return;
         catFlow({ auto: true, before: p.before || [], info: p });
-      }, 2000);
+      });
     }
     if (!dlg && !onList && !catRunning) {
       if (cbar && cbar.isConnected) cbar.remove();
@@ -1045,6 +1879,7 @@
   /** Kategorinin Actions menüsünden "Edit category" penceresini aç. */
   async function openCategoryEditor(row) {
     row.el.scrollIntoView({ block: 'center' });
+    nudge(scroller(row.el)); nudge();
     row.el.classList.add('tgw-flash');
     await sleep(300);
     const before = new Set(editCategoryLinks().filter(visible));
@@ -1069,21 +1904,38 @@
     // Güvenlik: penceredeki ad hatırlanan addan farklıysa ve Azerice değilse başka bir kategori açılmıştır → penceredeki ad esas.
     if (catSrc === null || (lower(dlg.input.value) !== lower(catSrc) && !AZ_ONLY.test(dlg.input.value))) catSrc = dlg.input.value;
     const src = catSrc;
-    if (AZ_ONLY.test(dlg.input.value)) return { ok: false, already: true, name: dlg.input.value, note: 'ad zaten Azerice' };
+    if (AZ_ONLY.test(dlg.input.value)) {
+      // Ad zaten Azerice: ada dokunma, ama logo yine seçilsin (ve logo değiştiyse kaydet)
+      const nm = dlg.input.value;
+      catStatus('Ad zaten Azerice · logo seçiliyor…');
+      const lg = await pickCategoryLogo(nm, await opts());
+      const changed = !!(logoDiag && logoDiag.secildi); // logo gerçekten seçildi (kutuda göründü)
+      if (!changed || !save) return { ok: false, already: true, name: nm, note: nm + ' · ad zaten Azerice' + (lg ? ' · ' + lg : '') + (changed && !save ? ' · deneme: Save\'e basılmadı' : '') };
+      await sleep(250);
+      const d3 = categoryDialog();
+      if (!d3 || !d3.save) return { ok: false, already: true, name: nm, note: 'Save düğmesi bulunamadı' };
+      d3.save.click();
+      const closed3 = await waitFor(() => !categoryDialog(), 8000, 100);
+      return { ok: false, already: true, name: nm, note: nm + ' · ad zaten Azerice · ' + lg + (closed3 ? ' · kaydedildi' : ' · Save sonrası pencere kapanmadı') };
+    }
     catStatus('Çevriliyor: ' + src);
     const res = await api('translate', { items: [{ id: 'cat', name: src, kind: 'category' }] });
     const tr = res.ok ? res.items[0] : null;
     if (!tr || !tr.az || tr.via === 'none' || tr.via === 'already') {
       return { ok: false, note: res.ok ? 'ad çevrilemedi: ' + src + ' — elle yaz, Save\'e bas' : (res.error || 'tgwatch hatası') };
     }
+    tr.az = fmtName(tr.az, await opts());
     setValue(dlg.input, tr.az);
     catFilled = tr.az;
     let o = dlg.input.parentElement.querySelector(':scope > .tgw-orig');
     if (!o) { o = h('span', 'tgw-orig'); dlg.input.insertAdjacentElement('afterend', o); }
     o.textContent = src;
     o.title = 'Orijinal kategori adı';
-    const how = tr.via === 'bank' ? 'bankadan' : tr.via === 'claude' ? 'Claude ile' : 'kurallarla';
-    if (!save) return { ok: true, saved: false, name: tr.az, src, how };
+    let how = tr.via === 'bank' ? 'bankadan' : tr.via === 'claude' ? 'Claude ile' : 'kurallarla';
+    catStatus('Logo seçiliyor…');
+    const logo = await pickCategoryLogo(tr.az, await opts());
+    if (logo) how += ' · ' + logo;
+    if (!save) return { ok: true, saved: false, name: tr.az, src, how, logo };
     await sleep(250);
     const d2 = categoryDialog();
     if (!d2 || !d2.save) return { ok: false, note: 'Save düğmesi bulunamadı' };
@@ -1092,7 +1944,7 @@
     const closed = await waitFor(() => !categoryDialog(), 8000, 100);
     if (!closed) return { ok: false, note: 'Save sonrası pencere kapanmadı — paneli kontrol et' };
     send({ type: 'stat', translated: 1 });
-    return { ok: true, saved: true, name: tr.az, src, how };
+    return { ok: true, saved: true, name: tr.az, src, how, logo };
   }
 
   // ---- sürükle-bırak: kategoriyi tutamaçından (service-table__handle) tutup listenin en üstüne bırak ----
@@ -1264,6 +2116,7 @@
     if (i <= 0) return;
     const me = rows[i];
     me.el.scrollIntoView({ block: 'center' });
+    nudge(scroller(me.el)); nudge();
     await sleep(200);
     const box = scroller(me.el);
     const atTop = () => (box ? box.scrollTop <= 0 : true) && window.scrollY <= 0;
@@ -1290,8 +2143,8 @@
       // Basılı tutarken yukarı kaydır
       for (let n = 0; n < 600 && !atTop(); n++) {
         const step = Math.max(240, (box ? box.clientHeight : innerHeight) * 0.6);
-        if (box && box.scrollTop > 0) box.scrollTop = Math.max(0, box.scrollTop - step);
-        else window.scrollTo(0, Math.max(0, window.scrollY - step));
+        if (box && box.scrollTop > 0) { box.scrollTop = Math.max(0, box.scrollTop - step); nudge(box); }
+        else { window.scrollTo(0, Math.max(0, window.scrollY - step)); nudge(); }
         move(x, edge);
         await sleep(16);
         if (n % 10 === 9) catStatus('En üste taşınıyor… (basılı)');
@@ -1334,6 +2187,7 @@
     const box = scroller(rows[0] && rows[0].el);
     if (box) box.scrollTop = 0;
     window.scrollTo(0, 0);
+    nudge(box); nudge();
     await sleep(600);
     if ((i = indexOf(name)) >= 0) return i;
     await scrollToEnd();
@@ -1382,8 +2236,7 @@
       if (i < 0) return { ok: false, note: 'en üste taşındı mı doğrulanamadı (panel listeyi yeniledi); listeye bir bak' };
     }
     const box = scroller(categoryRows()[0] && categoryRows()[0].el);
-    if (box) box.scrollTo({ top: 0, behavior: 'smooth' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollBoxTo(box, 0);
     const first = categoryRows()[0];
     if (first) { first.el.classList.remove('tgw-flash'); void first.el.offsetWidth; first.el.classList.add('tgw-flash'); }
     return i === 0 ? { ok: true } : { ok: false, note: 'en üste çıkmadı (' + i + '. sırada kaldı)' };
@@ -1397,6 +2250,7 @@
   async function catFlow({ auto = false, before = null, info = null } = {}) {
     if (catRunning) return;
     catRunning = true;
+    busy(true);
     if (cbar) { delete cbar.dataset.closed; delete cbar.dataset.done; }
     ensureCatBar();
     cbar.classList.add('tgw-running');
@@ -1413,7 +2267,8 @@
         if (!r.ok) return end(r.note, 'warn');
         if (!top) return end(r.name + ' · ' + r.how + (save ? ' · kaydedildi' : ' · deneme: Save\'e basılmadı'), 'ok');
         const m = await moveToTop(r.name);
-        return end(m.ok ? r.name + ' · kaydedildi, en üstte' : r.name + ' · kaydedildi, ama ' + m.note, m.ok ? 'ok' : 'warn');
+        const lg = r.logo ? ' · ' + r.logo : '';
+        return end(m.ok ? r.name + ' · kaydedildi, en üstte' + lg : r.name + ' · kaydedildi' + lg + ', ama ' + m.note, m.ok ? 'ok' : 'warn');
       }
       let max = 1;
       let left = 0;
@@ -1457,15 +2312,16 @@
         report.push(rep);
         if (top) {
           const m = await moveToTop(r.name);
-          if (!m.ok) return end(r.name + ' · kaydedildi, ama ' + m.note, 'warn');
+          if (!m.ok) return end(r.name + ' · kaydedildi' + (r.logo ? ' · ' + r.logo : '') + ', ama ' + m.note, 'warn');
           rep.moved = true;
         }
-        done.push(r.name);
+        done.push(r.name + (r.logo ? ' · ' + r.logo : ''));
       }
       const more = left > 0 ? ' · sonda ' + left + ' yeni kategori daha olabilir: düğmeye tekrar bas' : '';
       end((done.length === 1 ? done[0] + ' · kaydedildi' : done.length + ' kategori kaydedildi') + (top ? ', en üstte' : '') + more, more ? 'warn' : 'ok');
     } finally {
       catRunning = false;
+      busy(false);
       cbar && cbar.classList.remove('tgw-running');
       if (auto) reportImport(report, last, info);
     }
@@ -1504,7 +2360,7 @@
     const dlg = categoryDialog();
     if (!dlg || ours(e.target) || !dlg.box.contains(e.target)) return;
     const b = e.target.closest && e.target.closest('button, a, input[type=submit]');
-    if (b && SAVE_WORDS.includes(lower(b.value || btnText(b)))) rememberCategory(dlg);
+    if (b && SAVE_WORDS.includes(lower(b.value || btnText(b)))) { rememberCategory(dlg); rememberLogoPick(dlg); }
   }, true);
 
   // ---- mini panelden gelen istekler ----
@@ -1515,6 +2371,10 @@
       const ctx = rows.length ? 'import' : categoryDialog() ? 'category' : (/\/admin\/services\/?$/.test(location.pathname) ? 'list' : '');
       sendResponse({ screen: rows.length > 0, ctx, rows: rows.length, running: running || catRunning, counts: counts(), changed: [...state.values()].filter((s) => s.filled).length });
       return false;
+    }
+    if (msg.type === 'tgw-learn-logos') {
+      walkLearnLogos().then(sendResponse, (e) => sendResponse({ ok: false, error: String(e) }));
+      return true;
     }
     if (msg.type === 'tgw-run') {
       if (!(findModal() && scanRows().length)) {
@@ -1539,9 +2399,16 @@
   const mo = new MutationObserver(() => {
     if (scheduled) return;
     scheduled = true;
-    setTimeout(() => { scheduled = false; ensureBar(); ensureCat(); }, 150);
+    setTimeout(() => { scheduled = false; ensureBar(); ensureCat(); descButtons(); }, 150);
   });
   mo.observe(document.documentElement, { childList: true, subtree: true });
+  /** "Edit description" penceresine düğme: yalnızca ayar açıkken (ayar her seferinde okunur, önbellek 3 sn). */
+  let descOn = null; let descAt = 0;
+  async function descButtons() {
+    if (Date.now() - descAt > 3000) { descAt = Date.now(); descOn = (await opts()).descTranslate !== false; }
+    if (descOn) addDescButtons();
+  }
   ensureBar();
   ensureCat();
+  descButtons();
 })();

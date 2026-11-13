@@ -43,6 +43,66 @@ panel `https://ALANADIN/system/tgwatch/public/`, webhook `https://ALANADIN/syste
 Zip'i açarken gizli dosyaların (`.htaccess`) da çıktığından emin ol. **Sağlık** sayfasındaki "Web koruması" satırı bunu kontrol eder.
 İstersen tgwatch'ı public_html dışına koyup sadece `public/` içeriğini web'e kopyalayabilirsin (o zaman `app_path.php` içindeki yolu düzelt).
 
+## API sekmesi (tgwatch 1.5.0, eklenti 1.21.0)
+Kenar menüde ayrı bir **API** bölümü: Chrome eklentisinin bağlandığı API'nin her şeyi tek sayfada.
+- **Bağlantı:** API adresi ve anahtar (kopyala), bağlantı durumu ("Bağlı · son istek 2 dk önce"), bağlanan eklentinin sürümü ile sunucudaki sürüm, **Yeni anahtar üret** (eski anahtar hemen geçersiz olur), eklentiyi indir.
+- **İstatistikler** (7/14/30/90 gün): bugünkü istek, toplam, hata oranı, ortalama süre; günlük başarılı/hatalı grafiği; işlem başına istek, hata, ortalama süre, son istek zamanı.
+- **Son istekler:** son 40 istek (zaman, işlem, HTTP kodu, süre, IP, eklenti sürümü, hata metni). Yanlış anahtarla gelen istekler de (403) görünür. **İstatistikleri sıfırla**.
+- **API işlemleri:** her işlemin ne yaptığı ve örnek gövdesi; `curl` ile deneme komutu.
+- Kayıt: `api_stats` (günlük sayaç, 400 gün) ve `api_calls` (son ~300 istek). İstatistik yazılamazsa API cevabı etkilenmez. Eklenti sürümünü `X-Tgwatch-Ext` başlığıyla gönderir (1.21.0+).
+
+## Sağlayıcı bakiyeleri: her dakika (tgwatch 1.4.0, eklenti 1.20.0)
+- **Sunucu (cron):** her cron turunda "Sağlayıcı bakiyeleri kaç dakikada bir sorgulansın" (Ayarlar → Özellikler, varsayılan **1 dk**) dolduysa bütün sağlayıcılara `action=balance` sorulur ve sonuç kaydedilir. Gerçek sıklık cron'un sıklığından fazla olamaz: cron-job.org'da her dakika çalıştır.
+- **Eklenti:** mini panel açık olmasa da arka planda **her dakika** tgwatch'taki son kaydı çeker ve saklar (sağlayıcılara yeni istek atmaz). Bakiye sekmesini açınca güncel değer hemen görünür; açıkken de kendiliğinden yenilenir. **Yenile** sağlayıcılara anında sorar. Sunucudaki kayıt 3 dakikadan eskiyse eklentinin isteği de anında sorgu yapar (cron durmuşsa bile güncel kalır).
+- **Düşük bakiye uyarısı:** Ayarlar → Özellikler → "Düşük bakiye eşiği", ör. `USD=5, TRY=200` (`*=10` hepsi için). Bakiye eşiğin altına inince bota **bir kez** uyarı (6 saatte bir hatırlatma), üstüne çıkınca "düzeldi". Sağlayıcı bakiye sorusuna cevap vermezse de uyarı gelir. Uyarılar sayfasında "Sağlayıcı bakiyesi" ile kapatılır.
+- `/balans` komutu da anında sorgular ve kaydı günceller.
+
+## Kategori logosu (eklenti 1.16.0)
+
+Kategori adını çevirirken eklenti logoyu da seçer: logo kutusuna tıklar → **Uploaded** sekmesi → uygun resim → (sonra) **Save**.
+Uploaded'daki resimlerin adı yok (dosya adları rastgele), bu yüzden logo **mevcut kategorilerinden öğrenilir**: adında "TikTok" geçen
+kategorilerde en çok hangi resim kullanılıyorsa yeni TikTok kategorisine o seçilir (Instagram, YouTube, Facebook, Telegram… 35+ platform;
+kalın/italik Unicode adlar da tanınır). Öğrenme: liste kaydırılırken kendiliğinden, ya da mini panel → Ayarlar → **Logoları şimdi öğren**
+(Services sayfasında listeyi baştan sona gezer). Ayarlar: **Kategoriye logo seç** (açık), **Mevcut logoyu değiştir** (kapalı: yalnız logosu
+olmayan kategoriye seçer). **En güvenilir yol:** bir platform için logoyu bir kez kendin seçip Save'e basarsan eklenti "bu platform = bu resim" diye seçicinin kendi adresini öğrenir ve sonra hep onu kullanır. Adres tutmazsa resimler içeriğe göre karşılaştırılır (resim sunucusu izin verirse). Adı zaten Azerice olan kategoride ad değişmez, yalnız logo seçilip kaydedilir. Platform anlaşılmazsa ya da o platform için öğrenilmiş logo yoksa logo seçilmez, ad yine kaydedilir.
+**Logo tablosu (eklenti 1.18.0) — kesin seçim:** mini panel → Ayarlar → **Logo tablosu** ayrı bir sayfa açar: her platformun yanında seçilecek logo görünür.
+Durumlar: **Sabit** (sen sabitledin, hep bu), **Otomatik · N kategoride** (listede tek logo kullanılmış), **N farklı logo kullanılmış — birini seç** (küçük resimlerden birine tıkla, sabitlenir),
+**Logo yok**. "Uploaded'da görülmedi" uyarısı: resim listede bir kategoride var ama Uploaded sekmesinde yok; eklenti onu seçemez, Uploaded'daki bir resmi seç.
+**Otomatik N platformu sabitle** tek logolu olanların hepsini sabitler. **Özel kurallar:** "adında şu kelime geçerse → bu logo" (listede olmayan ağ, ya da "Reels", "Premium" gibi özel kategoriler);
+özel kural her şeyden önce gelir. Seçim sırası: özel kural → sabit logo → listede o platformda en çok kullanılan logo. Seçim ızgarası Uploaded sekmesinde görülen resimleri gösterir
+(eklenti seçiciyi her açtığında oradaki resimleri kaydeder; hiç görülmediyse herhangi bir kategoride Edit → logo → Uploaded'ı bir kez aç) ya da resim adresi yapıştırılır.
+"Logoları şimdi öğren" listeyi baştan sona gezince kayıt yalnız şimdi var olan kategorilerden kurulur (adı değişen/silinen kategoriler yanlış oy vermez).
+Elle seçilen logo yalnız kaydedilen pencereye aitse ve platform tabloda sabit değilse öğrenilir (eskiden vazgeçilen bir tıklama, sonra kaydedilen başka kategorinin platformuna yazılabiliyordu).
+Tanınan ağ sayısı ~80 (Bigo, Clubhouse, WeChat, Viber, Bluesky, Yandex/Dzen, Rutube, Trustpilot, Website Traffic… eklendi).
+**Denenmedi:** gerçek paneldeki logo kutusu ve seçici (logo yokken "Add icon" bağlantısı, varken ad kutusunun solundaki logo; "Icons / Emoji / Uploaded"
+sekmeleri, "Upload file" düğmesi varsayıldı).
+
+## Eklenti arka planda (1.15.0)
+
+Başka sekmeye geçsen de başlattığın iş sürer (import çevirisi, açıklamalar, kategori akışı, import sonrası otomatik kategori):
+beklemeler eklentinin service worker'ında yapılır (Chrome arka plandaki sekmenin zamanlayıcılarını kısar, service worker'ınkini kısmaz),
+kaydırmalar arka plandayken anında yapılıp kaydırma olayı elle tetiklenir, iş sürerken sekme Bellek Tasarrufu ile kapatılmaz.
+Panel sekmesi açık kalmalı. **Denenmedi:** kategoriyi en üste **sürükleme** panelin kendi sürükle-bırak kütüphanesine bağlı; arka plandaki
+sekmede çizim durduğu için çalışmayabilir. Olmazsa eklenti "sürükleme çalışmadı" der, kategori kaydedilmiş kalır; elle taşıyabilirsin.
+
+## Açıklama çevirisi (eklenti 1.14.0, tgwatch 1.3.0)
+
+Eklenti servis **açıklamalarını** da çevirir: import ekranında her satırda (adı zaten Azerice olan satırlarda da, ada dokunmadan) ve
+Services sayfasındaki **Edit description** penceresinde ("tgwatch: açıklamayı çevir" düğmesi; kaydetmek sana kalır).
+
+**Karma mod** (önerilen): 1) **tgwatch bankası**: aynı açıklama daha önce çevrildiyse bankadaki karşılık → 2) **Google Translate**
+satır satır taslak → 3) **DeepSeek** taslağı sözlük terimlerinle (Sözlük → terimler; markalar çevrilmez) düzeltir. DeepSeek'in cevabı
+denetlenir (satır sayısı, sayılar, bağlantılar); geçmezse ya da hata verirse Google taslağı kullanılır. Doldurulan açıklama bankaya öğretilir.
+Ad kurallarındaki kelime kelime çeviri açıklamalara uygulanmaz: makine çevirisi yoksa açıklama olduğu gibi kalır.
+
+- **tgwatch → Çeviri ayarları → Açıklama çevirisi:** mod (Karma / Yalnız Google / Yalnız DeepSeek / Yalnız banka), Google API anahtarı
+  (Cloud Translation API), DeepSeek API anahtarı ve modeli, aylık istek sınırı ve bu ayın kullanımı. Anahtarlar veritabanında saklanır,
+  sayfada maskeli görünür. İstersen `config.php`'ye `google_api_key` / `deepseek_api_key` de yazabilirsin.
+- **Eklenti mini paneli → Ayarlar:** "Açıklamaları da çevir" (aç/kapa) ve "Açıklama kaynağı" (tgwatch ayarı / Karma / Google / DeepSeek / Banka).
+- **Geri al** adları ve açıklamaları birlikte orijinale döndürür.
+- **Denenmedi:** gerçek Google / DeepSeek anahtarıyla istek; import ekranındaki açıklama alanının gerçek yapısı ("Description" yazısından
+  sonraki textarea / zengin editör varsayıldı). Testler sahte HTTP (sunucu) ve taklit import ekranıyla (eklenti).
+
 ## Kurulum (DirectAdmin, SSH gerekmez)
 
 ### 0. Eski token
@@ -293,6 +353,10 @@ Panelde **Services → Import services** ile servisleri sen seçersin. İnceleme
 **Eklenti güncelleme (eklentinin içinden):** Chrome, eklentinin kendi dosyalarını değiştirmesine izin vermez; ama sen eklenti klasörünü seçip yazma izni verirsen (Chrome'un dosya erişimi) yeni dosyalar oraya yazılabilir. Mini panel → **Güncelleme → Güncelle** → güncelleme sayfası: (1) **Klasörü seç**: Chrome'a "Paketlenmemiş öğe yükle" ile verdiğin klasör; bir kez seçilir, hatırlanır (sonraki güncellemelerde yalnızca izin onayı). Klasörde tgwatch'ın manifest.json'u yoksa reddedilir. (2) **tgwatch'tan al ve kur** (sunucudaki `chrome-extension`, API `ext_files`) ya da **Zip dosyası seç** (`tgwatch-eklenti.zip` ya da `tgwatch-guncelleme.zip`; içindeki eklenti klasörü bulunur, başka dosyalara dokunulmaz). Yalnızca eklenti dosya türleri (js, css, html, json, png, svg) yazılır; manifest, content, background ve popup olmayan paket kurulmaz; eski sürüme dönüşte onay sorulur. (3) Dosyalar yazılınca eklenti kendini yeniden yükler. Sunucuda yeni sürüm olunca simgede **YENİ** rozeti çıkar (açılışta, 6 saatte bir, mini panel açılınca kontrol). Chrome 103+.
 
 **Bilinmeyen kelimeyi satırda düzelt:** sarı (kontrol et) ve kırmızı (çevrilmedi) satırlarda tgwatch'ın tanımadığı kelimeler kesik çizgili çip olarak çıkar (`✎ Low`). Çipe tıkla → küçük kutu: **Kaynak** (gerekirse ifadeyi uzat: "Low" → "Low Quality") ve **Azerice**. **Öğret ve düzelt**: terim tgwatch sözlüğüne girer (aynı kelimenin eski karşılığı değişir, tahmin işareti kalkar), o satır ve aynı bilinmeyen kelimeyi taşıyan diğer satırlar yeniden çevrilip kaydedilir. **Aynen kalsın**: marka/kod (SR, S106 gibi) "çevrilmeyen kelimeler" listesine girer, bir daha bilinmeyen sayılmaz. Kutu import penceresinin içinde açılır (panel penceresi dışarıdaki tıklama ve yazmayı engeller). Başarılı olunca kutuda ve çubukta "✓ tgwatch sözlüğüne eklendi" yazar; terim tgwatch → Çeviri → **Sözlük**'te görünür (çeviri bankası değil: banka tam adları Import'ta öğrenir). Deneme modunda Save'e basılmaz. Eklenti API'sinde `teach` işlemi.
+
+**Banka sekmesi (eklenti 1.19.0, sunucu 1.3.2):** mini panelde ayrı bir **Banka** sekmesi var. *Kelimenin çevirisini değiştir* kutusu buraya taşındı ve üç düğmesi var: **Değiştir** (karşılık yaz), **Aynen kalsın** (çevrilmesin), **Hiç yazılmasın** (kelime adlardan silinir: sözlüğün "sil" listesine tam kelime kuralı girer, çeviriden önce atılır; bankadaki adlardan da çıkarılır, boş kalan `[ ]` ve çift `|` toplanır). Her değişiklik bankadaki **adları ve açıklamaları** birlikte düzeltir (açıklamalarda satır yapısı korunur) ve **↶ Geri al** ile geri alınır: sözlük ve değişen/silinen banka kayıtları eski hâline döner (son 15 değişiklik saklanır; `word_undo`, `peek` ile yalnız ne olduğunu söyler). Import ekranındaki kelime kutusunda da **Hiç yazılmasın** ve **↶ Geri al** var; geri alınca o kelimenin geçtiği satırlar yeniden çevrilir. **Bankada ara:** kelime ya da ad yaz (EN/AZ, en az 2 harf) → sözlük eşleşmeleri ("Değiştir" kelime kutusuna taşır) ve banka kayıtları (en çok 30; **Düzelt** Azericesini değiştirir ve "elle" önceliğine alır, **Sil** iki tıkla siler). İşlemler: `bank_search`, `bank_save`, `bank_del`. "Logoları şimdi öğren" artık Uploaded sekmesini de kendiliğinden tarar: ilk kategorinin Edit penceresini açar, logo/"Add icon" → Uploaded'daki resimleri (kaydırarak) kaydeder ve pencereyi **kaydetmeden** kapatır.
+
+**Bilinen kelimenin çevirisini değiştir (eklenti 1.17.0, sunucu 1.3.1):** yanlış ya da çevrilmeden öğretilmiş bir kelimeyi (ör. "Almost" → "Almost Azalma olmaz") iki yerden değiştirirsin. (1) Import ekranında çevrilen adın üstündeki gri **orijinal** satırında kelimeye tıkla: kutu şimdiki durumu gösterir ("Şimdi: çevrilmiyor (aynen kalsın) · bankada 12 adda geçiyor"), yeni karşılığı yaz → **Değiştir ve düzelt**; orijinal adında o kelime geçen satırlar yeniden çevrilip kaydedilir (elle düzelttiğin satırlar hariç). Kelimelerin arasındaki boşluğa tıklamak eskisi gibi adı kopyalar. (2) Mini panel → Panel → **Kelimenin çevirisini değiştir**: import açık olmadan da çalışır. Her ikisi de `teach` işlemini kullanır; sunucu artık sözlükle birlikte **bankadaki eski kayıtları da düzeltir**: kaynağında o kelime geçen ve Azericesinde eski karşılık (sözlükteki eski değer ya da kelimenin çevrilmemiş hâli) tam kelime olarak geçen adlarda eski karşılık yenisiyle değişir, parça bankası baştan kurulur. Banka sözlükten önce geldiği için bu yapılmasa eski çeviri gelmeye devam ederdi. Eski karşılığın geçmediği kayıtlara (ör. elle başka türlü yazdıkların) dokunulmaz. Şimdiki durumu `word_info` işlemi verir. Sunucu eskiyse eklenti "tgwatch sunucusu eski: bankadaki eski kayıtlar düzeltilmedi" der.
 
 **Sağlayıcı bakiyeleri (mini panel):** eklenti simgesine basınca tgwatch'a eklediğin sağlayıcıların bakiyesi listelenir (bot `/balans` ile aynı kaynak). 10 dakikadan eskiyse kendiliğinden yenilenir, **Yenile** ile hemen. Sıfır bakiye kırmızı, hata veren sağlayıcı ⚠ ile kendi satırında; para birimine göre toplam. Eklenti API'sinde `balance` işlemi.
 

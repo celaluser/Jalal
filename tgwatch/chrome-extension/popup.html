@@ -14,6 +14,7 @@
 
 <nav class="tabs" role="tablist" aria-label="Bölümler">
   <button role="tab" id="t-panel" aria-controls="p-panel" data-tab="panel">Panel</button>
+  <button role="tab" id="t-bank" aria-controls="p-bank" data-tab="bank">Banka</button>
   <button role="tab" id="t-bal" aria-controls="p-bal" data-tab="bal">Bakiye</button>
   <button role="tab" id="t-set" aria-controls="p-set" data-tab="set">Ayarlar</button>
   <button role="tab" id="t-upd" aria-controls="p-upd" data-tab="upd">Güncelleme<i class="dot" id="upd-dot" hidden></i></button>
@@ -41,6 +42,27 @@
   </section>
 </div>
 
+<div role="tabpanel" id="p-bank" aria-labelledby="t-bank" hidden>
+  <section class="card" id="word">
+    <div class="card-h"><span>Kelimenin çevirisini değiştir</span></div>
+    <div class="wf">
+      <input id="w-en" type="text" placeholder="Kaynak (ör. Almost)" autocomplete="off" spellcheck="false" aria-label="Kaynak kelime">
+      <input id="w-az" type="text" placeholder="Azerice karşılığı" autocomplete="off" spellcheck="false" aria-label="Azerice karşılığı">
+    </div>
+    <p id="w-info" class="muted small">Sözlükteki karşılığı ve bankadaki eski kayıtları (adlar + açıklamalar) birlikte değiştirir.</p>
+    <div class="row"><button id="w-save" class="btn">Değiştir</button></div>
+    <div class="row w-alt"><button id="w-keep" class="mini" title="Marka/özel ad: çevrilmesin, olduğu gibi yazılsın">Aynen kalsın</button><button id="w-remove" class="mini" title="Bu kelime adlarda hiç yazılmasın: çeviriden önce silinir, bankadaki adlardan da çıkarılır">Hiç yazılmasın</button></div>
+    <div class="row w-alt" id="w-undo-row" hidden><button id="w-undo" class="mini">↶ Geri al</button><small id="w-undo-what" class="muted"></small></div>
+  </section>
+  <section class="card" id="bank">
+    <div class="card-h"><span>Bankada ara</span></div>
+    <form id="b-form" class="wf one"><input id="b-q" type="search" placeholder="Kelime ya da ad (EN / AZ)" autocomplete="off" spellcheck="false" aria-label="Bankada ara"><button class="mini" type="submit">Ara</button></form>
+    <p id="b-msg" class="muted small"></p>
+    <ul id="b-words" class="b-list"></ul>
+    <ul id="b-rows" class="b-list"></ul>
+  </section>
+</div>
+
 <div role="tabpanel" id="p-bal" aria-labelledby="t-bal" hidden>
   <section class="card" id="bal">
     <div class="card-h bal-h"><span>Sağlayıcı bakiyeleri</span><button id="bal-ref" class="mini" title="Şimdi yenile">Yenile</button></div>
@@ -56,6 +78,20 @@
     <label class="tog"><input type="checkbox" id="skipAz"><span class="sw"></span><span><b>Azerice olanları atla</b><small>Adında ə olan satırlara dokunmaz</small></span></label>
     <label class="tog"><input type="checkbox" id="autoCat"><span class="sw"></span><span><b>Import sonrası kategori</b><small>Yeni kategorinin adını kendiliğinden çevirip kaydeder</small></span></label>
     <label class="tog"><input type="checkbox" id="catTop"><span class="sw"></span><span><b>Yeni kategori en üstte</b><small>Çevrilen kategoriyi listenin başına sürükler</small></span></label>
+    <label class="tog"><input type="checkbox" id="bracketSpace"><span class="sw"></span><span><b>Parantez içinde boşluk</b><small>[Metin] → [ Metin ], (Metin) → ( Metin )</small></span></label>
+    <label class="tog"><input type="checkbox" id="stripMinMax"><span class="sw"></span><span><b>Min/Max'ı adlardan çıkar</b><small>"Max 500K", "[ Min 100 ]" gibi değerleri çeviriden siler</small></span></label>
+    <label class="tog"><input type="checkbox" id="stripSpeed"><span class="sw"></span><span><b>Günlük hızı adlardan çıkar</b><small>"[500K/D]", "Gündə 500K" gibi değerleri çeviriden siler</small></span></label>
+    <label class="tog"><input type="checkbox" id="descTranslate"><span class="sw"></span><span><b>Açıklamaları da çevir</b><small>İmportta ve "Edit description" penceresinde; tgwatch bankası + Google + DeepSeek</small></span></label>
+    <label class="sel"><span><b>Açıklama kaynağı</b></span><select id="descMode">
+      <option value="">tgwatch ayarı (Çeviri ayarları)</option>
+      <option value="mix">Karma: banka + Google + DeepSeek</option>
+      <option value="google">Yalnız Google (+ banka)</option>
+      <option value="deepseek">Yalnız DeepSeek (+ banka)</option>
+      <option value="bank">Yalnız banka</option>
+    </select></label>
+    <label class="tog"><input type="checkbox" id="catLogo"><span class="sw"></span><span><b>Kategoriye logo seç</b><small>Adındaki platforma göre "Uploaded"dan, mevcut kategorilerinden öğrenilen logo</small></span></label>
+    <label class="tog"><input type="checkbox" id="catLogoReplace"><span class="sw"></span><span><b>Mevcut logoyu değiştir</b><small>Kapalıysa yalnızca logosu olmayan kategoriye seçer</small></span></label>
+    <div class="row" style="padding-left:44px;flex-wrap:wrap;align-items:center"><button id="logoTable" class="mini" title="Hangi platforma hangi logo seçilecek: gör, değiştir, sabitle">Logo tablosu</button><button id="learnLogos" class="mini" title="Services listesini baştan sona gezer, kategorilerinde kullandığın logoları kaydeder">Logoları şimdi öğren</button><small id="learnMsg" class="muted" style="flex-basis:100%"></small></div>
     <label class="tog"><input type="checkbox" id="notify"><span class="sw"></span><span><b>Telegram'a bildir</b><small>Import bitince bota özet; kanal paylaşımı tgwatch ayarlarında</small></span></label>
   </section>
   <p class="muted small"><a href="#" id="opt">Bağlantı ayarları</a> (panel adresi, tgwatch API adresi ve anahtar)</p>

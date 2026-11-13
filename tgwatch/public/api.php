@@ -5,6 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/app_path.php';
 require APP_DIR . '/src/bootstrap.php';
 
+use TgWatch\ApiStats;
 use TgWatch\App;
 use TgWatch\ExtApi;
 
@@ -13,9 +14,18 @@ header('Cache-Control: no-store');
 header('X-Robots-Tag: noindex');
 header('X-Content-Type-Options: nosniff');
 
-$send = static function (int $code, array $body): void {
+$t0 = microtime(true);
+$action = '—';
+$send = static function (int $code, array $body) use ($t0, &$action): void {
     http_response_code($code);
     echo json_encode($body, JSON_UNESCAPED_UNICODE);
+    // istatistik (panel → API): işlem, sonuç kodu, süre, IP, eklenti sürümü
+    try {
+        ApiStats::record(App::db(), $action, $code, (microtime(true) - $t0) * 1000, (string)($_SERVER['REMOTE_ADDR'] ?? ''),
+            (string)($_SERVER['HTTP_X_TGWATCH_EXT'] ?? ''), $code >= 400 ? (string)($body['error'] ?? '') : '');
+    } catch (Throwable $e) {
+        // kayıt yapılamadı
+    }
 };
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
@@ -34,6 +44,7 @@ try {
         $send(400, ['ok' => false, 'error' => 'Geçerli JSON gövde gerekli']);
         exit;
     }
+    $action = (string)($req['action'] ?? '');
     [$code, $body] = (new ExtApi(App::db(), $config))->handle($req);
     $send($code, $body);
 } catch (Throwable $e) {

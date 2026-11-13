@@ -2193,7 +2193,190 @@ test('Ayarlar: paylaşım kanalı ve şablon doğrulaması', function () {
     eq(false, TgWatch\Settings::check('share_line', str_repeat('x', 601))[0]);
     eq([true, ''], TgWatch\Settings::check('share_link', ''));
 });
+test('Bakiye: cron belirlenen aralıkla sorgulayıp kaydeder; eklenti kaydı okur (force ile anında); eşik altına inince bir kez uyarı, üstüne çıkınca düzeldi', function () {
+    [$db, $tg] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('provider','P1','https://p1','k',1),('provider','P2','https://p2','k',1)");
+    $bal = ['https://p1' => '{"balance":"4.5","currency":"USD"}', 'https://p2' => '{"balance":"900","currency":"TRY"}'];
+    $calls = 0;
+    TgWatch\SmmApi::$fake = static function (string $url) use (&$bal, &$calls) { $calls++; return $bal[$url]; };
+    $cfg = array_merge(App::config(), ['balance_minutes' => 1, 'balance_low' => 'USD=5, TRY=200']);
+    try {
+        $r = TgWatch\Balances::cron($db, $cfg, $tg);
+        eq([4.5, 900.0], [$r['items'][0]['balance'], $r['items'][1]['balance']], 'ilk cron sorguladı');
+        eq(2, $calls);
+        eq(null, TgWatch\Balances::cron($db, $cfg, $tg), 'süre dolmadan tekrar sorgulamaz');
+        eq(2, $calls);
+        $msgs = array_values(array_filter($tg->calls, static fn($c) => $c[0] === 'sendMessage'));
+        eq(1, count($msgs), 'yalnız P1 (USD 4.5 < 5) için uyarı');
+        ok(str_contains($msgs[0][1]['text'], 'Düşük bakiye') && str_contains($msgs[0][1]['text'], 'P1'), $msgs[0][1]['text']);
+        // eklenti: kayıt okunur (sağlayıcıya yeni istek yok); force=1 anında sorgular
+        $api = new TgWatch\ExtApi($db, $cfg, $tg);
+        [$c, $b] = $api->handle(['action' => 'balance']);
+        eq([200, true, 2], [$c, $b['cached'], $calls], 'eklenti kaydı okudu');
+        $bal['https://p1'] = '{"balance":"50","currency":"USD"}';
+        [, $b] = $api->handle(['action' => 'balance', 'force' => 1]);
+        eq([false, 50.0, 4], [$b['cached'], $b['items'][0]['balance'], $calls], 'force: anında sorgu');
+        // süre doldu: cron yeniden sorgular; P1 eşiğin üstüne çıktı → düzeldi mesajı
+        $last = $db->getJson('balances_last'); $last['at'] -= 120; $db->setJson('balances_last', $last);
+        TgWatch\Balances::cron($db, $cfg, $tg);
+        $msgs = array_values(array_filter($tg->calls, static fn($c) => $c[0] === 'sendMessage'));
+        ok(count($msgs) === 2 && str_contains($msgs[1][1]['text'], 'yeniden eşiğin üstünde'), 'düzeldi mesajı');
+        // sağlayıcı cevap vermezse uyarı (bir kez)
+        $bal['https://p2'] = 'oops';
+        $last = $db->getJson('balances_last'); $last['at'] -= 120; $db->setJson('balances_last', $last);
+        TgWatch\Balances::cron($db, $cfg, $tg);
+        $last = $db->getJson('balances_last'); $last['at'] -= 120; $db->setJson('balances_last', $last);
+        TgWatch\Balances::cron($db, $cfg, $tg);
+        $err = array_filter($tg->calls, static fn($c) => $c[0] === 'sendMessage' && str_contains($c[1]['text'], 'Bakiye okunamadı'));
+        eq(1, count($err), 'okunamadı uyarısı bir kez');
+        eq(['USD' => 5.0, 'TRY' => 200.0, '*' => 1.5], TgWatch\Balances::thresholds('usd=5; TRY: 200, *=1.5'));
+    } finally {
+        TgWatch\SmmApi::$fake = null;
+    }
+});
+test('API istatistikleri: istek/hata/süre günlük ve işlem başına; son istekler; sürüm; sıfırlama', function () {
+    [$db] = env();
+    TgWatch\ApiStats::record($db, 'translate', 200, 120.4, '1.2.3.4', '1.20.0');
+    TgWatch\ApiStats::record($db, 'translate', 200, 79.6, '1.2.3.4', '1.20.0');
+    TgWatch\ApiStats::record($db, 'balance', 200, 15, '1.2.3.4', '1.20.0');
+    TgWatch\ApiStats::record($db, 'teach', 400, 5, '1.2.3.4', '1.20.0', 'Kaynak kelime 1–80 karakter olmalı');
+    TgWatch\ApiStats::record($db, '—', 403, 1, '9.9.9.9', '', 'Anahtar yanlış');
+    $s = TgWatch\ApiStats::summary($db, 14);
+    eq([5, 2], [$s['total']['req'], $s['total']['err']], 'toplam');
+    eq([5, 2], [$s['today']['req'], $s['today']['err']], 'bugün');
+    eq(14, count($s['days']));
+    eq([3, 2], end($s['days'])['values'], 'bugünün sütunu: 3 başarılı, 2 hatalı');
+    eq(['translate', 2, 0, 100], [$s['actions'][0]['action'], $s['actions'][0]['req'], $s['actions'][0]['err'], (int)round($s['actions'][0]['ms'] / $s['actions'][0]['req'])], 'en çok istenen işlem ve ortalama süre');
+    eq(['—', 403, 'Anahtar yanlış'], [$s['calls'][0]['action'], (int)$s['calls'][0]['code'], $s['calls'][0]['error']], 'son istek en üstte');
+    eq('1.20.0', $s['ext'], 'bağlanan eklenti sürümü');
+    TgWatch\ApiStats::reset($db);
+    eq(0, TgWatch\ApiStats::summary($db)['total']['req']);
+});
 echo "Chrome eklentisi API\n";
+test('Eklenti API: teach bankadaki eski kayıtları da düzeltir (çevrilmeden kalmış kelime, sözlükteki eski karşılık); word_info şimdiki durumu verir', function () {
+    [$db] = env();
+    $api = new TgWatch\ExtApi($db, []);
+    $one = static function (string $name) use ($api): string {
+        return $api->handle(['action' => 'translate', 'items' => [['id' => 1, 'name' => $name]]])[1]['items'][0]['az'];
+    };
+    // "Almost" çevrilmeden onaylanmış: tam ad ve parça bankaya böyle girdi
+    $api->handle(['action' => 'teach', 'en' => 'Almost', 'keep' => true]);
+    $api->handle(['action' => 'learn', 'items' => [
+        ['id' => 1, 'src' => 'Facebook Followers | Almost No Drop | No Refill', 'az' => 'Facebook Takipçi | Almost Azalma olmaz | Sürətli'],
+        ['id' => 2, 'src' => 'Facebook Likes | Fast', 'az' => 'Facebook Bəyəni | Tez'],
+    ]]);
+    ok(str_contains($one('Facebook Followers | Almost No Drop | 30 Days Refill'), 'Almost Azalma olmaz'), 'önce: banka parçası eski hâliyle gelir');
+    [, $i] = $api->handle(['action' => 'word_info', 'en' => 'almost']);
+    eq(['keep', '', 1], [$i['state'], $i['az'], $i['bank']]);
+    eq('Facebook Followers | Almost No Drop | No Refill', $i['samples'][0]['en']);
+
+    [$c, $t] = $api->handle(['action' => 'teach', 'en' => 'Almost', 'az' => 'Demək olar ki']);
+    eq([200, 1, false], [$c, $t['bank'], $t['keep']]);
+    eq('Facebook Takipçi | Demək olar ki Azalma olmaz | Sürətli', (new TgWatch\Memory($db))->lookup('service', 'Facebook Followers | Almost No Drop | No Refill'), 'tam ad düzeldi');
+    $az = $one('Facebook Followers | Almost No Drop | 30 Days Refill');
+    ok(str_contains($az, 'Demək olar ki Azalma olmaz') && !str_contains($az, 'Almost'), 'parça bankası da düzeldi: ' . $az);
+    [, $i] = $api->handle(['action' => 'word_info', 'en' => 'Almost']);
+    eq(['phrase', 'Demək olar ki'], [$i['state'], $i['az']]);
+
+    // ikinci kez değiştir: bu sefer eski karşılık sözlükteki "Demək olar ki"
+    [, $t] = $api->handle(['action' => 'teach', 'en' => 'almost', 'az' => 'Təxminən']);
+    eq(1, $t['bank']);
+    ok(str_contains($one('Facebook Followers | Almost No Drop | 60 Days Refill'), 'Təxminən Azalma olmaz'));
+    // "aynen kalsın"a geri dön: karşılık yine kaynak kelime olur
+    [, $t] = $api->handle(['action' => 'teach', 'en' => 'Almost', 'keep' => true]);
+    eq(1, $t['bank']);
+    ok(str_contains($one('Facebook Followers | Almost No Drop | 60 Days Refill'), 'Almost Azalma olmaz'));
+    // kelimenin geçmediği kayda ve başka kelimenin içindeki harflere dokunulmaz
+    eq('Facebook Bəyəni | Tez', (new TgWatch\Memory($db))->lookup('service', 'Facebook Likes | Fast'));
+    eq(['names' => 0, 'desc' => 0], (new TgWatch\Memory($db))->replaceWord('Face', ['Face'], 'Üz'), '"Face" tam kelime değil ("Facebook" içinde)');
+    eq(400, $api->handle(['action' => 'word_info', 'en' => ''])[0]);
+});
+test('Eklenti API: kelime silme ("hiç yazılmasın"), açıklama bankası, geri alma (word_undo)', function () {
+    [$db] = env();
+    $api = new TgWatch\ExtApi($db, []);
+    $mem = new TgWatch\Memory($db);
+    $one = static function (string $name) use ($api): string {
+        return $api->handle(['action' => 'translate', 'items' => [['id' => 1, 'name' => $name]]])[1]['items'][0]['az'];
+    };
+    $api->handle(['action' => 'teach', 'en' => 'Almost', 'keep' => true]);
+    $api->handle(['action' => 'learn', 'items' => [
+        ['id' => 1, 'src' => 'Facebook Followers | Almost No Drop | No Refill', 'az' => 'Facebook Takipçi | Almost Azalma olmaz | Sürətli'],
+        ['id' => 2, 'src' => 'Facebook Likes | [Almost] | Fast', 'az' => 'Facebook Bəyəni | [Almost] | Tez'],
+    ]]);
+    $desc = "Start: Instant\nAlmost no drop\nSpeed: 10K per day";
+    $mem->learn('desc', $desc, "Başlama: Dərhal\nAlmost azalma yoxdur\nSürət: gündə 10K", 'import');
+    [, $i] = $api->handle(['action' => 'word_info', 'en' => 'Almost']);
+    eq(['keep', 2, 1], [$i['state'], $i['bank'], $i['desc']], 'kelime 2 adda ve 1 açıklamada geçiyor');
+
+    // 1) açıklama bankası da düzelir, satır yapısı bozulmaz
+    [, $t] = $api->handle(['action' => 'teach', 'en' => 'Almost', 'az' => 'Demək olar ki']);
+    eq([2, 1, true], [$t['bank'], $t['desc'], $t['undo']]);
+    eq("Başlama: Dərhal\nDemək olar ki azalma yoxdur\nSürət: gündə 10K", $mem->lookup('desc', $desc), 'açıklamada kelime değişti, satırlar aynı');
+
+    // 2) geri al: sözlük ve banka eski hâline döner
+    [, $p] = $api->handle(['action' => 'word_undo', 'peek' => true]);
+    eq(['Almost', 'Demək olar ki', 3], [$p['last']['en'], $p['last']['to'], $p['last']['rows']], 'geri alınacak değişiklik');
+    [$c, $u] = $api->handle(['action' => 'word_undo']);
+    eq([200, 'Almost', '(aynen kalsın)', 3], [$c, $u['en'], $u['was'], $u['restored']]);
+    eq('keep', $api->handle(['action' => 'word_info', 'en' => 'Almost'])[1]['state'], 'sözlük: yine "aynen kalsın"');
+    eq('Facebook Takipçi | Almost Azalma olmaz | Sürətli', $mem->lookup('service', 'Facebook Followers | Almost No Drop | No Refill'));
+    eq("Başlama: Dərhal\nAlmost azalma yoxdur\nSürət: gündə 10K", $mem->lookup('desc', $desc));
+    ok(str_contains($one('Facebook Followers | Almost No Drop | 30 Days Refill'), 'Almost Azalma olmaz'), 'parça bankası da eski hâlinde');
+
+    // 3) "hiç yazılmasın": kelime adlardan ve bankadan silinir, boş kalan [ ] ve ayraç toplanır
+    [$c, $t] = $api->handle(['action' => 'teach', 'en' => 'Almost', 'remove' => true]);
+    eq([200, true, '', 2, 1], [$c, $t['remove'], $t['az'], $t['bank'], $t['desc']]);
+    eq('remove', $api->handle(['action' => 'word_info', 'en' => 'almost'])[1]['state']);
+    eq('Facebook Takipçi | Azalma olmaz | Sürətli', $db->one("SELECT az FROM tm WHERE en LIKE 'Facebook Followers | Almost No Drop%'")['az']);
+    eq('Facebook Bəyəni | Tez', $db->one("SELECT az FROM tm WHERE en LIKE 'Facebook Likes | [Almost]%'")['az'], 'boş [ ] ve çift ayraç toplandı');
+    eq("Başlama: Dərhal\nazalma yoxdur\nSürət: gündə 10K", $mem->lookup('desc', $desc));
+    $az = $one('Instagram Followers | Almost No Drop | 60 Days Refill');
+    ok(!preg_match('/almost/i', $az) && str_contains($az, 'Azalma olmaz'), 'yeni adlarda kelime yazılmıyor: ' . $az);
+    ok(str_contains($one('Instagram Almostly Followers'), 'Almostly'), 'başka kelimenin içindeki harflere dokunulmaz');
+
+    // 4) silmeyi geri al, sonra bir karşılık ver: "sil" kuralı kalkar
+    $api->handle(['action' => 'word_undo']);
+    eq('keep', $api->handle(['action' => 'word_info', 'en' => 'Almost'])[1]['state']);
+    ok(str_contains($one('Instagram Followers | Almost No Drop | 60 Days Refill'), 'Almost'), 'geri alınınca kelime yine yazılır');
+    $api->handle(['action' => 'teach', 'en' => 'Almost', 'remove' => true]);
+    $api->handle(['action' => 'teach', 'en' => 'Almost', 'az' => 'Təxminən']);
+    ok(str_contains($one('Instagram Likes | Almost Instant'), 'Təxminən'), 'karşılık verilince artık silinmiyor');
+    // geri alınacak bir şey kalmayınca hata
+    for ($k = 0; $k < 20; $k++) {
+        if ($api->handle(['action' => 'word_undo'])[0] !== 200) {
+            break;
+        }
+    }
+    eq(null, $api->handle(['action' => 'word_undo', 'peek' => true])[1]['last']);
+    eq(400, $api->handle(['action' => 'word_undo'])[0], 'geri alınacak değişiklik yok');
+});
+test('Eklenti API: bank_search (banka + sözlük), bank_save, bank_del', function () {
+    [$db] = env();
+    $api = new TgWatch\ExtApi($db, []);
+    $api->handle(['action' => 'teach', 'en' => 'Zorbly', 'az' => 'Zorbli']);
+    $api->handle(['action' => 'learn', 'items' => [
+        ['id' => 1, 'src' => 'TikTok Zorbly Views | Fast', 'az' => 'TikTok Zorbli Baxış | Tez'],
+        ['id' => 2, 'src' => 'TikTok Likes | Slow', 'az' => 'TikTok Bəyəni | Yavaş'],
+    ]]);
+    eq(400, $api->handle(['action' => 'bank_search', 'q' => 'z'])[0], 'tek harfle aranmaz');
+    [$c, $r] = $api->handle(['action' => 'bank_search', 'q' => 'zorbl']);
+    eq([200, 1, 'TikTok Zorbly Views | Fast', 'TikTok Zorbli Baxış | Tez'], [$c, count($r['rows']), $r['rows'][0]['en'], $r['rows'][0]['az']]);
+    eq([['en' => 'Zorbly', 'az' => 'Zorbli', 'state' => 'phrase']], $r['words'], 'sözlükteki eşleşme');
+    eq(1, count($api->handle(['action' => 'bank_search', 'q' => 'YAVAŞ'])[1]['rows']), 'Azerice tarafta, büyük/küçük harf fark etmez');
+    $id = $r['rows'][0]['id'];
+    eq(400, $api->handle(['action' => 'bank_save', 'id' => $id, 'az' => ''])[0]);
+    eq(400, $api->handle(['action' => 'bank_save', 'id' => 999999, 'az' => 'x'])[0]);
+    [$c, $s] = $api->handle(['action' => 'bank_save', 'id' => $id, 'az' => 'TikTok Zorbli İzlənmə | Tez']);
+    eq([200, 'TikTok Zorbli İzlənmə | Tez'], [$c, $s['az']]);
+    $row = $db->one('SELECT az, origin FROM tm WHERE id = ?', [$id]);
+    eq(['TikTok Zorbli İzlənmə | Tez', 'manual'], [$row['az'], $row['origin']], 'elle düzeltme: en yüksek öncelik');
+    [, $b] = $api->handle(['action' => 'translate', 'items' => [['id' => 1, 'name' => 'TikTok Zorbly Views | Fast']]]);
+    eq('TikTok Zorbli İzlənmə | Tez', $b['items'][0]['az'], 'çeviri yeni kaydı kullanır');
+    [$c, $d] = $api->handle(['action' => 'bank_del', 'id' => $id]);
+    eq([200, true], [$c, $d['deleted']]);
+    eq(null, $db->one('SELECT id FROM tm WHERE id = ?', [$id]));
+    eq(0, count($api->handle(['action' => 'bank_search', 'q' => 'zorbly views'])[1]['rows']));
+});
 test('Eklenti API: teach bilinmeyen kelimeyi sözlüğe ekler (eski karşılığı değiştirir, ya da olduğu gibi bırakır); balance sağlayıcı bakiyeleri', function () {
     [$db] = env();
     $api = new TgWatch\ExtApi($db, []);
@@ -2314,6 +2497,165 @@ test('Eklenti API: Çeviri ayarlarında Claude açıksa botla aynı kuralla Clau
         TgWatch\Http::$fake = static fn() => ['status' => 529, 'error' => '', 'body' => '{"error":{"message":"overloaded"}}'];
         $items = $api->handle(['action' => 'translate', 'items' => [['id' => 'b', 'name' => 'Instagram Followers | Arab Targeted']]])[1]['items'];
         eq('rules', $items[0]['via'], 'Claude hata verince kurallar');
+    } finally {
+        TgWatch\Http::$fake = null;
+    }
+});
+
+
+// ---------------------------------------------------------------- açıklama çevirisi (banka + Google + DeepSeek)
+/** Sahte Google + DeepSeek: istekleri kaydeder; $ds ile DeepSeek cevabı belirlenir. */
+function descFake(array &$sent, ?callable $ds = null, int $gStatus = 200): Closure
+{
+    return static function ($method, $url, $headers, $body) use (&$sent, $ds, $gStatus) {
+        $d = json_decode((string)$body, true);
+        $sent[] = ['url' => $url, 'body' => $d, 'headers' => $headers];
+        if (str_contains($url, 'translation.googleapis.com')) {
+            if ($gStatus !== 200) {
+                return ['status' => $gStatus, 'error' => '', 'body' => '{"error":{"message":"API key not valid"}}'];
+            }
+            $tr = array_map(static fn($l) => ['translatedText' => 'G:' . $l], $d['q']);
+            return ['status' => 200, 'error' => '', 'body' => json_encode(['data' => ['translations' => $tr]])];
+        }
+        if (str_contains($url, 'api.deepseek.com')) {
+            $u = json_decode($d['messages'][1]['content'], true);
+            $lines = $ds ? $ds($u) : array_map(static fn($l) => 'AZ:' . $l, $u['lines']);
+            return ['status' => 200, 'error' => '', 'body' => json_encode(['choices' => [['message' => ['content' => json_encode(['lines' => $lines], JSON_UNESCAPED_UNICODE)]]]], JSON_UNESCAPED_UNICODE)];
+        }
+        return ['status' => 404, 'error' => '', 'body' => ''];
+    };
+}
+const DESC = "Start: 0-1 Hour\nSpeed: 10K per day\n\nDrop: No drop - 30 Days Refill\nLink: https://instagram.com/username";
+
+test('Açıklama: karma mod — Google taslağı + sözlük DeepSeek\'e gider, satır yapısı ve boş satır korunur', function () {
+    [$db] = env();
+    $db->set('google_api_key', 'AIza' . str_repeat('x', 30));
+    $db->set('deepseek_api_key', 'sk-' . str_repeat('y', 30));
+    $sent = [];
+    TgWatch\Http::$fake = descFake($sent);
+    try {
+        $r = (new TgWatch\DescTranslator($db))->translate(DESC);
+        eq('mix', $r['via'], 'karma');
+        $lines = explode("\n", $r['az']);
+        eq(5, count($lines), 'satır sayısı aynı');
+        eq('', $lines[2], 'boş satır korunur');
+        eq('AZ:Start: 0-1 Hour', $lines[0]);
+        eq(2, count($sent), 'bir Google + bir DeepSeek isteği');
+        ok(str_contains($sent[0]['url'], 'translation.googleapis.com') && str_contains($sent[0]['url'], 'key='), 'Google anahtarı adreste');
+        eq(4, count($sent[0]['body']['q']), 'Google\'a yalnız yazı içeren 4 satır');
+        eq('az', $sent[0]['body']['target']);
+        ok(in_array('Authorization: Bearer sk-' . str_repeat('y', 30), $sent[1]['headers'], true), 'DeepSeek Bearer anahtarı');
+        $u = json_decode($sent[1]['body']['messages'][1]['content'], true);
+        eq('G:Start: 0-1 Hour', $u['google'][0], 'Google taslağı DeepSeek\'e gider');
+        ok(isset($u['glossary']['Refill']) || isset($u['glossary']['refill']) || count((array)$u['glossary']) > 0, 'sözlük terimleri gider');
+        eq('json_object', $sent[1]['body']['response_format']['type']);
+        $use = (new TgWatch\DescTranslator($db))->usage();
+        eq([1, 1], [$use['google'], $use['deepseek']], 'kullanım sayılır');
+    } finally {
+        TgWatch\Http::$fake = null;
+    }
+});
+
+test('Açıklama: DeepSeek denetimden geçmezse (sayı değişti / satır eksik) Google taslağı; DeepSeek hata verirse de Google', function () {
+    [$db] = env();
+    $db->set('google_api_key', 'AIza' . str_repeat('x', 30));
+    $db->set('deepseek_api_key', 'sk-' . str_repeat('y', 30));
+    $sent = [];
+    TgWatch\Http::$fake = descFake($sent, static fn($u) => ['Başlama: 0-2 Saat', 'x', 'y', 'z']); // sayı değişti
+    try {
+        $r = (new TgWatch\DescTranslator($db))->translate(DESC);
+        eq('google', $r['via'], 'sayı bozulunca Google');
+        ok(str_contains($r['note'], 'sayılar değişmiş'), 'not: ' . $r['note']);
+        eq('G:Start: 0-1 Hour', explode("\n", $r['az'])[0]);
+        TgWatch\Http::$fake = descFake($sent, static fn($u) => ['tek satır']);
+        eq('google', (new TgWatch\DescTranslator($db))->translate(DESC)['via'], 'satır eksik → Google');
+        TgWatch\Http::$fake = static function ($m, $url, $h, $b) use (&$sent) {
+            return str_contains($url, 'deepseek') ? ['status' => 401, 'error' => '', 'body' => '{"error":{"message":"Authentication Fails"}}'] : descFake($sent)($m, $url, $h, $b);
+        };
+        $r = (new TgWatch\DescTranslator($db))->translate(DESC);
+        eq('google', $r['via'], 'DeepSeek 401 → Google');
+        ok(str_contains($r['note'], 'Authentication Fails'), 'hata notta');
+    } finally {
+        TgWatch\Http::$fake = null;
+    }
+});
+
+test('Açıklama: yalnız DeepSeek / yalnız Google modları; Google hata verirse DeepSeek tek başına', function () {
+    [$db] = env();
+    $db->set('google_api_key', 'AIza' . str_repeat('x', 30));
+    $db->set('deepseek_api_key', 'sk-' . str_repeat('y', 30));
+    $sent = [];
+    TgWatch\Http::$fake = descFake($sent);
+    try {
+        $dt = new TgWatch\DescTranslator($db);
+        eq('deepseek', $dt->translate(DESC, 'deepseek')['via']);
+        ok(!array_filter($sent, static fn($x) => str_contains($x['url'], 'google')), 'deepseek modunda Google\'a gidilmez');
+        $sent = [];
+        eq('google', $dt->translate(DESC, 'google')['via']);
+        ok(!array_filter($sent, static fn($x) => str_contains($x['url'], 'deepseek')), 'google modunda DeepSeek\'e gidilmez');
+        TgWatch\Http::$fake = descFake($sent, null, 403);
+        $r = $dt->translate(DESC, 'mix');
+        eq('deepseek', $r['via'], 'Google 403 → DeepSeek tek başına');
+        ok(str_contains($r['note'], 'Google'), 'Google hatası notta');
+    } finally {
+        TgWatch\Http::$fake = null;
+    }
+});
+
+test('Açıklama: banka önce; zaten Azerice, boş, anahtarsız, "yalnız banka" ve aylık sınır durumlarında dışarı istek yok', function () {
+    [$db] = env();
+    $sent = [];
+    TgWatch\Http::$fake = descFake($sent);
+    try {
+        $dt = new TgWatch\DescTranslator($db);
+        eq('none', $dt->translate(DESC)['via'], 'anahtar yok → çevrilmez');
+        ok(str_contains($dt->translate(DESC)['note'], 'anahtarı girilmemiş'), 'neden yazılır');
+        eq('already', $dt->translate("Başlama: 0-1 saat\nSürət: gündə 10K")['via'], 'Azerice');
+        eq('none', $dt->translate("  \n ")['via'], 'boş');
+        ok($dt->learn(DESC, "Başlama: 0-1 Saat\nSürət: gündə 10K\n\nAzalma: yoxdur - 30 Gün Qarantili\nLink: https://instagram.com/username"), 'öğrenildi');
+        $r = $dt->translate(str_replace("\n", "\r\n", DESC)); // satır sonu farkı önemsiz
+        eq('bank', $r['via'], 'bankadan');
+        ok(str_starts_with($r['az'], 'Başlama'), 'bankadaki metin');
+        $db->set('google_api_key', 'AIza' . str_repeat('x', 30));
+        $db->set('desc_mode', 'bank');
+        eq('none', $dt->translate('Another description')['via'], 'yalnız banka modu');
+        $db->set('desc_mode', 'google');
+        $db->set('desc_monthly_limit', '1');
+        eq('google', $dt->translate('First text here')['via']);
+        $r = $dt->translate('Second text here');
+        eq('none', $r['via'], 'sınır doldu');
+        ok(str_contains($r['note'], 'sınır'), 'sınır notu');
+        eq(1, count($sent), 'yalnız bir dış istek yapıldı');
+    } finally {
+        TgWatch\Http::$fake = null;
+    }
+});
+
+test('Açıklama denetimi: sayılar, bağlantılar, satır sayısı, boş satır', function () {
+    eq('', TgWatch\DescTranslator::check(['Speed 10K/day, 30 days'], ['Sürət gündə 10K, 30 gün']));
+    ok(TgWatch\DescTranslator::check(['10K per day'], ['20K gündə']) !== '', 'sayı değişti');
+    ok(TgWatch\DescTranslator::check(['a', 'b'], ['a']) !== '', 'satır eksik');
+    ok(TgWatch\DescTranslator::check(['Link: https://t.me/x'], ['Link: https://t.me/y']) !== '', 'bağlantı değişti');
+    ok(TgWatch\DescTranslator::check(['Hello'], ['  ']) !== '', 'boş satır');
+});
+
+test('Eklenti API: translate_desc (mod eklentiden) ve learn_desc; 20\'den fazla açıklama reddedilir', function () {
+    [$db] = env();
+    $db->set('google_api_key', 'AIza' . str_repeat('x', 30));
+    $db->set('deepseek_api_key', 'sk-' . str_repeat('y', 30));
+    $sent = [];
+    TgWatch\Http::$fake = descFake($sent);
+    try {
+        $api = new TgWatch\ExtApi($db, []);
+        [$code, $res] = $api->handle(['action' => 'translate_desc', 'mode' => 'google', 'items' => [['id' => '1', 'text' => 'Fast start'], ['id' => '2', 'text' => 'Başlama sürətli']]]);
+        eq(200, $code);
+        eq(['google', 'G:Fast start'], [$res['items'][0]['via'], $res['items'][0]['az']]);
+        eq('already', $res['items'][1]['via']);
+        eq(['mode' => 'google', 'google' => true, 'deepseek' => false], $res['plan'], 'plan: istenen mod');
+        [$code, $res] = $api->handle(['action' => 'learn_desc', 'items' => [['en' => 'Fast start', 'az' => 'Sürətli başlama']]]);
+        eq([200, 1], [$code, $res['learned']]);
+        eq('bank', $api->handle(['action' => 'translate_desc', 'items' => [['id' => 'x', 'text' => 'Fast start']]])[1]['items'][0]['via'], 'öğrenilen bankadan');
+        eq(400, $api->handle(['action' => 'translate_desc', 'items' => array_fill(0, 21, ['id' => 'a', 'text' => 'x'])])[0], 'en çok 20');
     } finally {
         TgWatch\Http::$fake = null;
     }

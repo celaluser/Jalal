@@ -104,6 +104,16 @@ final class CronRunner
                 }
             }
             if (!$test) {
+                try {
+                    if ($b = Balances::cron($db, $this->config)) {
+                        $say('Bakiyeler: ' . implode(', ', array_map(static fn($it) => $it['name'] . ' ' . ($it['error'] !== '' ? '✗' : Balances::money((float)$it['balance']) . ' ' . $it['currency']), $b['items'])));
+                    }
+                } catch (\Throwable $e) {
+                    $errors++;
+                    $db->log('error', 'cron', 'Bakiye: ' . $e->getMessage());
+                }
+            }
+            if (!$test) {
                 foreach ((new Rivals($db, $this->config))->cron($deadline) as $r) {
                     if (!$r['ok']) {
                         $errors++;

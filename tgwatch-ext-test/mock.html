@@ -1,0 +1,44 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Import services (mock)</title>
+<style>body{font:14px system-ui;margin:20px}.modal{border:1px solid #999;padding:12px;border-radius:8px}.row{border-bottom:1px solid #ddd;padding:8px 0}textarea{width:420px;height:70px}</style></head>
+<body>
+<!-- Taklit Perfect Panel "Import services" inceleme penceresi: satır başlığı "ID - Ad", Edit → Name + Description alanları, Save -->
+<div class="modal" role="dialog"><div class="modal-content">
+  <h4>Import services</h4>
+  <div id="rows"></div>
+  <button id="imp">Import services</button>
+</div></div>
+<!-- Services sayfasındaki "Edit description" penceresi -->
+<div class="modal" role="dialog" id="edlg" style="display:none;margin-top:20px"><div class="modal-content">
+  <h4>Edit description</h4><label>Description</label><br><textarea id="edesc"></textarea><br><button id="esave">Save changes</button>
+</div></div>
+<script>
+const rows = window.__rows = [
+  { id: '5378', name: 'Facebook Views + Engagements [All Links] [3 Seconds]', desc: 'Start: 0-1 Hour\nSpeed: 10K per day\nNo refill', open: false },
+  { id: '5379', name: 'TikTok Likes [Fast]', desc: 'Instant start\nGuarantee: 30 days', open: false },
+  { id: '5380', name: 'Instagram Bəyəni [ Sürətli ]', desc: 'Fast delivery', open: false },
+  { id: '5381', name: 'YouTube Views', desc: '', open: false },
+];
+function render() {
+  const box = document.getElementById('rows'); box.innerHTML = '';
+  for (const r of rows) {
+    const d = document.createElement('div'); d.className = 'row';
+    if (!r.open) {
+      d.innerHTML = '<div class="hdr"></div><div class="dsc" style="color:#777;font-size:12px"></div><button class="e">Edit</button>';
+      d.querySelector('.hdr').textContent = r.id + ' - ' + r.name;
+      d.querySelector('.dsc').textContent = r.desc;
+      d.querySelector('.e').onclick = () => { r.open = true; render(); };
+    } else {
+      d.innerHTML = '<div class="hdr"></div><label>Name</label> <input type="text" class="n"><br><label>Description</label><br><textarea class="d"></textarea><br><button class="s">Save</button>';
+      d.querySelector('.hdr').textContent = r.id + ' - ' + r.name;
+      const n = d.querySelector('.n'); n.value = r.name;
+      const t = d.querySelector('.d'); t.value = r.desc;
+      d.querySelector('.s').onclick = () => { r.name = n.value; r.desc = t.value; r.open = false; render(); };
+    }
+    box.appendChild(d);
+  }
+}
+render();
+document.getElementById('esave').onclick = () => { window.__saved = document.getElementById('edesc').value; };
+window.__openEdit = (txt) => { document.getElementById('edesc').value = txt; document.getElementById('edlg').style.display = ''; };
+</script></body></html>

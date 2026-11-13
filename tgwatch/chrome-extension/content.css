@@ -52,6 +52,9 @@
 .tgw-orig{display:block;margin:0 0 3px;padding:0;font:400 12px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#7b8794;cursor:copy;max-width:100%;overflow-wrap:anywhere}
 .tgw-orig::before{content:"orijinal";display:inline-block;margin-right:6px;padding:0 5px;border-radius:4px;background:#eef1f4;color:#7b8794;font:600 10px/16px system-ui,sans-serif;vertical-align:1px}
 .tgw-orig:hover{color:#3f4b57}
+.tgw-ow{cursor:pointer;border-radius:3px;padding:0 1px}
+.tgw-ow:hover{background:#fbefd2;color:#7a5200;box-shadow:0 0 0 1px #d4a72c}
+.tgw-pop-info{color:#5d6b78 !important}
 .tgw-orig.tgw-copied::after{content:"  ✓ kopyalandı";color:#1f7a45;display:inline-block}
 .tgw-hide{display:none !important}
 .tgw-cbar{flex-wrap:nowrap}
@@ -78,6 +81,8 @@
 .tgw-pop .tgw-btn{--tgw-nila:#243b6b;height:30px;padding:0 12px;font-size:12.5px}
 .tgw-pop .tgw-ghost{background:#fff;color:#243b6b;border:1px solid #c9d1dc}
 .tgw-pop-x{margin-left:auto;padding:0 10px}
+.tgw-pop-a2 .tgw-btn{height:26px;padding:0 9px;font-size:11.5px}
+.tgw-pop-a2 [hidden]{display:none}
 .tgw-pop-msg{min-height:0;font-size:12px;color:#b8244b}
 .tgw-pop-msg:empty{display:none}
 .tgw-pop-ok{color:#1f7a45 !important;font-weight:600}
