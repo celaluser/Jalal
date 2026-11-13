@@ -29,6 +29,8 @@ function stub(oldServer) {
         return { ok: true, en: p.en, az: window.__dict[k] || '', state: window.__dict[k] ? 'phrase' : window.__keep.includes(k) ? 'keep' : 'none', bank: 3, samples: [] };
       }
       if (action === 'teach') {
+        // Gerçek eski sunucu (tgwatch ≤ 1.2): remove'u tanımaz, boş karşılık sanıp reddeder.
+        if (window.__rejectRemove && p.remove) return { ok: false, error: 'Azerice karşılık 1–120 karakter olmalı' };
         const k = p.en.toLowerCase();
         if (${oldServer ? 'true' : 'false'}) { // eski sunucu: remove/undo bilmez, bank alanı yok
           if (p.keep) { delete window.__dict[k]; window.__keep.push(k); } else window.__dict[k] = p.az || p.en;
@@ -160,6 +162,12 @@ const calls = (p, a) => p.evaluate((x) => window.__calls.filter((c) => c.action 
     await p.locator('.tgw-pop button', { hasText: 'Hiç yazılmasın' }).click();
     await p.waitForFunction(() => /"hiç yazılmasın" desteklenmiyor/.test((document.querySelector('.tgw-pop-msg') || {}).textContent || ''));
     ok(true, 'eski sunucuda "hiç yazılmasın": açık uyarı, satırlara dokunulmaz');
+    // sunucu isteği reddediyorsa (gerçek eski sunucu): "Azerice karşılık…" yerine sunucunun eski olduğu söylenir
+    await p.evaluate(() => { window.__rejectRemove = true; });
+    await p.locator('.tgw-pop button', { hasText: 'Hiç yazılmasın' }).click();
+    await p.waitForFunction(() => /sunucusu eklentiden eski: "Hiç yazılmasın" desteklenmiyor/.test((document.querySelector('.tgw-pop-msg') || {}).textContent || ''));
+    ok(!/Azerice karşılık/.test(await p.textContent('.tgw-pop-msg')), 'reddeden eski sunucuda: yanıltıcı "Azerice karşılık" hatası yerine "sunucu eski" uyarısı');
+    ok(!(await p.isDisabled('.tgw-pop button[type=submit]')), 'düğmeler yeniden kullanılabilir');
     ok(p.__errs.length === 0, 'JS hatası yok');
     await p.close();
   }

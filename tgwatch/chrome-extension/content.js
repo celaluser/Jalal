@@ -509,7 +509,13 @@
       msg.className = 'tgw-pop-msg';
       msg.textContent = 'tgwatch\'a öğretiliyor…';
       const res = await api('teach', asKeep ? { en: src, keep: true } : asRemove ? { en: src, remove: true } : { en: src, az: dst });
-      if (!res.ok) { msg.textContent = res.error || 'tgwatch hatası'; lock(false); return; }
+      if (!res.ok) {
+        // Eski sunucu "hiç yazılmasın"ı tanımaz: isteği boş karşılık sanıp reddeder. Kullanıcıya gerçek nedeni söyle.
+        const oldServer = asRemove && /Azerice karşılık|Bilinmeyen işlem/.test(res.error || '');
+        msg.textContent = oldServer ? 'tgwatch sunucusu eklentiden eski: "Hiç yazılmasın" desteklenmiyor. Sunucuya güncel tgwatch paketini yükle.' : (res.error || 'tgwatch hatası');
+        lock(false);
+        return;
+      }
       if (asRemove && !res.remove) { msg.textContent = 'tgwatch sunucusu eski: "hiç yazılmasın" desteklenmiyor — sunucuyu güncelle.'; lock(false); return; }
       send({ type: 'stat', learned: 1 });
       // Banka sözlükten önce gelir: sunucu eski kayıtları da düzeltir (res.bank adlar, res.desc açıklamalar). Eski sunucu bu alanları göndermez.

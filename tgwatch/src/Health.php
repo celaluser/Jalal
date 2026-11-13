@@ -34,8 +34,8 @@ final class Health
         $r[] = ['admin_password_hash', str_starts_with((string)$c['admin_password_hash'], '$') ? self::OK : self::FAIL, $c['admin_password_hash'] === '' ? 'boş — php tools/make_hash.php' : 'ayarlı'];
         if ($c['bot_mode'] === 'webhook') {
             $okUrl = str_starts_with((string)$c['webhook_url'], 'https://');
-            $r[] = ['webhook_url', $okUrl ? self::OK : self::FAIL, $okUrl ? $c['webhook_url'] : 'https:// ile başlamalı (ya da bot_mode => polling)'];
-            $r[] = ['webhook_secret', preg_match('/^[A-Za-z0-9_-]{16,256}$/', (string)$c['webhook_secret']) ? self::OK : self::FAIL, $c['webhook_secret'] === '' ? 'boş — php tools/make_hash.php --secret' : 'ayarlı'];
+            $r[] = ['webhook_url', $okUrl ? self::OK : self::FAIL, $okUrl ? $c['webhook_url'] : 'boş — Ayarlar → Telegram botu → Webhook adresi: https://…/public/bot.php (ya da Bot modu: Polling)'];
+            $r[] = ['webhook_secret', preg_match('/^[A-Za-z0-9_-]{16,256}$/', (string)$c['webhook_secret']) ? self::OK : self::FAIL, $c['webhook_secret'] === '' ? 'boş — Ayarlar → Telegram botu → Webhook anahtarı: "Yeni rastgele anahtar üret"i işaretle, kaydet' : 'ayarlı'];
         } else {
             $r[] = ['bot_mode', self::OK, 'polling (butonlar cron aralığında işlenir)'];
         }
@@ -57,7 +57,8 @@ final class Health
         $dir = (string)$c['data_dir'];
         $r[] = ['data_dir yazılabilir', is_dir($dir) && is_writable($dir) ? self::OK : self::FAIL, $dir];
         if (App::insideDocRoot(TGWATCH_ROOT)) {
-            $missing = array_filter(['', '/src', '/tools', '/tests', '/data'], static fn($d) => !is_file(TGWATCH_ROOT . $d . '/.htaccess'));
+            // Yalnızca var olan klasörlere bakılır (olmayan klasörün korunması gerekmez).
+            $missing = array_filter(['', '/src', '/tools', '/tests', '/data', '/chrome-extension'], static fn($d) => is_dir(TGWATCH_ROOT . $d) && !is_file(TGWATCH_ROOT . $d . '/.htaccess'));
             $r[] = ['Web koruması', $missing ? self::FAIL : self::OK, $missing
                 ? '.htaccess eksik: ' . implode(', ', array_map(static fn($d) => ($d ?: '/') , $missing)) . ' — zip\'teki gizli dosyalar (.htaccess) açılmamış olabilir'
                 : 'tgwatch public_html içinde; .htaccess dosyaları yerinde, veritabanı adı rastgele'];

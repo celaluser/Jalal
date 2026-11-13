@@ -37,7 +37,14 @@ async function init() {
       const mine = chrome.runtime.getManifest().version;
       showUpd({ latest: r.ext, mine, has: !!r.ext && newerV(r.ext, mine) });
     }
-    if (r && r.ok) conn('Bağlı · ' + r.version, 'ok');
+    const mineV = chrome.runtime.getManifest().version;
+    if (r && r.ok && r.ext && newerV(mineV, r.ext)) {
+      // Sunucudaki tgwatch bu eklentiden eski: yeni özellikler (ör. "Hiç yazılmasın") sunucuda yok, hata verir.
+      conn('Sunucu eski · ' + r.version, 'bad');
+      $('conn').title = 'tgwatch sunucusunda eklenti ' + r.ext + ', sende ' + mineV + '. Sunucuya güncel tgwatch paketini yükle.';
+      $('upd-dot').hidden = false;
+      $('upd-msg').textContent = 'tgwatch sunucusu eklentiden eski (sunucuda ' + r.ext + ', sende ' + mineV + '): bazı özellikler çalışmaz. Sunucuya güncel tgwatch paketini yükle.';
+    } else if (r && r.ok) conn('Bağlı · ' + r.version, 'ok');
     else { conn('Bağlantı yok', 'bad'); $('conn').title = (r && r.error) || ''; }
   });
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -248,7 +255,8 @@ function showUpd(u) {
   const has = !!(u && u.has && newerV(u.latest, mine));
   $('upd-dot').hidden = !has;
   $('v-server').className = has ? 'new' : '';
-  $('upd-msg').textContent = has ? 'Yeni sürüm hazır: ' + u.latest + '.' : (u && u.latest ? 'Eklenti güncel.' : '');
+  const older = !!(u && u.latest && newerV(mine, u.latest));
+  if (!older) $('upd-msg').textContent = has ? 'Yeni sürüm hazır: ' + u.latest + '.' : (u && u.latest ? 'Eklenti güncel.' : '');
 }
 $('upd-go').onclick = () => { chrome.tabs.create({ url: chrome.runtime.getURL('update.html') }); window.close(); };
 $('upd-dl').onclick = (e) => {
