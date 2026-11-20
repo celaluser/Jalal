@@ -2560,6 +2560,8 @@ test('Açıklama üretimi: açıklamasız servise kategorideki örnekten öneri;
     $nd = [1 => ['az' => ['name' => '', 'description' => $d(30, '500K', '10K')]], 2 => ['az' => ['name' => '', 'description' => $d(365, '1M', '50K')]], 3 => ['az' => ['name' => '', 'description' => $d(60, '100K', '5K')]], 6 => ['az' => ['name' => '', 'description' => '']], 9 => ['az' => ['name' => '', 'description' => '']]];
     (new TgWatch\DescLearn($db, []))->learn($list, $nd, ['az']);
     $g = new TgWatch\DescGen($db);
+    eq(1, $g->generate(5, [9])['made'], 'yalnızca seçilen servis');
+    eq(null, $db->one('SELECT sid FROM desc_props WHERE sid = 6'));
     $r = $g->generate(5);
     eq(2, $r['made']);
     $p = $db->one('SELECT * FROM desc_props WHERE sid = 6');
@@ -2609,7 +2611,7 @@ test('Açıklama üretimi: önce öğrenme gerekir', function () {
         (new TgWatch\DescGen($db))->generate(5);
         ok(false, 'hata bekleniyordu');
     } catch (InvalidArgumentException $e) {
-        ok(str_contains($e->getMessage(), 'Panelden öğren'));
+        ok(str_contains($e->getMessage(), 'Panelden oku'));
     }
 });
 echo "Chrome eklentisi API\n";

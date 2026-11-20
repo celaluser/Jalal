@@ -14,31 +14,28 @@ trait DescPages
         $L = new DescLearn($this->db, $this->config);
         $rep = $L->report();
         $ready = (new PanelServices($this->db, $this->config))->configured();
-        $sub = 'Paneldeki Azerice açıklamalardan senin üslubunu ve kurallarını öğrenir. Panelde hiçbir şeyi değiştirmez.';
-        $tab = in_array($_GET['t'] ?? '', ['rules', 'tpl', 'issues', 'cats', 'gen'], true) ? (string)$_GET['t'] : 'rules';
+        $sub = 'Açıklaması olmayan servisleri gör, kategori seç, açıklama ürettir, onayla; Chrome eklentisi panele yazar.';
+        $tab = in_array($_GET['t'] ?? '', ['empty', 'rules', 'tpl', 'issues', 'cats', 'gen'], true) ? (string)$_GET['t'] : 'empty';
 
-        $h = '<div class="panel panel-pad stack"><p class="muted">Admin API ile panelindeki bütün açıklamalar okunur. Öğrenilenler: '
-            . '<b>addaki bilgi → açıklama satırı</b> kuralları (adında “30 Gün Qarantili” olan servislerin açıklamasında 30\'un geçtiği satır, garanti satırının kalıbı olur), '
-            . 'platform × tür <b>şablonları</b>, <b>sık ifadeler</b> ve adıyla <b>çelişen</b> açıklamalar. Kategoriler sekmesinde “Açıklama üret” bunlarla açıklamasız servislere öneri yazar; sen onaylarsın, Chrome eklentisi panele ekler.</p>'
-            . ($rep ? '<dl class="kv"><dt>Son öğrenme</dt><dd>' . Ui::ago((int)$rep['at']) . ' · ' . round(((int)$rep['ms']) / 1000, 1) . ' sn</dd>'
-                . '<dt>Panelde açık diller</dt><dd>' . Ui::e($rep['langs'] ? implode(', ', $rep['langs']) : 'varsayılan dil') . (count($rep['langs']) <= 1 ? ' <span class="muted">— İngilizce sürüm olmadığı için çeviri çifti değil, üslup ve kurallar öğrenilir</span>' : '') . '</dd>'
-                . '<dt>Açıklama çeviri çifti (bankada)</dt><dd>' . (int)$rep['pairs'] . ' <span class="muted">(sağlayıcı açıklamalarından ve eklentiyle import\'tan)</span></dd></dl>' : '')
-            . '<div class="row">' . ($ready ? $this->ui->action('desc_learn_run', $rep ? 'Panelden yeniden öğren' : 'Panelden öğren', [], 'primary', 'play')
+        $h = '<div class="panel panel-pad stack"><p><b>Nasıl çalışır:</b> 1) <b>Panelden oku</b> — servisler ve açıklamaları Admin API ile okunur, açıklamalı servislerden senin yazım kalıpların öğrenilir. '
+            . '2) <b>Açıklamasızlar</b> sekmesinde kategoriyi aç, servisleri seç, <b>Açıklama üret</b>. 3) <b>Öneriler</b>de oku, düzelt, onayla. 4) Chrome eklentisi bildirim gösterir, <b>Panele ekle</b> deyince yazar.</p>'
+            . ($rep ? '<p class="muted">Son okuma: ' . Ui::ago((int)$rep['at']) . ' · dil: ' . Ui::e($rep['langs'] ? implode(', ', $rep['langs']) : 'varsayılan') . '. Panelde açıklama ekledin/sildiysen yeniden oku.</p>' : '')
+            . '<div class="row">' . ($ready ? $this->ui->action('desc_learn_run', $rep ? 'Panelden yeniden oku' : 'Panelden oku', [], 'primary', 'play')
                 : Ui::link('?p=settings&tab=publish', 'Panel API\'yi bağla', 'primary', 'link')) . '</div></div>';
         if (!$rep) {
-            $this->render('Açıklamalar', $h . Ui::empty('Henüz öğrenilmedi', 'Panelden öğren\'e bas: açıklamalar okunur (3–4 bin serviste yaklaşık yarım dakika).'), ['active' => 'desc', 'sub' => $sub]);
+            $this->render('Açıklamalar', $h . Ui::empty('Panel henüz okunmadı', 'Panelden oku\'ya bas: servisler ve açıklamaları okunur (3–4 bin serviste yaklaşık yarım dakika). Sonra açıklamasız kategoriler burada listelenir.'), ['active' => 'desc', 'sub' => $sub]);
             return;
         }
         $pct = static fn($a, $b) => $b ? round($a * 100 / $b) : 0;
         $h .= '<section class="strip" aria-label="Özet">'
             . '<div><div class="k">' . Ui::dot('ok') . 'Paneldeki servis</div><div class="v">' . (int)$rep['services'] . '</div></div>'
             . '<div><div class="k">' . Ui::dot('ok') . 'Açıklamalı</div><div class="v">' . (int)$rep['with_desc'] . ' <small class="muted">%' . $pct($rep['with_desc'], $rep['services']) . '</small></div></div>'
-            . '<div><div class="k">' . Ui::dot($rep['empty'] ? 'warn' : 'ok') . 'Açıklamasız</div><div class="v"><a href="?p=desc&amp;t=cats">' . (int)$rep['empty'] . '</a></div></div>'
+            . '<div><div class="k">' . Ui::dot($rep['empty'] ? 'warn' : 'ok') . 'Açıklamasız</div><div class="v"><a href="?p=desc&amp;t=empty">' . (int)$rep['empty'] . '</a></div></div>'
             . '<div><div class="k">' . Ui::dot($rep['conflicts'] ? 'bad' : 'ok') . 'Adıyla çelişen</div><div class="v"><a href="?p=desc&amp;t=issues">' . (int)$rep['conflicts'] . '</a>'
             . ($rep['missing'] ? ' <small class="muted">+ ' . (int)$rep['missing'] . ' eksik</small>' : '') . '</div></div></section>';
 
         $nProp = (int)($this->db->one("SELECT COUNT(*) c FROM desc_props WHERE status IN ('proposed','approved','failed')")['c'] ?? 0);
-        $tabs = ['rules' => 'Kurallar (' . count($rep['rules']) . ')', 'tpl' => 'Şablonlar (' . count($rep['templates']) . ')', 'issues' => 'Tutarsızlıklar (' . count($rep['issues']) . ')', 'cats' => 'Kategoriler', 'gen' => 'Öneriler' . ($nProp ? ' (' . $nProp . ')' : '')];
+        $tabs = ['empty' => 'Açıklamasızlar (' . (int)$rep['empty'] . ')', 'gen' => 'Öneriler' . ($nProp ? ' (' . $nProp . ')' : ''), 'rules' => 'Kurallar (' . count($rep['rules']) . ')', 'tpl' => 'Şablonlar (' . count($rep['templates']) . ')', 'issues' => 'Tutarsızlıklar (' . count($rep['issues']) . ')', 'cats' => 'Kategori özeti'];
         $h .= '<nav class="tabs" aria-label="Bölüm">';
         foreach ($tabs as $k => $l) {
             $h .= '<a href="?p=desc&amp;t=' . $k . '"' . ($tab === $k ? ' aria-current="page"' : '') . '>' . Ui::e($l) . '</a>';
@@ -112,8 +109,58 @@ trait DescPages
         }
         if ($tab === 'gen') {
             $h .= $this->descProposals();
+        } elseif ($tab === 'empty') {
+            $h .= $this->descEmpty();
         }
         $this->render('Açıklamalar', $h, ['active' => 'desc', 'sub' => $sub]);
+    }
+
+    /** Açıklamasız servisler, kategoriye göre: kategoriyi aç → servisleri seç → üret. */
+    private function descEmpty(): string
+    {
+        $q = trim((string)($_GET['q'] ?? ''));
+        $open = (int)($_GET['c'] ?? 0);
+        $cats = $this->db->all("SELECT category_id, MAX(category_name) category_name, COUNT(*) n, SUM(description = '') e, SUM(description = '' AND status = 'enabled') eon
+            FROM panel_desc GROUP BY category_id HAVING e > 0 ORDER BY (category_id = ?) DESC, e DESC, category_name", [$open]);
+        if ($q !== '') {
+            $cats = array_values(array_filter($cats, static fn($c) => mb_stripos((string)$c['category_name'], $q) !== false || (string)$c['category_id'] === $q));
+        }
+        $h = '<form method="get" class="toolbar"><input type="hidden" name="p" value="desc"><input type="hidden" name="t" value="empty">'
+            . '<label class="grow">Kategori ara<input type="search" name="q" value="' . Ui::e($q) . '" placeholder="Instagram, TikTok… ya da kategori ID"></label>'
+            . '<button class="btn">' . Ui::icon('search') . '<span>Ara</span></button></form>';
+        if (!$cats) {
+            return $h . Ui::empty($q !== '' ? 'Eşleşen kategori yok' : 'Açıklamasız servis yok', $q !== '' ? 'Başka bir ad dene.' : 'Son okumaya göre bütün servislerin açıklaması var.');
+        }
+        $h .= '<p class="muted">' . count($cats) . ' kategoride açıklamasız servis var (en çok olandan başlar). Kategoriye tıkla, servisleri gör, istediklerini seçip <b>Açıklama üret</b>\'e bas.</p>';
+        $label = ['proposed' => ['öneri hazır', 'lvl-warn'], 'approved' => ['onaylı, eklentiyi bekliyor', 'lvl-good'], 'applied' => ['panele yazıldı', 'lvl-good'], 'verified' => ['panele yazıldı ✓', 'lvl-good'], 'failed' => ['hatalı', 'lvl-error'], 'rejected' => ['reddedildi', 'muted']];
+        $shown = 0;
+        foreach ($cats as $c) {
+            if (++$shown > 150) {
+                $h .= '<p class="muted">İlk 150 kategori gösterildi; aramayla daralt.</p>';
+                break;
+            }
+            $cid = (int)$c['category_id'];
+            $isOpen = $cid === $open || count($cats) === 1;
+            $h .= '<details class="panel panel-pad gap-top"' . ($isOpen ? ' open' : '') . '><summary><b>' . Ui::e($c['category_name']) . '</b> <span class="muted">#' . $cid . ' · ' . (int)$c['e'] . ' açıklamasız / ' . (int)$c['n'] . ' servis'
+                . ((int)$c['eon'] < (int)$c['e'] ? ' (' . ((int)$c['e'] - (int)$c['eon']) . ' kapalı)' : '') . '</span></summary>';
+            if (!$isOpen) {
+                $h .= '<p><a href="?p=desc&amp;t=empty&amp;c=' . $cid . ($q !== '' ? '&amp;q=' . urlencode($q) : '') . '">Servisleri göster</a></p></details>';
+                continue;
+            }
+            $svcs = $this->db->all("SELECT d.id, d.name, d.status, p.status pst FROM panel_desc d LEFT JOIN desc_props p ON p.sid = d.id WHERE d.category_id = ? AND d.description = '' ORDER BY d.id LIMIT 300", [$cid]);
+            $h .= '<form method="post" action="?p=desc_gen" class="stack">' . $this->ui->csrfField() . '<input type="hidden" name="cat" value="' . $cid . '">'
+                . '<div class="table-wrap"><table><thead><tr><th class="tight"><input type="checkbox" checked aria-label="Hepsini seç" onclick="for(const x of this.closest(\'form\').querySelectorAll(\'input[name=&quot;sids[]&quot;]\'))x.checked=this.checked"></th><th>Servis</th><th>Durum</th></tr></thead><tbody>';
+            foreach ($svcs as $sv) {
+                $st = $label[$sv['pst'] ?? ''] ?? null;
+                $locked = in_array($sv['pst'], ['approved', 'applied', 'verified'], true);
+                $h .= '<tr><td class="tight"><input type="checkbox" name="sids[]" value="' . (int)$sv['id'] . '"' . ($locked ? ' disabled' : ' checked') . ' aria-label="Seç ' . (int)$sv['id'] . '"></td>'
+                    . '<td><b>' . (int)$sv['id'] . '</b> ' . Ui::e($sv['name']) . ($sv['status'] !== 'enabled' ? ' <span class="muted">· kapalı</span>' : '') . '</td>'
+                    . '<td>' . ($st ? '<span class="' . $st[1] . '">' . $st[0] . '</span>' : '<span class="muted">açıklama yok</span>') . '</td></tr>';
+            }
+            $h .= '</tbody></table></div><div class="row"><button class="btn primary">' . Ui::icon('play') . '<span>Seçilenlere açıklama üret</span></button>'
+                . '<span class="muted">Panele hiçbir şey yazılmaz; öneriler önce sana gösterilir.</span></div></form></details>';
+        }
+        return $h;
     }
 
     private function descProposals(): string
@@ -190,8 +237,14 @@ trait DescPages
         switch ($p) {
             case 'desc_gen':
                 $c = (int)($_POST['cat'] ?? 0);
+                $sids = isset($_POST['sids']) && is_array($_POST['sids']) ? array_map('intval', $_POST['sids']) : null;
+                if ($sids === []) {
+                    $this->say('bad', 'Hiç servis seçilmedi.');
+                    $this->redirect('desc', ['t' => 'empty', 'c' => $c]);
+                    return true;
+                }
                 try {
-                    $r = $G->generate($c);
+                    $r = $G->generate($c, $sids);
                     $this->say('ok', $r['made'] . ' öneri hazır' . ($r['skipped'] ? ', ' . $r['skipped'] . ' serviste kullanılabilir bilgi yok' : '') . ($r['kept'] ? ', ' . $r['kept'] . ' onaylı öneri korundu' : '') . '. Temel: ' . $r['base'] . '.');
                 } catch (\Throwable $e) {
                     $this->say('bad', $e->getMessage());

@@ -277,13 +277,18 @@ final class DescGen
      * Kategorideki açıklamasız servisler için öneri üret (onaylanmış/yazılmış öneriler korunur).
      * @return array{made:int,skipped:int,kept:int,base:string}
      */
-    public function generate(int $catId): array
+    /** @param list<int>|null $sids yalnızca bu servisler (null: kategorideki bütün açıklamasızlar) */
+    public function generate(int $catId, ?array $sids = null): array
     {
         $rules = $this->db->getJson(DescLearn::RULES);
         if (!is_array($rules) || empty($rules['*'])) {
-            throw new \InvalidArgumentException('Önce Açıklamalar → Panelden öğren (kurallar henüz öğrenilmedi).');
+            throw new \InvalidArgumentException('Önce Açıklamalar → Panelden oku (ya da paneldeki açıklamalı servislerden kalıp çıkarılamadı: birkaç serviste elle açıklama yazıp yeniden oku).');
         }
         $rows = $this->db->all("SELECT * FROM panel_desc WHERE category_id = ? AND description = '' ORDER BY id", [$catId]);
+        if ($sids !== null) {
+            $want = array_flip(array_map('intval', $sids));
+            $rows = array_values(array_filter($rows, static fn($r) => isset($want[(int)$r['id']])));
+        }
         if (!$rows) {
             throw new \InvalidArgumentException('Bu kategoride açıklamasız servis yok (son öğrenmeye göre).');
         }
