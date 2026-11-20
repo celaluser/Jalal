@@ -102,3 +102,7 @@
 .tgw-cbar.tgw-min .tgw-text,.tgw-cbar.tgw-min .tgw-actions,.tgw-cbar.tgw-min .tgw-progress{display:none}
 .tgw-cbar.tgw-min .tgw-brand{flex:none;justify-content:center;cursor:pointer}
 .tgw-cbar.tgw-min .tgw-brand svg{width:22px;height:22px}
+/* açıklama yazma çubuğu: sağ alt (kategori çubuğu sol altta) */
+.tgw-cbar.tgw-floating.tgw-dbar{left:auto;right:12px}
+.tgw-cbar.tgw-floating.tgw-dbar{border-radius:18px}
+.tgw-cbar.tgw-floating.tgw-dbar .tgw-status{white-space:normal;max-width:44ch;overflow:visible}

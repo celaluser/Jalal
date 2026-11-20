@@ -58,16 +58,78 @@ const newer = (a, b) => {
   }
   return false;
 };
+/** Rozet: yeni sürüm varsa "YENİ", yoksa panele yazılmayı bekleyen açıklama sayısı. */
+async function badge() {
+  const { upd, descq } = await chrome.storage.local.get({ upd: null, descq: null });
+  const n = descq && descq.count ? descq.count : 0;
+  try {
+    await chrome.action.setBadgeText({ text: upd && upd.has ? 'YENİ' : n ? String(n > 999 ? '999+' : n) : '' });
+    await chrome.action.setBadgeBackgroundColor({ color: upd && upd.has ? '#b3362f' : '#243b6b' });
+  } catch (e) { /* rozet yok */ }
+}
+
+// ---- tgwatch'ta onaylanan açıklamalar: sayıyı çek, yeni iş varsa bildirim göster ----
+async function pullDescQueue() {
+  const s = await settings();
+  if (!s.api || !s.key) return null;
+  const r = await callApi('desc_queue', { peek: 1 });
+  if (!r || !r.ok) return r; // eski sunucu ("Bilinmeyen işlem") ya da bağlantı yok: sessiz
+  const { descq } = await chrome.storage.local.get({ descq: null });
+  const now = { count: r.count || 0, categories: r.categories || [], at: Date.now(), told: descq ? descq.told || 0 : 0, toldAt: descq ? descq.toldAt || 0 : 0 };
+  // Aynı iş için bir kez; sayı artınca ya da 3 saat sonra yine
+  if (now.count && (now.count > now.told || Date.now() - now.toldAt > 3 * 3600 * 1000) && chrome.notifications) {
+    const cats = now.categories.map((c) => c.name + ' (' + c.n + ')').join(', ');
+    try {
+      chrome.notifications.create('tgw-desc', {
+        type: 'basic', iconUrl: 'icons/128.png', priority: 1, requireInteraction: true,
+        title: now.count + ' açıklama panele eklenmeyi bekliyor',
+        message: (cats ? cats + ' için ' : '') + 'tgwatch\'ta onayladığın açıklamalar hazır. Eklensin mi?',
+        buttons: [{ title: 'Panele ekle' }, { title: 'Sonra' }],
+      });
+      now.told = now.count;
+      now.toldAt = Date.now();
+    } catch (e) { /* bildirim izni yok */ }
+  }
+  if (!now.count) { now.told = 0; try { chrome.notifications && chrome.notifications.clear('tgw-desc'); } catch (e) { /* yok */ } }
+  await chrome.storage.local.set({ descq: now });
+  await badge();
+  return r;
+}
+self.__pullDescQueue = pullDescQueue; // test kancası
+
+/** Services sayfasını aç (açıksa öne getir) ve açıklama yazmayı başlat. */
+async function openDescTab() {
+  const s = await settings();
+  if (!s.panel) return { ok: false, error: 'Panel adresi yok' };
+  const base = s.panel.replace(/\/+$/, '') + '/admin/services';
+  const tabs = await chrome.tabs.query({});
+  const t = tabs.find((x) => x.url && x.url.split('#')[0].replace(/\/+$/, '') === base);
+  if (t) {
+    await chrome.tabs.update(t.id, { active: true });
+    if (t.windowId != null) chrome.windows.update(t.windowId, { focused: true }).catch(() => {});
+    const ok = await new Promise((res) => chrome.tabs.sendMessage(t.id, { type: 'tgw-desc-run' }, (r) => { void chrome.runtime.lastError; res(!!(r && r.ok)); }));
+    if (!ok) await chrome.tabs.update(t.id, { url: base + '#tgw-desc' });
+  } else {
+    await chrome.tabs.create({ url: base + '#tgw-desc' });
+  }
+  return { ok: true };
+}
+if (chrome.notifications) {
+  chrome.notifications.onClicked.addListener((id) => { if (id === 'tgw-desc') { chrome.notifications.clear(id); openDescTab(); } });
+  chrome.notifications.onButtonClicked.addListener((id, i) => {
+    if (id !== 'tgw-desc') return;
+    chrome.notifications.clear(id);
+    if (i === 0) openDescTab();
+  });
+}
+
 async function checkUpdate(known) {
   const r = known || await callApi('ping');
   if (!r || !r.ok) return null;
   const mine = chrome.runtime.getManifest().version;
   const upd = { latest: r.ext || '', mine, has: !!r.ext && newer(r.ext, mine), at: Date.now() };
   await chrome.storage.local.set({ upd });
-  try {
-    await chrome.action.setBadgeText({ text: upd.has ? 'YENİ' : '' });
-    if (upd.has) await chrome.action.setBadgeBackgroundColor({ color: '#b3362f' });
-  } catch (e) { /* rozet yok */ }
+  await badge();
   return upd;
 }
 // ---- sağlayıcı bakiyeleri: her dakika tgwatch'tan (sunucu cron'u her dakika sorgulayıp kaydeder) ----
@@ -90,11 +152,15 @@ function schedule() {
 }
 chrome.alarms && chrome.alarms.onAlarm.addListener((a) => {
   if (a.name === 'tgw-upd') checkUpdate();
-  if (a.name === 'tgw-bal') pullBalances(false);
+  if (a.name === 'tgw-bal') {
+    pullBalances(false);
+    // açıklama kuyruğu 3 dakikada bir (her dakika gereksiz)
+    if (!(self.__descTick = ((self.__descTick || 0) + 1) % 3)) pullDescQueue();
+  }
 });
 
-chrome.runtime.onInstalled.addListener(() => { register(); schedule(); checkUpdate(); });
-chrome.runtime.onStartup.addListener(() => { register(); schedule(); checkUpdate(); });
+chrome.runtime.onInstalled.addListener(() => { register(); schedule(); checkUpdate(); pullDescQueue(); });
+chrome.runtime.onStartup.addListener(() => { register(); schedule(); checkUpdate(); pullDescQueue(); });
 
 // ---- arka plan sekmesi: Chrome sayfanın zamanlayıcılarını kısar; içerik script'inin beklemeleri burada yapılır ----
 // (service worker kısılmaz). İş sürerken sekmenin Bellek Tasarrufu ile kapatılması da engellenir.
@@ -138,6 +204,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ ok: true });
     setTimeout(() => chrome.runtime.reload(), 100);
     return false;
+  }
+  if (msg.type === 'desc-open') {
+    openDescTab().then(sendResponse, (e) => sendResponse({ ok: false, error: String(e) }));
+    return true;
+  }
+  if (msg.type === 'desc-refresh') {
+    pullDescQueue().then(() => chrome.storage.local.get({ descq: null })).then((x) => sendResponse({ ok: true, descq: x.descq }), (e) => sendResponse({ ok: false, error: String(e) }));
+    return true;
   }
   if (msg.type === 'register') {
     register().then(sendResponse, (e) => sendResponse({ ok: false, error: String(e) }));

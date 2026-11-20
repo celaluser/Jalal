@@ -1413,7 +1413,7 @@ final class Admin
                 $this->redirect('job_prompt', ['id' => $id]);
             } elseif (str_starts_with($p, 'source')) {
                 $this->redirect('sources');
-            } elseif (str_starts_with($p, 'desc_learn')) {
+            } elseif (str_starts_with($p, 'desc_')) {
                 $this->redirect('desc');
             } elseif (str_starts_with($p, 'tm_') || str_starts_with($p, 'panel_') || $p === 'match_run') {
                 $this->redirect('bank');

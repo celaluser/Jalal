@@ -2546,6 +2546,72 @@ test('Açıklama öğrenme: panelden (sahte) okur, yalnızca açık dil (az) ist
     eq([['az'], 1, 0], [$r['langs'], $r['with_desc'], $r['conflicts']]);
     ok(str_ends_with(end($calls), 'lang_codes=az'), end($calls));
 });
+test('Açıklama üretimi: açıklamasız servise kategorideki örnekten öneri; adındaki garanti/maks yazılır, uydurma yok', function () {
+    [$db] = env();
+    $d = static fn($g, $max, $sp) => "📌 Başlama: 0-1 saat\n⚡ Sürət: Gündə $sp\n♻️ Qarantiya: $g gün\n📏 Min: 10 / Maks: $max\n✅ Azalma olmaz";
+    $svc = static fn($id, $name, $min = 10, $max = 1000) => ['id' => $id, 'name' => $name, 'category_id' => 5, 'category_name' => 'Instagram İzləyici', 'category_status' => 'enabled', 'provider' => '', 'provider_service_id' => '', 'rate' => 1.0, 'provider_rate' => null, 'currency' => 'AZN', 'min' => $min, 'max' => $max, 'status' => 'enabled', 'hidden' => false, 'refill' => true, 'cancel' => false];
+    $list = [
+        $svc(1, 'Instagram İzləyici | Real | 30 Gün Qarantili | Maks 500K | Gündə 10K', 10, 500000),
+        $svc(2, 'Instagram İzləyici | Ucuz | 365 Gün Qarantili | Maks 1M | Gündə 50K', 10, 1000000),
+        $svc(3, 'Instagram İzləyici | Türk | 60 Gün Qarantili | Maks 100K | Gündə 5K', 10, 100000),
+        $svc(6, 'Instagram İzləyici | Yeni | 90 Gün Qarantili | Maks 200K', 50, 200000),
+        $svc(9, 'Instagram İzləyici | Bot', 10, 5000),
+    ];
+    $nd = [1 => ['az' => ['name' => '', 'description' => $d(30, '500K', '10K')]], 2 => ['az' => ['name' => '', 'description' => $d(365, '1M', '50K')]], 3 => ['az' => ['name' => '', 'description' => $d(60, '100K', '5K')]], 6 => ['az' => ['name' => '', 'description' => '']], 9 => ['az' => ['name' => '', 'description' => '']]];
+    (new TgWatch\DescLearn($db, []))->learn($list, $nd, ['az']);
+    $g = new TgWatch\DescGen($db);
+    $r = $g->generate(5);
+    eq(2, $r['made']);
+    $p = $db->one('SELECT * FROM desc_props WHERE sid = 6');
+    eq('proposed', $p['status']);
+    ok(str_contains($p['text'], 'Qarantiya: 90 gün'), $p['text']);
+    ok(str_contains($p['text'], 'Maks: 200K') && str_contains($p['text'], 'Min: 50'), $p['text']);
+    ok(!str_contains($p['text'], 'Sürət'), 'adında hız yok: temeldeki hız satırı atılır: ' . $p['text']);
+    $p9 = $db->one('SELECT text FROM desc_props WHERE sid = 9')['text'];
+    ok(!str_contains($p9, 'Qarantiya') && !str_contains($p9, 'Sürət'), 'adında garanti yok: garanti uydurulmaz: ' . $p9);
+    eq(['count' => 0, 'categories' => []], $g->queueCount());
+    eq(1, $g->setStatus([6], 'approved', "♻️ Qarantiya: 90 gün\n📏 Min: 50 / Maks: 200K"));
+    $g->generate(5);
+    eq('approved', $db->one('SELECT status FROM desc_props WHERE sid = 6')['status'], 'yeniden üretim onaylıyı ezmez');
+    $api = new TgWatch\ExtApi($db, ['panel_api_url' => 'https://panelbaku.com/adminapi/v2', 'panel_api_key' => 'k']);
+    [$c, $q] = $api->handle(['action' => 'desc_queue', 'peek' => 1]);
+    eq([200, 1, false], [$c, $q['count'], isset($q['items'])]);
+    [, $q] = $api->handle(['action' => 'desc_queue']);
+    eq([6, 'Instagram İzləyici'], [$q['items'][0]['sid'], $q['items'][0]['category']]);
+    TgWatch\PanelAdmin::$fake = static function (string $url) {
+        if (str_contains($url, '/names-descriptions')) {
+            return json_encode(['data' => ['list' => [['id' => 6, 'content' => [['lang_code' => 'az', 'name' => 'X', 'description' => "♻️ Qarantiya: 90 gün<br>📏 Min: 50 / Maks: 200K"]]]]], 'error_message' => '', 'error_code' => 0]);
+        }
+        return json_encode(['data' => ['list' => []], 'error_message' => '', 'error_code' => 0]);
+    };
+    try {
+        [, $d1] = $api->handle(['action' => 'desc_done', 'items' => [['sid' => 6, 'ok' => true]]]);
+    } finally {
+        TgWatch\PanelAdmin::$fake = null;
+    }
+    eq([1, 0, 0], [$d1['verified'], $d1['applied'], $d1['failed']]);
+    eq('verified', $db->one('SELECT status FROM desc_props WHERE sid = 6')['status']);
+    eq(0, $g->queueCount()['count']);
+    // eklenti yazamadı: 3 denemeden sonra hatalı
+    $db->run("UPDATE desc_props SET status = 'approved', text = 'X' WHERE sid = 9");
+    for ($i = 0; $i < 3; $i++) {
+        (new TgWatch\ExtApi($db, []))->handle(['action' => 'desc_done', 'items' => [['sid' => 9, 'ok' => false, 'error' => 'servis bulunamadı']]]);
+    }
+    $p9 = $db->one('SELECT status, error FROM desc_props WHERE sid = 9');
+    eq(['failed', 'servis bulunamadı'], [$p9['status'], $p9['error']]);
+    $db->run("UPDATE desc_props SET status = 'approved', attempts = 0 WHERE sid = 9");
+    (new TgWatch\ExtApi($db, []))->handle(['action' => 'desc_done', 'items' => [['sid' => 9, 'ok' => false, 'error' => 'panelde zaten açıklama var', 'final' => true]]]);
+    eq('failed', $db->one('SELECT status FROM desc_props WHERE sid = 9')['status'], 'kalıcı hata: tek denemede hatalı');
+});
+test('Açıklama üretimi: önce öğrenme gerekir', function () {
+    [$db] = env();
+    try {
+        (new TgWatch\DescGen($db))->generate(5);
+        ok(false, 'hata bekleniyordu');
+    } catch (InvalidArgumentException $e) {
+        ok(str_contains($e->getMessage(), 'Panelden öğren'));
+    }
+});
 echo "Chrome eklentisi API\n";
 test('Eklenti API: teach bankadaki eski kayıtları da düzeltir (çevrilmeden kalmış kelime, sözlükteki eski karşılık); word_info şimdiki durumu verir', function () {
     [$db] = env();

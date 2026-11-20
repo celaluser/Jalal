@@ -397,9 +397,18 @@ Paneldeki Azerice açıklamaları Admin API'den (Get service list + Get service 
 - **Şablonlar:** platform × tür grubu (ör. Instagram takipçi) başına açıklamaların en az %35'inde geçen satırlar, ortalama sıralarıyla, ve bu yapıya en çok uyan gerçek açıklama.
 - **Sık ifadeler:** birçok açıklamada aynen geçen satırlar.
 - **Tutarsızlıklar:** *çelişen* (ad 30 gün garanti, açıklama 60 gün; ad maks 500K, açıklama 1M; ad garantisiz, açıklamada garanti süresi; ad ömürlük, açıklamada gün; ad Instagram, açıklama başka platform) ve *eksik* (adında garanti var, açıklamada yazmıyor). Maks ve hız sayısı anahtar kelimenin hemen yanından okunur ("Min: 10 / Maks: 500K" yanlış alarm vermez).
-- **Kategoriler:** kategori başına servis, açıklamasız, çelişen ve eksik sayısı (en çok açıklamasızı olandan başlar, aranabilir). Sonraki adımda buradan kategori seçilip açıklamasız servislere öneri üretilecek.
+- **Kategoriler:** kategori başına servis, açıklamasız, çelişen ve eksik sayısı (en çok açıklamasızı olandan başlar, aranabilir). Açıklamasızı olan kategoride **Açıklama üret** düğmesi var.
 
 Öğrenilen kurallar ve şablonlar `desc_rules` olarak, açıklamalar `panel_desc` tablosunda saklanır. Gerekenler: panel API bağlı, anahtarda iki okuma izni. **Denenmedi:** gerçek panelle (testler sahte verilerle).
+
+### Açıklama üretme → onay → eklentiyle panele yazma
+
+1. **Kategoriler → Açıklama üret (N):** o kategorideki açıklamasız her servis için öneri. Temel: aynı kategorideki en tipik açıklama (yoksa aynı platform × tür grubundaki örnek). Satır satır uyarlanır: adındaki garanti günü, maks, hız, başlama süresi temeldeki satıra yazılır (10K / 10.000 yazımı korunur), Min/Maks Admin API'deki min/max'tan gelir. Adında olmayan bilgi (ör. garanti) **uydurulmaz**: o satır çıkarılır. Adında olup temelde olmayan bilgi öğrenilmiş satır kalıbıyla eklenir. Sonuç yine adla denetlenir; çelişki varsa öneride ⚠ ile gösterilir. "Nasıl üretildi" altında her değişiklik yazar.
+2. **Öneriler** sekmesi: metni kutuda düzeltip **Onayla** ya da **Reddet**; ya da **Listedekilerin hepsini onayla**. Yeniden üretmek onaylanmış öneriyi ezmez.
+3. **Chrome eklentisi** 3 dakikada bir sorar; onaylı açıklama varsa Chrome bildirimi: "N açıklama panele eklenmeyi bekliyor — Panele ekle". (Simgede sayı rozeti, popup'ta "Açıklamaları panele ekle" düğmesi, Services sayfasında sağ altta çubuk da var.)
+4. **Panele ekle:** eklenti Services sayfasını açar, servisleri görünür yapar, listeyi sonuna kadar yükler; her servisi ID'siyle bulur → Actions → Edit description → metni yazar → Save. Açıklaması zaten dolu olan servisin **üzerine yazmaz** (Hatalı'ya düşer). 10 serviste bir tgwatch'a rapor verir; tgwatch Admin API ile panelden okuyup metni karşılaştırır: **✓ doğrulandı** ya da "panelde açıklama hâlâ boş / farklı metin var". Yazılamayan servis 3 kez denenir, sonra **Hatalı** sekmesine düşer (tekrar onaylanabilir). **Durdur** her an çalışır.
+
+Admin API açıklama yazamadığı (yalnızca okuyor) için yazma işi eklentide. Durumlar `desc_props` tablosunda (proposed → approved → applied → verified / failed / rejected). **Denenmedi:** gerçek Perfect Panel'in Actions menüsü ve Edit description penceresi (sahte sayfada denendi); sorun olursa çubuktaki **Teşhisi kopyala**.
 
 ## Telefondan panel yönetimi (bot komutları, Admin API)
 

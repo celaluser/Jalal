@@ -325,6 +325,18 @@ function refresh() {
   });
 }
 
+// ---- tgwatch'ta onaylanan açıklamalar: kaç tane bekliyor, "panele ekle" ----
+function showDescq(d) {
+  const n = d && d.count ? d.count : 0;
+  $('descq').hidden = !n;
+  if (!n) return;
+  const cats = (d.categories || []).map((c) => c.name + ' (' + c.n + ')').join(', ');
+  $('descq-msg').textContent = n + ' onaylı açıklama panele yazılmayı bekliyor' + (cats ? ': ' + cats : '') + '. Eklenti Services listesinde her servisin Edit description\'ına yazıp kaydeder.';
+}
+get({ descq: null }).then((s) => showDescq(s.descq));
+chrome.runtime.sendMessage({ type: 'desc-refresh' }, (r) => { void chrome.runtime.lastError; if (r && r.ok) showDescq(r.descq); });
+$('descq-go').onclick = () => chrome.runtime.sendMessage({ type: 'desc-open' }, () => { void chrome.runtime.lastError; window.close(); });
+
 $('run').onclick = () => chrome.tabs.sendMessage(tabId, { type: 'tgw-run' }, () => { void chrome.runtime.lastError; window.close(); });
 $('undo').onclick = () => chrome.tabs.sendMessage(tabId, { type: 'tgw-undo' }, () => { void chrome.runtime.lastError; window.close(); });
 $('dry').onchange = (e) => chrome.storage.local.set({ dry: e.target.checked });

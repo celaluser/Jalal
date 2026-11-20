@@ -46,7 +46,7 @@ final class DescLearn
         'story' => ['hekayə|hekaye|story|hikaye', 'hikaye'],
         'plays' => ['dinlənmə|play|stream|dinlenme', 'dinlenme'],
     ];
-    private const KW = [
+    public const KW = [
         'guarantee' => '/qarant|zəmanət|zemanet|bərpa|berpa|refill|garanti|telafi/iu',
         'max' => '/maks|max|maksimum/iu',
         'speed' => '/sürət|suret|speed|gündə|gunde|günlük|gunluk|\/\s*day/iu',
@@ -102,7 +102,7 @@ final class DescLearn
         return $out;
     }
 
-    private static function lower(string $s): string
+    public static function lower(string $s): string
     {
         return str_replace("i\u{0307}", 'i', mb_strtolower(Normalizer::text($s)));
     }
@@ -115,7 +115,7 @@ final class DescLearn
     }
 
     /** @return list<string> boş olmayan satırlar */
-    private static function lines(string $desc): array
+    public static function lines(string $desc): array
     {
         $desc = str_replace(["\r\n", "\r"], "\n", html_entity_decode(strip_tags(str_ireplace(['<br>', '<br/>', '<br />', '</p>'], "\n", $desc)), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         return array_values(array_filter(array_map(static fn($l) => trim(preg_replace('/\s+/u', ' ', $l) ?? $l), explode("\n", $desc)), static fn($l) => $l !== ''));
@@ -285,7 +285,7 @@ final class DescLearn
         return ['tiktok' => 'TikTok', 'youtube' => 'YouTube', 'linkedin' => 'LinkedIn', 'soundcloud' => 'SoundCloud', 'vk' => 'VK', 'diğer' => 'Diğer'][$p] ?? ucfirst($p);
     }
 
-    private static function fmt(float $v): string
+    public static function fmt(float $v): string
     {
         if ($v >= 1000000 && fmod($v, 1000000) == 0.0) {
             return ($v / 1000000) . 'M';
@@ -336,7 +336,7 @@ final class DescLearn
             $byLang = $nd[$s['id']] ?? [];
             $own = $byLang['az'] ?? ($byLang ? reset($byLang) : ['name' => '', 'description' => '']);
             $desc = trim((string)($own['description'] ?? ''));
-            $rows[] = [$s['id'], $s['name'], $s['category_id'], $s['category_name'], $s['status'], $desc];
+            $rows[] = [$s['id'], $s['name'], $s['category_id'], $s['category_name'], $s['status'], $desc, $s['min'] ?? null, $s['max'] ?? null, !empty($s['refill']) ? 1 : 0, !empty($s['cancel']) ? 1 : 0];
             $ck = (int)($s['category_id'] ?? 0);
             $cats[$ck] ??= ['id' => $ck, 'name' => $s['category_name'], 'n' => 0, 'empty' => 0, 'conflict' => 0, 'missing' => 0, 'on' => 0];
             $cats[$ck]['n']++;
@@ -429,6 +429,7 @@ final class DescLearn
             [$plat, $type] = explode('|', $g);
             $tplRows[] = ['group' => $g, 'platform' => $plat, 'type' => $type, 'n' => $gd['n'], 'lines' => array_map(static fn($k) => ['shape' => $k['shape'], 'share' => $k['share']], $keep), 'example' => $best];
             $rules['templates'][$g] = array_column($keep, 'shape');
+            $rules['examples'][$g] = $best;
         }
         usort($tplRows, static fn($a, $b) => $b['n'] <=> $a['n']);
         arsort($phrase);
@@ -441,7 +442,7 @@ final class DescLearn
         }
         $this->db->tx(function () use ($rows): void {
             $this->db->run('DELETE FROM panel_desc');
-            $st = $this->db->pdo->prepare('INSERT OR REPLACE INTO panel_desc(id, name, category_id, category_name, status, description, at) VALUES(?,?,?,?,?,?,?)');
+            $st = $this->db->pdo->prepare('INSERT OR REPLACE INTO panel_desc(id, name, category_id, category_name, status, description, min, max, refill, cancel, at) VALUES(?,?,?,?,?,?,?,?,?,?,?)');
             $now = time();
             foreach ($rows as $r) {
                 $st->execute([...$r, $now]);

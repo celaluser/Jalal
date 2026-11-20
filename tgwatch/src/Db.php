@@ -144,6 +144,16 @@ SQL);
             min INTEGER, max INTEGER, status TEXT NOT NULL DEFAULT \'\', hidden INTEGER NOT NULL DEFAULT 0, at INTEGER NOT NULL)');
         // Paneldeki Azerice açıklamalar (Açıklamalar bölümü okur; panelde değişiklik yapmaz)
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS panel_desc (id INTEGER PRIMARY KEY, name TEXT NOT NULL, category_id INTEGER, category_name TEXT NOT NULL DEFAULT \'\', status TEXT NOT NULL DEFAULT \'\', description TEXT NOT NULL DEFAULT \'\', at INTEGER NOT NULL)');
+        $pdCols = array_column($this->pdo->query('PRAGMA table_info(panel_desc)')->fetchAll(), 'name');
+        foreach (['min' => 'INTEGER', 'max' => 'INTEGER', 'refill' => 'INTEGER NOT NULL DEFAULT 0', 'cancel' => 'INTEGER NOT NULL DEFAULT 0'] as $col => $def) {
+            if (!in_array($col, $pdCols, true)) {
+                $this->pdo->exec("ALTER TABLE panel_desc ADD COLUMN $col $def");
+            }
+        }
+        // Açıklama önerileri: proposed → approved → applied (eklenti yazdı) → verified (API ile okundu) | failed; rejected
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS desc_props (sid INTEGER PRIMARY KEY, category_id INTEGER, category_name TEXT NOT NULL DEFAULT \'\', name TEXT NOT NULL, text TEXT NOT NULL,
+            base TEXT NOT NULL DEFAULT \'\', notes TEXT NOT NULL DEFAULT \'[]\', status TEXT NOT NULL DEFAULT \'proposed\', error TEXT NOT NULL DEFAULT \'\', attempts INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)');
         if (!in_array('description', array_column($this->pdo->query('PRAGMA table_info(remote_services)')->fetchAll(), 'name'), true)) {
             $this->pdo->exec("ALTER TABLE remote_services ADD COLUMN description TEXT NOT NULL DEFAULT ''");
         }

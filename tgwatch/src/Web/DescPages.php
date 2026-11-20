@@ -15,11 +15,11 @@ trait DescPages
         $rep = $L->report();
         $ready = (new PanelServices($this->db, $this->config))->configured();
         $sub = 'Paneldeki Azerice açıklamalardan senin üslubunu ve kurallarını öğrenir. Panelde hiçbir şeyi değiştirmez.';
-        $tab = in_array($_GET['t'] ?? '', ['rules', 'tpl', 'issues', 'cats'], true) ? (string)$_GET['t'] : 'rules';
+        $tab = in_array($_GET['t'] ?? '', ['rules', 'tpl', 'issues', 'cats', 'gen'], true) ? (string)$_GET['t'] : 'rules';
 
         $h = '<div class="panel panel-pad stack"><p class="muted">Admin API ile panelindeki bütün açıklamalar okunur. Öğrenilenler: '
             . '<b>addaki bilgi → açıklama satırı</b> kuralları (adında “30 Gün Qarantili” olan servislerin açıklamasında 30\'un geçtiği satır, garanti satırının kalıbı olur), '
-            . 'platform × tür <b>şablonları</b>, <b>sık ifadeler</b> ve adıyla <b>çelişen</b> açıklamalar. Bunlar sonraki adımda açıklamasız servislere öneri üretmek için kullanılacak.</p>'
+            . 'platform × tür <b>şablonları</b>, <b>sık ifadeler</b> ve adıyla <b>çelişen</b> açıklamalar. Kategoriler sekmesinde “Açıklama üret” bunlarla açıklamasız servislere öneri yazar; sen onaylarsın, Chrome eklentisi panele ekler.</p>'
             . ($rep ? '<dl class="kv"><dt>Son öğrenme</dt><dd>' . Ui::ago((int)$rep['at']) . ' · ' . round(((int)$rep['ms']) / 1000, 1) . ' sn</dd>'
                 . '<dt>Panelde açık diller</dt><dd>' . Ui::e($rep['langs'] ? implode(', ', $rep['langs']) : 'varsayılan dil') . (count($rep['langs']) <= 1 ? ' <span class="muted">— İngilizce sürüm olmadığı için çeviri çifti değil, üslup ve kurallar öğrenilir</span>' : '') . '</dd>'
                 . '<dt>Açıklama çeviri çifti (bankada)</dt><dd>' . (int)$rep['pairs'] . ' <span class="muted">(sağlayıcı açıklamalarından ve eklentiyle import\'tan)</span></dd></dl>' : '')
@@ -37,7 +37,8 @@ trait DescPages
             . '<div><div class="k">' . Ui::dot($rep['conflicts'] ? 'bad' : 'ok') . 'Adıyla çelişen</div><div class="v"><a href="?p=desc&amp;t=issues">' . (int)$rep['conflicts'] . '</a>'
             . ($rep['missing'] ? ' <small class="muted">+ ' . (int)$rep['missing'] . ' eksik</small>' : '') . '</div></div></section>';
 
-        $tabs = ['rules' => 'Kurallar (' . count($rep['rules']) . ')', 'tpl' => 'Şablonlar (' . count($rep['templates']) . ')', 'issues' => 'Tutarsızlıklar (' . count($rep['issues']) . ')', 'cats' => 'Kategoriler'];
+        $nProp = (int)($this->db->one("SELECT COUNT(*) c FROM desc_props WHERE status IN ('proposed','approved','failed')")['c'] ?? 0);
+        $tabs = ['rules' => 'Kurallar (' . count($rep['rules']) . ')', 'tpl' => 'Şablonlar (' . count($rep['templates']) . ')', 'issues' => 'Tutarsızlıklar (' . count($rep['issues']) . ')', 'cats' => 'Kategoriler', 'gen' => 'Öneriler' . ($nProp ? ' (' . $nProp . ')' : '')];
         $h .= '<nav class="tabs" aria-label="Bölüm">';
         foreach ($tabs as $k => $l) {
             $h .= '<a href="?p=desc&amp;t=' . $k . '"' . ($tab === $k ? ' aria-current="page"' : '') . '>' . Ui::e($l) . '</a>';
@@ -93,26 +94,133 @@ trait DescPages
             } else {
                 $h .= Ui::empty($kind === 'conflict' ? 'Çelişen açıklama yok' : 'Eksik bilgi yok', 'Adlarla açıklamalar uyumlu.');
             }
-        } else {
+        } elseif ($tab === 'cats') {
             $q = trim((string)($_GET['q'] ?? ''));
             $cats = array_values(array_filter($rep['categories'], static fn($c) => $q === '' || mb_stripos($c['name'], $q) !== false));
             $h .= '<form method="get" class="toolbar"><input type="hidden" name="p" value="desc"><input type="hidden" name="t" value="cats">'
                 . '<label class="grow">Kategori ara<input type="search" name="q" value="' . Ui::e($q) . '" placeholder="Instagram, TikTok…"></label>'
                 . '<button class="btn quiet">' . Ui::icon('search') . '<span>Ara</span></button></form>'
-                . '<p class="muted">En çok açıklamasız servisi olandan başlar. Sonraki adımda buradan kategori seçip açıklamasız servislere öneri üreteceksin.</p>';
-            $h .= '<div class="table-wrap"><table><thead><tr><th>Kategori</th><th class="num">Servis</th><th class="num">Açıklamasız</th><th class="num">Çelişen</th><th class="num">Eksik</th></tr></thead><tbody>';
+                . '<p class="muted">En çok açıklamasız servisi olandan başlar. “Açıklama üret” o kategorideki açıklamasız servislere öneri hazırlar (panele bir şey yazmaz; önce sen onaylarsın).</p>';
+            $h .= '<div class="table-wrap"><table><thead><tr><th>Kategori</th><th class="num">Servis</th><th class="num">Açıklamasız</th><th class="num">Çelişen</th><th class="num">Eksik</th><th></th></tr></thead><tbody>';
             foreach (array_slice($cats, 0, 300) as $c) {
                 $h .= '<tr><td><b>' . Ui::e($c['name']) . '</b><div class="src">#' . (int)$c['id'] . ' · ' . (int)$c['on'] . ' açık</div></td><td class="num tight">' . (int)$c['n'] . '</td>'
                     . '<td class="num tight">' . ($c['empty'] ? '<b>' . (int)$c['empty'] . '</b>' : '<span class="muted">0</span>') . '</td>'
-                    . '<td class="num tight' . ($c['conflict'] ? ' lvl-error' : '') . '">' . (int)$c['conflict'] . '</td><td class="num tight">' . (int)$c['missing'] . '</td></tr>';
+                    . '<td class="num tight' . ($c['conflict'] ? ' lvl-error' : '') . '">' . (int)$c['conflict'] . '</td><td class="num tight">' . (int)$c['missing'] . '</td>'
+                    . '<td class="tight">' . ($c['empty'] ? $this->ui->action('desc_gen', 'Açıklama üret (' . (int)$c['empty'] . ')', ['cat' => $c['id']], 'quiet sm', 'play') : '') . '</td></tr>';
             }
             $h .= '</tbody></table></div>' . (count($cats) > 300 ? '<p class="muted">İlk 300 kategori gösterildi; aramayla daralt.</p>' : '');
+        }
+        if ($tab === 'gen') {
+            $h .= $this->descProposals();
         }
         $this->render('Açıklamalar', $h, ['active' => 'desc', 'sub' => $sub]);
     }
 
+    private function descProposals(): string
+    {
+        $views = ['proposed' => 'Onay bekleyen', 'approved' => 'Onaylı (eklentiyi bekliyor)', 'done' => 'Panele yazıldı', 'failed' => 'Hatalı', 'rejected' => 'Reddedilen'];
+        $v = isset($views[$_GET['v'] ?? '']) ? (string)$_GET['v'] : 'proposed';
+        $cat = (int)($_GET['c'] ?? 0);
+        $statusSql = $v === 'done' ? "status IN ('applied','verified')" : 'status = ?';
+        $args = $v === 'done' ? [] : [$v];
+        $counts = [];
+        foreach ($this->db->all('SELECT status, COUNT(*) n FROM desc_props' . ($cat ? ' WHERE category_id = ' . $cat : '') . ' GROUP BY status') as $r) {
+            $k = in_array($r['status'], ['applied', 'verified'], true) ? 'done' : $r['status'];
+            $counts[$k] = ($counts[$k] ?? 0) + (int)$r['n'];
+        }
+        $h = '';
+        $waiting = (int)($this->db->one("SELECT COUNT(*) c FROM desc_props WHERE status = 'approved'")['c'] ?? 0);
+        if ($waiting) {
+            $h .= '<div class="panel panel-pad gap-top"><b>' . $waiting . ' onaylı açıklama</b> panele yazılmayı bekliyor. Chrome eklentisi birkaç dakika içinde bildirim gösterir: <b>Panele ekle</b>\'ye bas (ya da eklenti simgesi → Panel → Açıklamaları panele ekle). '
+                . 'Eklenti her servisi listede bulur, Edit description\'a yazar ve kaydeder; tgwatch sonra Admin API ile panelden okuyup doğrular.</div>';
+        }
+        $cats = $this->db->all('SELECT category_id, category_name, COUNT(*) n FROM desc_props GROUP BY category_id ORDER BY MAX(updated_at) DESC LIMIT 40');
+        if ($cats) {
+            $h .= '<form method="get" class="toolbar"><input type="hidden" name="p" value="desc"><input type="hidden" name="t" value="gen"><input type="hidden" name="v" value="' . Ui::e($v) . '">'
+                . '<label class="grow">Kategori<select name="c" onchange="this.form.submit()"><option value="0">Hepsi</option>';
+            foreach ($cats as $c) {
+                $h .= '<option value="' . (int)$c['category_id'] . '"' . ($cat === (int)$c['category_id'] ? ' selected' : '') . '>' . Ui::e($c['category_name']) . ' (' . (int)$c['n'] . ')</option>';
+            }
+            $h .= '</select></label></form>';
+        }
+        $h .= '<nav class="tabs" aria-label="Durum">';
+        foreach ($views as $k => $l) {
+            $h .= '<a href="?p=desc&amp;t=gen&amp;v=' . $k . ($cat ? '&amp;c=' . $cat : '') . '"' . ($v === $k ? ' aria-current="page"' : '') . '>' . Ui::e($l) . (!empty($counts[$k]) ? ' (' . $counts[$k] . ')' : '') . '</a>';
+        }
+        $h .= '</nav>';
+        $rows = $this->db->all('SELECT * FROM desc_props WHERE ' . $statusSql . ($cat ? ' AND category_id = ' . $cat : '') . ' ORDER BY category_id, sid LIMIT 200', $args);
+        if (!$rows) {
+            return $h . Ui::empty('Burada öneri yok', $v === 'proposed' ? 'Kategoriler sekmesinden bir kategoride “Açıklama üret”e bas.' : 'Başka bir sekmeye bak.');
+        }
+        if ($v === 'proposed') {
+            $h .= '<div class="row gap-top">' . $this->ui->action('desc_ok_all', 'Listedekilerin hepsini onayla (' . count($rows) . ')', ['c' => $cat], 'primary', 'check', count($rows) . ' açıklama onaylansın mı? Onaylananları eklenti panele yazar.')
+                . '<span class="muted">Önce birkaçını oku; metni kutuda düzeltip tek tek de onaylayabilirsin.</span></div>';
+        }
+        foreach ($rows as $r) {
+            $notes = json_decode((string)$r['notes'], true) ?: [];
+            $warn = array_filter($notes, static fn($n) => str_starts_with($n, '⚠'));
+            $h .= '<div class="panel panel-pad stack gap-top"><div><b>' . (int)$r['sid'] . '</b> ' . Ui::e($r['name']) . '<div class="src">' . Ui::e($r['category_name']) . ' · temel: ' . Ui::e($r['base']) . '</div></div>';
+            if ($warn) {
+                $h .= '<p class="lvl-error">' . Ui::e(implode(' · ', $warn)) . '</p>';
+            }
+            if ($v === 'proposed' || $v === 'failed' || $v === 'rejected') {
+                $h .= '<form method="post" action="?p=desc_ok" class="stack">' . $this->ui->csrfField() . '<input type="hidden" name="sid" value="' . (int)$r['sid'] . '"><input type="hidden" name="c" value="' . $cat . '">'
+                    . '<textarea name="text" rows="' . max(3, min(14, substr_count((string)$r['text'], "\n") + 2)) . '" aria-label="Açıklama">' . Ui::e($r['text']) . '</textarea>'
+                    . ($r['error'] !== '' ? '<p class="lvl-error">' . Ui::e($r['error']) . '</p>' : '')
+                    . '<div class="row"><button class="btn primary sm">' . Ui::icon('check') . '<span>' . ($v === 'failed' ? 'Tekrar onayla' : 'Onayla') . '</span></button>'
+                    . ($v === 'proposed' ? '</div></form>' . $this->ui->action('desc_reject', 'Reddet', ['sid' => $r['sid'], 'c' => $cat], 'ghost sm', 'x') : '</div></form>');
+            } else {
+                $h .= '<pre class="src">' . Ui::e($r['text']) . '</pre>'
+                    . ($r['error'] !== '' ? '<p class="lvl-warn">Son deneme: ' . Ui::e($r['error']) . ' (' . (int)$r['attempts'] . '/3)</p>' : '')
+                    . ($v === 'approved' ? '<div class="row">' . $this->ui->action('desc_undo', 'Onayı geri al', ['sid' => $r['sid'], 'c' => $cat], 'ghost sm', 'x') . '</div>' : '')
+                    . ($r['status'] === 'verified' ? '<p class="lvl-good">✓ Panelden okunup doğrulandı</p>' : ($r['status'] === 'applied' ? '<p class="muted">Eklenti yazdı (panel API bağlı değilse doğrulanamaz)</p>' : ''));
+            }
+            if ($notes) {
+                $h .= '<details><summary class="muted">Nasıl üretildi (' . count($notes) . ')</summary><ul class="muted">' . implode('', array_map(static fn($n) => '<li>' . Ui::e($n) . '</li>', $notes)) . '</ul></details>';
+            }
+            $h .= '</div>';
+        }
+        return $h;
+    }
+
     private function postDesc(string $p): bool
     {
+        $G = new \TgWatch\DescGen($this->db);
+        $cat = (int)($_POST['c'] ?? 0);
+        switch ($p) {
+            case 'desc_gen':
+                $c = (int)($_POST['cat'] ?? 0);
+                try {
+                    $r = $G->generate($c);
+                    $this->say('ok', $r['made'] . ' öneri hazır' . ($r['skipped'] ? ', ' . $r['skipped'] . ' serviste kullanılabilir bilgi yok' : '') . ($r['kept'] ? ', ' . $r['kept'] . ' onaylı öneri korundu' : '') . '. Temel: ' . $r['base'] . '.');
+                } catch (\Throwable $e) {
+                    $this->say('bad', $e->getMessage());
+                }
+                $this->redirect('desc', ['t' => 'gen', 'v' => 'proposed', 'c' => $c]);
+                return true;
+            case 'desc_ok':
+                $text = trim(str_replace(["\r\n", "\r"], "\n", (string)($_POST['text'] ?? '')));
+                if ($text === '' || mb_strlen($text) > 5000) {
+                    $this->say('bad', 'Açıklama boş olamaz (en çok 5000 karakter).');
+                } else {
+                    $G->setStatus([(int)($_POST['sid'] ?? 0)], 'approved', $text);
+                    $this->say('ok', 'Onaylandı: eklenti panele yazacak.');
+                }
+                $this->redirect('desc', ['t' => 'gen', 'v' => 'proposed', 'c' => $cat]);
+                return true;
+            case 'desc_ok_all':
+                $ids = array_column($this->db->all("SELECT sid FROM desc_props WHERE status = 'proposed' AND text != ''" . ($cat ? ' AND category_id = ' . $cat : '') . ' ORDER BY category_id, sid LIMIT 200'), 'sid');
+                $n = $G->setStatus($ids, 'approved');
+                $this->say('ok', "$n açıklama onaylandı: eklenti panele yazacak.");
+                $this->redirect('desc', ['t' => 'gen', 'v' => 'approved', 'c' => $cat]);
+                return true;
+            case 'desc_reject':
+            case 'desc_undo':
+                $G->setStatus([(int)($_POST['sid'] ?? 0)], $p === 'desc_reject' ? 'rejected' : 'proposed');
+                $this->say('ok', $p === 'desc_reject' ? 'Reddedildi.' : 'Onay geri alındı.');
+                $this->redirect('desc', ['t' => 'gen', 'v' => $p === 'desc_reject' ? 'proposed' : 'approved', 'c' => $cat]);
+                return true;
+        }
         if ($p !== 'desc_learn_run') {
             return false;
         }
