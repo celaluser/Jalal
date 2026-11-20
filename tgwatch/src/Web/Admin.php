@@ -1411,7 +1411,7 @@ final class Admin
                 $this->redirect('job_prompt', ['id' => $id]);
             } elseif (str_starts_with($p, 'source')) {
                 $this->redirect('sources');
-            } elseif (str_starts_with($p, 'tm_') || $p === 'match_run') {
+            } elseif (str_starts_with($p, 'tm_') || str_starts_with($p, 'panel_') || $p === 'match_run') {
                 $this->redirect('bank');
             } elseif (str_starts_with($p, 'rival_')) {
                 $this->redirect($p === 'rival_confirm' || $p === 'rival_reject' || $p === 'rival_run' ? 'rivals' : 'rival_list');

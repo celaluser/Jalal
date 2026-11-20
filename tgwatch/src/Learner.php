@@ -21,7 +21,7 @@ final class Learner
     public const MIN_SHARE = 0.8;
     public const MAX_PAIRS = 6000;
     /** Öğrenmeye alınan kaynaklar: senin kararların. ("approved" botun kendi çıktısı olabilir, o yüzden yok.) */
-    public const ORIGINS = ['import', 'confirmed', 'manual'];
+    public const ORIGINS = ['import', 'confirmed', 'manual', 'panel'];
 
     private const EMOJI = '/[\x{1F000}-\x{1FAFF}\x{2190}-\x{21FF}\x{2300}-\x{23FF}\x{25A0}-\x{25FF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}]/u';
 

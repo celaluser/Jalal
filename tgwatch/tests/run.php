@@ -2252,6 +2252,106 @@ test('API istatistikleri: istek/hata/süre günlük ve işlem başına; son iste
     TgWatch\ApiStats::reset($db);
     eq(0, TgWatch\ApiStats::summary($db)['total']['req']);
 });
+echo "Admin API v2: servis listesi ile kesin eşleşme\n";
+test('Panelden kesin eşleşme: sağlayıcı + sağlayıcı servis ID ile ad, kategori ve açıklama bankaya; bilinmeyen sağlayıcı ve senkronsuz servis raporlanır', function () {
+    [$db] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('provider','FasterSMM','https://fastersmm.com/api/v2','k',1),('provider','smmbind','https://www.smmbind.com/api/v2','k',1),('own','panelim','https://panelbaku.com/api/v2','k',1)");
+    $db->run("INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max,description) VALUES(1,71,'Instagram Followers | Real | 30 Days Refill','Instagram Followers',1.2,10,5000,'Start: 0-1 hour\nSpeed: 10K/day')");
+    $db->run("INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max) VALUES(1,72,'Instagram Likes | Fast','Instagram Likes',0.3,10,9000)");
+    $db->run("INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max) VALUES(2,500,'TikTok Views','TikTok',0.01,100,1000000)");
+    // Senin panelinde aynı ID'li servisler (eşleştirmenin tahmin etmemesi gerektiğini görmek için)
+    $db->run("INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max) VALUES(3,9001,'Instagram İzləyici | Real | 30 Gün Qarantili','Instagram İzləyici',2,10,5000)");
+    $rate = static fn($v) => ['value' => $v, 'per' => 1000, 'currency_code' => 'AZN', 'formatted' => $v . ' ₼'];
+    $list = [
+        ['id' => 9001, 'name' => 'Instagram İzləyici | Real | 30 Gün Qarantili', 'category_id' => 5, 'category_name' => 'Instagram İzləyici', 'category_status' => 'enabled', 'provider' => 'fastersmm.com', 'provider_service_id' => '00071', 'rate' => $rate('2.04'), 'provider_rate' => $rate('1.20'), 'min' => 10, 'max' => 5000, 'status' => 'enabled', 'is_hidden' => false],
+        ['id' => 9002, 'name' => 'Instagram Bəyəni | Sürətli', 'category_id' => 6, 'category_name' => 'Instagram Bəyəni', 'category_status' => 'enabled', 'provider' => 'FasterSMM', 'provider_service_id' => '72', 'rate' => $rate('0.5'), 'provider_rate' => $rate('0.3'), 'min' => 10, 'max' => 9000, 'status' => 'enabled', 'is_hidden' => false],
+        ['id' => 9003, 'name' => 'TikTok Views', 'category_id' => 7, 'category_name' => 'TikTok', 'category_status' => 'enabled', 'provider' => 'smmbind.com', 'provider_service_id' => '500', 'rate' => $rate('0.02'), 'min' => 100, 'max' => 1000000, 'status' => 'enabled', 'is_hidden' => false],
+        ['id' => 9004, 'name' => 'YouTube Baxış', 'category_id' => 8, 'category_name' => 'YouTube', 'category_status' => 'enabled', 'provider' => 'unknownpanel.net', 'provider_service_id' => '1', 'rate' => $rate('1'), 'min' => 1, 'max' => 2, 'status' => 'enabled', 'is_hidden' => false],
+        ['id' => 9005, 'name' => 'Telegram Üzv', 'category_id' => 9, 'category_name' => 'Telegram', 'category_status' => 'disabled', 'provider' => 'fastersmm.com', 'provider_service_id' => '999', 'rate' => $rate('1'), 'min' => 1, 'max' => 2, 'status' => 'disabled', 'is_hidden' => true],
+    ];
+    $urls = [];
+    TgWatch\PanelAdmin::$fake = static function (string $url) use ($list, &$urls) {
+        $urls[] = $url;
+        if (str_contains($url, '/services/names-descriptions?')) {
+            return json_encode(['data' => ['count' => 2, 'list' => [
+                ['id' => 9001, 'content' => [['lang_code' => 'az', 'name' => 'Instagram İzləyici | Real | 30 Gün Qarantili', 'description' => "Başlama: 0-1 saat\nSürət: Gündə 10K"]]],
+                ['id' => 9002, 'content' => [['lang_code' => 'az', 'name' => 'Instagram Bəyəni | Sürətli', 'description' => 'Ani başlayır'], ['lang_code' => 'en', 'name' => 'Instagram Likes | Fast EN', 'description' => 'Instant start']]],
+            ]], 'pagination' => ['offset' => 0, 'limit' => 100], 'error_message' => '', 'error_code' => 0]);
+        }
+        return json_encode(['data' => ['count' => count($list), 'list' => $list], 'pagination' => ['offset' => 0, 'limit' => 1000], 'error_message' => '', 'error_code' => 0]);
+    };
+    try {
+        $r = (new TgWatch\PanelServices($db, ['panel_api_url' => 'https://panelbaku.com/adminapi/v2', 'panel_api_key' => 'k']))->run();
+    } finally {
+        TgWatch\PanelAdmin::$fake = null;
+    }
+    eq([5, 3, 2, 1, 1, 2], [$r['services'], $r['exact'], $r['names'], $r['same'], $r['not_synced'], $r['categories']], json_encode($r, JSON_UNESCAPED_UNICODE));
+    eq(['unknownpanel.net' => 1], $r['unknown_providers']);
+    ok(str_contains($urls[0], '/services?offset=0&limit=1000') && str_contains(end($urls), 'lang_codes=az%2Cen%2Ctr%2Cru'), implode(' | ', $urls));
+    $tm = $db->one("SELECT * FROM tm WHERE kind = 'service' AND own_service = 9001");
+    eq(['Instagram Followers | Real | 30 Days Refill', 'Instagram İzləyici | Real | 30 Gün Qarantili', 'panel', 1, 71], [$tm['en'], $tm['az'], $tm['origin'], (int)$tm['provider_source'], (int)$tm['provider_service']]);
+    eq('Instagram İzləyici', $db->one("SELECT az FROM tm WHERE kind = 'category' AND en = 'Instagram Followers'")['az'] ?? null, 'kategori çifti');
+    eq(null, $db->one("SELECT 1 x FROM tm WHERE kind = 'service' AND az = 'TikTok Views'"), 'ad aynıysa (çevrilmemiş) bankaya girmez');
+    eq([1, 1, 1], [$r['desc'], $r['desc_lang'], $r['names_lang']], 'açıklama: sağlayıcınınki ve panelin en sürümünden; ad: en sürümünden');
+    eq("Başlama: 0-1 saat\nSürət: Gündə 10K", (new TgWatch\Memory($db))->lookup('desc', "Start: 0-1 hour\nSpeed: 10K/day"));
+    eq('Ani başlayır', (new TgWatch\Memory($db))->lookup('desc', 'Instant start'));
+    eq([9001, 9002, 9003, 9004, 9005], array_map('intval', array_column($db->all('SELECT id FROM panel_services ORDER BY id'), 'id')), 'anlık görüntü');
+    $ps = $db->one('SELECT * FROM panel_services WHERE id = 9001');
+    eq([1, 71, 2.04, 1.2, 'AZN'], [(int)$ps['source_id'], (int)$ps['remote_service'], (float)$ps['rate'], (float)$ps['provider_rate'], $ps['currency']]);
+    eq([9001, 9002], TgWatch\PanelServices::exactOwn($db), 'kesin bilinenler (ad çevrilmiş olanlar)');
+    $m = (new TgWatch\Matcher($db))->run();
+    eq(1, $m['exact'], 'eşleştirme, panelden kesin bilinen kendi servisini tahmin etmez');
+    eq('panel', $db->one("SELECT origin FROM tm WHERE own_service = 9001 AND kind = 'service'")['origin'], 'eşleştirme kesin kaydı silmez');
+});
+test('Panelden kesin eşleşme: sağlayıcı bilgisi gizliyse ya da izin yoksa açık mesaj; Test et alanları söyler', function () {
+    [$db] = env();
+    $cfg = ['panel_api_url' => 'https://panelbaku.com/adminapi/v2', 'panel_api_key' => 'k'];
+    TgWatch\PanelAdmin::$fake = static fn() => json_encode(['data' => ['count' => 1, 'list' => [['id' => 1, 'name' => 'A', 'category_id' => 1, 'category_name' => 'K', 'category_status' => 'enabled', 'rate' => ['value' => '1', 'per' => 1000, 'currency_code' => 'USD', 'formatted' => '$1'], 'min' => 1, 'max' => 2, 'status' => 'enabled', 'is_hidden' => false]]], 'pagination' => [], 'error_message' => '', 'error_code' => 0]);
+    try {
+        $r = (new TgWatch\PanelServices($db, $cfg))->run(false);
+        $t = (new TgWatch\PanelServices($db, $cfg))->test();
+    } finally {
+        TgWatch\PanelAdmin::$fake = null;
+    }
+    ok($r['provider_hidden'] && $r['exact'] === 0, 'sağlayıcı alanları yok: gizli');
+    $byName = array_column($t, null, 0);
+    eq('ok', $byName['Get service list'][1]);
+    eq('bad', $byName['Sağlayıcı bilgisi'][1]);
+    ok(str_contains($byName['Sağlayıcı bilgisi'][2], 'gizlenmiş'), $byName['Sağlayıcı bilgisi'][2]);
+    TgWatch\PanelAdmin::$fake = static fn() => json_encode(['data' => [], 'error_message' => 'Method is not allowed for this key', 'error_code' => 12]);
+    try {
+        $t = (new TgWatch\PanelServices($db, $cfg))->test();
+        $err = '';
+        try {
+            (new TgWatch\PanelServices($db, $cfg))->run();
+        } catch (RuntimeException $e) {
+            $err = $e->getMessage();
+        }
+    } finally {
+        TgWatch\PanelAdmin::$fake = null;
+    }
+    eq(['Get service list', 'bad'], [$t[0][0], $t[0][1]]);
+    ok(str_contains($t[0][2], 'Method is not allowed'), $t[0][2]);
+    ok(str_contains($err, 'Panel hatası: Method is not allowed'), $err);
+    $e2 = '';
+    try {
+        (new TgWatch\PanelServices($db, ['panel_api_url' => '', 'panel_api_key' => '']))->run();
+    } catch (InvalidArgumentException $e) {
+        $e2 = $e->getMessage();
+    }
+    ok(str_contains($e2, 'panel API adresi'), $e2);
+});
+test('Sağlayıcı servis listesindeki açıklama (desc) saklanır', function () {
+    [$db] = env();
+    $db->run("INSERT INTO sources(kind,name,api_url,api_key,created_at) VALUES('provider','p','https://p.example/api/v2','k',1)");
+    TgWatch\SmmApi::$fake = static fn() => json_encode([['service' => 1, 'name' => 'A', 'category' => 'C', 'rate' => '1', 'min' => '1', 'max' => '2', 'desc' => "Line 1\r\nLine 2"], ['service' => 2, 'name' => 'B', 'category' => 'C', 'rate' => '1', 'min' => '1', 'max' => '2']]);
+    try {
+        TgWatch\SmmApi::sync($db, 1);
+    } finally {
+        TgWatch\SmmApi::$fake = null;
+    }
+    eq(["Line 1\nLine 2", ''], array_column($db->all('SELECT description FROM remote_services ORDER BY service_id'), 'description'));
+});
 echo "Chrome eklentisi API\n";
 test('Eklenti API: teach bankadaki eski kayıtları da düzeltir (çevrilmeden kalmış kelime, sözlükteki eski karşılık); word_info şimdiki durumu verir', function () {
     [$db] = env();

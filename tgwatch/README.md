@@ -372,6 +372,21 @@ Türkçe kaynak adlar (Takipçi, Beğeni, Telafili, Günde…) için sözlüğe 
 
 **Denenmedi:** gerçek Perfect Panel ekranında. Satırlar panel HTML'ine değil düğme/etiket yazılarına (Edit, Save, Name, Import services) göre bulunur; panel dili İngilizce değilse çalışmaz. Fotoğraflardaki ekranın taklidinde ve gerçek tgwatch API'siyle uçtan uca denendi.
 
+## Panelden kesin eşleşme (Admin API v2 servis işlemleri)
+
+Perfect Panel, Admin API v2'ye (Kasım 2026) üç servis işlemi ekledi: **Get service list**, **Change service status**, **Get service names and descriptions**. tgwatch ilk ve üçüncüsünü kullanır (Çeviri → Çeviri bankası → **Panelden kesin eşleşme**):
+
+- **Ad:** panel her servisin sağlayıcısını (ad/alan adı) ve **sağlayıcıdaki servis ID'sini** veriyor. tgwatch bunu Ayarlar → Kaynaklar'daki sağlayıcıyla (alan adı ya da adla) ve onun senkronize servis listesiyle birleştirir: sağlayıcının adı ↔ senin Azerice adın bankaya **tahminsiz** girer (kaynak "Panel (kesin)", önceliği "onaylanan iş" ile aynı). Ad sağlayıcıyla aynıysa (çevrilmemiş) girmez.
+- **Kategori:** sağlayıcı kategorisi ↔ senin kategorin (en çok oy alan).
+- **Açıklama:** sağlayıcı servis listesinde açıklama veriyorsa (desc) ↔ panelindeki Azerice açıklama; panelinde aynı servisin başka dil sürümü varsa (en/tr/ru) ↔ Azerice sürüm (ad da). Açıklama bankası (kind=desc) bunlardan öğrenir.
+- **Eşleştirme** (Otomatik eşleştirme) panelden kesin bilinen servisleri artık tahmin etmez, kesin kayıtları silmez.
+- **Anlık görüntü:** son servis listesi (kategori, sağlayıcı, satış ve sağlayıcı fiyatı, durum) `panel_services` tablosunda saklanır; sonraki işler (kâr, toplu kapatma, kanal paylaşımı) bunu kullanacak.
+- **Test et:** iki okuma işlemini dener; izin yoksa, sağlayıcı bilgisi gizliyse, sağlayıcı tgwatch'ta yoksa ya da panelde Azerice içerik yoksa söyler.
+
+Panelde yapılacaklar: Admin API v2 anahtarının ayarlarında **Get service list** ve **Get service names and descriptions** izinleri; "Get service list" için sağlayıcı bilgisini **gizleme**. tgwatch'ta: Ayarlar → Yayın ve panel API → adres (`https://panelbaku.com/adminapi/v2`) + anahtar; sağlayıcılar Ayarlar → Kaynaklar'da ekli ve senkronize. Panelin sınırı saniyede 5 istek; tgwatch istekleri arasında bekler.
+
+**Denenmedi:** gerçek panelle (bu ortamdan erişilemedi). Alan adları Perfect Panel'in OpenAPI belgesinden; testler sahte cevaplarla.
+
 ## Sipariş geçmişinden gerçek sağlayıcıyı öğrenme (tahmin değil)
 
 Perfect Panel'in Admin API v2'sindeki **Orders** uçları (`GET /orders`) zaten yayında ve her siparişte hangi sağlayıcıdan geldiğini (`provider` alanı: sağlayıcı adı/takma adı) veriyor — henüz yayınlanmamış "servis listesinde sağlayıcı ID'si" özelliğini beklemeden, bugün kullanılabilir.

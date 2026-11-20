@@ -14,7 +14,7 @@ namespace TgWatch;
  */
 final class Memory
 {
-    public const ORIGIN_RANK = ['manual' => 4, 'approved' => 3, 'confirmed' => 2, 'import' => 1];
+    public const ORIGIN_RANK = ['manual' => 4, 'approved' => 3, 'panel' => 3, 'confirmed' => 2, 'import' => 1];
     private const NUM = '/(?<![\p{L}\p{N}#])\d+(?:[.,]\d+)?\s?[KkMm]?(?![\p{L}\p{N}])/u';
 
     /** @var array<string,string>|null en_norm => az (en iyi oy) */
@@ -103,7 +103,7 @@ final class Memory
             [$kind, self::norm($en), $en, $az, $origin, $status, (float)($meta['score'] ?? 1), $meta['provider_source'] ?? null, $meta['provider_service'] ?? null, $meta['own_service'] ?? null, time()]
         );
         // Daha yüksek öncelikli kaynak gelirse yükselt.
-        $this->db->run('UPDATE tm SET origin = ? WHERE kind = ? AND en_norm = ? AND az = ? AND status = \'ok\' AND ? > (CASE origin WHEN \'manual\' THEN 4 WHEN \'approved\' THEN 3 WHEN \'confirmed\' THEN 2 ELSE 1 END)',
+        $this->db->run('UPDATE tm SET origin = ? WHERE kind = ? AND en_norm = ? AND az = ? AND status = \'ok\' AND ? > (CASE origin WHEN \'manual\' THEN 4 WHEN \'approved\' THEN 3 WHEN \'panel\' THEN 3 WHEN \'confirmed\' THEN 2 ELSE 1 END)',
             [$origin, $kind, self::norm($en), $az, self::ORIGIN_RANK[$origin] ?? 1]);
         if ($kind === 'service' && $status === 'ok') {
             $this->learnSegments($en, $az, (float)(self::ORIGIN_RANK[$origin] ?? 1));
@@ -321,7 +321,7 @@ final class Memory
     public function lookup(string $kind, string $en): ?string
     {
         $row = $this->db->one("SELECT az FROM tm WHERE kind = ? AND en_norm = ? AND status = 'ok'
-            ORDER BY CASE origin WHEN 'manual' THEN 4 WHEN 'approved' THEN 3 WHEN 'confirmed' THEN 2 ELSE 1 END DESC, updated_at DESC LIMIT 1", [$kind, self::norm($en)]);
+            ORDER BY CASE origin WHEN 'manual' THEN 4 WHEN 'approved' THEN 3 WHEN 'panel' THEN 3 WHEN 'confirmed' THEN 2 ELSE 1 END DESC, updated_at DESC LIMIT 1", [$kind, self::norm($en)]);
         return $row['az'] ?? null;
     }
 

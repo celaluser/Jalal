@@ -138,6 +138,13 @@ SQL);
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS rival_map (own_service INTEGER NOT NULL, rival_source INTEGER NOT NULL, rival_service INTEGER NOT NULL, score REAL NOT NULL, status TEXT NOT NULL DEFAULT \'auto\', PRIMARY KEY(own_service, rival_source))');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS rival_state (own_service INTEGER NOT NULL, rival_source INTEGER NOT NULL, flag TEXT NOT NULL DEFAULT \'\', rival_rate REAL, my_rate REAL, at INTEGER NOT NULL, PRIMARY KEY(own_service, rival_source))');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS api_seen (source_id INTEGER NOT NULL, service_id INTEGER NOT NULL, first_seen INTEGER NOT NULL, PRIMARY KEY(source_id, service_id))');
+        // Admin API v2 /services anlık görüntüsü (kesin sağlayıcı eşleşmesi, kâr, kapatma için)
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS panel_services (id INTEGER PRIMARY KEY, name TEXT NOT NULL, category_id INTEGER, category_name TEXT NOT NULL DEFAULT \'\', category_status TEXT NOT NULL DEFAULT \'\',
+            provider TEXT NOT NULL DEFAULT \'\', provider_service_id TEXT NOT NULL DEFAULT \'\', source_id INTEGER, remote_service INTEGER, rate REAL, provider_rate REAL, currency TEXT NOT NULL DEFAULT \'\',
+            min INTEGER, max INTEGER, status TEXT NOT NULL DEFAULT \'\', hidden INTEGER NOT NULL DEFAULT 0, at INTEGER NOT NULL)');
+        if (!in_array('description', array_column($this->pdo->query('PRAGMA table_info(remote_services)')->fetchAll(), 'name'), true)) {
+            $this->pdo->exec("ALTER TABLE remote_services ADD COLUMN description TEXT NOT NULL DEFAULT ''");
+        }
         $srcCols = array_column($this->pdo->query('PRAGMA table_info(sources)')->fetchAll(), 'name');
         foreach (['watch' => 'INTEGER NOT NULL DEFAULT 0', 'watch_at' => 'INTEGER', 'watch_note' => "TEXT NOT NULL DEFAULT ''", 'fx' => 'REAL NOT NULL DEFAULT 1'] as $col => $def) {
             if (!in_array($col, $srcCols, true)) {

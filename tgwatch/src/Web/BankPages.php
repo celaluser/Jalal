@@ -92,6 +92,38 @@ trait BankPages
             . ' ' . Ui::link('?p=sources', 'Kaynaklar', 'quiet sm', 'link') . '</p>';
 
         // Eşleştirme
+        // Panelden kesin eşleşme (Admin API v2 /services)
+        $PS = new \TgWatch\PanelServices($this->db, $this->config);
+        $pr = $PS->report();
+        $h .= '<h2 id="panel-exact">Panelden kesin eşleşme</h2><div class="panel panel-pad stack">'
+            . '<p class="muted">Panelinin Admin API\'si artık her servisin <b>hangi sağlayıcının hangi servisi</b> olduğunu söylüyor. Bu bilgiyle sağlayıcı adı ↔ senin Azerice adın tahminsiz bankaya girer (kaynak: “Panel (kesin)”); kategori adları ve açıklamalar da öğrenilir. '
+            . 'Gerekenler: Ayarlar → Yayın ve panel API\'de adres + anahtar; panelde anahtarın ayarlarında <b>Get service list</b> ve <b>Get service names and descriptions</b> izinleri, sağlayıcı bilgisi gizlenmemiş; sağlayıcılar Ayarlar → Kaynaklar\'da ekli ve senkronize.</p>';
+        if (is_array($pr)) {
+            $unk = $pr['unknown_providers'] ?? [];
+            $h .= '<dl class="kv"><dt>Paneldeki servis</dt><dd>' . (int)$pr['services'] . '</dd>'
+                . '<dt>Kesin eşleşen</dt><dd><b>' . (int)$pr['exact'] . '</b>' . ((int)$pr['same'] ? ' <span class="muted">(' . (int)$pr['same'] . ' tanesinde ad sağlayıcıyla aynı, çeviri yok)</span>' : '') . '</dd>'
+                . '<dt>Bankaya giren</dt><dd>' . (int)$pr['names'] . ' ad, ' . (int)$pr['categories'] . ' kategori, ' . ((int)$pr['desc'] + (int)$pr['desc_lang']) . ' açıklama'
+                . ((int)$pr['names_lang'] ? ', ' . (int)$pr['names_lang'] . ' ad (panelin diğer dil sürümünden)' : '') . '</dd>'
+                . ($pr['langs'] ? '<dt>Paneldeki diller</dt><dd>' . Ui::e(implode(', ', array_map(static fn($l, $n) => $l . ' (' . $n . ')', array_keys($pr['langs']), $pr['langs']))) . '</dd>' : '')
+                . ((int)$pr['not_synced'] ? '<dt>Sağlayıcı listesinde yok</dt><dd class="lvl-warn">' . (int)$pr['not_synced'] . ' servis: sağlayıcıyı Kaynaklar\'da yeniden senkronize et</dd>' : '')
+                . ($unk ? '<dt>tgwatch\'ta olmayan sağlayıcı</dt><dd class="lvl-warn">' . Ui::e(implode(', ', array_map(static fn($p, $n) => $p . ' (' . $n . ')', array_keys($unk), $unk))) . ' — <a href="?p=sources">Kaynaklar\'a ekle</a></dd>' : '')
+                . (!empty($pr['provider_hidden']) ? '<dt>Sağlayıcı bilgisi</dt><dd class="lvl-error">gelmiyor: panelde API anahtarının ayarlarında sağlayıcı bilgisi gizli ya da “View provider service data” izni yok</dd>' : '')
+                . ($pr['desc_error'] !== '' ? '<dt>Açıklamalar</dt><dd class="lvl-warn">' . Ui::e($pr['desc_error']) . '</dd>' : '')
+                . '<dt>Son çalışma</dt><dd>' . Ui::ago((int)$pr['at']) . '</dd></dl>';
+        }
+        $test = $_SESSION['panel_api_test'] ?? null;
+        unset($_SESSION['panel_api_test']);
+        if (is_array($test)) {
+            $h .= '<dl class="kv">';
+            foreach ($test as [$k, $lvl, $msg]) {
+                $h .= '<dt>' . Ui::dot($lvl === 'ok' ? 'ok' : ($lvl === 'warn' ? 'warn' : 'bad')) . Ui::e($k) . '</dt><dd>' . Ui::e($msg) . '</dd>';
+            }
+            $h .= '</dl>';
+        }
+        $h .= '<div class="row">' . ($PS->configured()
+            ? $this->ui->action('panel_exact_run', 'Panelden kesin eşleştir', [], 'primary', 'play') . $this->ui->action('panel_api_test', 'Test et', [], 'quiet', 'check')
+            : Ui::link('?p=settings&tab=publish', 'Panel API\'yi bağla', 'primary', 'link')) . '</div></div>';
+
         $rep = $this->db->getJson('match_report');
         $h .= '<h2>Otomatik eşleştirme</h2><div class="panel panel-pad stack">'
             . '<p class="muted">Kendi panelinizdeki Azerice servisleri sağlayıcıların İngilizce servisleriyle eşleştirir: aynı min/max, aynı platform, addaki sayılar, iade/iptal özellikleri ve fiyat. Fiyat formülünüz (kâr yüzdesi, sabit kâr, kur) kesin eşleşmelerden otomatik hesaplanır. Elle onayladığınız ya da reddettiğiniz eşleşmeler korunur.</p>';
@@ -103,7 +135,8 @@ trait BankPages
                 default => 'hesaplanamadı (fiyat kullanılmadı)',
             };
             $h .= '<dl class="kv"><dt>Kendi servisleriniz</dt><dd>' . $rep['own'] . '</dd>'
-                . '<dt>Kesin eşleşen (bankaya girdi)</dt><dd>' . $rep['high'] . '</dd>'
+                . (!empty($rep['exact']) ? '<dt>Panelden kesin bilinen (tahmin edilmedi)</dt><dd>' . (int)$rep['exact'] . '</dd>' : '')
+            . '<dt>Tahminle eşleşen (bankaya girdi)</dt><dd>' . $rep['high'] . '</dd>'
                 . '<dt>Kontrol bekleyen</dt><dd>' . $rep['review'] . '</dd>'
                 . '<dt>Eşleşmeyen (tarz örneği olarak kullanılır)</dt><dd>' . $rep['none'] . '</dd>'
                 . '<dt>Kategori çifti</dt><dd>' . ($rep['categories'] ?? 0) . '</dd>'
@@ -151,7 +184,7 @@ trait BankPages
             . '<label>Tür<select name="kind"><option value="service"' . ($kind === 'service' ? ' selected' : '') . '>Servis adları</option><option value="category"' . ($kind === 'category' ? ' selected' : '') . '>Kategoriler</option></select></label>'
             . '<button class="btn quiet">' . Ui::icon('search') . '<span>Ara</span></button></form>';
         if ($rows) {
-            $origin = ['manual' => 'Elle', 'approved' => 'Onaylanan iş', 'confirmed' => 'Onaylanan eşleşme', 'import' => 'Otomatik eşleşme'];
+            $origin = ['manual' => 'Elle', 'approved' => 'Onaylanan iş', 'panel' => 'Panel (kesin)', 'confirmed' => 'Onaylanan eşleşme', 'import' => 'Otomatik eşleşme'];
             $h .= '<div class="table-wrap"><table><thead><tr><th>Kaynak ad</th><th>Azerice</th><th>Geldiği yer</th><th></th></tr></thead><tbody>';
             foreach ($rows as $r) {
                 $h .= '<tr><td>' . Ui::e($r['en']) . '</td><td><form method="post" action="?p=tm_save" class="field-row">' . $this->ui->csrfField()
@@ -391,6 +424,24 @@ trait BankPages
                 $n = $this->refreshOpenJobs();
                 $this->say('ok', "Eşleştirme bitti: {$r['high']} kesin, {$r['review']} kontrol bekliyor, {$r['none']} eşleşmedi." . ($n ? " $n açık iş güncellendi." : ''));
                 $this->redirect('bank');
+                return true;
+            case 'panel_exact_run':
+                try {
+                    $r = (new \TgWatch\PanelServices($this->db, $this->config))->run();
+                    $n = $r['exact'] ? $this->refreshOpenJobs() : 0;
+                    $msg = "Panelden {$r['services']} servis okundu: {$r['exact']} tanesi kesin eşleşti; bankaya {$r['names']} ad, {$r['categories']} kategori, " . ($r['desc'] + $r['desc_lang']) . ' açıklama girdi.' . ($n ? " $n açık iş güncellendi." : '');
+                    if (!empty($r['provider_hidden'])) {
+                        $msg .= ' Sağlayıcı bilgisi gelmiyor: anahtar ayarlarını kontrol et.';
+                    }
+                    $this->say($r['exact'] || $r['desc_lang'] ? 'ok' : 'bad', $msg);
+                } catch (\Throwable $e) {
+                    $this->say('bad', 'Panel API\'den okunamadı: ' . $e->getMessage());
+                }
+                $this->redirect('bank', ['_' => 'panel-exact']);
+                return true;
+            case 'panel_api_test':
+                $_SESSION['panel_api_test'] = (new \TgWatch\PanelServices($this->db, $this->config))->test();
+                $this->redirect('bank', ['_' => 'panel-exact']);
                 return true;
             case 'order_provider_run':
                 @set_time_limit(120);

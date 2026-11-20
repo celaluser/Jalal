@@ -87,9 +87,15 @@ final class Matcher
             $byMinMax[$p['min'] . '|' . $p['max']][] = $p;
         }
 
-        // 1) aday listeleri
+        // 1) aday listeleri (panelin Admin API'sinden kesin eşleşmesi bilinen servisler tahmin edilmez)
+        $exact = array_flip(PanelServices::exactOwn($this->db));
+        $skipped = 0;
         $cands = [];
         foreach ($ownRows as $o) {
+            if (isset($exact[(int)$o['service_id']])) {
+                $skipped++;
+                continue;
+            }
             $o['_nums'] = self::nums($o['name']);
             $o['_plat'] = self::platform($o['name'] . ' ' . $o['category']);
             $list = [];
@@ -177,7 +183,7 @@ final class Matcher
         });
         $mem->rebuildSegments();
 
-        $report = ['own' => count($ownRows), 'providers' => count($provRows), 'high' => $high, 'review' => $review, 'none' => $none,
+        $report = ['own' => count($ownRows), 'exact' => $skipped, 'providers' => count($provRows), 'high' => $high, 'review' => $review, 'none' => $none,
             'categories' => count($catVotes), 'model' => $model, 'ms' => (int)((microtime(true) - $t0) * 1000), 'at' => time()];
         $this->db->setJson('match_report', $report);
         $this->db->log('info', 'bank', "Eşleştirme: $high kesin, $review kontrol bekliyor, $none eşleşmedi");

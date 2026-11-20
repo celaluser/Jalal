@@ -98,6 +98,7 @@ final class SmmApi
                 'refill' => self::flag($row['refill'] ?? null),
                 'cancel' => self::flag($row['cancel'] ?? null),
                 'type' => (string)($row['type'] ?? ''),
+                'description' => trim(mb_substr(str_replace(["\r\n", "\r"], "\n", (string)($row['desc'] ?? $row['description'] ?? '')), 0, 4000)),
             ];
         }
         if (!$out) {
@@ -145,10 +146,10 @@ final class SmmApi
         $new = [];
         $db->tx(static function () use ($db, $sourceId, $list, $seen, $baseline, $markSeen, $track, &$new): void {
             $db->run('DELETE FROM remote_services WHERE source_id = ?', [$sourceId]);
-            $st = $db->pdo->prepare('INSERT OR REPLACE INTO remote_services(source_id, service_id, name, category, rate, min, max, refill, cancel, type) VALUES(?,?,?,?,?,?,?,?,?,?)');
+            $st = $db->pdo->prepare('INSERT OR REPLACE INTO remote_services(source_id, service_id, name, category, rate, min, max, refill, cancel, type, description) VALUES(?,?,?,?,?,?,?,?,?,?,?)');
             $mark = $db->pdo->prepare('INSERT OR IGNORE INTO api_seen(source_id, service_id, first_seen) VALUES(?,?,?)');
             foreach ($list as $s) {
-                $st->execute([$sourceId, $s['service_id'], $s['name'], $s['category'], $s['rate'], $s['min'], $s['max'], $s['refill'], $s['cancel'], $s['type']]);
+                $st->execute([$sourceId, $s['service_id'], $s['name'], $s['category'], $s['rate'], $s['min'], $s['max'], $s['refill'], $s['cancel'], $s['type'], $s['description'] ?? '']);
                 if ($track && !isset($seen[$s['service_id']])) {
                     if ($baseline) {
                         $mark->execute([$sourceId, $s['service_id'], time()]);
