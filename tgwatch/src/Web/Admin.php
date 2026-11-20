@@ -26,6 +26,7 @@ final class Admin
     use LearnPages;
     use RivalPages;
     use ApiPages;
+    use DescPages;
 
     private const PER_PAGE = 30;
     private const OPEN = ['new', 'awaiting', 'editing'];
@@ -100,6 +101,7 @@ final class Admin
             'channels' => $this->channels(),
             'dict' => $this->dict(),
             'bank' => $this->bank(),
+            'desc' => $this->descPage(),
             'sources' => $this->sourcesPage(),
             'learn' => $this->learnPage(),
             'rivals' => $this->rivalsPage(),
@@ -1170,7 +1172,7 @@ final class Admin
     {
         $id = (int)($_POST['id'] ?? 0);
         try {
-            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p) || $this->postTools($p) || $this->postLearn($p) || $this->postRival($p) || $this->postRivalLearn($p) || $this->postApi($p)) {
+            if ($this->postBank($p) || $this->postSecurity($p) || $this->postChanges($p) || $this->postSettings($p) || $this->postTools($p) || $this->postLearn($p) || $this->postRival($p) || $this->postRivalLearn($p) || $this->postDesc($p) || $this->postApi($p)) {
                 return;
             }
             switch ($p) {
@@ -1411,6 +1413,8 @@ final class Admin
                 $this->redirect('job_prompt', ['id' => $id]);
             } elseif (str_starts_with($p, 'source')) {
                 $this->redirect('sources');
+            } elseif (str_starts_with($p, 'desc_learn')) {
+                $this->redirect('desc');
             } elseif (str_starts_with($p, 'tm_') || str_starts_with($p, 'panel_') || $p === 'match_run') {
                 $this->redirect('bank');
             } elseif (str_starts_with($p, 'rival_')) {

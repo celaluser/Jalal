@@ -389,6 +389,18 @@ Panelde yapılacaklar: Admin API v2 anahtarının ayarlarında **Get service lis
 
 **Denenmedi:** gerçek panelle (bu ortamdan erişilemedi). Alan adları Perfect Panel'in OpenAPI belgesinden; testler sahte cevaplarla.
 
+## Açıklamalar (Çeviri → Açıklamalar)
+
+Paneldeki Azerice açıklamaları Admin API'den (Get service list + Get service names and descriptions) okur ve **panelde hiçbir şeyi değiştirmez**. Panelde yalnızca Azerice açıksa İngilizce→Azerice çift öğrenilemez; bu bölüm senin üslubunu ve kurallarını öğrenir:
+
+- **Kurallar (addaki bilgi → açıklama satırı):** servis adındaki bilgi (garanti günü, ömürlük/garantisiz, maks, günlük ve saatlik hız, başlama süresi, anında, Non Drop/azalma olmaz, iptal) açıklamada hangi satır kalıbıyla yazılmış: ör. adında "30 Gün Qarantili" olan servislerin açıklamasındaki `♻️ Qarantiya: {v} gün`. Değer ad ile açıklamada aynıysa sayılır (çelişenler öğrenmeye katılmaz). Sayılar 10K = 10.000 = 10 000 olarak karşılaştırılır.
+- **Şablonlar:** platform × tür grubu (ör. Instagram takipçi) başına açıklamaların en az %35'inde geçen satırlar, ortalama sıralarıyla, ve bu yapıya en çok uyan gerçek açıklama.
+- **Sık ifadeler:** birçok açıklamada aynen geçen satırlar.
+- **Tutarsızlıklar:** *çelişen* (ad 30 gün garanti, açıklama 60 gün; ad maks 500K, açıklama 1M; ad garantisiz, açıklamada garanti süresi; ad ömürlük, açıklamada gün; ad Instagram, açıklama başka platform) ve *eksik* (adında garanti var, açıklamada yazmıyor). Maks ve hız sayısı anahtar kelimenin hemen yanından okunur ("Min: 10 / Maks: 500K" yanlış alarm vermez).
+- **Kategoriler:** kategori başına servis, açıklamasız, çelişen ve eksik sayısı (en çok açıklamasızı olandan başlar, aranabilir). Sonraki adımda buradan kategori seçilip açıklamasız servislere öneri üretilecek.
+
+Öğrenilen kurallar ve şablonlar `desc_rules` olarak, açıklamalar `panel_desc` tablosunda saklanır. Gerekenler: panel API bağlı, anahtarda iki okuma izni. **Denenmedi:** gerçek panelle (testler sahte verilerle).
+
 ## Telefondan panel yönetimi (bot komutları, Admin API)
 
 Admin API v2'nin servis işlemleriyle (Get service list, Change service status) bottan:

@@ -142,6 +142,8 @@ SQL);
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS panel_services (id INTEGER PRIMARY KEY, name TEXT NOT NULL, category_id INTEGER, category_name TEXT NOT NULL DEFAULT \'\', category_status TEXT NOT NULL DEFAULT \'\',
             provider TEXT NOT NULL DEFAULT \'\', provider_service_id TEXT NOT NULL DEFAULT \'\', source_id INTEGER, remote_service INTEGER, rate REAL, provider_rate REAL, currency TEXT NOT NULL DEFAULT \'\',
             min INTEGER, max INTEGER, status TEXT NOT NULL DEFAULT \'\', hidden INTEGER NOT NULL DEFAULT 0, at INTEGER NOT NULL)');
+        // Paneldeki Azerice açıklamalar (Açıklamalar bölümü okur; panelde değişiklik yapmaz)
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS panel_desc (id INTEGER PRIMARY KEY, name TEXT NOT NULL, category_id INTEGER, category_name TEXT NOT NULL DEFAULT \'\', status TEXT NOT NULL DEFAULT \'\', description TEXT NOT NULL DEFAULT \'\', at INTEGER NOT NULL)');
         if (!in_array('description', array_column($this->pdo->query('PRAGMA table_info(remote_services)')->fetchAll(), 'name'), true)) {
             $this->pdo->exec("ALTER TABLE remote_services ADD COLUMN description TEXT NOT NULL DEFAULT ''");
         }

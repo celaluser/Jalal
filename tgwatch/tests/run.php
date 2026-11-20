@@ -2470,6 +2470,82 @@ test('Bot /servis, /kapat (onaylı), /ac, /kategori (ad parçası, hepsini kapat
     ok(str_contains(lastText($tg), 'Kullanım: <code>/kapat 9001</code>'));
     eq([1, 2, 3], TgWatch\PanelBot::ids('1, 2 3 2'));
 });
+echo "Açıklama öğrenme\n";
+test('Açıklama öğrenme: addan bilgi, sayı biçimleri', function () {
+    eq([10000.0, 10000.0, 1500.0, 500.0, 1000000.0, 10000.0], [TgWatch\DescLearn::num('10K'), TgWatch\DescLearn::num('10.000'), TgWatch\DescLearn::num('1.5K'), TgWatch\DescLearn::num('500'), TgWatch\DescLearn::num('1M'), TgWatch\DescLearn::num('10 000')]);
+    $f = TgWatch\DescLearn::facts('Instagram İzləyici | Real | 30 Gün Qarantili | Maks 500K | Gündə 10K | Ani Başlayır | Azalma olmaz | Ləğv aktivdir');
+    eq(['guarantee' => 30, 'max' => 500000.0, 'speed' => 10000.0, 'instant' => true, 'nondrop' => true, 'cancel' => true], $f);
+    eq(['lifetime' => true], TgWatch\DescLearn::facts('TikTok Bəyəni | Ömürlük Qarantili'));
+    eq(['noguarantee' => true, 'speed_h' => 1000.0], TgWatch\DescLearn::facts('YouTube Baxış | Qarantisiz | Saatda 1K'));
+    eq(['guarantee' => 60, 'max' => 100000.0, 'speed' => 5000.0], TgWatch\DescLearn::facts('Instagram Followers | 60 Days Refill | Max 100K | 5K/Day'));
+    eq('followers', TgWatch\DescLearn::type('Instagram İzləyici'));
+    eq('views', TgWatch\DescLearn::type('TikTok Baxış'));
+});
+test('Açıklama öğrenme: kurallar (addaki bilgi → satır), grup şablonu, çelişen/eksik/platform, kategori sayıları; panelde değişiklik yok', function () {
+    [$db] = env();
+    $d = static fn($g, $max, $sp) => "📌 Başlama: 0-1 saat\n⚡ Sürət: Gündə $sp\n♻️ Qarantiya: $g gün\n📏 Min: 10 / Maks: $max\n✅ Azalma olmaz";
+    $svc = static fn($id, $name, $cat, $catName, $st = 'enabled') => ['id' => $id, 'name' => $name, 'category_id' => $cat, 'category_name' => $catName, 'category_status' => 'enabled', 'provider' => '', 'provider_service_id' => '', 'rate' => 1.0, 'provider_rate' => null, 'currency' => 'AZN', 'min' => 10, 'max' => 1000, 'status' => $st, 'hidden' => false, 'refill' => true, 'cancel' => false];
+    $list = [
+        $svc(1, 'Instagram İzləyici | Real | 30 Gün Qarantili | Maks 500K | Gündə 10K', 5, 'Instagram İzləyici'),
+        $svc(2, 'Instagram İzləyici | Ucuz | 365 Gün Qarantili | Maks 1M | Gündə 50K', 5, 'Instagram İzləyici'),
+        $svc(3, 'Instagram İzləyici | Türk | 60 Gün Qarantili | Maks 100K | Gündə 5K', 5, 'Instagram İzləyici'),
+        $svc(4, 'Instagram İzləyici | VIP | 30 Gün Qarantili | Maks 200K | Gündə 20K', 5, 'Instagram İzləyici'),   // açıklamada 60 gün: çelişki
+        $svc(5, 'Instagram İzləyici | Bot | 30 Gün Qarantili | Maks 300K | Gündə 30K', 5, 'Instagram İzləyici'),   // açıklamada garanti yok: eksik
+        $svc(6, 'Instagram İzləyici | Yeni | 30 Gün Qarantili', 5, 'Instagram İzləyici'),                              // açıklamasız
+        $svc(7, 'Instagram Bəyəni | Sürətli | Maks 50K', 6, 'Instagram Bəyəni'),                                         // açıklama TikTok diyor
+        $svc(8, 'TikTok Baxış | Ani', 7, 'TikTok Baxış', 'disabled'),                                                    // açıklamasız
+    ];
+    $nd = [
+        1 => ['az' => ['name' => '', 'description' => $d(30, '500K', '10K')]],
+        2 => ['az' => ['name' => '', 'description' => $d(365, '1M', '50K')]],
+        3 => ['az' => ['name' => '', 'description' => $d(60, '100K', '5K')]],
+        4 => ['az' => ['name' => '', 'description' => $d(60, '200K', '20K')]],
+        5 => ['az' => ['name' => '', 'description' => "📌 Başlama: 0-1 saat\n⚡ Sürət: Gündə 30K\n📏 Min: 10 / Maks: 300K\n✅ Azalma olmaz"]],
+        6 => ['az' => ['name' => '', 'description' => '']],
+        7 => ['az' => ['name' => '', 'description' => "TikTok bəyəniləri\nMaks: 50K"]],
+    ];
+    $r = (new TgWatch\DescLearn($db, []))->learn($list, $nd, ['az']);
+    eq([8, 6, 2], [$r['services'], $r['with_desc'], $r['empty']]);
+    $rules = array_column($r['rules'], null, 'fact');
+    eq(['♻️ Qarantiya: {v} gün', 3, 3], [$rules['guarantee']['tpl'], $rules['guarantee']['n'], $rules['guarantee']['total']], json_encode($rules['guarantee'] ?? null, JSON_UNESCAPED_UNICODE));
+    eq('📏 Min: # / Maks: {v}', $rules['max']['tpl']);
+    eq('⚡ Sürət: Gündə {v}', $rules['speed']['tpl']);
+    $tpl = array_column($r['templates'], null, 'group')['instagram|followers'] ?? null;
+    ok($tpl && $tpl['n'] === 5 && in_array('♻️ Qarantiya: # gün', array_column($tpl['lines'], 'shape'), true) && array_column($tpl['lines'], 'shape')[0] === '📌 Başlama: #-# saat', json_encode($tpl, JSON_UNESCAPED_UNICODE));
+    $issues = array_map(static fn($i) => $i['id'] . ':' . $i['kind'] . ':' . $i['fact'], $r['issues']);
+    sort($issues);
+    eq(['4:conflict:guarantee', '5:missing:guarantee', '7:conflict:platform'], $issues, 'Min: 10 / Maks: 500K satırı maks çelişkisi sayılmaz');
+    ok(str_contains(array_column($r['issues'], null, 'id')[4]['msg'], 'Adında garanti 30 gün, açıklamada 60 gün'), array_column($r['issues'], null, 'id')[4]['msg']);
+    $cats = array_column($r['categories'], null, 'id');
+    eq([6, 1, 1, 1], [$cats[5]['n'], $cats[5]['empty'], $cats[5]['conflict'], $cats[5]['missing']]);
+    eq([1, 1, 0], [$cats[7]['n'], $cats[7]['empty'], $cats[7]['on']]);
+    eq(8, (int)$db->one('SELECT COUNT(*) c FROM panel_desc')['c']);
+    $saved = $db->getJson(TgWatch\DescLearn::RULES);
+    eq('♻️ Qarantiya: {v} gün', $saved['*']['guarantee']['tpl']);
+    ok(isset($saved['templates']['instagram|followers']));
+});
+test('Açıklama öğrenme: panelden (sahte) okur, yalnızca açık dil (az) istenir', function () {
+    [$db] = env();
+    $calls = [];
+    TgWatch\PanelAdmin::$fake = static function (string $url) use (&$calls) {
+        $calls[] = $url;
+        parse_str((string)parse_url($url, PHP_URL_QUERY), $q);
+        if (str_contains($url, '/names-descriptions')) {
+            if (($q['lang_codes'] ?? '') !== '' && $q['lang_codes'] !== 'az') {
+                return json_encode(['data' => [], 'error_message' => 'Language is not active in the panel', 'error_code' => 100]);
+            }
+            return json_encode(['data' => ['list' => [['id' => 1, 'content' => [['lang_code' => 'az', 'name' => 'X', 'description' => "♻️ Qarantiya: 30 gün"]]]]], 'error_message' => '', 'error_code' => 0]);
+        }
+        return json_encode(['data' => ['list' => [['id' => 1, 'name' => 'Instagram İzləyici | 30 Gün Qarantili', 'category_id' => 5, 'category_name' => 'K', 'category_status' => 'enabled', 'status' => 'enabled', 'min' => 1, 'max' => 2, 'rate' => ['value' => '1']]]], 'error_message' => '', 'error_code' => 0]);
+    };
+    try {
+        $r = (new TgWatch\DescLearn($db, ['panel_api_url' => 'https://panelbaku.com/adminapi/v2', 'panel_api_key' => 'k']))->run();
+    } finally {
+        TgWatch\PanelAdmin::$fake = null;
+    }
+    eq([['az'], 1, 0], [$r['langs'], $r['with_desc'], $r['conflicts']]);
+    ok(str_ends_with(end($calls), 'lang_codes=az'), end($calls));
+});
 echo "Chrome eklentisi API\n";
 test('Eklenti API: teach bankadaki eski kayıtları da düzeltir (çevrilmeden kalmış kelime, sözlükteki eski karşılık); word_info şimdiki durumu verir', function () {
     [$db] = env();

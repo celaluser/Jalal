@@ -126,6 +126,8 @@ final class PanelServices
                 'max' => self::intOrNull($s['max'] ?? null),
                 'status' => (string)($s['status'] ?? ''),
                 'hidden' => !empty($s['is_hidden']),
+                'refill' => !empty($s['refill']),
+                'cancel' => !empty($s['cancel']),
             ];
         }
         return ['list' => $out, 'raw' => is_array($list) ? count($list) : 0];
