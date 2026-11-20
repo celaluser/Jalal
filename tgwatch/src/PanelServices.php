@@ -149,7 +149,11 @@ final class PanelServices
             if ($i > 0) {
                 usleep(250000);
             }
-            $d = $this->get('/services/names-descriptions', ['ids' => implode(',', $chunk), 'lang_codes' => $langs, 'limit' => 100]);
+            $q = ['ids' => implode(',', $chunk), 'limit' => 100];
+            if ($langs !== '') {
+                $q['lang_codes'] = $langs; // boş: panelin varsayılan dili
+            }
+            $d = $this->get('/services/names-descriptions', $q);
             foreach ((array)($d['data']['list'] ?? []) as $row) {
                 if (!is_array($row) || !isset($row['id'])) {
                     continue;
@@ -166,6 +170,30 @@ final class PanelServices
             }
         }
         return $out;
+    }
+
+    /**
+     * Panelde açık diller (LANGS içinden). Kapalı bir dil istenirse panel isteğin tamamını reddeder
+     * ("Language is not active in the panel"), bu yüzden her dil tek tek denenir.
+     * @return list<string>
+     */
+    public function activeLangs(int $sampleId): array
+    {
+        $ok = [];
+        foreach (explode(',', self::LANGS) as $i => $l) {
+            if ($i > 0) {
+                usleep(250000);
+            }
+            try {
+                $this->get('/services/names-descriptions', ['ids' => (string)$sampleId, 'lang_codes' => $l, 'limit' => 1]);
+                $ok[] = $l;
+            } catch (\RuntimeException $e) {
+                if (!preg_match('/language|not active|lang/i', $e->getMessage())) {
+                    throw $e; // dil dışı hata (izin, bağlantı): gizleme
+                }
+            }
+        }
+        return $ok;
     }
 
     /** Sağlayıcı adı/takma adı ya da alan adı → tgwatch'taki sağlayıcı kaynağı. @return array<string,int> */
@@ -278,7 +306,10 @@ final class PanelServices
     /** Açıklamalar: sağlayıcının açıklaması → Azerice açıklaman; panelindeki başka dil (en/tr/ru) → Azerice. */
     private function learnDescriptions(array $ids, array $remoteDesc, array &$rep): void
     {
-        $nd = $this->namesDescriptions($ids);
+        $active = $ids ? $this->activeLangs((int)$ids[0]) : [];
+        $rep['active_langs'] = $active;
+        // Hiçbiri açık görünmüyorsa panelin varsayılan dili istenir (cevaptaki dil kodu neyse o).
+        $nd = $this->namesDescriptions($ids, implode(',', $active));
         $desc = new DescTranslator($this->db, $this->config);
         $mem = new Memory($this->db);
         $langs = [];
@@ -362,7 +393,9 @@ final class PanelServices
                     $r[] = ['Sağlayıcı tgwatch\'ta', $src ? 'ok' : 'warn', $src ? 'bulundu' : '"' . $s['provider'] . '" Ayarlar → Kaynaklar\'da yok ya da adı/alan adı farklı'];
                 }
                 try {
-                    $nd = $this->namesDescriptions([$s['id']]);
+                    $active = $this->activeLangs($s['id']);
+                    $r[] = ['Paneldeki açık diller', $active ? 'ok' : 'warn', $active ? implode(', ', $active) : 'az/en/tr/ru\'dan hiçbiri açık değil; varsayılan dil kullanılır'];
+                    $nd = $this->namesDescriptions([$s['id']], implode(',', $active));
                     $langs = array_keys(array_filter($nd[$s['id']] ?? [], static fn($c) => $c['name'] !== '' || $c['description'] !== ''));
                     $r[] = ['Get service names and descriptions', 'ok', 'çalışıyor' . ($langs ? ' (diller: ' . implode(', ', $langs) . ')' : ' (içerik boş)')];
                     if ($langs && !in_array('az', $langs, true)) {

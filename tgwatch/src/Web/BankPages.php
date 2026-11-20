@@ -104,7 +104,9 @@ trait BankPages
                 . '<dt>Kesin eşleşen</dt><dd><b>' . (int)$pr['exact'] . '</b>' . ((int)$pr['same'] ? ' <span class="muted">(' . (int)$pr['same'] . ' tanesinde ad sağlayıcıyla aynı, çeviri yok)</span>' : '') . '</dd>'
                 . '<dt>Bankaya giren</dt><dd>' . (int)$pr['names'] . ' ad, ' . (int)$pr['categories'] . ' kategori, ' . ((int)$pr['desc'] + (int)$pr['desc_lang']) . ' açıklama'
                 . ((int)$pr['names_lang'] ? ', ' . (int)$pr['names_lang'] . ' ad (panelin diğer dil sürümünden)' : '') . '</dd>'
-                . ($pr['langs'] ? '<dt>Paneldeki diller</dt><dd>' . Ui::e(implode(', ', array_map(static fn($l, $n) => $l . ' (' . $n . ')', array_keys($pr['langs']), $pr['langs']))) . '</dd>' : '')
+                . (isset($pr['active_langs']) ? '<dt>Panelde açık diller</dt><dd>' . Ui::e($pr['active_langs'] ? implode(', ', $pr['active_langs']) : 'az/en/tr/ru\'dan hiçbiri (varsayılan dil kullanıldı)')
+                    . (count($pr['active_langs']) <= 1 ? ' <span class="muted">— tek dil: açıklamalar yalnızca sağlayıcının kendi açıklamasından öğrenilir</span>' : '') . '</dd>' : '')
+                . ($pr['langs'] ? '<dt>İçerik bulunan diller</dt><dd>' . Ui::e(implode(', ', array_map(static fn($l, $n) => $l . ' (' . $n . ')', array_keys($pr['langs']), $pr['langs']))) . '</dd>' : '')
                 . ((int)$pr['not_synced'] ? '<dt>Sağlayıcı listesinde yok</dt><dd class="lvl-warn">' . (int)$pr['not_synced'] . ' servis: sağlayıcıyı Kaynaklar\'da yeniden senkronize et</dd>' : '')
                 . ($unk ? '<dt>tgwatch\'ta olmayan sağlayıcı</dt><dd class="lvl-warn">' . Ui::e(implode(', ', array_map(static fn($p, $n) => $p . ' (' . $n . ')', array_keys($unk), $unk))) . ' — <a href="?p=sources">Kaynaklar\'a ekle</a></dd>' : '')
                 . (!empty($pr['provider_hidden']) ? '<dt>Sağlayıcı bilgisi</dt><dd class="lvl-error">gelmiyor: panelde API anahtarının ayarlarında sağlayıcı bilgisi gizli ya da “View provider service data” izni yok</dd>' : '')
@@ -428,8 +430,18 @@ trait BankPages
             case 'panel_exact_run':
                 try {
                     $r = (new \TgWatch\PanelServices($this->db, $this->config))->run();
+                    // Tahmine dayalı eşleştirmeyi yenile: kesin bilinenler "kontrol bekleyen"den düşer.
+                    $m = null;
+                    if ($r['exact'] && $this->db->one("SELECT id FROM sources WHERE kind = 'own' LIMIT 1")) {
+                        try {
+                            $m = (new Matcher($this->db))->run();
+                        } catch (\Throwable $e) {
+                            $m = null;
+                        }
+                    }
                     $n = $r['exact'] ? $this->refreshOpenJobs() : 0;
-                    $msg = "Panelden {$r['services']} servis okundu: {$r['exact']} tanesi kesin eşleşti; bankaya {$r['names']} ad, {$r['categories']} kategori, " . ($r['desc'] + $r['desc_lang']) . ' açıklama girdi.' . ($n ? " $n açık iş güncellendi." : '');
+                    $msg = "Panelden {$r['services']} servis okundu: {$r['exact']} tanesi kesin eşleşti; bankaya {$r['names']} ad, {$r['categories']} kategori, " . ($r['desc'] + $r['desc_lang']) . ' açıklama girdi.'
+                        . ($m ? " Eşleştirme yenilendi: {$m['exact']} servis kesin bilindiği için tahmin edilmedi, {$m['review']} kontrol bekliyor." : '') . ($n ? " $n açık iş güncellendi." : '');
                     if (!empty($r['provider_hidden'])) {
                         $msg .= ' Sağlayıcı bilgisi gelmiyor: anahtar ayarlarını kontrol et.';
                     }

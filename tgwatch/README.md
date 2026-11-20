@@ -381,6 +381,8 @@ Perfect Panel, Admin API v2'ye (Kasım 2026) üç servis işlemi ekledi: **Get s
 - **Açıklama:** sağlayıcı servis listesinde açıklama veriyorsa (desc) ↔ panelindeki Azerice açıklama; panelinde aynı servisin başka dil sürümü varsa (en/tr/ru) ↔ Azerice sürüm (ad da). Açıklama bankası (kind=desc) bunlardan öğrenir.
 - **Eşleştirme** (Otomatik eşleştirme) panelden kesin bilinen servisleri artık tahmin etmez, kesin kayıtları silmez.
 - **Anlık görüntü:** son servis listesi (kategori, sağlayıcı, satış ve sağlayıcı fiyatı, durum) `panel_services` tablosunda saklanır; sonraki işler (kâr, toplu kapatma, kanal paylaşımı) bunu kullanacak.
+- **Diller:** panelde kapalı bir dil istenirse panel isteğin tamamını reddeder ("Language is not active in the panel"); tgwatch önce az/en/tr/ru'yu tek tek dener, yalnızca açık olanları ister. Panelde tek dil (az) açıksa açıklamalar yalnızca sağlayıcının kendi açıklamasından öğrenilir (sağlayıcılar Kaynaklar'da yeniden senkronize edilince açıklamaları da saklanır).
+- Kesin eşleşmeden sonra tahmine dayalı eşleştirme kendiliğinden yenilenir: kesin bilinenler "kontrol bekleyen"den düşer.
 - **Test et:** iki okuma işlemini dener; izin yoksa, sağlayıcı bilgisi gizliyse, sağlayıcı tgwatch'ta yoksa ya da panelde Azerice içerik yoksa söyler.
 
 Panelde yapılacaklar: Admin API v2 anahtarının ayarlarında **Get service list** ve **Get service names and descriptions** izinleri; "Get service list" için sağlayıcı bilgisini **gizleme**. tgwatch'ta: Ayarlar → Yayın ve panel API → adres (`https://panelbaku.com/adminapi/v2`) + anahtar; sağlayıcılar Ayarlar → Kaynaklar'da ekli ve senkronize. Panelin sınırı saniyede 5 istek; tgwatch istekleri arasında bekler.

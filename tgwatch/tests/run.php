@@ -2273,6 +2273,10 @@ test('Panelden kesin eşleşme: sağlayıcı + sağlayıcı servis ID ile ad, ka
     TgWatch\PanelAdmin::$fake = static function (string $url) use ($list, &$urls) {
         $urls[] = $url;
         if (str_contains($url, '/services/names-descriptions?')) {
+            parse_str((string)parse_url($url, PHP_URL_QUERY), $q);
+            if (array_intersect(explode(',', (string)($q['lang_codes'] ?? '')), ['tr', 'ru'])) { // gerçek panel: kapalı dil → isteğin tamamı reddedilir
+                return json_encode(['data' => [], 'error_message' => 'Language is not active in the panel', 'error_code' => 100]);
+            }
             return json_encode(['data' => ['count' => 2, 'list' => [
                 ['id' => 9001, 'content' => [['lang_code' => 'az', 'name' => 'Instagram İzləyici | Real | 30 Gün Qarantili', 'description' => "Başlama: 0-1 saat\nSürət: Gündə 10K"]]],
                 ['id' => 9002, 'content' => [['lang_code' => 'az', 'name' => 'Instagram Bəyəni | Sürətli', 'description' => 'Ani başlayır'], ['lang_code' => 'en', 'name' => 'Instagram Likes | Fast EN', 'description' => 'Instant start']]],
@@ -2287,7 +2291,9 @@ test('Panelden kesin eşleşme: sağlayıcı + sağlayıcı servis ID ile ad, ka
     }
     eq([5, 3, 2, 1, 1, 2], [$r['services'], $r['exact'], $r['names'], $r['same'], $r['not_synced'], $r['categories']], json_encode($r, JSON_UNESCAPED_UNICODE));
     eq(['unknownpanel.net' => 1], $r['unknown_providers']);
-    ok(str_contains($urls[0], '/services?offset=0&limit=1000') && str_contains(end($urls), 'lang_codes=az%2Cen%2Ctr%2Cru'), implode(' | ', $urls));
+    ok(str_contains($urls[0], '/services?offset=0&limit=1000') && str_ends_with(end($urls), 'lang_codes=az%2Cen'), implode(' | ', $urls));
+    eq(['az', 'en'], $r['active_langs'], 'kapalı diller (tr, ru) ayıklanır; açıklamalar yalnızca açık dillerle istenir');
+    eq('', $r['desc_error']);
     $tm = $db->one("SELECT * FROM tm WHERE kind = 'service' AND own_service = 9001");
     eq(['Instagram Followers | Real | 30 Days Refill', 'Instagram İzləyici | Real | 30 Gün Qarantili', 'panel', 1, 71], [$tm['en'], $tm['az'], $tm['origin'], (int)$tm['provider_source'], (int)$tm['provider_service']]);
     eq('Instagram İzləyici', $db->one("SELECT az FROM tm WHERE kind = 'category' AND en = 'Instagram Followers'")['az'] ?? null, 'kategori çifti');
