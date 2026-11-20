@@ -867,6 +867,11 @@ final class Flow
             $this->resolveNotice((int)$nm[2], $nm[1] === 'nd' ? 'done' : 'ignored');
             return;
         }
+        if (preg_match('/^(ps|pk|pa):/', (string)($cb['data'] ?? ''))) { // panel yönetimi (Admin API)
+            $reply = (new PanelBot($this->db, $this->tg, $this->config))->callback((string)$cb['data'], $cb['message']['chat']['id'] ?? $this->owner(), (int)($cb['message']['message_id'] ?? 0));
+            $this->safe(fn() => $this->tg->answerCallback((string)$cb['id'], $reply));
+            return;
+        }
         if (preg_match('/^sh:(post|skip|edit):(\d+)$/', (string)($cb['data'] ?? ''), $sm)) {
             $S = new ImportShare($this->db, $this->tg, $this->config);
             $reply = 'Hata oluştu, Kayıtlar\'a bak';

@@ -59,6 +59,19 @@ final class BotCommands
             case 'balance':
                 $this->balance($chat);
                 return true;
+            case 'svc_info':
+                (new PanelBot($this->db, $this->tg, $this->config))->service($chat, $arg);
+                return true;
+            case 'svc_off':
+            case 'svc_on':
+                (new PanelBot($this->db, $this->tg, $this->config))->toggle($chat, $arg, $def['action'] === 'svc_off' ? 'disabled' : 'enabled');
+                return true;
+            case 'cat_ctl':
+                (new PanelBot($this->db, $this->tg, $this->config))->category($chat, $arg);
+                return true;
+            case 'loss':
+                (new PanelBot($this->db, $this->tg, $this->config))->loss($chat);
+                return true;
             case 'share_last':
                 $r = (new ImportShare($this->db, $this->tg, $this->config))->resendLast();
                 if ($r !== '') {

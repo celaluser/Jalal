@@ -21,6 +21,11 @@ final class BotRegistry
         'price' => ['Fiyat önerisi', '0.44', 'Sağlayıcı fiyatından önerilen satış fiyatını hesaplar'],
         'balance' => ['Sağlayıcı bakiyeleri', '', 'Eklediğin sağlayıcıların güncel bakiyesini sorar, hepsini tek mesajda yazar'],
         'share_last' => ['Son import önizlemesi', '', 'Son importun kanal önizlemesini Paylaş / Düzenle / Paylaşma düğmeleriyle yeniden gönderir'],
+        'svc_info' => ['Servis kartı', 'ID', 'Paneldeki servisin kategorisi, sağlayıcısı, satış/maliyet/kâr, min/max ve durumu; Kapat/Aç düğmesi (Admin API)'],
+        'svc_off' => ['Servisleri kapat', 'ID,ID', 'Paneldeki servisleri onaylı kapatır (Admin API)'],
+        'svc_on' => ['Servisleri aç', 'ID,ID', 'Paneldeki servisleri onaylı açar (Admin API)'],
+        'cat_ctl' => ['Kategori yönetimi', 'ad/ID', 'Kategorideki servisleri gösterir, hepsini onaylı kapatır/açar (Admin API)'],
+        'loss' => ['Zarar listesi', '', 'Zararına ya da %10\'un altında kârla satılan açık servisler (Admin API)'],
         'summary' => ['Özet', '', 'Bugünün ve genel durumun özeti, sorun varsa listeler'],
         'status' => ['İş sayıları', '', 'Duruma göre iş sayıları ve son cron zamanı'],
         'channels' => ['Kanal durumu', '', 'Kanalların okunma durumu'],
@@ -32,8 +37,17 @@ final class BotRegistry
     ];
 
     /** Kayıtlı listenin sürümü ve sonradan eklenen komutlar (sürüm => [ad, eylem, açıklama]). */
-    public const LIST_VERSION = 3;
-    private const ADDED = [2 => ['balans', 'balance', 'Sağlayıcı bakiyeleri'], 3 => ['paylas', 'share_last', 'Son importun kanal önizlemesi']];
+    public const LIST_VERSION = 4;
+    /** [sürüm, ad, eylem, açıklama] */
+    private const ADDED = [
+        [2, 'balans', 'balance', 'Sağlayıcı bakiyeleri'],
+        [3, 'paylas', 'share_last', 'Son importun kanal önizlemesi'],
+        [4, 'servis', 'svc_info', 'Servis kartı, Kapat/Aç (/servis 9001)'],
+        [4, 'kapat', 'svc_off', 'Servisleri kapat (/kapat 9001,9002)'],
+        [4, 'ac', 'svc_on', 'Servisleri aç (/ac 9001)'],
+        [4, 'kategori', 'cat_ctl', 'Kategori: servislerini kapat/aç (/kategori instagram)'],
+        [4, 'zarar', 'loss', 'Zararda ve düşük kârdaki servisler'],
+    ];
 
     /** Telegram komut kuralı + sabit komutlarla çakışmayan adlar. */
     public const RESERVED = ['start', 'id', 'iptal'];
@@ -51,6 +65,11 @@ final class BotRegistry
             $d('reddet', 'reject', 'İşi reddet (/reddet 5)'),
             $d('balans', 'balance', 'Sağlayıcı bakiyeleri'),
             $d('paylas', 'share_last', 'Son importun kanal önizlemesi'),
+            $d('servis', 'svc_info', 'Servis kartı, Kapat/Aç (/servis 9001)'),
+            $d('kapat', 'svc_off', 'Servisleri kapat (/kapat 9001,9002)'),
+            $d('ac', 'svc_on', 'Servisleri aç (/ac 9001)'),
+            $d('kategori', 'cat_ctl', 'Kategori: servislerini kapat/aç (/kategori instagram)'),
+            $d('zarar', 'loss', 'Zararda ve düşük kârdaki servisler'),
             $d('fiyat', 'price', 'Önerilen satış fiyatı (/fiyat 0.44)'),
             $d('kanallar', 'channels', 'Kanalların durumu'),
             $d('degisiklik', 'notices', 'Fiyat/kapanma bildirimleri'),
@@ -70,7 +89,7 @@ final class BotRegistry
         }
         // Sonradan eklenen komutlar eski kayıtlı listeye bir kez eklenir; kullanıcı silerse geri gelmez.
         if (($v['v'] ?? 1) < self::LIST_VERSION) {
-            foreach (self::ADDED as $ver => [$name, $action, $desc]) {
+            foreach (self::ADDED as [$ver, $name, $action, $desc]) {
                 if (($v['v'] ?? 1) >= $ver) {
                     continue;
                 }

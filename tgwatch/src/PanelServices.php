@@ -44,15 +44,26 @@ final class PanelServices
     /** GET isteği; PanelAdmin::$fake testlerde ağın yerine geçer. @return array<mixed> */
     private function get(string $path, array $query): array
     {
+        return $this->call('GET', $path . '?' . http_build_query($query), null);
+    }
+
+    /** @return array<mixed> */
+    private function call(string $method, string $pathQuery, ?array $json): array
+    {
         if (!preg_match('~^https://~i', $this->url())) {
             throw new \InvalidArgumentException('Panel API adresi https:// ile başlamalı (Ayarlar → Yayın ve panel API).');
         }
-        $full = $this->url() . $path . '?' . http_build_query($query);
+        $full = $this->url() . $pathQuery;
+        $payload = $json === null ? null : (string)json_encode($json, JSON_UNESCAPED_UNICODE);
         if (PanelAdmin::$fake !== null) {
-            $body = (string)(PanelAdmin::$fake)($full);
+            $body = (string)(PanelAdmin::$fake)($full, $method, $payload);
             $status = 200;
         } else {
-            $r = Http::request('GET', $full, ['X-Api-Key: ' . $this->key(), 'Accept: application/json'], null, 30);
+            $h = ['X-Api-Key: ' . $this->key(), 'Accept: application/json'];
+            if ($payload !== null) {
+                $h[] = 'Content-Type: application/json';
+            }
+            $r = Http::request($method, $full, $h, $payload, 30);
             if ($r['error'] !== '') {
                 throw new \RuntimeException('Bağlantı hatası: ' . $r['error']);
             }
@@ -89,10 +100,10 @@ final class PanelServices
         return is_numeric($v) ? (int)$v : null;
     }
 
-    /** Bir sayfa servis. @return array{list:list<array>,raw:int} */
-    public function servicesPage(int $offset, int $limit = 1000): array
+    /** Bir sayfa servis (isteğe bağlı süzgeçlerle: ids, category_id, category_name, status, provider…). @return array{list:list<array>,raw:int} */
+    public function servicesPage(int $offset, int $limit = 1000, array $filter = []): array
     {
-        $d = $this->get('/services', ['offset' => $offset, 'limit' => $limit]);
+        $d = $this->get('/services', $filter + ['offset' => $offset, 'limit' => $limit]);
         $list = $d['data']['list'] ?? ($d['data'] ?? []);
         $out = [];
         foreach (is_array($list) ? $list : [] as $s) {
@@ -121,20 +132,67 @@ final class PanelServices
     }
 
     /** Bütün servisler (1000'erli sayfalar, saniyede 5 istek sınırına uyarak). @return list<array> */
-    public function services(int $max = 20000): array
+    public function services(int $max = 20000, array $filter = []): array
     {
         $all = [];
         for ($offset = 0; $offset < $max; $offset += 1000) {
             if ($offset > 0) {
                 usleep(250000);
             }
-            $p = $this->servicesPage($offset);
+            $p = $this->servicesPage($offset, 1000, $filter);
             array_push($all, ...$p['list']);
             if ($p['raw'] < 1000) {
                 break;
             }
         }
         return $all;
+    }
+
+    /** ID'lere göre servisler (en çok 1000). @param list<int> $ids @return array<int,array> id => servis */
+    public function byIds(array $ids): array
+    {
+        $ids = array_slice(array_values(array_unique(array_filter(array_map('intval', $ids)))), 0, 1000);
+        if (!$ids) {
+            return [];
+        }
+        $out = [];
+        foreach ($this->servicesPage(0, 1000, ['ids' => implode(',', $ids)])['list'] as $s) {
+            $out[$s['id']] = $s;
+        }
+        return $out;
+    }
+
+    /**
+     * Servisleri aç/kapat (POST /services/change-status). Anlık görüntüdeki durum da güncellenir.
+     * @param list<int> $ids
+     * @return array{ids:list<int>,skipped:list<int>}
+     */
+    public function changeStatus(array $ids, string $status): array
+    {
+        if (!in_array($status, ['enabled', 'disabled'], true)) {
+            throw new \InvalidArgumentException('Durum enabled ya da disabled olmalı');
+        }
+        $done = [];
+        $skipped = [];
+        foreach (array_chunk(array_values(array_unique(array_filter(array_map('intval', $ids)))), 100) as $i => $chunk) {
+            if ($i > 0) {
+                usleep(250000);
+            }
+            $d = $this->call('POST', '/services/change-status', ['ids' => implode(',', $chunk), 'status' => $status]);
+            $ok = array_map('intval', (array)($d['data']['ids'] ?? []));
+            $sk = array_map('intval', (array)($d['data']['skipped_ids'] ?? []));
+            if (!$ok && !$sk) {
+                $ok = $chunk; // sarmalayıcı farklıysa: hata dönmediyse işlendi say
+            }
+            array_push($done, ...$ok);
+            array_push($skipped, ...$sk);
+        }
+        if ($done) {
+            $in = implode(',', array_fill(0, count($done), '?'));
+            $this->db->run("UPDATE panel_services SET status = ? WHERE id IN ($in)", array_merge([$status], $done));
+        }
+        $this->db->log('info', 'bot', 'Panelde ' . count($done) . ' servis ' . ($status === 'enabled' ? 'açıldı' : 'kapatıldı') . ($skipped ? ', ' . count($skipped) . ' atlandı' : '') . ': ' . implode(',', array_slice($done, 0, 30)));
+        return ['ids' => $done, 'skipped' => $skipped];
     }
 
     /**

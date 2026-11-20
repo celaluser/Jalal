@@ -1559,7 +1559,7 @@ test('/balans: sağlayıcı yoksa yol gösterir; eski kayıtlı komut listesine 
     $flow->handleUpdate(msg(1, OWNER, '/balans'));
     ok(str_contains(lastText($tg), 'Sağlayıcı yok'));
     $db->setJson('bot_commands', ['on' => true, 'list' => [['name' => 'oz', 'action' => 'summary', 'enabled' => true, 'desc' => '', 'text' => '']]]);
-    eq(['oz', 'balans', 'paylas'], array_column(TgWatch\BotRegistry::load($db), 'name'));
+    eq(['oz', 'balans', 'paylas', 'servis', 'kapat', 'ac', 'kategori', 'zarar'], array_column(TgWatch\BotRegistry::load($db), 'name'));
     TgWatch\BotRegistry::save($db, [['name' => 'oz', 'action' => 'summary', 'enabled' => '1']], true);
     eq(['oz'], array_column(TgWatch\BotRegistry::load($db), 'name'), 'kullanıcı silerse geri gelmez');
 });
@@ -2357,6 +2357,118 @@ test('Sağlayıcı servis listesindeki açıklama (desc) saklanır', function ()
         TgWatch\SmmApi::$fake = null;
     }
     eq(["Line 1\nLine 2", ''], array_column($db->all('SELECT description FROM remote_services ORDER BY service_id'), 'description'));
+});
+echo "Bot: panel yönetimi (Admin API)\n";
+test('Bot /servis, /kapat (onaylı), /ac, /kategori (ad parçası, hepsini kapat onaylı), /zarar; düğmelere yalnızca sahip basar', function () {
+    [$db, $tg] = env();
+    $cfg = array_merge(App::config(), ['panel_api_url' => 'https://panelbaku.com/adminapi/v2', 'panel_api_key' => 'k']);
+    $flow = new Flow($db, $tg, $cfg);
+    $rate = static fn($v) => ['value' => $v, 'per' => 1000, 'currency_code' => 'AZN', 'formatted' => $v];
+    $svc = static fn($id, $name, $cat, $catName, $r, $pr, $st = 'enabled') => ['id' => $id, 'name' => $name, 'category_id' => $cat, 'category_name' => $catName, 'category_status' => 'enabled', 'provider' => 'fastersmm.com', 'provider_service_id' => (string)($id - 9000), 'rate' => $rate($r), 'provider_rate' => $pr === null ? null : $rate($pr), 'min' => 10, 'max' => 5000, 'status' => $st, 'is_hidden' => false];
+    $GLOBALS['panel'] = [
+        9001 => $svc(9001, 'Instagram İzləyici | Real', 5, 'Instagram İzləyici', '2.04', '1.20'),
+        9002 => $svc(9002, 'Instagram İzləyici | Ucuz', 5, 'Instagram İzləyici', '0.50', '0.60'),
+        9003 => $svc(9003, 'Instagram Bəyəni | Sürətli', 6, 'Instagram Bəyəni', '0.31', '0.30'),
+        9004 => $svc(9004, 'TikTok Baxış', 7, 'TikTok Baxış', '1', '0.5', 'disabled'),
+    ];
+    $calls = [];
+    TgWatch\PanelAdmin::$fake = static function (string $url, string $method = 'GET', ?string $body = null) use (&$calls) {
+        $calls[] = $method . ' ' . preg_replace('~^https://[^/]+/adminapi/v2~', '', $url) . ($body ? ' ' . $body : '');
+        if ($method === 'POST' && str_contains($url, '/services/change-status')) {
+            $b = json_decode((string)$body, true);
+            $ok = [];
+            $skip = [];
+            foreach (explode(',', $b['ids']) as $id) {
+                if (isset($GLOBALS['panel'][(int)$id])) {
+                    $GLOBALS['panel'][(int)$id]['status'] = $b['status'];
+                    $ok[] = (int)$id;
+                } else {
+                    $skip[] = (int)$id;
+                }
+            }
+            return json_encode(['data' => ['ids' => $ok, 'status' => $b['status'], 'skipped_ids' => $skip], 'error_message' => '', 'error_code' => 0]);
+        }
+        parse_str((string)parse_url($url, PHP_URL_QUERY), $q);
+        $list = array_values($GLOBALS['panel']);
+        if (isset($q['ids'])) {
+            $want = array_map('intval', explode(',', $q['ids']));
+            $list = array_values(array_filter($list, static fn($s) => in_array($s['id'], $want, true)));
+        }
+        if (isset($q['category_id'])) {
+            $list = array_values(array_filter($list, static fn($s) => $s['category_id'] === (int)$q['category_id']));
+        }
+        return json_encode(['data' => ['count' => count($list), 'list' => $list], 'pagination' => [], 'error_message' => '', 'error_code' => 0]);
+    };
+    try {
+        // /servis: kart + Kapat düğmesi
+        $flow->handleUpdate(msg(1, OWNER, '/servis 9002'));
+        $m = $tg->last('sendMessage');
+        ok(str_contains($m['text'], '🆔 <b>9002</b> · ✅ açık') && str_contains($m['text'], 'satış 0.5 AZN · maliyet 0.6 AZN · kâr 🔴 -17%') && str_contains($m['text'], 'fastersmm.com · #2'), $m['text']);
+        eq('ps:off:9002', $m['reply_markup']['inline_keyboard'][0][0]['callback_data']);
+        // yabancı basamaz
+        $n = count($calls);
+        $flow->handleUpdate(cb(2, 99999, 'ps:off:9002'));
+        eq($n, count($calls), 'yabancının düğmesi panele istek atmaz');
+        // sahip: tek servis hemen kapanır, kart güncellenir
+        $flow->handleUpdate(cb(3, OWNER, 'ps:off:9002'));
+        eq('disabled', $GLOBALS['panel'][9002]['status']);
+        ok(str_contains($tg->last('editMessageText')['text'], '⛔ kapalı') && $tg->last('editMessageText')['reply_markup']['inline_keyboard'][0][0]['callback_data'] === 'ps:on:9002');
+        eq('Kapatıldı', $tg->last('answerCallbackQuery')['text']);
+
+        // /kapat: önce onay; zaten kapalı ve bulunamayan ayrı yazılır; Vazgeç hiçbir şey yapmaz
+        $flow->handleUpdate(msg(4, OWNER, '/kapat 9001, 9002 9999'));
+        $q = $tg->last('sendMessage');
+        ok(str_contains($q['text'], '1 servis kapatılsın mı?') && str_contains($q['text'], '<b>9001</b> Instagram İzləyici | Real') && str_contains($q['text'], '1 servis zaten kapalı') && str_contains($q['text'], 'Bulunamayan: 9999'), $q['text']);
+        $yes = $q['reply_markup']['inline_keyboard'][0][0]['callback_data'];
+        $no = $q['reply_markup']['inline_keyboard'][0][1]['callback_data'];
+        $flow->handleUpdate(cb(5, OWNER, $no));
+        eq('enabled', $GLOBALS['panel'][9001]['status'], 'Vazgeç: değişmez');
+        $flow->handleUpdate(cb(6, OWNER, $yes));
+        ok(str_contains($tg->last('editMessageText')['text'], 'süresi doldu'), 'kullanılmış onay tekrar çalışmaz');
+        $flow->handleUpdate(msg(7, OWNER, '/kapat 9001'));
+        $flow->handleUpdate(cb(8, OWNER, $tg->last('sendMessage')['reply_markup']['inline_keyboard'][0][0]['callback_data']));
+        eq('disabled', $GLOBALS['panel'][9001]['status']);
+        ok(str_contains($tg->last('editMessageText')['text'], '1 servis kapatıldı'), $tg->last('editMessageText')['text']);
+        ok(in_array('POST /services/change-status {"ids":"9001","status":"disabled"}', $calls, true), implode("\n", $calls));
+
+        // /ac
+        $flow->handleUpdate(msg(9, OWNER, '/ac 9001 9002'));
+        $flow->handleUpdate(cb(10, OWNER, $tg->last('sendMessage')['reply_markup']['inline_keyboard'][0][0]['callback_data']));
+        eq(['enabled', 'enabled'], [$GLOBALS['panel'][9001]['status'], $GLOBALS['panel'][9002]['status']]);
+
+        // /kategori: ad parçası birden çok kategori bulursa seçtirir; kart → Hepsini kapat → onay → kapanır
+        $flow->handleUpdate(msg(11, OWNER, '/kategori INSTAGRAM'));
+        $k = $tg->last('sendMessage');
+        ok(str_contains($k['text'], '2 kategori'), $k['text']);
+        eq('pk:show:5', $k['reply_markup']['inline_keyboard'][0][0]['callback_data'] === 'pk:show:6' ? 'pk:show:5' : $k['reply_markup']['inline_keyboard'][0][0]['callback_data']);
+        $flow->handleUpdate(cb(12, OWNER, 'pk:show:5'));
+        $c = $tg->last('sendMessage');
+        ok(str_contains($c['text'], '📂 <b>Instagram İzləyici</b>') && str_contains($c['text'], '2 servis · ✅ 2 açık · ⛔ 0 kapalı'), $c['text']);
+        eq('pk:off:5', $c['reply_markup']['inline_keyboard'][0][0]['callback_data']);
+        $flow->handleUpdate(cb(13, OWNER, 'pk:off:5'));
+        $cq = $tg->last('sendMessage'); // testte düğme mesajının ID'si yok: onay yeni mesaj olarak gelir (gerçekte mesaj düzenlenir)
+        ok(str_contains($cq['text'], '2 servis kapatılsın mı?'), $cq['text']);
+        eq('enabled', $GLOBALS['panel'][9001]['status'], 'onaysız kapanmaz');
+        $flow->handleUpdate(cb(14, OWNER, $cq['reply_markup']['inline_keyboard'][0][0]['callback_data']));
+        eq(['disabled', 'disabled', 'enabled'], [$GLOBALS['panel'][9001]['status'], $GLOBALS['panel'][9002]['status'], $GLOBALS['panel'][9003]['status']], 'yalnızca o kategori');
+        $flow->handleUpdate(msg(15, OWNER, '/kategori 7'));
+        ok(str_contains($tg->last('sendMessage')['text'], '⛔ 1 kapalı') && $tg->last('sendMessage')['reply_markup']['inline_keyboard'][0][0]['callback_data'] === 'pk:on:7');
+
+        // /zarar: açık servislerde zarar ve %10 altı kâr
+        $GLOBALS['panel'][9001]['status'] = $GLOBALS['panel'][9002]['status'] = 'enabled';
+        $flow->handleUpdate(msg(16, OWNER, '/zarar'));
+        $z = $tg->last('sendMessage')['text'];
+        ok(str_contains($z, '🔴 <b>1 servis zararda</b>, 🟠 1 servis') && strpos($z, '9002') < strpos($z, '9003') && !str_contains($z, '9001') && !str_contains($z, '9004'), $z);
+    } finally {
+        TgWatch\PanelAdmin::$fake = null;
+    }
+    // panel API yoksa yol gösterir
+    $flow2 = new Flow($db, $tg, array_merge(App::config(), ['panel_api_url' => '', 'panel_api_key' => '']));
+    $flow2->handleUpdate(msg(20, OWNER, '/servis 1'));
+    ok(str_contains(lastText($tg), 'Panel API bağlı değil'));
+    $flow2->handleUpdate(msg(21, OWNER, '/kapat'));
+    ok(str_contains(lastText($tg), 'Kullanım: <code>/kapat 9001</code>'));
+    eq([1, 2, 3], TgWatch\PanelBot::ids('1, 2 3 2'));
 });
 echo "Chrome eklentisi API\n";
 test('Eklenti API: teach bankadaki eski kayıtları da düzeltir (çevrilmeden kalmış kelime, sözlükteki eski karşılık); word_info şimdiki durumu verir', function () {
