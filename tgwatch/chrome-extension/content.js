@@ -305,7 +305,7 @@
   /** İmport satırında açıklama (ayar açıksa): satır açıkken çağrılır. */
   async function rowDesc(id, o) {
     if (!o.descTranslate) return '';
-    const row = findRow(id);
+    const row = findSvc(id);
     if (!row) return '';
     const el = descField(row.el, nameInput(row));
     if (!el) return '\nAçıklama alanı bulunamadı';
@@ -781,14 +781,14 @@
   }
 
   async function openRow(id) {
-    let row = findRow(id);
+    let row = findSvc(id);
     if (!row) return null;
     if (!rowButton(row, 'save')) {
       const edit = rowButton(row, 'edit');
       if (!edit) return null;
       edit.click();
       row = await waitFor(() => {
-        const r = findRow(id);
+        const r = findSvc(id);
         return r && rowButton(r, 'save') && nameInput(r) ? r : null;
       });
     }
@@ -796,12 +796,12 @@
   }
 
   async function saveRow(id) {
-    const row = findRow(id);
+    const row = findSvc(id);
     const save = row && rowButton(row, 'save');
     if (!save) return false;
     save.click();
     return !!(await waitFor(() => {
-      const r = findRow(id);
+      const r = findSvc(id);
       return r && !rowButton(r, 'save') ? r : null;
     }, 8000));
   }
@@ -864,7 +864,7 @@
         const row = await openRow(id);
         if (!row) {
           bad++;
-          const r = findRow(id);
+          const r = findSvc(id);
           if (r) mark(r, 'bad', 'Satır açılamadı (Edit/Name bulunamadı)');
           continue;
         }
@@ -880,7 +880,7 @@
           skipped++;
           const dn = await rowDesc(id, o);
           if (!o.dry) await saveRow(id);
-          const r = findRow(id) || row;
+          const r = findSvc(id) || row;
           mark(r, 'done', 'Ad zaten Azerice, dokunulmadı' + dn);
           continue;
         }
@@ -888,7 +888,7 @@
           bad++;
           const dn = await rowDesc(id, o);
           if (!o.dry) await saveRow(id);
-          const r = findRow(id) || row;
+          const r = findSvc(id) || row;
           remember(id, { unknown: tr ? (tr.unknown || []) : [] });
           mark(r, 'bad', (tr ? 'Bankada da kurallarda da karşılığı yok: ' + src : 'tgwatch cevap vermedi') + dn);
           continue;
@@ -899,11 +899,11 @@
         const dn = await rowDesc(id, o);
         if (!o.dry && !(await saveRow(id))) {
           bad++;
-          const r = findRow(id);
+          const r = findSvc(id);
           if (r) mark(r, 'bad', 'Save sonrası satır kapanmadı');
           continue;
         }
-        const r = findRow(id) || row;
+        const r = findSvc(id) || row;
         const why = 'Orijinal: ' + src + (tr.unknown && tr.unknown.length ? '\nBilinmeyen: ' + tr.unknown.join(', ') : '') + dn;
         if (tr.via === 'bank') { ok++; mark(r, 'ok', 'Bankadan birebir\n' + why); }
         else { warn++; mark(r, 'warn', (tr.via === 'mixed' ? 'Kısmen bankadan' : tr.via === 'claude' ? 'Claude ile (tgwatch denetiminden geçti)' : 'Kurallarla') + '\n' + why); }
@@ -939,7 +939,7 @@
         if (st.descSrc) { const d = descField(row.el, nameInput(row)); if (d) writeField(d, st.descSrc); }
         if (!o.dry) await saveRow(id);
         remember(id, { filled: undefined, final: st.src, edited: false, descSrc: undefined });
-        const r = findRow(id);
+        const r = findSvc(id);
         if (r) unmark(r);
         n++;
       }
@@ -959,7 +959,7 @@
       const row = scanRows().find((r) => r.el.contains(b));
       if (!row) return;
       const id = row.id;
-      waitFor(() => { const r = findRow(id); return r && nameInput(r); }, 4000).then((input) => {
+      waitFor(() => { const r = findSvc(id); return r && nameInput(r); }, 4000).then((input) => {
         if (input && !(state.get(id) || {}).src) remember(id, { src: input.value });
       });
     } else if (t === 'save') {
@@ -2553,32 +2553,93 @@
     return null;
   }
   /** ID'yi arat. Sayfa yenilenirse bu fonksiyon yarıda kalır; iş kaydı sayesinde yeni sayfada sürer. */
+  /** Perfect Panel: servis satırı id="service-4763" (sanal liste: yalnızca ekrandakiler sayfada). */
+  function rowById(id) {
+    const el = document.getElementById('service-' + id);
+    if (!el || !visible(el)) return null;
+    const btn = [...el.querySelectorAll('button, a')].find((b) => !ours(b) && ACTIONS_RE.test(btnText(b)))
+      || el.querySelector('.dropdown-toggle, [data-toggle=dropdown], [data-bs-toggle=dropdown]');
+    return btn ? { el, btn } : null;
+  }
+  const findSvc = (id) => rowById(id) || serviceRowsIndex().get(String(id)) || null;
+
+  /** Ara düğmesi: yalnız açıkça "ara" olan (submit ya da search ipucu); temizle/kapat (×) düğmesine asla basılmaz. */
+  function searchButtonStrict(box) {
+    const bad = /clear|close|reset|times|remove|cancel|sil|temizle/i;
+    // yalnız kutunun yakın çevresi: sayfanın geneline (satırlardaki Actions düğmeleri) çıkılmaz
+    for (let el = box.parentElement, i = 0; el && el !== document.body && i < 3; el = el.parentElement, i++) {
+      const btns = [...el.querySelectorAll('button, [role=button]')].filter((b) => b !== box && visible(b) && !ours(b) && !b.closest(DIALOG));
+      if (btns.length > 3) break;
+      for (const b of btns) {
+        const sig = [b.className, b.getAttribute('aria-label'), b.title, b.innerHTML.slice(0, 300)].join(' ');
+        if (bad.test(sig) || btnText(b) === '×' || ACTIONS_RE.test(btnText(b))) continue;
+        if (b.getAttribute('type') === 'submit' || /search|axtar|magnif|fa-search|loupe/i.test(sig)) return b;
+      }
+    }
+    return null;
+  }
+
+  /** Sanal listede kaydırarak bul: görülen her satırın konumu hatırlanır, sonraki servisler için doğrudan oraya gidilir. */
+  const seenAt = new Map();
+  async function scanVirtual(id) {
+    const first = document.querySelector('[id^="service-"]');
+    const box = scroller(first) || null;
+    const getTop = () => (box ? box.scrollTop : window.scrollY);
+    const setTop = (t) => { // anında (yumuşak kaydırma beklenmez), sanal liste olayı hemen görsün
+      if (box) { box.scrollTop = t; box.dispatchEvent(new Event('scroll')); } else { window.scrollTo(0, t); window.dispatchEvent(new Event('scroll')); }
+    };
+    const maxTop = () => (box ? box.scrollHeight - box.clientHeight : document.documentElement.scrollHeight - window.innerHeight);
+    const note = () => { for (const e of document.querySelectorAll('[id^="service-"]')) { const m = /^service-(\d+)$/.exec(e.id); if (m && !seenAt.has(m[1])) seenAt.set(m[1], getTop()); } };
+    if (seenAt.has(String(id))) {
+      setTop(Math.max(0, seenAt.get(String(id)) - 100));
+      const r = await waitFor(() => findSvc(id), 2000, 100);
+      if (r) return r;
+    }
+    const step = Math.max(200, (box ? box.clientHeight : window.innerHeight) * 0.8);
+    dlog('liste kaydırılarak aranıyor (ID ' + id + ')');
+    for (let t = 0, n = 0; n < 2000; t += step, n++) {
+      setTop(t);
+      await sleep(140);
+      note();
+      const r = findSvc(id);
+      if (r) { dlog('kaydırarak bulundu: ' + id); return r; }
+      if (t >= maxTop() + step) break;
+    }
+    return null;
+  }
+
   async function searchFor(id) {
-    const box = searchBox();
-    dlog('arama kutusu: ' + (box ? (box.tagName + ' name=' + box.name + ' placeholder=' + box.placeholder + ' form=' + !!box.form) : 'YOK'));
-    if (!box) {
-      // Arama kutusu yok: listeyi aç, sonuna kadar yükle, ID'yi orada bul
-      await expandAll();
-      await scrollToEnd();
-      const r = serviceRowsIndex().get(String(id));
-      return r ? { row: r } : { error: 'arama kutusu yok ve listede servis bulunamadı (ID ' + id + ')' };
+    const direct = findSvc(id);
+    if (direct) return { row: direct };
+    let noId = false;
+    try { noId = sessionStorage.getItem('tgw_search_noid') === '1'; } catch (e) { /* yok */ }
+    const box = noId ? null : searchBox();
+    if (noId) dlog('arama ID ile çalışmıyor (öğrenildi): doğrudan kaydırarak');
+    else dlog('arama kutusu: ' + (box ? (box.tagName + '#' + box.id + ' placeholder=' + box.placeholder + ' form=' + !!box.form) : 'YOK'));
+    if (box) {
+      box.focus();
+      setValue(box, '');
+      setValue(box, String(id));
+      box.dispatchEvent(new Event('change', { bubbles: true }));
+      for (const t of ['keydown', 'keypress', 'keyup']) box.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+      const sb = box.form ? box.form.querySelector('button[type=submit], input[type=submit]') : searchButtonStrict(box);
+      dlog('ara düğmesi: ' + (sb ? sb.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 120) : 'yok (Enter ile)'));
+      if (sb) sb.click();
+      else if (box.form) { if (box.form.requestSubmit) box.form.requestSubmit(); else box.form.submit(); }
+      const row = await waitFor(() => findSvc(id), 8000, 200);
+      const ids = [...document.querySelectorAll('[id^="service-"]')].map((e) => e.id.slice(8)).slice(0, 6);
+      dlog('arama sonrası: kutu="' + box.value + '", görünen servis: ' + (ids.join(',') || 'yok'));
+      if (row) return { row };
+      // Arama ID ile sonuç vermedi: kutuyu boşalt, listeyi kaydırarak bul
+      setValue(box, '');
+      box.dispatchEvent(new Event('change', { bubbles: true }));
+      for (const t of ['keydown', 'keyup']) box.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+      await sleep(1200);
     }
-    box.focus();
-    setValue(box, String(id));
-    box.dispatchEvent(new Event('change', { bubbles: true }));
-    for (const t of ['keydown', 'keypress', 'keyup']) box.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-    await sleep(300);
-    const sb = box.form ? box.form.querySelector('button[type=submit], input[type=submit], button:not([type])') : searchButton(box);
-    dlog('ara düğmesi: ' + (sb ? sb.tagName + ' "' + btnText(sb).slice(0, 20) + '"' : 'yok (Enter/form)'));
-    if (sb) sb.click();
-    else if (box.form) { if (box.form.requestSubmit) box.form.requestSubmit(); else box.form.submit(); }
-    const row = await waitFor(() => { const r = serviceRowsIndex().get(String(id)); return r || null; }, 12000, 250);
-    if (row) return { row };
-    if (visibleChecks() <= 1 && await expandAll()) {
-      const r2 = serviceRowsIndex().get(String(id));
-      if (r2) return { row: r2 };
-    }
-    return { error: 'arama sonucunda servis çıkmadı (ID ' + id + ')' };
+    if (visibleChecks() <= 1) await expandAll();
+    const r = await scanVirtual(id);
+    if (r && box) { try { sessionStorage.setItem('tgw_search_noid', '1'); } catch (e) { /* yok */ } } // arama bulamadı, kaydırma buldu
+    return r ? { row: r } : { error: 'listede servis bulunamadı (ID ' + id + '; gizli/silinmiş olabilir)' };
   }
 
   async function descFlow() {
@@ -2674,7 +2735,7 @@
         const pct = (st.i / st.items.length) * 100;
         const label = (st.i + 1) + '/' + st.items.length + ' · ' + it.sid + ' ' + (it.name || '').slice(0, 40);
         if (st.phase === 'saving' && st.cur === it.sid) { await record(st, it, { ok: true }); continue; } // Save sayfayı yeniledi
-        let row = serviceRowsIndex().get(String(it.sid));
+        let row = findSvc(it.sid);
         if (!row) {
           if (st.phase === 'searched' && st.cur === it.sid) {
             // arama sonrası sayfa yenilendi ama hâlâ yok: bir kez daha arat (kutu dolu olabilir), sonra vazgeç
