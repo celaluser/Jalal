@@ -114,6 +114,16 @@ final class CronRunner
                 }
             }
             if (!$test) {
+                try {
+                    if (($d = DescGen::cron($db, $this->config)) && $d['new']) {
+                        $say("Yeni servis: {$d['new']}, açıklama önerisi: {$d['made']}");
+                    }
+                } catch (\Throwable $e) {
+                    $errors++;
+                    $db->log('error', 'cron', 'Yeni servis açıklaması: ' . $e->getMessage());
+                }
+            }
+            if (!$test) {
                 foreach ((new Rivals($db, $this->config))->cron($deadline) as $r) {
                     if (!$r['ok']) {
                         $errors++;

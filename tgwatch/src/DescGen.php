@@ -215,6 +215,11 @@ final class DescGen
             }
             $r = $rules['groups'][$group][$f] ?? $rules['*'][$f] ?? null;
             if (!$r) {
+                $line = self::defaultFact($f, $v); // öğrenilmiş kalıp yok: varsayılan satır (adındaki bilgiden)
+                if ($line !== null) {
+                    $out[] = $line;
+                    $notes[] = 'Eklendi (adında var, varsayılan kalıp): ' . $line;
+                }
                 continue;
             }
             $tpl = (string)$r['tpl'];
@@ -240,12 +245,126 @@ final class DescGen
         }
         $out = array_values(array_unique($out));
         $out = self::enrich($out, $svc, $rules, $group, $notes);
+        $out = self::finalize($out, $svc, $group, $notes);
         foreach (DescLearn::check($facts, $out, $svc['name']) as $p) {
             if ($p['kind'] === 'conflict') {
                 $notes[] = '⚠ Denetim: ' . $p['msg'];
             }
         }
         return ['text' => implode("\n", $out), 'notes' => $notes];
+    }
+
+    /** Adındaki bilgi için varsayılan satır (öğrenilmiş kalıp yoksa). */
+    public static function defaultFact(string $f, mixed $v): ?string
+    {
+        return match ($f) {
+            'guarantee' => '♻️ Qarantiya: ' . (int)$v . ' gün',
+            'lifetime' => '♾️ Ömürlük qarantiya',
+            'noguarantee' => '⚠️ Qarantiya yoxdur',
+            'nondrop' => '📉 Azalma olmaz',
+            'speed' => '⚡ Sürət: Gündə ' . DescLearn::fmt((float)$v),
+            'speed_h' => '⚡ Sürət: Saatda ' . DescLearn::fmt((float)$v),
+            'start' => is_string($v) && $v !== '' ? '⏱ Başlama: ' . $v : null,
+            'instant' => '🚀 Başlama: Ani',
+            'max' => null, // Min/Maks satırı API'den
+            default => null,
+        };
+    }
+
+    /** Sifariş üçün hansı link: platform + tür (bütün panellerde doğru olan genel bilgi). */
+    public static function linkFor(string $plat, string $type, string $name): string
+    {
+        $n = DescLearn::lower($name);
+        if (in_array($plat, ['telegram', 'whatsapp'], true) && in_array($type, ['members', 'subscribers', 'followers', 'other'], true)) {
+            return 'Kanal və ya qrup linki';
+        }
+        if ($plat === 'discord') {
+            return 'Server dəvət linki';
+        }
+        if ($type === 'live') {
+            return 'Canlı yayın linki';
+        }
+        if ($type === 'story') {
+            return 'Profil linki (hekayə aktiv olmalıdır)';
+        }
+        if (in_array($type, ['followers', 'subscribers', 'members'], true)) {
+            return $plat === 'youtube' ? 'Kanal linki' : 'Profil linki';
+        }
+        if ($type === 'plays' || in_array($plat, ['spotify', 'soundcloud', 'audiomack', 'deezer', 'boomplay'], true)) {
+            return 'Mahnı, albom və ya playlist linki';
+        }
+        if (in_array($plat, ['youtube', 'tiktok', 'rumble', 'dailymotion', 'vimeo', 'likee', 'kwai'], true) || str_contains($n, 'video') || str_contains($n, 'reels')) {
+            return 'Video linki';
+        }
+        if ($plat === 'telegram') {
+            return 'Paylaşım (post) linki';
+        }
+        return $type === 'other' ? 'Sifariş üçün tələb olunan link' : 'Paylaşım linki';
+    }
+
+    /** Bütün açıklamalarda olması gereken genel qeydlər (öğrenilmiş benzeri varsa eklenmez). [anahtar kalıp, satır] */
+    public const NOTES = [
+        ['/eyni\s+link|aynı\s+link|ikinci\s+sifari|2\s*-?\s*ci\s+sifari/u', '🔸 Sifariş tamamlanmadan eyni linkə ikinci sifariş verməyin.'],
+        ['/gizli|private|qapalı\s+(hesab|profil)/u', '🔒 Gizli (private) hesablara sifariş verməyin: hesab açıq olmalıdır.'],
+        ['/düzgün|doğru\s+link|səhv\s+link|istifadəçi\s+adını/u', '🔗 Linki düzgün daxil edin, sifariş bitənə qədər istifadəçi adını dəyişməyin.'],
+        ['/məşğul|sıxlıq|yoğun|gecikmə|gecik/u', '⏳ Xidmət məşğul olduqda başlama vaxtı dəyişə bilər.'],
+    ];
+    /** Açıklama en az bu kadar satır (kısa açıklama olmaz). */
+    public const MIN_LINES = 6;
+
+    /**
+     * Son dokunuş: başlık satırı, Link (yoksa), addaki diğer özellikler (Keyfiyyətli Hesablar…), genel qeydlər,
+     * emoji (satır harf/rakamla başlıyorsa). Hiçbir durumda boş ya da çok kısa kalmaz; addaki bilgi dışında bilgi eklenmez.
+     */
+    private static function finalize(array $out, array $svc, string $group, array &$notes): array
+    {
+        [$plat, $type] = array_pad(explode('|', $group), 2, 'other');
+        $low = DescLearn::lower(implode("\n", $out));
+        $segs = array_values(array_filter(array_map(static fn($x) => trim(preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}\x{200D}]+/u', '', $x) ?? $x, " \t-–—•·"), preg_split('/\s*[|｜]\s*/u', (string)$svc['name']) ?: [])));
+        $head = [];
+        // başlık: adın ilk parçası (ör. "TikTok Özəl Rəy")
+        if ($segs && !str_contains($low, DescLearn::lower($segs[0]))) {
+            $head[] = '🔥 ' . $segs[0];
+        }
+        // Link satırı
+        if (!preg_match('/(?<![\p{L}])link\s*:/u', $low)) {
+            $l = '🔗 Link: ' . self::linkFor($plat, $type, (string)$svc['name']);
+            $head[] = $l;
+            $notes[] = 'Eklendi (link, platform ve türe göre): ' . $l;
+        }
+        // addaki özellikler: bilgisi başka satırda yazılmamış parçalar ("Keyfiyyətli Hesablar", "Qlobal istifadəçilər")
+        $feat = [];
+        foreach (array_slice($segs, 1) as $seg) {
+            $sl = DescLearn::lower($seg);
+            if (mb_strlen($seg) < 3 || str_contains($low, $sl) || preg_match('/^\d+([.,]\d+)?\s*[km]?$/u', $sl)
+                || preg_match('/qarant|zəmanət|refill|garanti|maks|max|\bmin\b|gündə|günlük|saatda|\/\s*d(ay)?\b|ani\b|instant|azalma olmaz|non.?drop|başla|start|\d+\s*-\s*\d+\s*(saat|dəq|deq|gün|hour|min)/u', $sl)) {
+                continue;
+            }
+            $feat[] = '✅ ' . $seg;
+        }
+        if ($feat) {
+            $notes[] = 'Eklendi (adındaki özellikler): ' . implode(', ', $feat);
+        }
+        $tail = [];
+        foreach (self::NOTES as [$re, $line]) {
+            if (!preg_match($re, $low)) {
+                if (str_starts_with($line, '🔒') && in_array($plat, ['telegram', 'whatsapp', 'discord'], true)) {
+                    $line = '🔒 Kanal və ya qrup açıq (public) olmalıdır: gizli kanallara sifariş verməyin.';
+                }
+                $tail[] = $line;
+            }
+        }
+        if ($tail) {
+            $notes[] = 'Eklendi (genel qeydlər): ' . count($tail) . ' satır';
+        }
+        $all = array_merge($head, $out, $feat, $tail);
+        // emoji: harf/rakamla başlayan satıra
+        $all = array_map(static fn($l) => preg_match('/^[\p{L}\p{N}]/u', $l) ? '🔹 ' . $l : $l, $all);
+        $all = array_values(array_unique($all));
+        if (count($all) < self::MIN_LINES) {
+            $notes[] = '⚠ Kısa kaldı (' . count($all) . ' satır): adında ve öğrenilenlerde başka bilgi yok';
+        }
+        return $all;
     }
 
     /** Öğrenilmiş ortak satırların kalıpları (sayılı olsa da korunur). */
@@ -363,18 +482,19 @@ final class DescGen
      * @return array{made:int,skipped:int,kept:int,base:string}
      */
     /** @param list<int>|null $sids yalnızca bu servisler (null: kategorideki bütün açıklamasızlar) */
-    public function generate(int $catId, ?array $sids = null): array
+    public function generate(int $catId, ?array $sids = null, bool $auto = false): array
     {
         $rules = $this->db->getJson(DescLearn::RULES);
-        if (!is_array($rules) || empty($rules['*'])) {
-            throw new \InvalidArgumentException('Önce Açıklamalar → Panelden oku (ya da paneldeki açıklamalı servislerden kalıp çıkarılamadı: birkaç serviste elle açıklama yazıp yeniden oku).');
-        }
+        $rules = is_array($rules) ? $rules + ['*' => [], 'groups' => []] : ['*' => [], 'groups' => []]; // öğrenilmemişse varsayılanlarla üretir
         $rows = $this->db->all("SELECT * FROM panel_desc WHERE category_id = ? AND description = '' ORDER BY id", [$catId]);
         if ($sids !== null) {
             $want = array_flip(array_map('intval', $sids));
             $rows = array_values(array_filter($rows, static fn($r) => isset($want[(int)$r['id']])));
         }
         if (!$rows) {
+            if ($auto) {
+                return ['made' => 0, 'skipped' => 0, 'kept' => 0, 'base' => ''];
+            }
             throw new \InvalidArgumentException('Bu kategoride açıklamasız servis yok (son öğrenmeye göre).');
         }
         $made = $skipped = $kept = 0;
@@ -393,14 +513,82 @@ final class DescGen
                 $skipped++;
                 $p['notes'][] = 'Öneri boş: adında ve temelde kullanılabilir bilgi yok';
             }
-            $this->db->run('INSERT INTO desc_props(sid, category_id, category_name, name, text, base, notes, status, error, attempts, created_at, updated_at) VALUES(?,?,?,?,?,?,?,?,?,0,?,?)
+            $this->db->run('INSERT INTO desc_props(sid, category_id, category_name, name, text, base, notes, status, error, attempts, created_at, updated_at, auto, seen) VALUES(?,?,?,?,?,?,?,?,?,0,?,?,?,0)
                 ON CONFLICT(sid) DO UPDATE SET category_id = excluded.category_id, category_name = excluded.category_name, name = excluded.name, text = excluded.text, base = excluded.base,
-                notes = excluded.notes, status = excluded.status, error = \'\', attempts = 0, updated_at = excluded.updated_at',
-                [(int)$r['id'], $catId, (string)$r['category_name'], (string)$r['name'], $p['text'], $src, json_encode($p['notes'], JSON_UNESCAPED_UNICODE), trim($p['text']) === '' ? 'rejected' : 'proposed', '', $now, $now]);
+                notes = excluded.notes, status = excluded.status, error = \'\', attempts = 0, updated_at = excluded.updated_at, auto = excluded.auto, seen = 0',
+                [(int)$r['id'], $catId, (string)$r['category_name'], (string)$r['name'], $p['text'], $src, json_encode($p['notes'], JSON_UNESCAPED_UNICODE), trim($p['text']) === '' ? 'rejected' : 'proposed', '', $now, $now, $auto ? 1 : 0]);
             $made++;
         }
         $this->db->log('info', 'bank', "Açıklama önerisi: kategori #$catId, $made öneri" . ($kept ? ", $kept onaylı korundu" : ''));
         return ['made' => $made - $skipped, 'skipped' => $skipped, 'kept' => $kept, 'base' => $src];
+    }
+
+    /**
+     * Yeni servisler: Admin API'deki listede olup tgwatch'ın bilmediği servisler eklenir; açıklaması boş olanlara
+     * kendiliğinden öneri üretilir (auto=1). Eklenti bunları "yeni öneri" olarak gösterir. Panelden hiç okunmadıysa (ilk kurulum) çalışmaz.
+     * @return array{new:int,made:int,cats:list<string>}
+     */
+    public function autoNew(array $config): array
+    {
+        $none = ['new' => 0, 'made' => 0, 'cats' => []];
+        $api = new PanelServices($this->db, $config);
+        if (!$api->configured() || !(int)($this->db->one('SELECT COUNT(*) c FROM panel_desc')['c'] ?? 0)) {
+            return $none;
+        }
+        $list = $api->services();
+        $known = array_flip(array_map('intval', array_column($this->db->all('SELECT id FROM panel_desc'), 'id')));
+        $new = array_values(array_filter($list, static fn($s) => !isset($known[(int)$s['id']])));
+        if (!$new) {
+            return $none;
+        }
+        $new = array_slice($new, 0, 500);
+        $ids = array_map(static fn($s) => (int)$s['id'], $new);
+        $lang = '';
+        try {
+            $lang = in_array('az', $api->activeLangs($ids[0]), true) ? 'az' : '';
+        } catch (\Throwable) {
+        }
+        $nd = $api->namesDescriptions($ids, $lang);
+        $pos = (int)($this->db->one('SELECT MAX(pos) m FROM panel_desc')['m'] ?? 0);
+        $byCat = [];
+        foreach ($new as $sv) {
+            $own = ($nd[$sv['id']] ?? [])['az'] ?? (($nd[$sv['id']] ?? []) ? reset($nd[$sv['id']]) : []);
+            $desc = trim((string)($own['description'] ?? ''));
+            $this->db->run('INSERT OR REPLACE INTO panel_desc(id, name, category_id, category_name, status, description, min, max, refill, cancel, at, pos) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+                [(int)$sv['id'], $sv['name'], $sv['category_id'], $sv['category_name'], $sv['status'], $desc, $sv['min'] ?? null, $sv['max'] ?? null, !empty($sv['refill']) ? 1 : 0, !empty($sv['cancel']) ? 1 : 0, time(), ++$pos]);
+            if ($desc === '') {
+                $byCat[(int)$sv['category_id']][] = (int)$sv['id'];
+            }
+        }
+        $made = 0;
+        $cats = [];
+        foreach ($byCat as $cat => $sids) {
+            $r = $this->generate($cat, $sids, true);
+            $made += $r['made'] + $r['skipped'];
+            $cats[] = (string)($this->db->one('SELECT category_name FROM panel_desc WHERE category_id = ? LIMIT 1', [$cat])['category_name'] ?? $cat);
+        }
+        $this->db->log('info', 'bank', 'Yeni servis: ' . count($new) . ', kendiliğinden açıklama önerisi: ' . $made);
+        return ['new' => count($new), 'made' => $made, 'cats' => $cats];
+    }
+
+    /** Cron: saatte bir yeni servis kontrolü (ayar: desc_auto, varsayılan açık). */
+    public static function cron(Db $db, array $config): ?array
+    {
+        if ($db->get('desc_auto', '1') !== '1' || time() - (int)$db->get('desc_auto_at', '0') < 3600) {
+            return null;
+        }
+        $db->set('desc_auto_at', (string)time());
+        return (new self($db))->autoNew($config);
+    }
+
+    /** Eklentiye: öneriler (yeni servislerin kendiliğinden üretilenleri önce). seen=1 yapılır. */
+    public function proposals(int $limit = 100, bool $mark = true): array
+    {
+        $rows = $this->db->all("SELECT sid, category_name, name, text, auto, seen, notes FROM desc_props WHERE status = 'proposed' AND text != '' ORDER BY auto DESC, seen ASC, updated_at DESC LIMIT " . max(1, min(300, $limit)));
+        if ($mark && $rows) {
+            $this->db->run('UPDATE desc_props SET seen = 1 WHERE sid IN (' . implode(',', array_map(static fn($r) => (int)$r['sid'], $rows)) . ')');
+        }
+        return array_map(static fn($r) => ['sid' => (int)$r['sid'], 'category' => (string)$r['category_name'], 'name' => (string)$r['name'], 'text' => (string)$r['text'], 'auto' => (bool)$r['auto'], 'new' => !(int)$r['seen']], $rows);
     }
 
     public const ORDER = 'panel_cat_order';
@@ -528,7 +716,9 @@ final class DescGen
     public function queueCount(): array
     {
         $r = $this->db->all("SELECT category_name, COUNT(*) n FROM desc_props WHERE status = 'approved' AND attempts < 3 GROUP BY category_id ORDER BY n DESC");
-        return ['count' => array_sum(array_column($r, 'n')), 'categories' => array_map(static fn($x) => ['name' => (string)$x['category_name'], 'n' => (int)$x['n']], array_slice($r, 0, 5))];
+        $p = $this->db->one("SELECT COUNT(*) n, SUM(auto = 1 AND seen = 0) fresh FROM desc_props WHERE status = 'proposed' AND text != ''");
+        return ['count' => array_sum(array_column($r, 'n')), 'categories' => array_map(static fn($x) => ['name' => (string)$x['category_name'], 'n' => (int)$x['n']], array_slice($r, 0, 5)),
+            'proposed' => (int)($p['n'] ?? 0), 'fresh' => (int)($p['fresh'] ?? 0)];
     }
 
     /**

@@ -2571,7 +2571,7 @@ test('Açıklama üretimi: açıklamasız servise kategorideki örnekten öneri;
     ok(!str_contains($p['text'], 'Sürət'), 'adında hız yok: temeldeki hız satırı atılır: ' . $p['text']);
     $p9 = $db->one('SELECT text FROM desc_props WHERE sid = 9')['text'];
     ok(!str_contains($p9, 'Qarantiya') && !str_contains($p9, 'Sürət'), 'adında garanti yok: garanti uydurulmaz: ' . $p9);
-    eq(['count' => 0, 'categories' => []], $g->queueCount());
+    eq([0, []], [$g->queueCount()['count'], $g->queueCount()['categories']]);
     eq(1, $g->setStatus([6], 'approved', "♻️ Qarantiya: 90 gün\n📏 Min: 50 / Maks: 200K"));
     $g->generate(5);
     eq('approved', $db->one('SELECT status FROM desc_props WHERE sid = 6')['status'], 'yeniden üretim onaylıyı ezmez');
@@ -2661,14 +2661,54 @@ test('Açıklama üretimi: boş kategoriye türün dolgun örneği + ortak uyar�
     $t10 = $db->one('SELECT text FROM desc_props WHERE sid = 10')['text'];
     ok(!str_contains($t10, 'Qarantiya: ') && str_contains($t10, 'Min: 100 / Maks: 20K') && str_contains($t10, 'Gizli hesablara'), "garantisiz:\n$t10");
 });
-test('Açıklama üretimi: önce öğrenme gerekir', function () {
+test('Açıklama üretimi: hiç öğrenilmemiş olsa da boş/kısa açıklama yok (varsayılan satırlar, addaki özellikler, emoji)', function () {
     [$db] = env();
-    try {
-        (new TgWatch\DescGen($db))->generate(5);
-        ok(false, 'hata bekleniyordu');
-    } catch (InvalidArgumentException $e) {
-        ok(str_contains($e->getMessage(), 'Panelden oku'));
+    $db->run("INSERT INTO panel_desc(id,name,category_id,category_name,status,description,min,max,at,pos) VALUES(4763,'TikTok Özəl Rəy | Keyfiyyətli Hesablar | Azalma olmaz | 30 Gün Qarantili ♻️ | Sürətli 🚀',224963,'TikTok Rəy','enabled','',10,5000,1,1)");
+    $db->run("INSERT INTO panel_desc(id,name,category_id,category_name,status,description,min,max,at,pos) VALUES(1334,'📱 Telegram Kanal - Qrup abunəsi | Qlobal istifadəçilər | Azalma ola bilər',41,'Telegram → Qrup / Kanal abunəçisi','enabled','',100,50000,1,2)");
+    $g = new TgWatch\DescGen($db);
+    $g->generate(224963);
+    $g->generate(41);
+    $t = $db->one('SELECT text FROM desc_props WHERE sid = 4763')['text'];
+    $lines = explode("\n", $t);
+    ok(count($lines) >= TgWatch\DescGen::MIN_LINES, "kısa:\n$t");
+    foreach (['🔥 TikTok Özəl Rəy', '🔗 Link: Video linki', '♻️ Qarantiya: 30 gün', '📉 Azalma olmaz', '✅ Keyfiyyətli Hesablar', '📏 Min: 10 / Maks: 5K', 'eyni linkə ikinci sifariş', 'Gizli (private)'] as $w) {
+        ok(str_contains($t, $w), "\"$w\" yok:\n$t");
     }
+    foreach ($lines as $l) {
+        ok(!preg_match('/^[\p{L}\p{N}]/u', $l), "emojisiz satır: $l");
+    }
+    $t2 = $db->one('SELECT text FROM desc_props WHERE sid = 1334')['text'];
+    ok(str_contains($t2, '🔗 Link: Kanal və ya qrup linki') && str_contains($t2, '✅ Azalma ola bilər') && str_contains($t2, '✅ Qlobal istifadəçilər') && !str_contains($t2, 'Qarantiya'), "telegram:\n$t2");
+    // eklentiye: öneriler, yeni olanlar önce; onay
+    $db->run("UPDATE desc_props SET auto = 1 WHERE sid = 1334");
+    $api = new TgWatch\ExtApi($db, []);
+    eq([2, 1], [$g->queueCount()['proposed'], $g->queueCount()['fresh']]);
+    [, $r] = $api->handle(['action' => 'desc_props']);
+    eq([1334, true, true], [$r['items'][0]['sid'], $r['items'][0]['auto'], $r['items'][0]['new']]);
+    eq(0, $g->queueCount()['fresh'], 'listelenince görüldü');
+    eq(2, $api->handle(['action' => 'desc_approve', 'items' => [['sid' => 4763, 'text' => 'Düzeltilmiş'], ['sid' => 1334]]])[1]['approved']);
+    eq(['approved', 'Düzeltilmiş'], array_values($db->one('SELECT status, text FROM desc_props WHERE sid = 4763')));
+});
+test('Yeni servis: Admin API listesinde yeni çıkan açıklamasız servise kendiliğinden öneri', function () {
+    [$db] = env();
+    $db->run("INSERT INTO panel_desc(id,name,category_id,category_name,status,description,at,pos) VALUES(1,'Instagram Bəyəni | Ani',5,'Instagram Bəyəni','enabled','🔗 Link: Paylaşım linki',1,1)");
+    TgWatch\PanelAdmin::$fake = static function (string $url) {
+        if (str_contains($url, '/names-descriptions')) {
+            return json_encode(['data' => ['list' => [['id' => 2, 'content' => [['lang_code' => 'az', 'name' => 'x', 'description' => '']]], ['id' => 3, 'content' => [['lang_code' => 'az', 'name' => 'y', 'description' => 'Var']]]]], 'error_message' => '', 'error_code' => 0]);
+        }
+        $svc = static fn($id, $n) => ['id' => $id, 'name' => $n, 'category_id' => 5, 'category_name' => 'Instagram Bəyəni', 'category_status' => 'enabled', 'status' => 'enabled', 'min' => 10, 'max' => 1000, 'rate' => ['value' => '1']];
+        return json_encode(['data' => ['list' => [$svc(1, 'Instagram Bəyəni | Ani'), $svc(2, 'Instagram Bəyəni | Yeni | 30 Gün Qarantili'), $svc(3, 'Instagram Bəyəni | Açıklamalı')]], 'error_message' => '', 'error_code' => 0]);
+    };
+    try {
+        $r = (new TgWatch\DescGen($db))->autoNew(['panel_api_url' => 'https://panelbaku.com/adminapi/v2', 'panel_api_key' => 'k']);
+    } finally {
+        TgWatch\PanelAdmin::$fake = null;
+    }
+    eq([2, 1], [$r['new'], $r['made']]);
+    $p = $db->one('SELECT status, auto, text FROM desc_props WHERE sid = 2');
+    ok($p && $p['status'] === 'proposed' && (int)$p['auto'] === 1 && str_contains($p['text'], 'Qarantiya: 30 gün'), json_encode($p, JSON_UNESCAPED_UNICODE));
+    eq(null, $db->one('SELECT sid FROM desc_props WHERE sid = 3'), 'açıklaması olana öneri yok');
+    eq(3, (int)$db->one('SELECT COUNT(*) c FROM panel_desc')['c']);
 });
 echo "Chrome eklentisi API\n";
 test('Eklenti API: teach bankadaki eski kayıtları da düzeltir (çevrilmeden kalmış kelime, sözlükteki eski karşılık); word_info şimdiki durumu verir', function () {

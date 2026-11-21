@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tgwatch · Açıklamalar</title>
+<link rel="stylesheet" href="desc.css">
+</head>
+<body>
+<header class="bar">
+  <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path class="m1" d="M3.2 28.5V20C3.2 15 6.11 12 8.1 9c1.7 3.2 3.08 6 2.82 11V28.5z"/><path class="m2" d="M12.4 28.5V13.6C12.4 8.6 15.4 5.6 17.6 2.6c1.76 3.2 2.96 6 2.64 11V28.5z"/><path class="m3" d="M21.6 28.5V23.5C21.6 18.5 24.42 15.5 26.2 12.5c1.64 3.2 3.2 6 3 11V28.5z"/></svg>
+  <h1>Açıklamalar</h1>
+  <nav class="seg" role="tablist" aria-label="Bölüm">
+    <button role="tab" data-v="props" id="v-props">Öneriler <b id="n-props">0</b></button>
+    <button role="tab" data-v="queue" id="v-queue">Panele yazılacak <b id="n-queue">0</b></button>
+    <button role="tab" data-v="report" id="v-report">Son rapor</button>
+  </nav>
+</header>
+
+<main>
+  <section id="p-props" hidden>
+    <div class="lead">
+      <p>tgwatch'ın ürettiği açıklamalar. Oku, istersen kutuda düzelt, sonra onayla. Onaylananlar <b>Panele yazılacak</b> listesine geçer.</p>
+      <div class="acts">
+        <label class="chk"><input type="checkbox" id="all"><span>Hepsini seç</span></label>
+        <button id="ok-sel" class="btn" disabled>Seçilenleri onayla</button>
+      </div>
+    </div>
+    <div id="props"></div>
+  </section>
+
+  <section id="p-queue" hidden>
+    <div class="lead">
+      <p>Onayladıkların. <b>Panele ekle</b> deyince eklenti Services sayfasında her servisi ID'siyle arar, açıklamayı yazar ve kaydeder. Fikrini değiştirdiysen <b>Vazgeç</b>: panele yazılmaz, öneri olarak geri döner.</p>
+      <p id="run-note" class="warn" hidden></p>
+      <div class="acts">
+        <button id="go" class="btn">Panele ekle</button>
+        <button id="cancel-all" class="btn ghost">Hepsinden vazgeç</button>
+      </div>
+    </div>
+    <ul id="queue" class="list"></ul>
+  </section>
+
+  <section id="p-report" hidden>
+    <p id="rep-sum" class="lead"></p>
+    <ul id="report" class="list"></ul>
+  </section>
+
+  <p id="msg" class="msg" role="status"></p>
+</main>
+<script src="desc.js"></script>
+</body>
+</html>

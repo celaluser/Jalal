@@ -46,6 +46,8 @@ final class ExtApi
         'imported' => ['Import bitti bildirimi: bota özet, istenirse kanala paylaşım.', '{"action":"imported","items":[…]}'],
         'cat_order' => ['Services sayfasındaki kategori sırası (eklenti, liste sonuna kadar yüklenince).', '{"action":"cat_order","ids":[12,7,30]}'],
         'desc_cancel' => ['Onaylı açıklamaları sıradan çıkarır (öneriye geri döner, panele yazılmaz). sids ya da all:1.', '{"action":"desc_cancel","sids":[4763]}'],
+        'desc_props' => ['Onay bekleyen öneriler (yeni servislerinkiler önce); görüldü işaretlenir.', '{"action":"desc_props"}'],
+        'desc_approve' => ['Önerileri onaylar (isteğe bağlı düzeltilmiş metinle); eklenti sonra panele yazar.', '{"action":"desc_approve","items":[{"sid":4763,"text":"…"}]}'],
         'desc_queue' => ['Onaylanmış açıklamalar (eklenti panele yazar). peek:1 yalnızca sayı.', '{"action":"desc_queue","peek":1}'],
         'desc_done' => ['Eklentinin yazdıkları; tgwatch Admin API ile panelden okuyup doğrular.', '{"action":"desc_done","items":[{"sid":9001,"ok":true}]}'],
         'ext_files' => ['Eklentinin güncel dosyaları (kendini güncelleme).', '{"action":"ext_files"}'],
@@ -69,9 +71,11 @@ final class ExtApi
                 'bank_save' => [200, ['ok' => true] + $this->bankEdit($req, false)],
                 'bank_del' => [200, ['ok' => true] + $this->bankEdit($req, true)],
                 'balance' => [200, ['ok' => true] + $this->balance($req)],
-                'imported' => [200, ['ok' => true] + (new ImportShare($this->db, $this->tg ?? App::telegram(), $this->config))->report($req)],
+                'imported' => [200, ['ok' => true] + (new ImportShare($this->db, $this->tg ?? App::telegram(), $this->config))->report($req) + $this->autoDesc()],
                 'cat_order' => [200, ['ok' => true, 'saved' => !empty($req['ids']) && is_array($req['ids']) ? DescGen::saveOrderIds($this->db, $req['ids'], 'eklenti') : DescGen::saveOrder($this->db, is_array($req['names'] ?? null) ? $req['names'] : [])]],
                 'desc_cancel' => [200, ['ok' => true, 'cancelled' => (new DescGen($this->db))->cancel(!empty($req['all']) ? null : (is_array($req['sids'] ?? null) ? $req['sids'] : []))]],
+                'desc_props' => [200, ['ok' => true, 'items' => (new DescGen($this->db))->proposals(150, empty($req['peek']))]],
+                'desc_approve' => [200, ['ok' => true, 'approved' => $this->descApprove($req)]],
                 'desc_queue' => [200, ['ok' => true] + (new DescGen($this->db))->queueCount() + (empty($req['peek']) ? ['items' => (new DescGen($this->db))->queue()] : [])],
                 'desc_done' => [200, ['ok' => true] + (new DescGen($this->db))->done(is_array($req['items'] ?? null) ? array_slice($req['items'], 0, 200) : [], $this->config)],
                 'ext_files' => [200, ['ok' => true] + self::extFiles()],
@@ -461,6 +465,41 @@ final class ExtApi
     }
 
     /** Eklentinin güncelleme sayfası için sunucudaki eklenti dosyaları (yalnızca eklenti dosya türleri). */
+    /** Import bitti: yeni servislere hemen açıklama önerisi (arka planda; hata importu bozmaz). */
+    private function autoDesc(): array
+    {
+        if ($this->db->get('desc_auto', '1') !== '1') {
+            return [];
+        }
+        try {
+            $r = (new DescGen($this->db))->autoNew($this->config);
+            $this->db->set('desc_auto_at', (string)time());
+            return ['desc_new' => $r['made']];
+        } catch (\Throwable $e) {
+            $this->db->log('warn', 'bank', 'Yeni servis açıklaması üretilemedi: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function descApprove(array $req): int
+    {
+        $G = new DescGen($this->db);
+        $n = 0;
+        foreach (array_slice(is_array($req['items'] ?? null) ? $req['items'] : [], 0, 300) as $it) {
+            $sid = (int)($it['sid'] ?? 0);
+            $row = $this->db->one("SELECT text FROM desc_props WHERE sid = ? AND status IN ('proposed','failed','rejected')", [$sid]);
+            if (!$row) {
+                continue;
+            }
+            $t = isset($it['text']) ? trim(str_replace(["\r\n", "\r"], "\n", (string)$it['text'])) : (string)$row['text'];
+            if ($t === '' || mb_strlen($t) > 5000) {
+                continue;
+            }
+            $n += $G->setStatus([$sid], 'approved', $t);
+        }
+        return $n;
+    }
+
     public static function extFiles(): array
     {
         $dir = (defined('TGWATCH_ROOT') ? TGWATCH_ROOT : dirname(__DIR__)) . '/chrome-extension';

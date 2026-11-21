@@ -154,6 +154,12 @@ SQL);
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS desc_props (sid INTEGER PRIMARY KEY, category_id INTEGER, category_name TEXT NOT NULL DEFAULT \'\', name TEXT NOT NULL, text TEXT NOT NULL,
             base TEXT NOT NULL DEFAULT \'\', notes TEXT NOT NULL DEFAULT \'[]\', status TEXT NOT NULL DEFAULT \'proposed\', error TEXT NOT NULL DEFAULT \'\', attempts INTEGER NOT NULL DEFAULT 0,
             created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)');
+        $dpCols = array_column($this->pdo->query('PRAGMA table_info(desc_props)')->fetchAll(), 'name');
+        foreach (['auto' => 'INTEGER NOT NULL DEFAULT 0', 'seen' => 'INTEGER NOT NULL DEFAULT 0'] as $col => $def) {
+            if (!in_array($col, $dpCols, true)) {
+                $this->pdo->exec("ALTER TABLE desc_props ADD COLUMN $col $def"); // auto: yeni servis için kendiliğinden üretildi; seen: eklentide görüldü
+            }
+        }
         if (!in_array('description', array_column($this->pdo->query('PRAGMA table_info(remote_services)')->fetchAll(), 'name'), true)) {
             $this->pdo->exec("ALTER TABLE remote_services ADD COLUMN description TEXT NOT NULL DEFAULT ''");
         }

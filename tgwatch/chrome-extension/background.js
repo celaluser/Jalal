@@ -61,7 +61,7 @@ const newer = (a, b) => {
 /** Rozet: yeni sürüm varsa "YENİ", yoksa panele yazılmayı bekleyen açıklama sayısı. */
 async function badge() {
   const { upd, descq } = await chrome.storage.local.get({ upd: null, descq: null });
-  const n = descq && descq.count ? descq.count : 0;
+  const n = descq ? (descq.count || 0) + (descq.fresh || 0) : 0;
   try {
     await chrome.action.setBadgeText({ text: upd && upd.has ? 'YENİ' : n ? String(n > 999 ? '999+' : n) : '' });
     await chrome.action.setBadgeBackgroundColor({ color: upd && upd.has ? '#b3362f' : '#243b6b' });
@@ -91,6 +91,21 @@ async function pullDescQueue() {
     } catch (e) { /* bildirim izni yok */ }
   }
   if (!now.count) { now.told = 0; try { chrome.notifications && chrome.notifications.clear('tgw-desc'); } catch (e) { /* yok */ } }
+  // Yeni servislere kendiliğinden üretilen öneriler: "Bak" → öneriler sayfası
+  now.fresh = r.fresh || 0;
+  now.proposed = r.proposed || 0;
+  now.toldFresh = descq ? descq.toldFresh || 0 : 0;
+  if (now.fresh && now.fresh > now.toldFresh && chrome.notifications) {
+    try {
+      chrome.notifications.create('tgw-desc-new', {
+        type: 'basic', iconUrl: 'icons/128.png', priority: 1, requireInteraction: true,
+        title: now.fresh + ' yeni servis için açıklama üretildi',
+        message: 'tgwatch yeni eklenen servislere açıklama yazdı. Okuyup düzeltebilir, onaylayabilirsin; onaylamadan panele yazılmaz.',
+        buttons: [{ title: 'Bak' }, { title: 'Sonra' }],
+      });
+    } catch (e) { /* bildirim yok */ }
+  }
+  now.toldFresh = now.fresh ? Math.max(now.toldFresh, now.fresh) : 0;
   await chrome.storage.local.set({ descq: now });
   await badge();
   return r;
@@ -125,12 +140,17 @@ async function openDescTab() {
   return { ok: true };
 }
 self.openDescTab = openDescTab;
+const openDescPage = (v) => chrome.tabs.create({ url: chrome.runtime.getURL('desc.html') + '#' + (v || 'props') });
 if (chrome.notifications) {
-  chrome.notifications.onClicked.addListener((id) => { if (id === 'tgw-desc') { chrome.notifications.clear(id); openDescTab(); } });
+  chrome.notifications.onClicked.addListener((id) => {
+    if (id === 'tgw-desc') { chrome.notifications.clear(id); openDescTab(); }
+    if (id === 'tgw-desc-new') { chrome.notifications.clear(id); openDescPage('props'); }
+    if (id === 'tgw-desc-rep') { chrome.notifications.clear(id); openDescPage('report'); }
+  });
   chrome.notifications.onButtonClicked.addListener((id, i) => {
-    if (id !== 'tgw-desc') return;
+    if (id !== 'tgw-desc' && id !== 'tgw-desc-new') return;
     chrome.notifications.clear(id);
-    if (i === 0) openDescTab();
+    if (i === 0) { if (id === 'tgw-desc') openDescTab(); else openDescPage('props'); }
   });
 }
 
@@ -218,6 +238,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'reload') {
     sendResponse({ ok: true });
     setTimeout(() => chrome.runtime.reload(), 100);
+    return false;
+  }
+  if (msg.type === 'desc-page') {
+    openDescPage(msg.view);
+    sendResponse({ ok: true });
     return false;
   }
   if (msg.type === 'desc-open') {

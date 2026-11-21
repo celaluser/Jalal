@@ -28,7 +28,7 @@ async function init() {
   }
   if (!s.panel || !s.api || !s.key) {
     conn('Ayar yok', 'bad');
-    $('tab-msg').textContent = 'Önce bağlantı ayarlarını gir (aşağıda).';
+    $('tab-msg').textContent = 'Önce bağlantı ayarlarını gir: Ayarlar → Bağlantı ayarları.';
     return;
   }
   showUpd((await get({ upd: null })).upd);
@@ -254,6 +254,7 @@ function showUpd(u) {
   if (u && u.latest !== undefined) $('v-server').textContent = u.latest || 'bilinmiyor';
   const has = !!(u && u.has && newerV(u.latest, mine));
   $('upd-dot').hidden = !has;
+  $('upd-card').classList.toggle('has', has);
   $('v-server').className = has ? 'new' : '';
   const older = !!(u && u.latest && newerV(mine, u.latest));
   if (!older) $('upd-msg').textContent = has ? 'Yeni sürüm hazır: ' + u.latest + '.' : (u && u.latest ? 'Eklenti güncel.' : '');
@@ -290,7 +291,7 @@ for (const b of document.querySelectorAll('.tabs [role=tab]')) {
     if (j >= 0) { e.preventDefault(); all[j].focus(); showTab(all[j].dataset.tab); }
   });
 }
-get({ popTab: 'panel' }).then((s) => showTab(['panel', 'bal', 'set', 'upd'].includes(s.popTab) ? s.popTab : 'panel'));
+get({ popTab: 'panel' }).then((s) => showTab(s.popTab === 'upd' ? 'set' : ['panel', 'bank', 'bal', 'set'].includes(s.popTab) ? s.popTab : 'panel'));
 
 function refresh() {
   if (!tabId) return;
@@ -325,71 +326,37 @@ function refresh() {
   });
 }
 
-// ---- tgwatch'ta onaylanan açıklamalar: kaç tane bekliyor, "panele ekle" ----
+// ---- açıklamalar: öneriler (onay bekleyen), panele yazılacaklar, yarıda kalan iş, son rapor ----
 function showDescq(d) {
-  const n = d && d.count ? d.count : 0;
-  $('descq').hidden = !n;
-  if (!n) return;
-  const cats = (d.categories || []).map((c) => c.name + ' (' + c.n + ')').join(', ');
-  $('descq-msg').textContent = n + ' onaylı açıklama panele yazılmayı bekliyor' + (cats ? ': ' + cats : '') + '. Eklenti Services listesinde her servisin Edit description\'ına yazıp kaydeder.';
+  if (!d) return;
+  $('dq-props').textContent = d.proposed !== undefined ? d.proposed : '–';
+  $('dq-queue').textContent = d.count || 0;
+  $('dq-fresh').hidden = !d.fresh;
+  $('dq-fresh').textContent = d.fresh ? d.fresh + ' yeni servis için üretildi' : '';
+  $('dq-props-l').classList.toggle('hot', !!d.fresh);
+  $('dq-queue-l').disabled = !(d.count || 0) && !$('dq-run').textContent;
 }
 get({ descq: null }).then((s) => showDescq(s.descq));
-// Yarıda kalan yazma işi (sekme kapandı / internet gitti / durduruldu)
 get({ descRun: null }).then((s) => {
   const r = s.descRun;
   if (!r || !r.items) return;
-  $('descq').hidden = false;
-  $('descq-run').hidden = false;
-  $('descq-run').textContent = 'Yarıda kalan iş: ' + r.i + '/' + r.items.length + ' bitti' + (r.paused ? ' (' + r.paused + ')' : '') + '. “Açıklamaları panele ekle” kaldığı yerden sürdürür.';
-  $('descq-go').textContent = 'Kaldığı yerden devam et';
+  $('dq-run').hidden = false;
+  $('dq-run').textContent = 'Yarıda kalan iş: ' + r.i + '/' + r.items.length + ' bitti' + (r.paused ? ' (' + r.paused + ')' : '') + '.';
+  $('dq-queue-l').querySelector('.go').textContent = 'Devam et';
+  $('dq-queue-l').disabled = false;
 });
-// Bekleyenlerin listesi: tek tek ya da hepsinden vazgeç (öneriye döner, panele yazılmaz; tgwatch'ta yeniden onaylanabilir)
-async function descList() {
-  const r = await callApi('desc_queue', {});
-  const ul = $('descq-list');
-  ul.textContent = '';
-  if (!r.ok) { $('descq-note').textContent = /Bilinmeyen/.test(r.error || '') ? 'tgwatch sunucusu eski.' : (r.error || ''); return; }
-  showDescq({ count: r.count, categories: r.categories });
-  for (const it of r.items || []) {
-    const li = document.createElement('li');
-    li.className = 'qi';
-    const t = document.createElement('span');
-    t.textContent = it.sid + ' ' + (it.name || '').slice(0, 44);
-    t.title = it.text;
-    const b = document.createElement('button');
-    b.className = 'btn ghost xs';
-    b.textContent = 'Vazgeç';
-    b.title = 'Bu servise yazılmasın (tgwatch\'ta öneriye döner)';
-    b.onclick = async () => { b.disabled = true; const x = await callApi('desc_cancel', { sids: [it.sid] }); if (x.ok) { li.remove(); afterCancel(x.cancelled); } else { b.disabled = false; $('descq-note').textContent = x.error || 'olmadı'; } };
-    li.append(t, b);
-    ul.appendChild(li);
-  }
-  if ((r.count || 0) > (r.items || []).length) $('descq-note').textContent = 'İlk ' + r.items.length + ' gösteriliyor.';
-}
-function afterCancel(n) {
-  $('descq-note').textContent = n + ' açıklamadan vazgeçildi: panele yazılmayacak (tgwatch\'ta “öneri hazır” olarak duruyor).';
-  chrome.runtime.sendMessage({ type: 'desc-refresh' }, (r) => { void chrome.runtime.lastError; if (r && r.ok) showDescq(r.descq); if (r && r.descq && !r.descq.count) $('descq').hidden = false; });
-}
-$('descq-cancel').onclick = async () => {
-  if (!confirm('Bekleyen bütün açıklamalardan vazgeçilsin mi? Panele yazılmazlar; tgwatch\'ta öneri olarak kalırlar.')) return;
-  const x = await callApi('desc_cancel', { all: 1 });
-  if (x.ok) { $('descq-list').textContent = ''; afterCancel(x.cancelled); } else $('descq-note').textContent = x.error || 'olmadı';
-};
 get({ descReport: null }).then((s) => {
   const r = s.descReport;
   if (!r || !r.results) return;
-  $('drep').hidden = false;
   const ok = r.results.filter((x) => x.ok).length;
-  $('drep-sum').textContent = ago(r.at) + ': ' + ok + ' eklendi, ' + (r.results.length - ok) + ' eklenmedi' + (r.stopped ? ' (durduruldu)' : '') + '.';
-  for (const x of r.results) {
-    const li = document.createElement('li');
-    li.className = x.ok ? 'ok' : 'bad';
-    li.textContent = (x.ok ? '✓ ' : '✗ ') + x.sid + ' ' + (x.name || '').slice(0, 50) + (x.ok ? (x.verified ? ' — doğrulandı' : '') : ' — ' + x.error);
-    $('drep-list').appendChild(li);
-  }
+  $('dq-rep-l').hidden = false;
+  $('dq-rep').textContent = 'Son yazma ' + ago(r.at) + ': ' + ok + ' eklendi' + (r.results.length - ok ? ', ' + (r.results.length - ok) + ' eklenmedi' : '');
 });
-chrome.runtime.sendMessage({ type: 'desc-refresh' }, (r) => { void chrome.runtime.lastError; if (r && r.ok) showDescq(r.descq); if (r && r.descq && r.descq.count) descList(); });
-$('descq-go').onclick = () => chrome.runtime.sendMessage({ type: 'desc-open' }, () => { void chrome.runtime.lastError; window.close(); });
+chrome.runtime.sendMessage({ type: 'desc-refresh' }, (r) => { void chrome.runtime.lastError; if (r && r.ok) showDescq(r.descq); });
+const page = (view) => chrome.runtime.sendMessage({ type: 'desc-page', view }, () => { void chrome.runtime.lastError; window.close(); });
+$('dq-props-l').onclick = () => page('props');
+$('dq-rep-l').onclick = () => page('report');
+$('dq-queue-l').onclick = () => chrome.runtime.sendMessage({ type: 'desc-open' }, () => { void chrome.runtime.lastError; window.close(); });
 
 $('run').onclick = () => chrome.tabs.sendMessage(tabId, { type: 'tgw-run' }, () => { void chrome.runtime.lastError; window.close(); });
 $('undo').onclick = () => chrome.tabs.sendMessage(tabId, { type: 'tgw-undo' }, () => { void chrome.runtime.lastError; window.close(); });
