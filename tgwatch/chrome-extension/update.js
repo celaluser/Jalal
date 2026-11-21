@@ -192,13 +192,15 @@ async function install(pkg, from) {
 
 $('from-server').onclick = async () => {
   // İzin isteği tıklamanın hemen içinde olmalı (kullanıcı hareketi).
-  if (!dir || !(await permitted(dir, true))) { log('Önce eklenti klasörünü seç.', 'bad'); return; }
+  if (!dir || !(await permitted(dir, true))) { log('Önce 1. adımda eklenti klasörünü seç ve yazma izni ver.', 'bad'); return; }
   log('tgwatch\'tan dosyalar alınıyor…');
   chrome.runtime.sendMessage({ type: 'api', action: 'ext_files' }, (r) => {
     if (chrome.runtime.lastError || !r || !r.ok) {
-      log((r && r.error) || 'tgwatch cevap vermedi' + (r && /Bilinmeyen/.test(r.error || '') ? ' (sunucudaki tgwatch eski: tgwatch-guncelleme.zip\'i yükle)' : ''), 'bad');
+      const er = (r && r.error) || (chrome.runtime.lastError && chrome.runtime.lastError.message) || 'tgwatch cevap vermedi';
+      log('Alınamadı: ' + er + (/Bilinmeyen/.test(er) ? ' (sunucudaki tgwatch eski: tgwatch zip\'ini yükle)' : ''), 'bad');
       return;
     }
+    if (!newer(r.version, mine)) { log('Sunucudaki eklenti ' + r.version + ', sendeki ' + mine + ': yeni sürüm yok. Önce tgwatch zip\'indeki chrome-extension klasörünü sunucuya yükle.', 'bad'); return; }
     const files = new Map(r.files.map((f) => [f.path, Uint8Array.from(atob(f.b64), (c) => c.charCodeAt(0))]));
     install({ version: r.version, files }, 'tgwatch');
   });
@@ -236,5 +238,11 @@ $('reload').onclick = () => chrome.runtime.reload();
   chrome.runtime.sendMessage({ type: 'api', action: 'ping' }, (r) => {
     $('server').textContent = r && r.ok ? (r.ext || 'bilinmiyor') : 'bağlantı yok';
     if (r && r.ok && r.ext && newer(r.ext, mine)) $('server').className = 'new';
+    // En sık sorun: sunucuya yalnızca src/ yüklenmiş, chrome-extension klasörü eski kalmış → "tgwatch'tan al" yeni bir şey getirmez
+    const m = $('srv-msg');
+    if (!r || !r.ok) { m.hidden = false; m.className = 'note bad'; m.textContent = 'tgwatch\'a bağlanılamadı: ' + ((r && r.error) || 'cevap yok') + '. Eklenti ayarlarındaki API adresini ve anahtarı kontrol et.'; }
+    else if (!r.ext) { m.hidden = false; m.className = 'note bad'; m.textContent = 'Sunucuda chrome-extension klasörü yok. tgwatch zip\'indeki chrome-extension klasörünü sunucuda tgwatch klasörünün içine yükle (src/ ile yan yana).'; }
+    else if (!newer(r.ext, mine)) { m.hidden = false; m.className = 'note warn'; m.textContent = 'Sunucudaki eklenti ' + r.ext + ', sendeki ' + mine + ': sunucuda daha yeni sürüm yok. Önce tgwatch zip\'indeki chrome-extension klasörünü sunucuya yükle (üzerine yaz), sonra bu sayfayı yenile. Ya da “Zip dosyası seç” ile tgwatch-eklenti.zip\'i doğrudan kur.'; }
+    else { m.hidden = false; m.className = 'note ok'; m.textContent = 'Sunucuda yeni sürüm var: ' + r.ext + '. ' + (dir ? '“tgwatch\'tan al ve kur”a bas.' : 'Önce 1. adımda eklenti klasörünü seç (chrome://extensions\'ta “Paketlenmemiş öğe yükle” ile seçtiğin klasör).'); }
   });
 })();

@@ -2567,8 +2567,21 @@
     }
   }
   /** Services sayfası açılınca: onaylı açıklama varsa çubuk; adres #tgw-desc ise (bildirimden) hemen başla. */
+  /** Sitedeki kategori sırası: panelin herkese açık /services sayfasından kategori ID'leri (6 saatte bir). */
+  async function siteOrder() {
+    try {
+      if (Date.now() - Number(localStorage.getItem('tgw_site_order') || 0) < 6 * 3600 * 1000) return;
+      const r = await fetch(location.origin + '/services', { credentials: 'omit', cache: 'no-store' });
+      if (!r.ok) return;
+      const ids = [...new Set([...(await r.text()).matchAll(/data-filter-table-category-id\s*=\s*["']?(\d+)/gi)].map((m) => Number(m[1])))];
+      if (ids.length < 3) return;
+      const res = await api('cat_order', { ids });
+      if (res && res.ok) localStorage.setItem('tgw_site_order', String(Date.now()));
+    } catch (e) { /* sayfa yok/erişilemedi: liste yüklenince adlarla gönderilir */ }
+  }
   async function descCheck() {
     if (!onServicesList()) return;
+    siteOrder();
     if (location.hash === '#tgw-desc') {
       history.replaceState(null, '', location.pathname + location.search);
       setTimeout(() => descFlow(), 1500);

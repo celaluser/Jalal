@@ -132,7 +132,7 @@ trait DescPages
             return $h . Ui::empty($q !== '' ? 'Eşleşen kategori yok' : 'Açıklamasız servis yok', $q !== '' ? 'Başka bir ad dene.' : 'Son okumaya göre bütün servislerin açıklaması var.');
         }
         $h .= '<p class="muted">' . count($cats) . ' kategoride açıklamasız servis var. Sıra: '
-            . ($E['source'] === 'site' ? '<b>sitedeki gibi</b> (eklenti ' . Ui::ago($E['site_at']) . ' okudu)' : 'Admin API listesindeki gibi (sitedeki sıra, eklenti açıklamaları panele ilk yazdığında okunur)')
+            . ($E['source'] === 'site' ? '<b>sitedeki gibi</b> (' . Ui::e($E['from']) . ' ' . Ui::ago($E['site_at']) . ' okudu)' : '<b>Admin API listesindeki gibi</b> — sitedeki sıra henüz okunamadı: “Panelden yeniden oku”ya bas ya da panelde Services sayfasını bir kez aç (eklenti okur)')
             . '. Kategoriye tıkla, servisleri açılır; tek servise ya da seçtiklerine açıklama üret, metni düzelt, onayla.</p>';
         $label = ['proposed' => ['öneri hazır', 'lvl-warn'], 'approved' => ['onaylı, eklentiyi bekliyor', 'lvl-good'], 'applied' => ['panele yazıldı', 'lvl-good'], 'verified' => ['panele yazıldı ✓', 'lvl-good'], 'failed' => ['hatalı', 'lvl-error'], 'rejected' => ['reddedildi', 'muted']];
         $ids = array_map(static fn($c) => (int)$c['category_id'], $cats);
@@ -147,23 +147,28 @@ trait DescPages
             $cid = (int)$c['category_id'];
             $svcs = $byCat[$cid] ?? [];
             $nProp = count(array_filter($svcs, static fn($r) => $r['pst'] !== null));
-            $h .= '<details class="panel panel-pad gap-top desc-cat" id="c' . $cid . '"' . ($cid === $open || count($cats) === 1 ? ' open' : '') . '><summary style="cursor:pointer"><b>' . Ui::e($c['category_name']) . '</b> <span class="muted">#' . $cid . ' · ' . (int)$c['e'] . ' açıklamasız / ' . (int)$c['n'] . ' servis'
+            $h .= '<details class="panel panel-pad gap-top desc-cat" id="c' . $cid . '"' . ($cid === $open || count($cats) === 1 ? ' open' : '') . '><summary><b>' . Ui::e($c['category_name']) . '</b> <span class="muted">#' . $cid . ' · ' . (int)$c['e'] . ' açıklamasız / ' . (int)$c['n'] . ' servis'
                 . ((int)$c['eon'] < (int)$c['e'] ? ' · ' . ((int)$c['e'] - (int)$c['eon']) . ' kapalı' : '') . ($nProp ? ' · ' . $nProp . ' öneri' : '') . '</span></summary>'
-                . '<form method="post" action="?p=desc_gen" class="stack gap-top">' . $this->ui->csrfField() . '<input type="hidden" name="cat" value="' . $cid . '"><input type="hidden" name="back" value="empty">'
-                . '<div class="table-wrap"><table><thead><tr><th class="tight"><input type="checkbox" aria-label="Hepsini seç" onclick="for(const x of this.closest(\'form\').querySelectorAll(\'input[name=&quot;sids[]&quot;]:not(:disabled)\'))x.checked=this.checked"></th><th>Servis ve açıklama</th></tr></thead><tbody>';
+                . '<form method="post" action="?p=desc_gen" class="stack gap-top" data-selbar>' . $this->ui->csrfField() . '<input type="hidden" name="cat" value="' . $cid . '"><input type="hidden" name="back" value="empty">'
+                . '<div class="row desc-selbar">'
+                . '<label class="row desc-all"><input type="checkbox" data-checkall="form"><span>Hepsini seç</span></label>'
+                . '<span class="muted" data-selcount>Seçim yok</span>'
+                . '<button class="btn primary sm" data-selbtn disabled>' . Ui::icon('play') . '<span>Seçilenlere açıklama üret</span></button>'
+                . '<button class="btn ghost sm" name="all" value="1" formaction="?p=desc_gen">' . Ui::icon('play') . '<span>Bu kategorideki hepsine üret (' . (int)$c['e'] . ')</span></button></div>'
+                . '<div class="table-wrap"><table><tbody>';
             foreach ($svcs as $sv) {
                 $sid = (int)$sv['id'];
                 $pst = $sv['pst'];
                 $st = $label[$pst ?? ''] ?? null;
                 $locked = in_array($pst, ['approved', 'applied', 'verified'], true);
-                $h .= '<tr id="s' . $sid . '"><td class="tight"><input type="checkbox" name="sids[]" value="' . $sid . '"' . ($locked ? ' disabled' : '') . ' aria-label="Seç ' . $sid . '"></td><td><div class="row" style="justify-content:space-between">'
+                $h .= '<tr id="s' . $sid . '"><td class="tight"><input type="checkbox" name="sids[]" value="' . $sid . '"' . ($locked ? ' disabled' : '') . ' aria-label="Seç ' . $sid . '"></td><td><div class="row desc-svc">'
                     . '<span><b>' . $sid . '</b> ' . Ui::e($sv['name']) . ($sv['status'] !== 'enabled' ? ' <span class="muted">· kapalı</span>' : '') . '</span>'
                     . '<span>' . ($st ? '<span class="' . $st[1] . '">' . $st[0] . '</span> ' : '')
                     . (!$locked ? '<button class="btn quiet sm" formaction="?p=desc_gen" name="one" value="' . $sid . '">' . Ui::icon('play') . '<span>' . ($pst ? 'Yeniden üret' : 'Açıklama üret') . '</span></button>' : '') . '</span></div>';
                 if ($pst !== null && !$locked) {
                     $warn = array_filter(json_decode((string)$sv['notes'], true) ?: [], static fn($n) => str_starts_with($n, '⚠'));
                     $h .= ($warn ? '<p class="lvl-error">' . Ui::e(implode(' · ', $warn)) . '</p>' : '') . ($sv['error'] !== '' ? '<p class="lvl-error">' . Ui::e($sv['error']) . '</p>' : '')
-                        . '<textarea name="text[' . $sid . ']" rows="' . max(3, min(14, substr_count((string)$sv['text'], "\n") + 2)) . '" aria-label="Açıklama ' . $sid . '" style="width:100%">' . Ui::e($sv['text']) . '</textarea>'
+                        . '<textarea name="text[' . $sid . ']" rows="' . max(3, min(14, substr_count((string)$sv['text'], "\n") + 2)) . '" aria-label="Açıklama ' . $sid . '">' . Ui::e($sv['text']) . '</textarea>'
                         . '<div class="row"><button class="btn primary sm" formaction="?p=desc_ok" name="sid" value="' . $sid . '">' . Ui::icon('check') . '<span>Kaydet ve onayla</span></button>'
                         . '<button class="btn ghost sm" formaction="?p=desc_save" name="sid" value="' . $sid . '"><span>Yalnızca kaydet</span></button>'
                         . ($pst !== 'rejected' ? '<button class="btn ghost sm" formaction="?p=desc_reject" name="sid" value="' . $sid . '">' . Ui::icon('x') . '<span>Reddet</span></button>' : '') . '</div>';
@@ -173,11 +178,7 @@ trait DescPages
                 }
                 $h .= '</td></tr>';
             }
-            $h .= '</tbody></table></div><div class="row"><button class="btn">' . Ui::icon('play') . '<span>Seçilenlere açıklama üret</span></button>'
-                . '<span class="muted">Panele hiçbir şey yazılmaz; önce sen onaylarsın.</span></div></form></details>';
-        }
-        if ($open) {
-            $h .= '<script>(()=>{const e=document.getElementById(' . json_encode('s' . (int)($_GET['s'] ?? 0)) . ')||document.getElementById(' . json_encode('c' . $open) . ');if(e)e.scrollIntoView({block:"center"});})()</script>';
+            $h .= '</tbody></table></div><p class="muted">Panele hiçbir şey yazılmaz; üretilenler burada kutuda çıkar, sen onaylarsın.</p></form></details>';
         }
         return $h;
     }
@@ -266,8 +267,8 @@ trait DescPages
         switch ($p) {
             case 'desc_gen':
                 $c = (int)($_POST['cat'] ?? 0);
-                $sids = !empty($_POST['one']) ? [(int)$_POST['one']] : (isset($_POST['sids']) && is_array($_POST['sids']) ? array_map('intval', $_POST['sids']) : null);
-                if ($sids === [] || ($sids === null && ($_POST['back'] ?? '') === 'empty')) {
+                $sids = !empty($_POST['one']) ? [(int)$_POST['one']] : (!empty($_POST['all']) ? null : (isset($_POST['sids']) && is_array($_POST['sids']) ? array_map('intval', $_POST['sids']) : (($_POST['back'] ?? '') === 'empty' ? [] : null)));
+                if ($sids === [] && ($_POST['back'] ?? '') === 'empty') {
                     $this->say('bad', 'Hiç servis seçilmedi: servisleri işaretle ya da servisin yanındaki “Açıklama üret”e bas.');
                     $this->descBack('empty', ['c' => $c]);
                     return true;

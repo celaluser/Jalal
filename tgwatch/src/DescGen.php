@@ -337,6 +337,46 @@ final class DescGen
         return count($map);
     }
 
+    /** Sitedeki kategori sırası, kategori ID'leriyle (panelin herkese açık /services sayfası). */
+    public static function saveOrderIds(Db $db, array $ids, string $from): int
+    {
+        $map = [];
+        foreach (array_slice($ids, 0, 5000) as $id) {
+            $id = (int)$id;
+            if ($id > 0 && !isset($map[$id])) {
+                $map[$id] = count($map) + 1;
+            }
+        }
+        if (count($map) < 3) {
+            return 0;
+        }
+        $old = $db->getJson(self::ORDER);
+        $db->setJson(self::ORDER, ['at' => time(), 'ids' => $map, 'from' => $from] + (is_array($old) && !empty($old['map']) ? ['map' => $old['map']] : []));
+        return count($map);
+    }
+
+    /** Sayfa HTML'inden kategori ID'leri (Perfect Panel: data-filter-table-category-id="12"), sırayla. */
+    public static function parseOrderIds(string $html): array
+    {
+        preg_match_all('/data-filter-table-category-id\s*=\s*["\']?(\d+)/i', $html, $m);
+        return array_values(array_unique(array_map('intval', $m[1] ?? [])));
+    }
+
+    /** Panelin /services sayfasını sunucudan okuyup sırayı kaydeder; olmazsa 0 (eklenti tarayıcıdan dener). */
+    public static function fetchSiteOrder(Db $db, array $config): int
+    {
+        $u = parse_url((string)($config['panel_api_url'] ?? ''));
+        if (empty($u['host'])) {
+            return 0;
+        }
+        try {
+            $r = Http::get(($u['scheme'] ?? 'https') . '://' . $u['host'] . '/services', 20);
+            return $r['status'] === 200 ? self::saveOrderIds($db, self::parseOrderIds($r['body']), 'sunucu') : 0;
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
     public static function catKey(string $n): string
     {
         return mb_strtolower(trim(preg_replace('/\s+/u', ' ', $n) ?? $n));
@@ -352,14 +392,15 @@ final class DescGen
             FROM panel_desc GROUP BY category_id HAVING e > 0");
         $order = $this->db->getJson(self::ORDER);
         $map = is_array($order) && !empty($order['map']) ? $order['map'] : [];
+        $ids = is_array($order) && !empty($order['ids']) ? $order['ids'] : [];
         $hit = 0;
         foreach ($cats as &$c) {
-            $c['site'] = $map[self::catKey((string)$c['category_name'])] ?? null;
+            $c['site'] = $ids[(int)$c['category_id']] ?? $ids[(string)$c['category_id']] ?? $map[self::catKey((string)$c['category_name'])] ?? null;
             $hit += $c['site'] !== null ? 1 : 0;
         }
         unset($c);
         usort($cats, static fn($a, $b) => [$a['site'] === null ? 1 : 0, $a['site'] ?? 0, (int)$a['pos'], (int)$a['category_id']] <=> [$b['site'] === null ? 1 : 0, $b['site'] ?? 0, (int)$b['pos'], (int)$b['category_id']]);
-        return ['cats' => $cats, 'source' => $hit ? 'site' : 'api', 'site_at' => (int)($order['at'] ?? 0)];
+        return ['cats' => $cats, 'source' => $hit ? 'site' : 'api', 'site_at' => (int)($order['at'] ?? 0), 'from' => (string)($order['from'] ?? 'eklenti')];
     }
 
     public function setStatus(array $sids, string $status, ?string $text = null): int

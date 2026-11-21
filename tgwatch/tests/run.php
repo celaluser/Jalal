@@ -2619,6 +2619,16 @@ test('Açıklamasız kategoriler: sitedeki sıra (eklentiden), yoksa Admin API s
     eq(4, $api->handle(['action' => 'cat_order', 'names' => ['C  kat', 'Z kat', 'b kat', 'A kat']])[1]['saved']);
     $e = $g->emptyCategories();
     eq(['site', [20, 30, 10]], [$e['source'], array_map(static fn($c) => (int)$c['category_id'], $e['cats'])]);
+    // sitenin /services sayfası (sunucudan): kategori ID'leriyle, adlardan önce gelir
+    eq([30, 10, 20], TgWatch\DescGen::parseOrderIds('<tr data-filter-table-category-id="30"><td>B</td></tr><tr data-filter-table-category-id="30"></tr><tr data-filter-table-category-id=\'10\'></tr><tr data-filter-table-category-id="20">'));
+    TgWatch\Http::$fake = static fn($m, $url) => ['status' => str_ends_with($url, 'panelbaku.com/services') ? 200 : 404, 'body' => '<i data-filter-table-category-id="30"></i><i data-filter-table-category-id="10"></i><i data-filter-table-category-id="99"></i><i data-filter-table-category-id="20"></i>', 'error' => ''];
+    try {
+        eq(4, TgWatch\DescGen::fetchSiteOrder($db, ['panel_api_url' => 'https://panelbaku.com/adminapi/v2']));
+    } finally {
+        TgWatch\Http::$fake = null;
+    }
+    $e = $g->emptyCategories();
+    eq(['site', 'sunucu', [30, 10, 20]], [$e['source'], $e['from'], array_map(static fn($c) => (int)$c['category_id'], $e['cats'])]);
 });
 test('Açıklama üretimi: önce öğrenme gerekir', function () {
     [$db] = env();

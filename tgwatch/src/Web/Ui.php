@@ -371,9 +371,22 @@ final class Ui
 
   // Tümünü seç
   d.addEventListener('change', function (e) {
-    if (!e.target.matches('[data-checkall]')) return;
-    d.querySelectorAll('input[name="ids[]"]').forEach(function (x) { x.checked = e.target.checked; });
+    var sb = e.target.closest && e.target.closest('form[data-selbar]');
+    if (e.target.matches('[data-checkall]')) {
+      // data-checkall="form": yalnızca bu formdaki seçilebilir kutular (Açıklamalar); boş: sayfadaki ids[]
+      var all = e.target.getAttribute('data-checkall') === 'form' && sb ? sb.querySelectorAll('input[name="sids[]"]:not(:disabled)') : d.querySelectorAll('input[name="ids[]"]');
+      all.forEach(function (x) { x.checked = e.target.checked; });
+    }
+    if (sb) selbar(sb);
   });
+  // Seçim çubuğu: "N seçili" ve "Seçilenlere …" düğmesi seçim olunca açılır
+  function selbar(f) {
+    var boxes = f.querySelectorAll('input[name="sids[]"]:not(:disabled)'), n = 0;
+    boxes.forEach(function (x) { if (x.checked) n++; });
+    f.querySelectorAll('[data-selcount]').forEach(function (x) { x.textContent = n ? n + ' seçili' : 'Seçim yok'; });
+    f.querySelectorAll('[data-selbtn]').forEach(function (x) { x.disabled = !n; var sp = x.querySelector('span'); if (sp) sp.textContent = 'Seçilenlere açıklama üret' + (n ? ' (' + n + ')' : ''); });
+    var ca = f.querySelector('[data-checkall="form"]'); if (ca) { ca.checked = n > 0 && n === boxes.length; ca.indeterminate = n > 0 && n < boxes.length; }
+  }
 
   // İpucu: grafik işaretleri ve [data-tip] öğeleri (fare ve klavye odağı)
   var tip = d.getElementById('tip');
@@ -756,6 +769,13 @@ kbd{font:500 11.5px/1 var(--font);color:var(--text-2);background:var(--fill-2);b
 .panel,.card{background:var(--surface);border-radius:var(--r-l);box-shadow:var(--shadow);border:1px solid var(--sep-2)}
 @media (prefers-color-scheme:dark){.panel,.card{border-color:transparent}}
 .panel-pad{padding:18px 20px}
+/* Açıklamalar → Açıklamasızlar */
+.desc-cat>summary{cursor:pointer}
+.desc-selbar{position:sticky;top:64px;z-index:2;background:var(--surface);padding:8px 0;border-bottom:1px solid var(--sep-2);flex-wrap:wrap}
+.desc-all{gap:8px;cursor:pointer}
+.desc-svc{justify-content:space-between}
+.desc-cat textarea{width:100%}
+.desc-cat input[type=checkbox]{cursor:pointer}
 .panel+.panel{margin-top:12px}
 .code{background:var(--surface-2);border-radius:var(--r-m);padding:12px 14px}
 .kv{display:grid;grid-template-columns:max-content 1fr;gap:8px 22px;margin:0}.kv dt{color:var(--text-2)}.kv dd{margin:0;font-weight:500;min-width:0;overflow-wrap:anywhere}

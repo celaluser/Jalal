@@ -314,6 +314,7 @@ final class DescLearn
         $active = $api->activeLangs($list[0]['id']);
         $lang = in_array('az', $active, true) ? 'az' : '';
         $nd = $api->namesDescriptions(array_column($list, 'id'), $lang);
+        DescGen::fetchSiteOrder($this->db, $this->config); // sitedeki kategori sırası (olmazsa eklenti gönderir)
         return $this->learn($list, $nd, $active, (int)((microtime(true) - $t0) * 1000));
     }
 
