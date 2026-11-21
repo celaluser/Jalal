@@ -206,7 +206,7 @@
 
   function opts() {
     return new Promise((resolve) => {
-      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stripMinMax: true, stripSpeed: true, descTranslate: true, descMode: '', catLogo: true, catLogoReplace: false };
+      const d = { delay: 400, dry: false, skipAz: true, autoCat: true, catTop: true, notify: true, bracketSpace: true, stripMinMax: true, stripSpeed: true, descTranslate: true, descMode: '', descImport: 'build', catLogo: true, catLogoReplace: false };
       try { chrome.storage.local.get(d, (s) => resolve(s || d)); } catch (e) { resolve(d); }
     });
   }
@@ -302,16 +302,36 @@
     if (it.via !== 'bank') api('learn_desc', { items: [{ en: src, az: it.az }] });
     return { ok: true, src, note: 'açıklama ' + (DESC_VIA[it.via] || it.via) + (it.note ? ' (' + it.note + ')' : '') };
   }
-  /** İmport satırında açıklama (ayar açıksa): satır açıkken çağrılır. */
+  /** İmportta açıklama: build = tgwatch üretir (kaynak açıklamadaki bilgileri de kullanır), translate = çevirir, off = dokunmaz. */
+  const importDescMode = (o) => (['build', 'translate', 'off'].includes(o.descImport) ? o.descImport : (o.descTranslate ? 'translate' : 'off'));
+  /** İmport satırında açıklama: satır açıkken çağrılır (ad yazıldıktan hemen sonra; aynı Save ile kaydedilir). */
   async function rowDesc(id, o) {
-    if (!o.descTranslate) return '';
-    const row = findSvc(id);
+    const mode = importDescMode(o);
+    if (mode === 'off') return '';
+    const row = findRow(id);
     if (!row) return '';
-    const el = descField(row.el, nameInput(row));
+    const input = nameInput(row);
+    const el = descField(row.el, input);
     if (!el) return '\nAçıklama alanı bulunamadı';
-    const r = await translateDescField(el, o);
-    if (r.ok && !(state.get(id) || {}).descSrc) remember(id, { descSrc: r.src });
-    return r.note ? '\n' + r.note.charAt(0).toUpperCase() + r.note.slice(1) : '';
+    if (mode === 'translate') {
+      const r = await translateDescField(el, o);
+      if (r.ok && !(state.get(id) || {}).descSrc) remember(id, { descSrc: r.src });
+      return r.note ? '\n' + r.note.charAt(0).toUpperCase() + r.note.slice(1) : '';
+    }
+    const st = state.get(id) || {};
+    const src = st.descSrc !== undefined ? st.descSrc : readField(el); // kaynak (sağlayıcının) açıklaması; geri al için saklanır
+    if (st.descSrc === undefined) remember(id, { descSrc: src });
+    const head = norm(textWithAlt(row.el));
+    // satırdaki "Min: 20 Max: 100000" (adın içindeki "Max 100K" değil): iki noktalı, en sondaki
+    const num = (re) => { const all = [...head.matchAll(re)]; const m = all[all.length - 1]; return m ? Number(m[1].replace(/[^\d]/g, '')) || null : null; };
+    const az = input ? input.value : (st.filled || '');
+    const res = await api('desc_build', { items: [{ id: String(id), name: st.src || row.header.name || az, az, text: src, min: num(/\bMin\s*:\s*(\d[\d.,]*)/gi), max: num(/\bMax\s*:\s*(\d[\d.,]*)/gi) }] });
+    if (!res.ok || !res.items || !res.items[0]) {
+      return '\nAçıklama üretilemedi: ' + (/Bilinmeyen işlem/.test(res.error || '') ? 'tgwatch sunucusu eski' : (res.error || 'tgwatch hatası'));
+    }
+    writeField(el, res.items[0].text);
+    const f = res.items[0].found || [];
+    return '\nAçıklama üretildi' + (f.length ? ' (kaynak açıklamadan: ' + f.length + ' bilgi)' : norm(src) ? '' : ' (kaynak açıklama boştu)');
   }
 
   // ---- "Edit description" penceresi (Services sayfası): "tgwatch: çevir" düğmesi ----
@@ -781,14 +801,14 @@
   }
 
   async function openRow(id) {
-    let row = findSvc(id);
+    let row = findRow(id);
     if (!row) return null;
     if (!rowButton(row, 'save')) {
       const edit = rowButton(row, 'edit');
       if (!edit) return null;
       edit.click();
       row = await waitFor(() => {
-        const r = findSvc(id);
+        const r = findRow(id);
         return r && rowButton(r, 'save') && nameInput(r) ? r : null;
       });
     }
@@ -796,12 +816,12 @@
   }
 
   async function saveRow(id) {
-    const row = findSvc(id);
+    const row = findRow(id);
     const save = row && rowButton(row, 'save');
     if (!save) return false;
     save.click();
     return !!(await waitFor(() => {
-      const r = findSvc(id);
+      const r = findRow(id);
       return r && !rowButton(r, 'save') ? r : null;
     }, 8000));
   }
@@ -826,7 +846,7 @@
         if (st && st.filled && lower(r.header.name) === lower(st.filled)) { skipped++; continue; }
         if (o.skipAz && AZ_ONLY.test(r.header.name)) {
           skipped++;
-          if (o.descTranslate && !(st && st.descDone)) descOnly.push(r);
+          if (importDescMode(o) !== 'off' && !(st && st.descDone)) descOnly.push(r);
           else if (!marks.has(r.id)) mark(r, 'done', 'Ad zaten Azerice, dokunulmadı');
           continue;
         }
@@ -864,7 +884,7 @@
         const row = await openRow(id);
         if (!row) {
           bad++;
-          const r = findSvc(id);
+          const r = findRow(id);
           if (r) mark(r, 'bad', 'Satır açılamadı (Edit/Name bulunamadı)');
           continue;
         }
@@ -880,7 +900,7 @@
           skipped++;
           const dn = await rowDesc(id, o);
           if (!o.dry) await saveRow(id);
-          const r = findSvc(id) || row;
+          const r = findRow(id) || row;
           mark(r, 'done', 'Ad zaten Azerice, dokunulmadı' + dn);
           continue;
         }
@@ -888,7 +908,7 @@
           bad++;
           const dn = await rowDesc(id, o);
           if (!o.dry) await saveRow(id);
-          const r = findSvc(id) || row;
+          const r = findRow(id) || row;
           remember(id, { unknown: tr ? (tr.unknown || []) : [] });
           mark(r, 'bad', (tr ? 'Bankada da kurallarda da karşılığı yok: ' + src : 'tgwatch cevap vermedi') + dn);
           continue;
@@ -899,11 +919,11 @@
         const dn = await rowDesc(id, o);
         if (!o.dry && !(await saveRow(id))) {
           bad++;
-          const r = findSvc(id);
+          const r = findRow(id);
           if (r) mark(r, 'bad', 'Save sonrası satır kapanmadı');
           continue;
         }
-        const r = findSvc(id) || row;
+        const r = findRow(id) || row;
         const why = 'Orijinal: ' + src + (tr.unknown && tr.unknown.length ? '\nBilinmeyen: ' + tr.unknown.join(', ') : '') + dn;
         if (tr.via === 'bank') { ok++; mark(r, 'ok', 'Bankadan birebir\n' + why); }
         else { warn++; mark(r, 'warn', (tr.via === 'mixed' ? 'Kısmen bankadan' : tr.via === 'claude' ? 'Claude ile (tgwatch denetiminden geçti)' : 'Kurallarla') + '\n' + why); }
@@ -939,7 +959,7 @@
         if (st.descSrc) { const d = descField(row.el, nameInput(row)); if (d) writeField(d, st.descSrc); }
         if (!o.dry) await saveRow(id);
         remember(id, { filled: undefined, final: st.src, edited: false, descSrc: undefined });
-        const r = findSvc(id);
+        const r = findRow(id);
         if (r) unmark(r);
         n++;
       }
@@ -959,7 +979,7 @@
       const row = scanRows().find((r) => r.el.contains(b));
       if (!row) return;
       const id = row.id;
-      waitFor(() => { const r = findSvc(id); return r && nameInput(r); }, 4000).then((input) => {
+      waitFor(() => { const r = findRow(id); return r && nameInput(r); }, 4000).then((input) => {
         if (input && !(state.get(id) || {}).src) remember(id, { src: input.value });
       });
     } else if (t === 'save') {

@@ -99,7 +99,7 @@ final class DescGen
      */
     public static function build(array $svc, array $base, array $rules, string $group): array
     {
-        $facts = DescLearn::facts($svc['name'], ['cancel' => !empty($svc['cancel'])]);
+        $facts = DescLearn::facts($svc['name'], ['cancel' => !empty($svc['cancel'])]) + (is_array($svc['facts'] ?? null) ? $svc['facts'] : []); // ad önce, sonra kaynak açıklama
         $out = [];
         $notes = [];
         $used = [];
@@ -359,7 +359,7 @@ final class DescGen
                 $link = $link ?: trim(explode(':', $c, 2)[1]);
                 continue;
             }
-            if ($isNote($lc)) {
+            if ($isNote($lc) || preg_match('/(məyin|mayın|mayin|məyiniz|olmalıdır|edin|vermeyiniz|değiştirmeyin)[.!]?$/u', $lc)) { // uyarı/talimat cümlesi → Qeydlər
                 $noteLines[] = $c;
                 continue;
             }
@@ -432,8 +432,8 @@ final class DescGen
         }
         if (!empty($facts['nondrop'])) {
             $L[] = 'Azalma: Olmaz';
-        } elseif ($drop) {
-            $L[] = 'Azalma: ' . $drop;
+        } elseif ($drop || !empty($svc['drop'])) {
+            $L[] = 'Azalma: ' . ($drop ?? 'Ola bilər');
         }
         if ($cancel || !empty($facts['cancel'])) {
             $L[] = 'Ləğv: ' . ($cancel ?? 'Ləğv düyməsi aktivdir');
@@ -811,6 +811,74 @@ final class DescGen
             }
         }
         return $n;
+    }
+
+    /**
+     * Import ekranı: kaynak (çoğunlukla İngilizce) ad + açıklamadan bilgileri okuyup Azerice açıklama üretir.
+     * Ad bilgileri önce gelir; açıklamadan yalnız adda olmayanlar alınır (başlama, hız, garanti, düşüş, iptal, link türü, kalite, uyarılar).
+     * @param array{name?:string,az?:string,text?:string,min?:int|null,max?:int|null,category?:string} $it
+     * @return array{text:string,notes:list<string>,found:list<string>}
+     */
+    public function fromImport(array $it): array
+    {
+        $src = (string)($it['text'] ?? '');
+        $low = DescLearn::lower(html_entity_decode(strip_tags(str_ireplace(['<br>', '<br/>', '<br />'], "\n", $src)), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $name = trim((string)($it['az'] ?? '')) ?: (string)($it['name'] ?? '');
+        $srcName = (string)($it['name'] ?? $name);
+        // açıklamadaki bilgiler (birimler Azericeye)
+        $df = DescLearn::facts($low);
+        if (isset($df['start'])) {
+            $df['start'] = strtr($df['start'], ['hours' => 'saat', 'hour' => 'saat', 'minutes' => 'dəqiqə', 'minute' => 'dəqiqə', 'mins' => 'dəqiqə', 'min' => 'dəqiqə', 'days' => 'gün', 'day' => 'gün']);
+        }
+        unset($df['max']); // Min/Maks API'den/satırdan
+        if (preg_match('/(may|can|possible|might)\s+(be\s+)?drop|drops?\s+(possible|may)|drop\s*:\s*(yes|possible|low|high)/u', $low)) {
+            $df['drop'] = true;
+        }
+        if (preg_match('/cancel\s*(button)?\s*(:\s*)?(enabled|active|available|yes)|cancel\s+button/u', $low)) {
+            $df['cancel'] = true;
+        }
+        $found = array_keys($df);
+        $base = [];
+        // link türü
+        if (preg_match('/link\s*(format)?\s*:\s*([^\n]+)/u', $low, $m) || preg_match('/(profile|username|channel|group|video|post|photo|reel|story|live|stream)\s+link/u', $low, $m)) {
+            $lt = $m[2] ?? $m[1];
+            $map = [['/live|stream/u', 'Canlı yayım linki'], ['/story|stories/u', 'Profil linki (hekayə aktiv olmalıdır)'], ['/reel/u', 'Reels linki'], ['/short/u', 'Shorts video linki'],
+                ['/channel/u', 'Kanal linki'], ['/group/u', 'Qrup linki'], ['/username|profile|account|page/u', 'Profil linki'], ['/video/u', 'Video linki'], ['/post|photo|publication|media|tweet/u', 'Paylaşım linki']];
+            foreach ($map as [$re, $az]) {
+                if (preg_match($re, $lt)) {
+                    $base[] = 'Link: ' . $az;
+                    $found[] = 'link';
+                    break;
+                }
+            }
+        }
+        // kalite (adda yoksa)
+        $nameLow = DescLearn::lower($name);
+        if (!preg_match('/keyfiyyət|real|bot|qlobal|türk|hesab/u', $nameLow)) {
+            foreach ([['/real\s+(accounts|users|profiles)|real\s+quality/u', 'Real hesablar'], ['/high\s+quality|\bhq\b/u', 'Yüksək keyfiyyət'], ['/mixed\s+quality|mix\s+quality/u', 'Qarışıq keyfiyyət'],
+                ['/bots?\b|low\s+quality/u', 'Bot hesablar'], ['/turk(ish|ey)/u', 'Türk istifadəçilər'], ['/worldwide|global/u', 'Qlobal istifadəçilər']] as [$re, $az]) {
+                if (preg_match($re, $low)) {
+                    $base[] = 'Keyfiyyət: ' . $az;
+                    $found[] = 'quality';
+                    break;
+                }
+            }
+        }
+        // uyarılar
+        if (preg_match('/(do\s*n.?t|not|never)\s+change\s+(the\s+)?(username|user\s*name|link)/u', $low)) {
+            $base[] = 'Sifariş bitənə qədər istifadəçi adını və linki dəyişməyin.';
+            $found[] = 'username';
+        }
+        $dropFlag = !empty($df['drop']) && empty($df['nondrop']);
+        unset($df['drop']);
+        $ctx = $name . ' ' . $srcName . ' ' . ($it['category'] ?? '');
+        $group = (Matcher::platform($ctx) ?: 'diğer') . '|' . DescLearn::type($ctx);
+        $rules = $this->db->getJson(DescLearn::RULES);
+        $rules = is_array($rules) ? $rules + ['*' => [], 'groups' => []] : ['*' => [], 'groups' => []];
+        $svc = ['id' => 0, 'name' => $name, 'category' => ($it['category'] ?? '') . ' ' . $srcName, 'min' => isset($it['min']) && $it['min'] !== null ? (int)$it['min'] : null,
+            'max' => isset($it['max']) && $it['max'] !== null ? (int)$it['max'] : null, 'cancel' => !empty($df['cancel']) ? 1 : 0, 'drop' => $dropFlag, 'facts' => $df + DescLearn::facts(DescLearn::lower($srcName))];
+        $r = self::build($svc, $base, $rules, $group);
+        return $r + ['found' => array_values(array_unique($found))];
     }
 
     /** Öneriyi sil (panele yazılmış olanlar hariç): servis yine "açıklama yok" olur, istenirse yeniden üretilir. */

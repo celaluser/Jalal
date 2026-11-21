@@ -2727,6 +2727,20 @@ test('Öneri sil ve yeniden üret: onaylı da yenilenir, panele yazılmış olan
     eq(2, $api->handle(['action' => 'desc_del', 'sids' => [1, 2, 3]])[1]['deleted'], 'yazılmış silinmez');
     eq([2], array_map('intval', array_column($db->all('SELECT sid FROM desc_props'), 'sid')));
 });
+test('İmport: kaynak (İngilizce) açıklamadan bilgi alıp Azerice açıklama üretir (desc_build)', function () {
+    [$db] = env();
+    [$c, $r] = (new TgWatch\ExtApi($db, []))->handle(['action' => 'desc_build', 'items' => [
+        ['id' => '7', 'name' => 'Instagram Followers | Real Accounts | 30 Days Refill', 'az' => 'Instagram İzləyici | Real Hesablar | 30 Gün Qarantili', 'text' => "Start: 0-1 hour<br>Speed: 10K/day\nLink: Instagram profile link\nDo not change username during order\nDrop may happen", 'min' => 10, 'max' => 100000],
+        ['id' => '8', 'name' => 'YouTube Likes', 'az' => 'YouTube Bəyəni', 'text' => '', 'min' => 20, 'max' => 50000],
+    ]]);
+    eq([200, '7'], [$c, $r['items'][0]['id']]);
+    $t = $r['items'][0]['text'];
+    foreach (['🔸 Min: 10', '🔸 Maks: 100.000', '🔸 Başlama: 0-1 saat', '🔸 Sürət: Gündə 10K', '🔸 Link: Profil linki', '🔸 Keyfiyyət: Real Hesablar', '🔸 Qarantiya: 30 gün', '🔸 Azalma: Ola bilər', '📌 Sifariş bitənə qədər istifadəçi adını'] as $w) {
+        ok(str_contains($t, $w), "\"$w\" yok:\n$t");
+    }
+    $t2 = $r['items'][1]['text'];
+    ok(str_contains($t2, '🔸 Link: Video linki') && str_contains($t2, "\nQeydlər:\n") && !str_contains($t2, 'Qarantiya'), "boş kaynak açıklama:\n$t2");
+});
 test('Yeni servis: Admin API listesinde yeni çıkan açıklamasız servise kendiliğinden öneri', function () {
     [$db] = env();
     $db->run("INSERT INTO panel_desc(id,name,category_id,category_name,status,description,at,pos) VALUES(1,'Instagram Bəyəni | Ani',5,'Instagram Bəyəni','enabled','🔗 Link: Paylaşım linki',1,1)");

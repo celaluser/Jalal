@@ -403,6 +403,10 @@ Paneldeki Azerice açıklamaları Admin API'den (Get service list + Get service 
 
 Öğrenilen kurallar ve şablonlar `desc_rules` olarak, açıklamalar `panel_desc` tablosunda saklanır. Gerekenler: panel API bağlı, anahtarda iki okuma izni. **Denenmedi:** gerçek panelle (testler sahte verilerle).
 
+### İmportta açıklama (ad çevrilirken aynı anda)
+
+Import ekranında **tgwatch ile çevir**: her satırda ad çevrilir, hemen ardından açıklama kutusuna Azerice açıklama yazılır; aynı Save ile kaydedilir, Import'a basmadan önce satırı açıp bakabilirsin. Sağlayıcının (yabancı dildeki) açıklaması okunur ve içindeki bilgiler kullanılır: başlama süresi (0-1 hour → 0-1 saat), hız (10K/day), garanti / no refill / lifetime, drop may happen / non drop, cancel button, link türü (profile/username → Profil linki, video, channel, group, post, live stream, story, reels…), kalite (real/HQ/mixed/bot/global/turkish), "do not change username" uyarısı. Kalan her şey tgwatch kurallarıyla (adındaki bilgiler, Min/Maks satırdaki değerlerden, Qeydlər). Geri al, açıklamayı da sağlayıcınınkine döndürür. Ayar: eklenti → Ayarlar → Açıklama → **İmportta açıklama**: Üret (varsayılan) / Çevir / Dokunma.
+
 ### Açıklama üretme → onay → eklentiyle panele yazma
 
 **Yeni servisler (kendiliğinden):** tgwatch saatte bir (ve eklenti import bildirince hemen) Admin API'deki servis listesine bakar; bilmediği yeni servisleri kaydeder, açıklaması boş olanlara öneri üretir. Eklenti Chrome bildirimi gösterir: "N yeni servis için açıklama üretildi — **Bak**". Öneriler sayfasında (eklenti → Ana sayfa → Açıklamalar → Bak) metni okur, düzeltir, onaylarsın; onaylamadan panele hiçbir şey yazılmaz. Kapatmak için ayar `desc_auto` = 0.

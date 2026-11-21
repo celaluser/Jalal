@@ -92,7 +92,7 @@ button.cell:disabled{cursor:default}
 .tog input:checked+.sw{background:var(--green)}
 .tog input:checked+.sw::after{transform:translateX(20px)}
 .tog input:focus-visible+.sw{outline:2px solid var(--tint);outline-offset:2px}
-.sel .t{flex:1}.sel .t b{font-weight:400}
+.sel .t{flex:1;min-width:0}.sel .t b{display:block;font-weight:400}.sel .t small{display:block;font-size:12.5px;color:var(--label2)}
 .sel select{max-width:200px;border:0;background:transparent;color:var(--label2);font:inherit;font-size:15px;text-align:right;cursor:pointer}
 .kv{justify-content:space-between}.kv span+span{color:var(--label2);font-variant-numeric:tabular-nums}
 #v-server.new{color:var(--red);font-weight:600}

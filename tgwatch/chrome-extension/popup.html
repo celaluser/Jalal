@@ -123,10 +123,15 @@
   </section>
   <p id="learnMsg" class="foot"></p>
 
-  <h2 class="sh">Açıklama çevirisi</h2>
+  <h2 class="sh">Açıklama</h2>
   <section class="group">
-    <label class="cell tog"><input type="checkbox" id="descTranslate"><span class="sw"></span><span class="t"><b>Açıklamaları da çevir</b><small>İmportta ve "Edit description" penceresinde</small></span></label>
-    <label class="cell sel"><span class="t"><b>Kaynak</b></span><select id="descMode">
+    <label class="cell sel"><span class="t"><b>İmportta açıklama</b><small>Ad çevrilirken aynı anda</small></span><select id="descImport">
+      <option value="build">Üret (tgwatch)</option>
+      <option value="translate">Çevir</option>
+      <option value="off">Dokunma</option>
+    </select></label>
+    <label class="cell tog"><input type="checkbox" id="descTranslate"><span class="sw"></span><span class="t"><b>"Çevir" düğmesi</b><small>"Edit description" penceresinde</small></span></label>
+    <label class="cell sel"><span class="t"><b>Çeviri kaynağı</b></span><select id="descMode">
       <option value="">tgwatch ayarı</option>
       <option value="mix">Banka + Google + DeepSeek</option>
       <option value="google">Yalnız Google (+ banka)</option>
