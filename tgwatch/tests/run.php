@@ -2671,7 +2671,7 @@ test('Açıklama üretimi: hiç öğrenilmemiş olsa da boş/kısa açıklama yo
     $t = $db->one('SELECT text FROM desc_props WHERE sid = 4763')['text'];
     $lines = explode("\n", $t);
     ok(count($lines) >= TgWatch\DescGen::MIN_LINES, "kısa:\n$t");
-    foreach (['🔸 Min: 10', '🔸 Maks: 5.000', '🔸 Sürət: Sürətli', '🔸 Link: Video linki', '🔸 Keyfiyyət: Keyfiyyətli Hesablar', '🔸 Qarantiya: 30 gün', '🔸 Azalma: Olmaz', "\nQeydlər:\n", '📌 Sifarişiniz sistemdə tamamlanmadan eyni linkə 2-ci sifarişi verməyin.', '📌 Gizli (private)'] as $w) {
+    foreach (['🔸 Min: 10', '🔸 Maks: 5.000', '🔸 Sürət: Sürətli', '🔸 Link: Video linki', '🔸 Keyfiyyət: Keyfiyyətli Hesablar', '🔸 Qarantiya: 30 gün', '🔸 Azalma: Olmaz', "\nQeydlər:\n", '📌 Sifarişiniz sistemdə tamamlanmadan eyni linkə 2-ci sifarişi verməyin.', '📌 Hesabınız gizli (private) olmamalıdır.'] as $w) {
         ok(str_contains($t, $w), "\"$w\" yok:\n$t");
     }
     foreach ($lines as $l) {
@@ -2688,6 +2688,25 @@ test('Açıklama üretimi: hiç öğrenilmemiş olsa da boş/kısa açıklama yo
     eq(0, $g->queueCount()['fresh'], 'listelenince görüldü');
     eq(2, $api->handle(['action' => 'desc_approve', 'items' => [['sid' => 4763, 'text' => 'Düzeltilmiş'], ['sid' => 1334]]])[1]['approved']);
     eq(['approved', 'Düzeltilmiş'], array_values($db->one('SELECT status, text FROM desc_props WHERE sid = 4763')));
+});
+test('Açıklama üretimi: ad + kategori analizi (canlı yayım linki, müddət, yayın notu)', function () {
+    $r = TgWatch\DescGen::build(['id' => 4732, 'name' => 'YouTube Canlı Yayım Baxış [ 15 Dəqiqə ]', 'category' => 'YouTube Canlı Yayım', 'min' => 50, 'max' => 10000, 'cancel' => 0], [], ['*' => [], 'groups' => []], 'youtube|views');
+    foreach (['🔸 Min: 50', '🔸 Maks: 10.000', '🔸 Link: Canlı yayım linki', '🔸 Müddət: 15 dəqiqə', '📌 Əvvəlcə canlı yayımı başladın', '📌 Yayım hamıya açıq (public) olmalıdır.'] as $w) {
+        ok(str_contains($r['text'], $w), "\"$w\" yok:\n" . $r['text']);
+    }
+    ok(!str_contains($r['text'], '🔸 15 Dəqiqə') && !str_contains($r['text'], 'Video linki'), $r['text']);
+});
+test('Açıklama üretimi: min/max kayıtlı değilse Admin API\'den tamamlanır', function () {
+    [$db] = env();
+    $db->run("INSERT INTO panel_desc(id,name,category_id,category_name,status,description,at,pos) VALUES(4732,'YouTube Canlı Yayım Baxış [ 15 Dəqiqə ]',9,'YouTube Canlı Yayım','enabled','',1,1)");
+    TgWatch\PanelAdmin::$fake = static fn(string $url) => json_encode(['data' => ['list' => [['id' => 4732, 'name' => 'x', 'category_id' => 9, 'category_name' => 'y', 'category_status' => 'enabled', 'status' => 'enabled', 'min' => 50, 'max' => 10000, 'rate' => ['value' => '1']]]], 'error_message' => '', 'error_code' => 0]);
+    try {
+        (new TgWatch\DescGen($db, ['panel_api_url' => 'https://panelbaku.com/adminapi/v2', 'panel_api_key' => 'k']))->generate(9);
+    } finally {
+        TgWatch\PanelAdmin::$fake = null;
+    }
+    $t = $db->one('SELECT text FROM desc_props WHERE sid = 4732')['text'];
+    ok(str_contains($t, '🔸 Min: 50') && str_contains($t, '🔸 Maks: 10.000'), $t);
 });
 test('Yeni servis: Admin API listesinde yeni çıkan açıklamasız servise kendiliğinden öneri', function () {
     [$db] = env();

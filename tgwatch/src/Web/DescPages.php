@@ -265,7 +265,7 @@ trait DescPages
 
     private function postDesc(string $p): bool
     {
-        $G = new \TgWatch\DescGen($this->db);
+        $G = new \TgWatch\DescGen($this->db, $this->config);
         $cat = (int)($_POST['c'] ?? 0);
         switch ($p) {
             case 'desc_gen':

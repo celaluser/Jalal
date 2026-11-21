@@ -27,7 +27,7 @@ final class DescGen
         'min' => ['/(?:min|minimum)\w*\.?\s*:?\s*' . self::NUM . '/iu'],
     ];
 
-    public function __construct(private Db $db)
+    public function __construct(private Db $db, private array $config = [])
     {
     }
 
@@ -275,17 +275,30 @@ final class DescGen
     public static function linkFor(string $plat, string $type, string $name): string
     {
         $n = DescLearn::lower($name);
+        // Ad + kategori analizi: türden önce özel durumlar
+        if (preg_match('/canlı|canli|yayım|yayın|live|stream/u', $n)) {
+            return 'Canlı yayım linki';
+        }
+        if (preg_match('/hekayə|hekaye|story|stories/u', $n)) {
+            return 'Profil linki (hekayə aktiv olmalıdır)';
+        }
+        if (preg_match('/reels/u', $n)) {
+            return 'Reels linki';
+        }
+        if (preg_match('/shorts/u', $n)) {
+            return 'Shorts video linki';
+        }
+        if (preg_match('/şərh\s*bəyən|comment\s*like/u', $n)) {
+            return 'Şərhin linki';
+        }
+        if (preg_match('/sorğu|səs ver|poll|vote/u', $n)) {
+            return 'Sorğu olan paylaşımın linki';
+        }
         if (in_array($plat, ['telegram', 'whatsapp'], true) && in_array($type, ['members', 'subscribers', 'followers', 'other'], true)) {
             return 'Kanal və ya qrup linki';
         }
         if ($plat === 'discord') {
             return 'Server dəvət linki';
-        }
-        if ($type === 'live') {
-            return 'Canlı yayın linki';
-        }
-        if ($type === 'story') {
-            return 'Profil linki (hekayə aktiv olmalıdır)';
         }
         if (in_array($type, ['followers', 'subscribers', 'members'], true)) {
             return $plat === 'youtube' ? 'Kanal linki' : 'Profil linki';
@@ -293,7 +306,7 @@ final class DescGen
         if ($type === 'plays' || in_array($plat, ['spotify', 'soundcloud', 'audiomack', 'deezer', 'boomplay'], true)) {
             return 'Mahnı, albom və ya playlist linki';
         }
-        if (in_array($plat, ['youtube', 'tiktok', 'rumble', 'dailymotion', 'vimeo', 'likee', 'kwai'], true) || str_contains($n, 'video') || str_contains($n, 'reels')) {
+        if (in_array($plat, ['youtube', 'tiktok', 'rumble', 'dailymotion', 'vimeo', 'likee', 'kwai'], true) || str_contains($n, 'video')) {
             return 'Video linki';
         }
         if ($plat === 'telegram') {
@@ -306,7 +319,7 @@ final class DescGen
     public const NOTES = [
         ['/məşğul|sıx\s+olduq|sıxlıq|yoğun|gecikmə|gecik/u', 'Xidmət sıx olduqda işə başlama sürəti dəyişə bilər.'],
         ['/eyni\s+link|aynı\s+link|ikinci\s+sifari|2\s*-?\s*(ci|ncı|nci)\s+sifari/u', 'Sifarişiniz sistemdə tamamlanmadan eyni linkə 2-ci sifarişi verməyin.'],
-        ['/gizli|private|qapalı\s+(hesab|profil|kanal)/u', 'Gizli (private) hesablara sifariş verməyin: hesab açıq olmalıdır.'],
+        ['/gizli|private|qapalı\s+(hesab|profil|kanal)/u', 'Hesabınız gizli (private) olmamalıdır.'],
     ];
     /** Açıklama en az bu kadar satır (kısa açıklama olmaz). */
     public const MIN_LINES = 6;
@@ -323,6 +336,8 @@ final class DescGen
         $strip = static fn(string $l): string => trim(preg_replace('/^[^\p{L}\p{N}%(]+/u', '', $l) ?? $l);
         $segs = array_values(array_filter(array_map(static fn($x) => trim(preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}\x{200D}]+/u', '', $x) ?? $x, " \t-–—•·[]()"), preg_split('/\s*[|｜\[\]]\s*/u', (string)$svc['name']) ?: [])));
         $title = $segs[0] ?? '';
+        $ctx = DescLearn::lower($svc['name'] . ' ' . ($svc['category'] ?? ''));
+        $live = (bool)preg_match('/canlı|canli|yayım|yayın|live|stream/u', $ctx);
         $isNote = static function (string $lc): bool {
             foreach (self::NOTES as [$re]) {
                 if (preg_match($re, $lc)) {
@@ -368,10 +383,15 @@ final class DescGen
             $L[] = 'Başlama: ' . $facts['start'];
         }
         // addaki parçalar: sürət / keyfiyyət / azalma / ləğv / digər
-        $speedWord = $quality = $drop = $cancel = null;
+        $speedWord = $quality = $drop = $cancel = $duration = null;
         $rest = [];
         foreach (array_slice($segs, 1) as $seg) {
             $sl = DescLearn::lower($seg);
+            if (preg_match('/^(\d+)\s*(dəqiqə|dəq|deqiqe|minute|min|saat|hour)/u', $sl, $dm)) {
+                // canlı yayım izləyicisi: yayında qalma müddəti ("15 Dəqiqə")
+                $duration = $dm[1] . ' ' . (preg_match('/saat|hour/u', $dm[2]) ? 'saat' : 'dəqiqə');
+                continue;
+            }
             if (mb_strlen($seg) < 2 || preg_match('/^\d+([.,]\d+)?\s*[km]?$/u', $sl)
                 || preg_match('/qarant|zəmanət|refill|garanti|maks|max|\bmin\b|gündə|günlük|saatda|\/\s*d(ay)?\b|^ani\b|\bani\b|instant|azalma olmaz|non.?drop|başla|start|\d+\s*-\s*\d+\s*(saat|dəq|deq|gün|hour|min)/u', $sl)) {
                 continue; // addaki bilgi: aşağıda kendi satırında
@@ -396,7 +416,10 @@ final class DescGen
         } elseif ($speedWord) {
             $L[] = 'Sürət: ' . $speedWord;
         }
-        $L[] = 'Link: ' . ($link !== '' ? $link : self::linkFor($plat, $type, (string)$svc['name']));
+        $L[] = 'Link: ' . ($link !== '' ? $link : self::linkFor($plat, $type, $svc['name'] . ' ' . ($svc['category'] ?? '')));
+        if ($duration) {
+            $L[] = 'Müddət: ' . $duration;
+        }
         if ($quality) {
             $L[] = 'Keyfiyyət: ' . $quality;
         }
@@ -423,11 +446,20 @@ final class DescGen
         foreach ($noteLines as $n) {
             $Q[DescLearn::lower($n)] = $n;
         }
+        if ($live && !preg_match('/yayımı başlad|yayını başlat|yayım başladıqdan/u', DescLearn::lower(implode("\n", $Q)))) {
+            $Q['live'] = 'Əvvəlcə canlı yayımı başladın, yayım başladıqdan sonra sifariş verin.';
+        }
         $qlow = DescLearn::lower(implode("\n", $Q));
         foreach (self::NOTES as [$re, $line]) {
             if (!preg_match($re, $qlow)) {
-                if (str_starts_with($line, 'Gizli') && in_array($plat, ['telegram', 'whatsapp', 'discord'], true)) {
-                    $line = 'Kanal və ya qrup açıq (public) olmalıdır: gizli kanallara sifariş verməyin.';
+                if (str_starts_with($line, 'Hesabınız gizli')) {
+                    if (in_array($plat, ['telegram', 'whatsapp', 'discord'], true)) {
+                        $line = 'Kanal və ya qrup açıq (public) olmalıdır.';
+                    } elseif ($live) {
+                        $line = 'Yayım hamıya açıq (public) olmalıdır.';
+                    } elseif ($plat === 'youtube') {
+                        $line = 'Video və ya kanal gizli (private) olmamalıdır.';
+                    }
                 }
                 $Q[DescLearn::lower($line)] = $line;
             }
@@ -566,6 +598,21 @@ final class DescGen
             $want = array_flip(array_map('intval', $sids));
             $rows = array_values(array_filter($rows, static fn($r) => isset($want[(int)$r['id']])));
         }
+        // min/max kayıtlı değilse (eski okuma) Admin API'den tamamla: Min/Maks satırı hep olsun
+        $miss = array_map(static fn($r) => (int)$r['id'], array_filter($rows, static fn($r) => $r['min'] === null || $r['max'] === null));
+        if ($miss && $this->config) {
+            try {
+                $api = new PanelServices($this->db, $this->config);
+                if ($api->configured()) {
+                    foreach ($api->byIds($miss) as $id => $sv) {
+                        $this->db->run('UPDATE panel_desc SET min = ?, max = ?, cancel = ? WHERE id = ?', [$sv['min'] ?? null, $sv['max'] ?? null, !empty($sv['cancel']) ? 1 : 0, (int)$id]);
+                    }
+                    $rows = array_map(fn($r) => in_array((int)$r['id'], $miss, true) ? ($this->db->one('SELECT * FROM panel_desc WHERE id = ?', [(int)$r['id']]) ?: $r) : $r, $rows);
+                }
+            } catch (\Throwable $e) {
+                $this->db->log('warn', 'bank', 'Açıklama üretimi: min/max okunamadı: ' . $e->getMessage());
+            }
+        }
         if (!$rows) {
             if ($auto) {
                 return ['made' => 0, 'skipped' => 0, 'kept' => 0, 'base' => ''];
@@ -583,7 +630,7 @@ final class DescGen
             }
             $group = (Matcher::platform($r['name'] . ' ' . $r['category_name']) ?: 'diğer') . '|' . DescLearn::type($r['name'] . ' ' . $r['category_name']);
             $base = $this->baseFor($catId, $rules, $group, $src);
-            $p = self::build(['id' => (int)$r['id'], 'name' => (string)$r['name'], 'min' => $r['min'] !== null ? (int)$r['min'] : null, 'max' => $r['max'] !== null ? (int)$r['max'] : null, 'cancel' => (int)$r['cancel']], $base, $rules, $group);
+            $p = self::build(['id' => (int)$r['id'], 'name' => (string)$r['name'], 'category' => (string)$r['category_name'], 'min' => $r['min'] !== null ? (int)$r['min'] : null, 'max' => $r['max'] !== null ? (int)$r['max'] : null, 'cancel' => (int)$r['cancel']], $base, $rules, $group);
             if (trim($p['text']) === '') {
                 $skipped++;
                 $p['notes'][] = 'Öneri boş: adında ve temelde kullanılabilir bilgi yok';
@@ -635,6 +682,7 @@ final class DescGen
                 $byCat[(int)$sv['category_id']][] = (int)$sv['id'];
             }
         }
+        $this->config = $config;
         $made = 0;
         $cats = [];
         foreach ($byCat as $cat => $sids) {
