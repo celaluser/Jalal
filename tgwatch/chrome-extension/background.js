@@ -213,6 +213,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     openDescTab().then(sendResponse, (e) => sendResponse({ ok: false, error: String(e) }));
     return true;
   }
+  if (msg.type === 'desc-report' && msg.report) {
+    const rep = msg.report;
+    const ok = rep.results.filter((r) => r.ok).length;
+    const bad = rep.results.length - ok;
+    chrome.storage.local.set({ descReport: rep }).then(() => pullDescQueue());
+    try {
+      chrome.notifications && chrome.notifications.create('tgw-desc-rep', {
+        type: 'basic', iconUrl: 'icons/128.png', priority: 1,
+        title: 'Açıklamalar: ' + ok + ' eklendi' + (bad ? ', ' + bad + ' eklenmedi' : ''),
+        message: (bad ? 'Eklenmeyenler: ' + rep.results.filter((r) => !r.ok).slice(0, 4).map((r) => r.sid + ' (' + r.error + ')').join('; ') + '. ' : '') + 'Ayrıntı: eklenti simgesi → Panel → Son rapor.',
+      });
+    } catch (e) { /* bildirim yok */ }
+    sendResponse({ ok: true });
+    return false;
+  }
   if (msg.type === 'desc-refresh') {
     pullDescQueue().then(() => chrome.storage.local.get({ descq: null })).then((x) => sendResponse({ ok: true, descq: x.descq }), (e) => sendResponse({ ok: false, error: String(e) }));
     return true;

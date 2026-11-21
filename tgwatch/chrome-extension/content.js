@@ -1819,6 +1819,7 @@
   }
 
   const onServicesList = () => /\/admin\/services\/?$/.test(location.pathname);
+  const onServicesAny = () => /\/admin\/services(\/|$)/.test(location.pathname);
   const anyDialog = () => [...document.querySelectorAll(DIALOG)].some((m) => visible(m) && !ours(m));
 
   // ---- import sonrası otomatik kategori: Import'a basılınca işaret bırakılır (sayfa yenilense de sekmede kalır) ----
@@ -2423,11 +2424,8 @@
     if (x) x.click();
     else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   }
-  /** Bir servise yaz: {ok} ya da {error}. */
-  async function writeOneDesc(it) {
-    let row = dIndex.get(String(it.sid));
-    if (!row || !row.el.isConnected) { dIndex = serviceRowsIndex(); row = dIndex.get(String(it.sid)); }
-    if (!row) return { error: 'servis listede bulunamadı (gizli/silinmiş olabilir)' };
+  /** Bir servise yaz (satır bulunmuş): Actions → Edit description → metin → Save. {ok} ya da {error}. */
+  async function writeOneDesc(it, row, beforeSave) {
     row.el.scrollIntoView({ block: 'center' });
     row.el.classList.add('tgw-flash');
     setTimeout(() => row.el.classList.remove('tgw-flash'), 1300);
@@ -2448,6 +2446,7 @@
     await sleep(150);
     const save = [...dlg.querySelectorAll('button, a, input[type=submit]')].find((b) => visible(b) && !ours(b) && SAVE_WORDS.includes(lower(b.value || btnText(b))));
     if (!save) { closeDialog(dlg); return { error: 'Save düğmesi yok' }; }
+    if (beforeSave) beforeSave(); // Save sayfayı yenilerse kaldığı yer bilinsin
     save.click();
     const closed = await waitFor(() => !descDialog(), 10000, 120);
     if (!closed) {
@@ -2474,7 +2473,11 @@
     const stop = h('button', 'tgw-btn tgw-stop tgw-dstop', 'Durdur');
     stop.type = 'button';
     stop.hidden = true;
-    stop.addEventListener('click', () => { dStop = true; stop.disabled = true; descStatus('Durduruluyor…'); });
+    stop.addEventListener('click', () => { dStop = true; stop.disabled = true; descStatus('Durduruluyor (bu servis bitince)…'); });
+    const rep = h('button', 'tgw-btn tgw-ghost tgw-drep', 'Raporu göster');
+    rep.type = 'button';
+    rep.hidden = true;
+    rep.addEventListener('click', () => { const l = dbar.querySelector('.tgw-dlist'); if (!l) return; l.hidden = !l.hidden; rep.textContent = l.hidden ? 'Raporu göster' : 'Raporu gizle'; });
     const diag = h('button', 'tgw-btn tgw-ghost tgw-ddiag', 'Teşhisi kopyala');
     diag.type = 'button';
     diag.hidden = true;
@@ -2490,7 +2493,7 @@
     close.type = 'button';
     close.title = 'Kapat';
     close.addEventListener('click', () => { if (!dRunning) dbar.remove(); });
-    acts.append(go, stop, diag, close);
+    acts.append(go, stop, rep, diag, close);
     const prog = h('div', 'tgw-progress');
     prog.appendChild(h('i'));
     dbar.append(brand, acts, prog);
@@ -2505,67 +2508,151 @@
     if (pct !== undefined) dbar.querySelector('.tgw-progress i').style.width = Math.max(0, Math.min(100, pct)) + '%';
   }
 
+  // ---- çok adımlı iş: sayfa yenilense de (arama, Save) kaldığı yerden sürer (sekmeye özel sessionStorage) ----
+  const RUN_KEY = 'tgw_desc_run';
+  const runGet = () => { try { return JSON.parse(sessionStorage.getItem(RUN_KEY) || 'null'); } catch (e) { return null; } };
+  const runSet = (v) => { try { if (v) sessionStorage.setItem(RUN_KEY, JSON.stringify(v)); else sessionStorage.removeItem(RUN_KEY); } catch (e) { /* yok */ } };
+
+  /** Sayfanın arama kutusu (sağ üst): "Search" ipuçlu, pencere dışındaki metin kutusu. */
+  function searchBox() {
+    const hint = (i) => /search|axtar|ara\b|поиск/i.test([i.placeholder, i.name, i.id, i.getAttribute('aria-label'), typeof i.className === 'string' ? i.className : ''].join(' '));
+    const c = [...document.querySelectorAll('input[type=search], input[type=text], input:not([type])')]
+      .filter((i) => visible(i) && !ours(i) && !i.closest(DIALOG) && !i.readOnly && !i.disabled && (i.type === 'search' || hint(i)));
+    c.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top || b.getBoundingClientRect().right - a.getBoundingClientRect().right);
+    return c[0] || null;
+  }
+  /** Kutunun yanındaki ara düğmesi (formsuz arama). */
+  function searchButton(box) {
+    for (let el = box.parentElement, i = 0; el && i < 3; el = el.parentElement, i++) {
+      const b = [...el.querySelectorAll('button, [type=submit], a.btn, span.input-group-btn button, .input-group-append button, .input-group-btn')].find((x) => visible(x) && !ours(x) && x !== box && !x.closest(DIALOG));
+      if (b) return b;
+    }
+    return null;
+  }
+  /** ID'yi arat. Sayfa yenilenirse bu fonksiyon yarıda kalır; iş kaydı sayesinde yeni sayfada sürer. */
+  async function searchFor(id) {
+    const box = searchBox();
+    if (!box) {
+      // Arama kutusu yok: listeyi aç, sonuna kadar yükle, ID'yi orada bul
+      await expandAll();
+      await scrollToEnd();
+      const r = serviceRowsIndex().get(String(id));
+      return r ? { row: r } : { error: 'arama kutusu yok ve listede servis bulunamadı (ID ' + id + ')' };
+    }
+    box.focus();
+    setValue(box, String(id));
+    box.dispatchEvent(new Event('change', { bubbles: true }));
+    for (const t of ['keydown', 'keypress', 'keyup']) box.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+    await sleep(300);
+    const sb = box.form ? box.form.querySelector('button[type=submit], input[type=submit], button:not([type])') : searchButton(box);
+    if (sb) sb.click();
+    else if (box.form) { if (box.form.requestSubmit) box.form.requestSubmit(); else box.form.submit(); }
+    const row = await waitFor(() => { const r = serviceRowsIndex().get(String(id)); return r || null; }, 12000, 250);
+    if (row) return { row };
+    if (visibleChecks() <= 1 && await expandAll()) {
+      const r2 = serviceRowsIndex().get(String(id));
+      if (r2) return { row: r2 };
+    }
+    return { error: 'arama sonucunda servis çıkmadı (ID ' + id + ')' };
+  }
+
   async function descFlow() {
     if (dRunning) return;
-    if (!onServicesList()) { descStatus('Services sayfasında çalışır (Admin → Services).', 'bad'); return; }
-    dRunning = true; dStop = false;
+    if (!onServicesAny()) { descStatus('Services sayfasında çalışır (Admin → Services).', 'bad'); return; }
     descStatus('tgwatch\'tan onaylı açıklamalar alınıyor…', '', 0);
+    const q = await api('desc_queue', {});
+    if (!q.ok) { descStatus(/Bilinmeyen işlem/.test(q.error || '') ? 'tgwatch sunucusu eski: güncel tgwatch paketini yükle.' : 'tgwatch: ' + (q.error || 'hata'), 'bad'); return; }
+    if (!q.items || !q.items.length) { descStatus('Panele yazılacak onaylı açıklama yok.', 'ok', 100); return; }
+    runSet({ items: q.items.map((x) => ({ sid: x.sid, text: x.text, name: x.name, category: x.category })), i: 0, phase: '', cur: 0, results: [], at: Date.now() });
+    runLoop();
+  }
+
+  async function record(st, it, r) {
+    const res = { sid: it.sid, name: it.name || '', category: it.category || '', ok: !!r.ok, error: r.error || '', verified: false };
+    const d = await api('desc_done', { items: [r.ok ? { sid: it.sid, ok: true } : { sid: it.sid, ok: false, error: r.error, final: !!r.final }] });
+    if (r.ok && d && d.ok && d.verified) res.verified = true;
+    if (r.ok && d && d.ok && d.failed) { res.ok = false; res.error = 'yazıldı ama panelden okununca farklı/boş çıktı'; }
+    st.results.push(res);
+    st.i++; st.phase = ''; st.cur = 0;
+    runSet(st);
+  }
+
+  async function runLoop() {
+    let st = runGet();
+    if (!st || dRunning) return;
+    dRunning = true; dStop = false;
+    if (!dbar) buildDescBar();
+    descStatus('Sürüyor…');
     dbar.querySelector('.tgw-dgo').hidden = true;
     dbar.querySelector('.tgw-ddiag').hidden = true;
+    dbar.querySelector('.tgw-drep').hidden = true;
     const stopBtn = dbar.querySelector('.tgw-dstop');
     stopBtn.hidden = false; stopBtn.disabled = false;
     busy(true);
-    let ok = 0; let bad = 0; let verified = 0; let total = 0;
-    const tried = new Set();
-    const errors = [];
     try {
-      let q = await api('desc_queue', {});
-      if (!q.ok) { descStatus(/Bilinmeyen işlem/.test(q.error || '') ? 'tgwatch sunucusu eski: 1.9.0 paketini yükle.' : 'tgwatch: ' + (q.error || 'hata'), 'bad'); return; }
-      if (!q.items || !q.items.length) { descStatus('Panele yazılacak onaylı açıklama yok.', 'ok', 100); return; }
-      total = q.count || q.items.length;
-      descStatus('Servis listesi açılıyor…', '', 2);
-      await expandAll();
-      descStatus('Liste sonuna kadar yükleniyor…', '', 4);
-      await scrollToEnd();
-      dIndex = serviceRowsIndex();
-      if (!dIndex.size) { descStatus('Listede servis satırı bulunamadı. Teşhisi kopyalayıp gönder.', 'bad'); dbar.querySelector('.tgw-ddiag').hidden = false; return; }
-      let report = [];
-      const flush = async () => {
-        if (!report.length) return;
-        const r = await api('desc_done', { items: report });
-        report = [];
-        if (r.ok) verified += r.verified || 0;
-      };
-      while (!dStop) {
-        const items = (q.items || []).filter((it) => !tried.has(it.sid));
-        if (!items.length) break;
-        for (const it of items) {
-          if (dStop) break;
-          tried.add(it.sid);
-          descStatus((ok + bad + 1) + '/' + total + ' · ' + it.sid + ' ' + (it.name || '').slice(0, 40), '', ((ok + bad) / Math.max(1, total)) * 100);
-          let r;
-          try { r = await writeOneDesc(it); } catch (e) { r = { error: String(e && e.message ? e.message : e) }; }
-          if (r.ok) ok++; else { bad++; errors.push(it.sid + ': ' + r.error); }
-          report.push(r.ok ? { sid: it.sid, ok: true } : { sid: it.sid, ok: false, error: r.error, final: !!r.final });
-          if (report.length >= 10) await flush();
+      await waitFor(() => document.readyState === 'complete', 8000, 100);
+      await sleep(800);
+      while (st.i < st.items.length && !dStop) {
+        const it = st.items[st.i];
+        const pct = (st.i / st.items.length) * 100;
+        const label = (st.i + 1) + '/' + st.items.length + ' · ' + it.sid + ' ' + (it.name || '').slice(0, 40);
+        if (st.phase === 'saving' && st.cur === it.sid) { await record(st, it, { ok: true }); continue; } // Save sayfayı yeniledi
+        let row = serviceRowsIndex().get(String(it.sid));
+        if (!row) {
+          if (st.phase === 'searched' && st.cur === it.sid) {
+            // arama sonrası sayfa yenilendi ama hâlâ yok: bir kez daha arat (kutu dolu olabilir), sonra vazgeç
+            if ((st.tries = (st.tries || 0) + 1) > 1) { st.tries = 0; await record(st, it, { error: 'aramada servis bulunamadı (gizli/silinmiş olabilir)' }); continue; }
+          }
+          st.phase = 'searched'; st.cur = it.sid; runSet(st);
+          descStatus(label + ' · aranıyor', '', pct);
+          const r = await searchFor(it.sid);
+          if (r.error) { await record(st, it, r); continue; }
+          row = r.row;
         }
-        await flush();
-        if (dStop) break;
-        q = await api('desc_queue', {});
-        if (!q.ok) break;
+        st.tries = 0;
+        descStatus(label + ' · yazılıyor', '', pct);
+        let w;
+        try { w = await writeOneDesc(it, row, () => { st.phase = 'saving'; st.cur = it.sid; runSet(st); }); } catch (e) { w = { error: String(e && e.message ? e.message : e) }; }
+        await record(st, it, w);
       }
-      await flush();
-      const msg = (dStop ? 'Durduruldu. ' : '') + ok + ' açıklama yazıldı' + (verified ? ', ' + verified + ' panelden doğrulandı' : '') + (bad ? ', ' + bad + ' yazılamadı (' + errors.slice(0, 2).join('; ') + ')' : '') + '.';
-      descStatus(msg, bad ? 'bad' : 'ok', 100);
-      if (bad) dbar.querySelector('.tgw-ddiag').hidden = false;
+      finishRun(st, dStop);
     } finally {
       dRunning = false;
-      stopBtn.hidden = true;
-      dbar.querySelector('.tgw-dgo').hidden = false;
       busy(false);
-      send({ type: 'desc-refresh' });
+      if (dbar) { stopBtn.hidden = true; dbar.querySelector('.tgw-dgo').hidden = false; }
     }
   }
+
+  function finishRun(st, stopped) {
+    runSet(null);
+    const ok = st.results.filter((r) => r.ok);
+    const bad = st.results.filter((r) => !r.ok);
+    const ver = ok.filter((r) => r.verified).length;
+    const report = { at: Date.now(), stopped: !!stopped, total: st.items.length, results: st.results };
+    send({ type: 'desc-report', report });
+    descStatus((stopped ? 'Durduruldu. ' : 'Bitti. ') + ok.length + ' servise eklendi' + (ver ? ' (' + ver + ' panelden doğrulandı)' : '') + (bad.length ? ', ' + bad.length + ' eklenmedi' : '') + '. Ayrıntı: Raporu göster.', bad.length ? 'bad' : 'ok', 100);
+    showReport(report);
+    if (bad.length) dbar.querySelector('.tgw-ddiag').hidden = false;
+  }
+
+  /** Sonuç listesi (çubuğun üstünde açılır). */
+  function showReport(rep) {
+    if (!dbar) buildDescBar();
+    let box = dbar.querySelector('.tgw-dlist');
+    if (!box) { box = h('div', 'tgw-dlist'); dbar.appendChild(box); }
+    box.textContent = '';
+    for (const r of rep.results) {
+      const li = h('div', 'tgw-dli ' + (r.ok ? 'ok' : 'bad'), (r.ok ? '✓ ' : '✗ ') + r.sid + ' ' + (r.name || '').slice(0, 60) + (r.ok ? (r.verified ? ' — eklendi, doğrulandı' : ' — eklendi') : ' — eklenmedi: ' + r.error));
+      box.appendChild(li);
+    }
+    const left = rep.total - rep.results.length;
+    if (left > 0) box.appendChild(h('div', 'tgw-dli', left + ' servis sırada kaldı (durduruldu): tgwatch\'ta onaylı duruyor, tekrar “Panele ekle”.'));
+    box.hidden = true;
+    const b = dbar.querySelector('.tgw-drep');
+    b.hidden = false;
+    b.textContent = 'Raporu göster';
+  }
+
   /** Services sayfası açılınca: onaylı açıklama varsa çubuk; adres #tgw-desc ise (bildirimden) hemen başla. */
   /** Sitedeki kategori sırası: panelin herkese açık /services sayfasından kategori ID'leri (6 saatte bir). */
   async function siteOrder() {
@@ -2580,8 +2667,9 @@
     } catch (e) { /* sayfa yok/erişilemedi: liste yüklenince adlarla gönderilir */ }
   }
   async function descCheck() {
-    if (!onServicesList()) return;
+    if (!onServicesAny()) return;
     siteOrder();
+    if (runGet()) { setTimeout(() => runLoop(), 600); return; } // yarıda kalan iş (arama/Save sayfayı yeniledi)
     if (location.hash === '#tgw-desc') {
       history.replaceState(null, '', location.pathname + location.search);
       setTimeout(() => descFlow(), 1500);
@@ -2618,7 +2706,7 @@
       return false;
     }
     if (msg.type === 'tgw-desc-run') {
-      if (!onServicesList()) { sendResponse({ ok: false, error: 'Services sayfası değil' }); return false; }
+      if (!onServicesAny()) { sendResponse({ ok: false, error: 'Services sayfası değil' }); return false; }
       descFlow();
       sendResponse({ ok: true });
       return false;

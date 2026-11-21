@@ -106,3 +106,8 @@
 .tgw-cbar.tgw-floating.tgw-dbar{left:auto;right:12px}
 .tgw-cbar.tgw-floating.tgw-dbar{border-radius:18px}
 .tgw-cbar.tgw-floating.tgw-dbar .tgw-status{white-space:normal;max-width:44ch;overflow:visible}
+.tgw-dbar .tgw-dlist{position:absolute;right:0;bottom:calc(100% + 8px);width:min(520px,calc(100vw - 24px));max-height:50vh;overflow:auto;background:#fff;border:1px solid #d9dee5;border-radius:12px;box-shadow:0 10px 30px rgba(16,24,40,.25);padding:8px;font:12.5px/1.45 system-ui,sans-serif;color:#1d2733}
+.tgw-dbar .tgw-dlist[hidden]{display:none}
+.tgw-dli{padding:4px 6px;border-radius:6px}
+.tgw-dli.ok{color:#1f7a45}.tgw-dli.bad{color:#b8244b;background:#fdf2f5}
+.tgw-cbar.tgw-floating.tgw-dbar .tgw-status{min-width:24ch}

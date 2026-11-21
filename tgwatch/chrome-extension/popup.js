@@ -334,6 +334,19 @@ function showDescq(d) {
   $('descq-msg').textContent = n + ' onaylı açıklama panele yazılmayı bekliyor' + (cats ? ': ' + cats : '') + '. Eklenti Services listesinde her servisin Edit description\'ına yazıp kaydeder.';
 }
 get({ descq: null }).then((s) => showDescq(s.descq));
+get({ descReport: null }).then((s) => {
+  const r = s.descReport;
+  if (!r || !r.results) return;
+  $('drep').hidden = false;
+  const ok = r.results.filter((x) => x.ok).length;
+  $('drep-sum').textContent = ago(r.at) + ': ' + ok + ' eklendi, ' + (r.results.length - ok) + ' eklenmedi' + (r.stopped ? ' (durduruldu)' : '') + '.';
+  for (const x of r.results) {
+    const li = document.createElement('li');
+    li.className = x.ok ? 'ok' : 'bad';
+    li.textContent = (x.ok ? '✓ ' : '✗ ') + x.sid + ' ' + (x.name || '').slice(0, 50) + (x.ok ? (x.verified ? ' — doğrulandı' : '') : ' — ' + x.error);
+    $('drep-list').appendChild(li);
+  }
+});
 chrome.runtime.sendMessage({ type: 'desc-refresh' }, (r) => { void chrome.runtime.lastError; if (r && r.ok) showDescq(r.descq); });
 $('descq-go').onclick = () => chrome.runtime.sendMessage({ type: 'desc-open' }, () => { void chrome.runtime.lastError; window.close(); });
 
