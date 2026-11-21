@@ -119,6 +119,10 @@ final class DescGen
                         continue;
                     }
                 }
+                if (isset(self::knownShapes($rules)[DescLearn::shape($line)])) {
+                    $out[] = $line; // birçok açıklamada aynen geçen satır (ör. "eyni linkə 2-ci sifariş verməyin")
+                    continue;
+                }
                 $notes[] = 'Çıkarıldı (neye ait olduğu bilinmeyen sayı): ' . $line;
                 continue;
             }
@@ -235,12 +239,88 @@ final class DescGen
             $notes[] = 'Eklendi (adında var, öğrenilmiş kalıp): ' . $line;
         }
         $out = array_values(array_unique($out));
+        $out = self::enrich($out, $svc, $rules, $group, $notes);
         foreach (DescLearn::check($facts, $out, $svc['name']) as $p) {
             if ($p['kind'] === 'conflict') {
                 $notes[] = '⚠ Denetim: ' . $p['msg'];
             }
         }
         return ['text' => implode("\n", $out), 'notes' => $notes];
+    }
+
+    /** Öğrenilmiş ortak satırların kalıpları (sayılı olsa da korunur). */
+    private static function knownShapes(array $rules): array
+    {
+        $k = [];
+        foreach (array_merge($rules['common'] ?? [], ...array_values($rules['type_lines'] ?? [])) as $l) {
+            $k[$l['shape']] = true;
+        }
+        return $k;
+    }
+
+    /** Satırdaki başka platform adını bu servisin platformuyla değiştir (örnek başka platformdan alındıysa). */
+    public static function swapPlatform(string $line, string $platform): string
+    {
+        if ($platform === '' || $platform === 'diğer') {
+            return $line;
+        }
+        foreach (Matcher::PLATFORMS as $p) {
+            if ($p !== $platform && in_array($p, ['google', 'kick'], true) === false) {
+                $line = preg_replace('/(?<![\p{L}])' . preg_quote(DescLearn::pname($p), '/') . '(?![\p{L}])/iu', DescLearn::pname($platform), $line) ?? $line;
+            }
+        }
+        return $line;
+    }
+
+    /**
+     * Dolgunlaştır: türün sık satırları (Link: …), bütün açıklamalardaki ortak uyarılar ve Min/Maks (API'den) eksikse eklenir.
+     * Satırlar öğrenildikleri ortalama konuma yerleşir.
+     */
+    private static function enrich(array $out, array $svc, array $rules, string $group, array &$notes): array
+    {
+        [$plat, $type] = array_pad(explode('|', $group), 2, 'other');
+        $have = [];
+        $keys = [];
+        // "🔗 Link: Profil linki" ile "🔗 Link: Paylaşım linki" aynı başlık: ikincisi eklenmez
+        $key = static fn(string $l): string => str_contains($l, ':') ? trim(preg_replace('/[^\p{L}\p{N} ]+/u', '', DescLearn::lower(explode(':', $l, 2)[0])) ?? '') : '';
+        foreach ($out as $l) {
+            $have[DescLearn::shape($l)] = true;
+            if ($key($l) !== '') {
+                $keys[$key($l)] = true;
+            }
+        }
+        $add = [];
+        foreach ([[$rules['type_lines'][$type] ?? [], 'türün sık satırı'], [$rules['common'] ?? [], 'bütün açıklamalarda ortak']] as [$list, $why]) {
+            foreach ($list as $l) {
+                if (isset($have[$l['shape']]) || ($key($l['line']) !== '' && isset($keys[$key($l['line'])])) || self::factOf($l['line']) !== null || preg_match('/\b(min|maks|max)\b/iu', $l['line'])) {
+                    continue;
+                }
+                $line = self::swapPlatform($l['line'], $plat);
+                $have[$l['shape']] = true;
+                if ($key($line) !== '') {
+                    $keys[$key($line)] = true;
+                }
+                $add[] = [$line, (float)$l['pos']];
+                $notes[] = 'Eklendi (' . $why . ', %' . round($l['share'] * 100) . '): ' . $line;
+            }
+        }
+        $hasMinMax = (bool)array_filter($out, static fn($l) => preg_match('/(?<![\p{L}])(min|maks|max)/iu', $l));
+        if (!$hasMinMax && ($svc['min'] !== null || $svc['max'] !== null)) {
+            $tpl = (string)($rules['*']['max']['tpl'] ?? '');
+            $mn = $svc['min'] !== null ? DescLearn::fmt((float)$svc['min']) : '';
+            $mx = $svc['max'] !== null ? DescLearn::fmt((float)$svc['max']) : '';
+            if ($tpl !== '' && str_contains($tpl, '{v}') && preg_match('/min/iu', $tpl) && substr_count($tpl, '#') === 1 && $mn !== '' && $mx !== '') {
+                $line = str_replace(['#', '{v}'], [$mn, $mx], $tpl);
+            } else {
+                $line = '📏 Min: ' . ($mn ?: '-') . ' / Maks: ' . ($mx ?: '-');
+            }
+            $add[] = [$line, 0.6];
+            $notes[] = 'Eklendi (Admin API min/max): ' . $line;
+        }
+        foreach ($add as [$line, $pos]) {
+            array_splice($out, (int)round($pos * count($out)), 0, [$line]);
+        }
+        return $out;
     }
 
     /** Kategorideki temel açıklama: o kategorideki açıklamalardan yapısı en tipik olan. @return list<string> */
@@ -268,6 +348,11 @@ final class DescGen
         if (!empty($rules['examples'][$group])) {
             $src = 'aynı platform ve türün örnek açıklaması (' . str_replace('|', ' · ', $group) . ')';
             return $rules['examples'][$group];
+        }
+        [$plat, $type] = array_pad(explode('|', $group), 2, 'other');
+        if (!empty($rules['type_examples'][$type])) {
+            $src = 'aynı türün (' . $type . ') en dolgun açıklaması, platform adı uyarlandı';
+            return array_map(static fn($l) => self::swapPlatform($l, $plat), $rules['type_examples'][$type]);
         }
         $src = 'yalnızca öğrenilmiş kurallar (benzer açıklama yok)';
         return [];

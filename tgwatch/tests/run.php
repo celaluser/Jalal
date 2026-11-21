@@ -2630,6 +2630,31 @@ test('Açıklamasız kategoriler: sitedeki sıra (eklentiden), yoksa Admin API s
     $e = $g->emptyCategories();
     eq(['site', 'sunucu', [30, 10, 20]], [$e['source'], $e['from'], array_map(static fn($c) => (int)$c['category_id'], $e['cats'])]);
 });
+test('Açıklama üretimi: boş kategoriye türün dolgun örneği + ortak uyarılar + Link + API min/max', function () {
+    [$db] = env();
+    $d = static fn($g, $max, $link) => "📌 Başlama: 0-1 saat\n♻️ Qarantiya: $g gün\n📏 Min: 10 / Maks: $max\n🔗 Link: $link\n⚠️ Sifariş bitmədən eyni linkə 2-ci sifariş verməyin\n🔒 Gizli hesablara sifariş verməyin";
+    $svc = static fn($id, $name, $cat, $catName, $min = 10, $max = 1000) => ['id' => $id, 'name' => $name, 'category_id' => $cat, 'category_name' => $catName, 'category_status' => 'enabled', 'provider' => '', 'provider_service_id' => '', 'rate' => 1.0, 'provider_rate' => null, 'currency' => 'AZN', 'min' => $min, 'max' => $max, 'status' => 'enabled', 'hidden' => false, 'refill' => true, 'cancel' => false];
+    $list = [
+        $svc(1, 'Instagram Bəyəni | 30 Gün Qarantili | Maks 500K', 5, 'Instagram Bəyəni'),
+        $svc(2, 'Instagram Bəyəni | 60 Gün Qarantili | Maks 100K', 5, 'Instagram Bəyəni'),
+        $svc(3, 'Instagram Bəyəni | 30 Gün Qarantili | Maks 200K', 5, 'Instagram Bəyəni'),
+        $svc(4, 'Instagram İzləyici | 30 Gün Qarantili | Maks 1M', 6, 'Instagram İzləyici'),
+        $svc(5, 'Instagram İzləyici | 90 Gün Qarantili | Maks 300K', 6, 'Instagram İzləyici'),
+        $svc(9, 'TikTok Bəyəni | 30 Gün Qarantili | Sürətli', 8, 'TikTok Bəyəni', 10, 50000),
+        $svc(10, 'TikTok Bəyəni | Qarantisiz', 8, 'TikTok Bəyəni', 100, 20000),
+    ];
+    $nd = [1 => ['az' => ['name' => '', 'description' => $d(30, '500K', 'Paylaşım linki')]], 2 => ['az' => ['name' => '', 'description' => $d(60, '100K', 'Paylaşım linki')]], 3 => ['az' => ['name' => '', 'description' => $d(30, '200K', 'Paylaşım linki')]],
+        4 => ['az' => ['name' => '', 'description' => $d(30, '1M', 'Profil linki')]], 5 => ['az' => ['name' => '', 'description' => $d(90, '300K', 'Profil linki')]]];
+    (new TgWatch\DescLearn($db, []))->learn($list, $nd, ['az']);
+    (new TgWatch\DescGen($db))->generate(8);
+    $t = $db->one('SELECT text, notes FROM desc_props WHERE sid = 9')['text'];
+    foreach (['♻️ Qarantiya: 30 gün', '📏 Min: 10 / Maks: 50K', '🔗 Link: Paylaşım linki', '⚠️ Sifariş bitmədən eyni linkə 2-ci sifariş verməyin', '🔒 Gizli hesablara sifariş verməyin'] as $want) {
+        ok(str_contains($t, $want), "\"$want\" yok:\n$t");
+    }
+    ok(!str_contains($t, 'Profil linki') && !str_contains($t, 'Instagram') && !str_contains($t, 'Başlama'), "olmaması gereken var:\n$t");
+    $t10 = $db->one('SELECT text FROM desc_props WHERE sid = 10')['text'];
+    ok(!str_contains($t10, 'Qarantiya: ') && str_contains($t10, 'Min: 100 / Maks: 20K') && str_contains($t10, 'Gizli hesablara'), "garantisiz:\n$t10");
+});
 test('Açıklama üretimi: önce öğrenme gerekir', function () {
     [$db] = env();
     try {

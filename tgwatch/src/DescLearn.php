@@ -331,6 +331,9 @@ final class DescLearn
         $examples = [];   // fact => tpl => örnek satır
         $groups = [];     // grup => [n, lines: shape => [count, possum], descs]
         $phrase = [];     // shape => count
+        $phraseInfo = []; // shape => [örnek satır, sıra toplamı]
+        $types = [];      // tür (platformdan bağımsız) => [n, lines: shape => [count, possum, sample], descs]
+        $lineCounts = [];
         $issues = [];
         $withDesc = 0;
         foreach ($list as $s) {
@@ -364,6 +367,13 @@ final class DescLearn
             if (count($groups[$group]['descs']) < 40) {
                 $groups[$group]['descs'][] = $lines;
             }
+            $type = explode('|', $group)[1];
+            $types[$type] ??= ['n' => 0, 'lines' => [], 'descs' => []];
+            $types[$type]['n']++;
+            if (count($types[$type]['descs']) < 60) {
+                $types[$type]['descs'][] = $lines;
+            }
+            $lineCounts[] = count($lines);
             $seen = [];
             foreach ($lines as $i => $l) {
                 $sh = self::shape($l);
@@ -371,6 +381,12 @@ final class DescLearn
                     continue;
                 }
                 $seen[$sh] = true;
+                $rel = $i / max(1, count($lines) - 1);
+                $types[$type]['lines'][$sh][0] = ($types[$type]['lines'][$sh][0] ?? 0) + 1;
+                $types[$type]['lines'][$sh][1] = ($types[$type]['lines'][$sh][1] ?? 0) + $rel;
+                $types[$type]['lines'][$sh][2] ??= $l;
+                $phraseInfo[$sh][0] ??= $l;
+                $phraseInfo[$sh][1] = ($phraseInfo[$sh][1] ?? 0) + $rel;
                 $groups[$group]['lines'][$sh][0] = ($groups[$group]['lines'][$sh][0] ?? 0) + 1;
                 $groups[$group]['lines'][$sh][1] = ($groups[$group]['lines'][$sh][1] ?? 0) + $i / max(1, count($lines) - 1);
                 $groups[$group]['lines'][$sh][2] ??= $l;
@@ -432,6 +448,37 @@ final class DescLearn
             $rules['templates'][$g] = array_column($keep, 'shape');
             $rules['examples'][$g] = $best;
         }
+        // Tür başına (bütün platformlar): sık satırlar (ör. beğenide "🔗 Link: Paylaşım linki") ve en dolgun tipik örnek
+        foreach ($types as $t => $td) {
+            if ($td['n'] < 2) {
+                continue;
+            }
+            $keep = [];
+            foreach ($td['lines'] as $sh => [$cnt, $pos, $sample]) {
+                if ($cnt >= 2 && $cnt / $td['n'] >= 0.3) {
+                    $keep[$sh] = ['line' => $sample, 'shape' => $sh, 'share' => round($cnt / $td['n'], 2), 'pos' => round($pos / $cnt, 2)];
+                }
+            }
+            $rules['type_lines'][$t] = array_values($keep);
+            $best = [];
+            $bestScore = -1;
+            foreach ($td['descs'] as $d) {
+                $sc = count(array_filter($d, static fn($l) => isset($keep[self::shape($l)]))) * 10 + min(count($d), 12);
+                if ($sc > $bestScore) {
+                    [$best, $bestScore] = [$d, $sc];
+                }
+            }
+            $rules['type_examples'][$t] = $best;
+        }
+        // Bütün açıklamaların en az %20'sinde geçen satırlar (ör. "Gizli hesablara sifariş verməyin")
+        $rules['common'] = [];
+        foreach ($phrase as $sh => $n) {
+            if ($withDesc >= 3 && $n >= 2 && $n / $withDesc >= 0.2) {
+                $rules['common'][] = ['line' => $phraseInfo[$sh][0], 'shape' => $sh, 'share' => round($n / $withDesc, 2), 'pos' => round($phraseInfo[$sh][1] / $n, 2)];
+            }
+        }
+        sort($lineCounts);
+        $rules['median_lines'] = $lineCounts ? $lineCounts[intdiv(count($lineCounts), 2)] : 0;
         usort($tplRows, static fn($a, $b) => $b['n'] <=> $a['n']);
         arsort($phrase);
         $phrases = [];
