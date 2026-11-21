@@ -334,6 +334,38 @@ function showDescq(d) {
   $('descq-msg').textContent = n + ' onaylı açıklama panele yazılmayı bekliyor' + (cats ? ': ' + cats : '') + '. Eklenti Services listesinde her servisin Edit description\'ına yazıp kaydeder.';
 }
 get({ descq: null }).then((s) => showDescq(s.descq));
+// Bekleyenlerin listesi: tek tek ya da hepsinden vazgeç (öneriye döner, panele yazılmaz; tgwatch'ta yeniden onaylanabilir)
+async function descList() {
+  const r = await callApi('desc_queue', {});
+  const ul = $('descq-list');
+  ul.textContent = '';
+  if (!r.ok) { $('descq-note').textContent = /Bilinmeyen/.test(r.error || '') ? 'tgwatch sunucusu eski.' : (r.error || ''); return; }
+  showDescq({ count: r.count, categories: r.categories });
+  for (const it of r.items || []) {
+    const li = document.createElement('li');
+    li.className = 'qi';
+    const t = document.createElement('span');
+    t.textContent = it.sid + ' ' + (it.name || '').slice(0, 44);
+    t.title = it.text;
+    const b = document.createElement('button');
+    b.className = 'btn ghost xs';
+    b.textContent = 'Vazgeç';
+    b.title = 'Bu servise yazılmasın (tgwatch\'ta öneriye döner)';
+    b.onclick = async () => { b.disabled = true; const x = await callApi('desc_cancel', { sids: [it.sid] }); if (x.ok) { li.remove(); afterCancel(x.cancelled); } else { b.disabled = false; $('descq-note').textContent = x.error || 'olmadı'; } };
+    li.append(t, b);
+    ul.appendChild(li);
+  }
+  if ((r.count || 0) > (r.items || []).length) $('descq-note').textContent = 'İlk ' + r.items.length + ' gösteriliyor.';
+}
+function afterCancel(n) {
+  $('descq-note').textContent = n + ' açıklamadan vazgeçildi: panele yazılmayacak (tgwatch\'ta “öneri hazır” olarak duruyor).';
+  chrome.runtime.sendMessage({ type: 'desc-refresh' }, (r) => { void chrome.runtime.lastError; if (r && r.ok) showDescq(r.descq); if (r && r.descq && !r.descq.count) $('descq').hidden = false; });
+}
+$('descq-cancel').onclick = async () => {
+  if (!confirm('Bekleyen bütün açıklamalardan vazgeçilsin mi? Panele yazılmazlar; tgwatch\'ta öneri olarak kalırlar.')) return;
+  const x = await callApi('desc_cancel', { all: 1 });
+  if (x.ok) { $('descq-list').textContent = ''; afterCancel(x.cancelled); } else $('descq-note').textContent = x.error || 'olmadı';
+};
 get({ descReport: null }).then((s) => {
   const r = s.descReport;
   if (!r || !r.results) return;
@@ -347,7 +379,7 @@ get({ descReport: null }).then((s) => {
     $('drep-list').appendChild(li);
   }
 });
-chrome.runtime.sendMessage({ type: 'desc-refresh' }, (r) => { void chrome.runtime.lastError; if (r && r.ok) showDescq(r.descq); });
+chrome.runtime.sendMessage({ type: 'desc-refresh' }, (r) => { void chrome.runtime.lastError; if (r && r.ok) showDescq(r.descq); if (r && r.descq && r.descq.count) descList(); });
 $('descq-go').onclick = () => chrome.runtime.sendMessage({ type: 'desc-open' }, () => { void chrome.runtime.lastError; window.close(); });
 
 $('run').onclick = () => chrome.tabs.sendMessage(tabId, { type: 'tgw-run' }, () => { void chrome.runtime.lastError; window.close(); });

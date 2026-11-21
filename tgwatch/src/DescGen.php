@@ -501,6 +501,23 @@ final class DescGen
         return $n;
     }
 
+    /** Eklentiden vazgeç: onaylı (henüz yazılmamış) açıklamalar öneriye döner. @param list<int>|null $sids null: hepsi */
+    public function cancel(?array $sids): int
+    {
+        if ($sids === null) {
+            $n = $this->db->run("UPDATE desc_props SET status = 'proposed', error = '', attempts = 0, updated_at = ? WHERE status = 'approved'", [time()]);
+        } else {
+            $n = 0;
+            foreach (array_slice(array_map('intval', $sids), 0, 500) as $sid) {
+                $n += $this->db->run("UPDATE desc_props SET status = 'proposed', error = '', attempts = 0, updated_at = ? WHERE sid = ? AND status = 'approved'", [time(), $sid]);
+            }
+        }
+        if ($n) {
+            $this->db->log('info', 'bank', "Eklentiden vazgeçildi: $n açıklama öneriye döndü");
+        }
+        return $n;
+    }
+
     /** Eklentinin yazacakları. @return list<array{sid:int,text:string,category:string,name:string}> */
     public function queue(int $limit = 50): array
     {

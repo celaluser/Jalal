@@ -2594,6 +2594,12 @@ test('Açıklama üretimi: açıklamasız servise kategorideki örnekten öneri;
     eq([1, 0, 0], [$d1['verified'], $d1['applied'], $d1['failed']]);
     eq('verified', $db->one('SELECT status FROM desc_props WHERE sid = 6')['status']);
     eq(0, $g->queueCount()['count']);
+    // eklentiden vazgeç: onaylı → öneri (yazılmış olana dokunmaz)
+    $db->run("UPDATE desc_props SET status = 'approved' WHERE sid = 9");
+    eq([1, 0], [$api->handle(['action' => 'desc_cancel', 'sids' => [9, 6]])[1]['cancelled'], $g->queueCount()['count']]);
+    eq(['proposed', 'verified'], [$db->one('SELECT status FROM desc_props WHERE sid = 9')['status'], $db->one('SELECT status FROM desc_props WHERE sid = 6')['status']]);
+    $db->run("UPDATE desc_props SET status = 'approved' WHERE sid = 9");
+    eq(1, $api->handle(['action' => 'desc_cancel', 'all' => 1])[1]['cancelled']);
     // eklenti yazamadı: 3 denemeden sonra hatalı
     $db->run("UPDATE desc_props SET status = 'approved', text = 'X' WHERE sid = 9");
     for ($i = 0; $i < 3; $i++) {
