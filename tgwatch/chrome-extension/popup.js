@@ -334,6 +334,15 @@ function showDescq(d) {
   $('descq-msg').textContent = n + ' onaylı açıklama panele yazılmayı bekliyor' + (cats ? ': ' + cats : '') + '. Eklenti Services listesinde her servisin Edit description\'ına yazıp kaydeder.';
 }
 get({ descq: null }).then((s) => showDescq(s.descq));
+// Yarıda kalan yazma işi (sekme kapandı / internet gitti / durduruldu)
+get({ descRun: null }).then((s) => {
+  const r = s.descRun;
+  if (!r || !r.items) return;
+  $('descq').hidden = false;
+  $('descq-run').hidden = false;
+  $('descq-run').textContent = 'Yarıda kalan iş: ' + r.i + '/' + r.items.length + ' bitti' + (r.paused ? ' (' + r.paused + ')' : '') + '. “Açıklamaları panele ekle” kaldığı yerden sürdürür.';
+  $('descq-go').textContent = 'Kaldığı yerden devam et';
+});
 // Bekleyenlerin listesi: tek tek ya da hepsinden vazgeç (öneriye döner, panele yazılmaz; tgwatch'ta yeniden onaylanabilir)
 async function descList() {
   const r = await callApi('desc_queue', {});

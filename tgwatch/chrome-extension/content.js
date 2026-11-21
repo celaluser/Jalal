@@ -2473,7 +2473,12 @@
     const stop = h('button', 'tgw-btn tgw-stop tgw-dstop', 'Durdur');
     stop.type = 'button';
     stop.hidden = true;
-    stop.addEventListener('click', () => { dStop = true; stop.disabled = true; descStatus('Durduruluyor (bu servis bitince)…'); });
+    stop.addEventListener('click', () => { dStop = true; stop.disabled = true; descStatus('Duraklatılıyor (bu servis bitince)…'); });
+    const end = h('button', 'tgw-btn tgw-ghost tgw-dend', 'Bitir');
+    end.type = 'button';
+    end.hidden = true;
+    end.title = 'Yarıda kalan işi kapat ve raporu ver (kalanlar tgwatch\'ta onaylı durur, sonra yine eklenebilir)';
+    end.addEventListener('click', async () => { const st = runGet() || await runSaved(); if (st) { await flushPending(st); finishRun(st, true); } end.hidden = true; dbar.querySelector('.tgw-dgo').textContent = 'Panele ekle'; });
     const rep = h('button', 'tgw-btn tgw-ghost tgw-drep', 'Raporu göster');
     rep.type = 'button';
     rep.hidden = true;
@@ -2494,7 +2499,7 @@
     close.type = 'button';
     close.title = 'Kapat';
     close.addEventListener('click', () => { if (!dRunning) dbar.remove(); });
-    acts.append(go, stop, rep, diag, close);
+    acts.append(go, stop, end, rep, diag, close);
     const prog = h('div', 'tgw-progress');
     prog.appendChild(h('i'));
     dbar.append(brand, acts, prog);
@@ -2521,8 +2526,15 @@
     } catch (e) { /* yok */ }
   }
   const dlogGet = () => { try { return JSON.parse(sessionStorage.getItem('tgw_desc_log') || '[]'); } catch (e) { return []; } };
+  // İş kaydı iki yerde: sekmede (sessionStorage: aynı sekme yenilenince kendiliğinden sürer) ve eklentide
+  // (chrome.storage: sekme kapansa, tarayıcı kapansa, internet gitse de kalır; "Devam et" ile başka sekmede sürer).
   const runGet = () => { try { return JSON.parse(sessionStorage.getItem(RUN_KEY) || 'null'); } catch (e) { return null; } };
-  const runSet = (v) => { try { if (v) sessionStorage.setItem(RUN_KEY, JSON.stringify(v)); else sessionStorage.removeItem(RUN_KEY); } catch (e) { /* yok */ } };
+  const runSet = (v) => {
+    try { if (v) sessionStorage.setItem(RUN_KEY, JSON.stringify(v)); else sessionStorage.removeItem(RUN_KEY); } catch (e) { /* yok */ }
+    try { if (v) chrome.storage.local.set({ descRun: v }); else chrome.storage.local.remove('descRun'); } catch (e) { /* eklenti yenilendi */ }
+  };
+  async function runSaved() { try { return (await chrome.storage.local.get({ descRun: null })).descRun; } catch (e) { return null; } }
+  const netErr = (e) => /ulaşılamadı|Failed to fetch|NetworkError|cevap vermedi|network/i.test(String(e || ''));
 
   /** Sayfanın arama kutusu (sağ üst): "Search" ipuçlu, pencere dışındaki metin kutusu. */
   function searchBox() {
@@ -2572,6 +2584,15 @@
   async function descFlow() {
     if (dRunning) return;
     if (!onServicesAny()) { descStatus('Services sayfasında çalışır (Admin → Services).', 'bad'); return; }
+    const prev = runGet() || await runSaved();
+    if (prev) { // yarıda kalan iş (sekme kapandı, internet gitti, durduruldu): kaldığı yerden
+      dlog('yarıda kalan iş devralındı: ' + prev.i + '/' + prev.items.length);
+      prev.paused = '';
+      runSet(prev);
+      runLoop();
+      return;
+    }
+    if (!navigator.onLine) { descStatus('İnternet yok: bağlantı gelince tekrar “Panele ekle”.', 'bad'); return; }
     descStatus('tgwatch\'tan onaylı açıklamalar alınıyor…', '', 0);
     const q = await api('desc_queue', {});
     if (!q.ok) {
@@ -2580,35 +2601,75 @@
       return;
     }
     if (!q.items || !q.items.length) { descStatus('Panele yazılacak onaylı açıklama yok.', 'ok', 100); return; }
-    runSet({ items: q.items.map((x) => ({ sid: x.sid, text: x.text, name: x.name, category: x.category })), i: 0, phase: '', cur: 0, results: [], at: Date.now() });
+    runSet({ items: q.items.map((x) => ({ sid: x.sid, text: x.text, name: x.name, category: x.category })), i: 0, phase: '', cur: 0, results: [], pending: [], at: Date.now() });
     runLoop();
   }
 
+  /** tgwatch'a bildirilmemiş sonuçları gönder (internet/tgwatch yoksa sırada kalır, sonra gönderilir). */
+  async function flushPending(st) {
+    while (st.pending && st.pending.length) {
+      const it = st.pending[0];
+      const d = await api('desc_done', { items: [it] });
+      if (!d || !d.ok) { if (netErr(d && d.error)) return false; } // bağlantı yok: sonra
+      const res = st.results.find((x) => x.sid === it.sid);
+      if (res && it.ok && d && d.ok) {
+        if (d.verified) res.verified = true;
+        if (d.failed) { res.ok = false; res.error = 'yazıldı ama panelden okununca farklı/boş çıktı'; }
+      }
+      st.pending.shift();
+      runSet(st);
+    }
+    return true;
+  }
+
   async function record(st, it, r) {
-    const res = { sid: it.sid, name: it.name || '', category: it.category || '', ok: !!r.ok, error: r.error || '', verified: false };
-    const d = await api('desc_done', { items: [r.ok ? { sid: it.sid, ok: true } : { sid: it.sid, ok: false, error: r.error, final: !!r.final }] });
-    if (r.ok && d && d.ok && d.verified) res.verified = true;
-    if (r.ok && d && d.ok && d.failed) { res.ok = false; res.error = 'yazıldı ama panelden okununca farklı/boş çıktı'; }
-    st.results.push(res);
+    st.results.push({ sid: it.sid, name: it.name || '', category: it.category || '', ok: !!r.ok, error: r.error || '', verified: false });
+    (st.pending = st.pending || []).push(r.ok ? { sid: it.sid, ok: true } : { sid: it.sid, ok: false, error: r.error, final: !!r.final });
     st.i++; st.phase = ''; st.cur = 0;
     runSet(st);
+    await flushPending(st);
+  }
+
+  /** Duraklat: iş kayıtlı kalır; "Devam et" (ya da internet gelince) kaldığı yerden. */
+  function pauseRun(st, why) {
+    st.paused = why;
+    runSet(st);
+    descStatus('Duraklatıldı (' + why + '): ' + st.i + '/' + st.items.length + ' bitti. “Devam et” ile kaldığı yerden sürer; sekmeyi kapatsan da hatırlanır.', 'bad', (st.i / st.items.length) * 100);
+    const go = dbar.querySelector('.tgw-dgo');
+    go.textContent = 'Devam et';
+    dbar.querySelector('.tgw-dend').hidden = false;
   }
 
   async function runLoop() {
     let st = runGet();
     if (!st || dRunning) return;
     dRunning = true; dStop = false;
+    st.paused = '';
+    let paused = '';
     if (!dbar) buildDescBar();
     descStatus('Sürüyor…');
     dbar.querySelector('.tgw-dgo').hidden = true;
     dbar.querySelector('.tgw-drep').hidden = true;
+    dbar.querySelector('.tgw-dend').hidden = true;
     const stopBtn = dbar.querySelector('.tgw-dstop');
     stopBtn.hidden = false; stopBtn.disabled = false;
     busy(true);
     try {
       await waitFor(() => document.readyState === 'complete', 8000, 100);
       await sleep(800);
-      while (st.i < st.items.length && !dStop) {
+      await flushPending(st);
+      for (;;) {
+        if (st.i >= st.items.length) {
+          // bitti: bu arada tgwatch'ta yeni onaylanan varsa onları da al
+          const q = await api('desc_queue', {});
+          const done = new Set(st.results.map((x) => x.sid));
+          const more = q && q.ok ? (q.items || []).filter((x) => !done.has(x.sid)) : [];
+          if (!more.length) break;
+          st.items.push(...more.map((x) => ({ sid: x.sid, text: x.text, name: x.name, category: x.category })));
+          runSet(st);
+        }
+        if (dStop) { paused = 'sen durdurdun'; break; }
+        if (!navigator.onLine) { paused = 'internet yok'; break; }
         const it = st.items[st.i];
         const pct = (st.i / st.items.length) * 100;
         const label = (st.i + 1) + '/' + st.items.length + ' · ' + it.sid + ' ' + (it.name || '').slice(0, 40);
@@ -2622,6 +2683,7 @@
           st.phase = 'searched'; st.cur = it.sid; runSet(st);
           descStatus(label + ' · aranıyor', '', pct);
           const r = await searchFor(it.sid);
+          if (r.error && !navigator.onLine) { paused = 'internet yok'; break; }
           if (r.error) { await record(st, it, r); continue; }
           row = r.row;
         }
@@ -2629,13 +2691,17 @@
         descStatus(label + ' · yazılıyor', '', pct);
         let w;
         try { w = await writeOneDesc(it, row, () => { st.phase = 'saving'; st.cur = it.sid; runSet(st); }); } catch (e) { w = { error: String(e && e.message ? e.message : e) }; }
+        if (w.error && !navigator.onLine) { paused = 'internet yok'; break; }
         await record(st, it, w);
       }
-      finishRun(st, dStop);
+      if (paused) pauseRun(st, paused);
+      else if (!(await flushPending(st))) pauseRun(st, 'tgwatch\'a ulaşılamadı, sonuçlar gönderilmedi');
+      else finishRun(st, false);
     } finally {
       dRunning = false;
       busy(false);
       if (dbar) { stopBtn.hidden = true; dbar.querySelector('.tgw-dgo').hidden = false; }
+      if (!paused && dbar) dbar.querySelector('.tgw-dgo').textContent = 'Panele ekle';
     }
   }
 
@@ -2685,7 +2751,8 @@
   async function descCheck() {
     if (!onServicesAny()) return;
     siteOrder();
-    if (runGet()) { dlog('yarıda kalan iş sürüyor'); setTimeout(() => runLoop(), 600); return; } // arama/Save sayfayı yeniledi
+    const same = runGet();
+    if (same && !same.paused) { dlog('yarıda kalan iş sürüyor'); setTimeout(() => runLoop(), 600); return; } // arama/Save sayfayı yeniledi
     let start = false;
     try { const x = await chrome.storage.local.get({ descStart: 0 }); start = Date.now() - x.descStart < 3 * 60 * 1000; if (x.descStart) await chrome.storage.local.remove('descStart'); } catch (e) { /* yok */ }
     if (location.hash === '#tgw-desc') { start = true; history.replaceState(null, '', location.pathname + location.search); }
@@ -2695,12 +2762,20 @@
       setTimeout(() => descFlow(), 1500);
       return;
     }
+    const saved = same || await runSaved();
+    if (saved) { // sekme kapanmış / internet gitmiş / durdurulmuş: sor
+      if (!dbar) buildDescBar();
+      pauseRun(saved, saved.paused || 'yarıda kaldı');
+      return;
+    }
     const q = await api('desc_queue', { peek: 1 });
     if (q.ok && q.count) {
       descStatus(q.count + ' onaylı açıklama hazır' + (q.categories && q.categories[0] ? ' (' + q.categories.map((c) => c.name).slice(0, 2).join(', ') + ')' : '') + '. Eklensin mi?', '', 0);
     }
   }
   window.addEventListener('hashchange', () => { if (location.hash === '#tgw-desc') descCheck(); });
+  // İnternet geri gelince: bu sekmede internet yüzünden duraklayan iş kendiliğinden sürer
+  window.addEventListener('online', () => { const st = runGet(); if (st && /internet/.test(st.paused || '') && !dRunning) { dlog('internet geldi: devam'); setTimeout(() => descFlow(), 2000); } });
 
   // ---- mini panelden gelen istekler ----
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
