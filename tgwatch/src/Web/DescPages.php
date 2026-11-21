@@ -147,13 +147,16 @@ trait DescPages
             $cid = (int)$c['category_id'];
             $svcs = $byCat[$cid] ?? [];
             $nProp = count(array_filter($svcs, static fn($r) => $r['pst'] !== null));
+            $nWait = count(array_filter($svcs, static fn($r) => $r['pst'] === 'approved'));
             $h .= '<details class="panel panel-pad gap-top desc-cat" id="c' . $cid . '"' . ($cid === $open || count($cats) === 1 ? ' open' : '') . '><summary><b>' . Ui::e($c['category_name']) . '</b> <span class="muted">#' . $cid . ' · ' . (int)$c['e'] . ' açıklamasız / ' . (int)$c['n'] . ' servis'
                 . ((int)$c['eon'] < (int)$c['e'] ? ' · ' . ((int)$c['e'] - (int)$c['eon']) . ' kapalı' : '') . ($nProp ? ' · ' . $nProp . ' öneri' : '') . '</span></summary>'
                 . '<form method="post" action="?p=desc_gen" class="stack gap-top" data-selbar>' . $this->ui->csrfField() . '<input type="hidden" name="cat" value="' . $cid . '"><input type="hidden" name="back" value="empty">'
                 . '<div class="row desc-selbar">'
                 . '<label class="row desc-all"><input type="checkbox" data-checkall="form"><span>Hepsini seç</span></label>'
                 . '<span class="muted" data-selcount>Seçim yok</span>'
-                . '<button class="btn primary sm" data-selbtn disabled>' . Ui::icon('play') . '<span>Seçilenlere açıklama üret</span></button>'
+                . '<button class="btn sm" data-selbtn="Seçilenlere açıklama üret" disabled>' . Ui::icon('play') . '<span>Seçilenlere açıklama üret</span></button>'
+                . ($nProp ? '<button class="btn primary sm" data-selbtn="Seçilenleri onayla" formaction="?p=desc_ok_sel" disabled>' . Ui::icon('check') . '<span>Seçilenleri onayla</span></button>' : '')
+                . ($nWait ? '<span class="lvl-good">' . $nWait . ' onaylı: eklenti panele yazacak</span>' : '')
                 . '<button class="btn ghost sm" name="all" value="1" formaction="?p=desc_gen">' . Ui::icon('play') . '<span>Bu kategorideki hepsine üret (' . (int)$c['e'] . ')</span></button></div>'
                 . '<div class="table-wrap"><table><tbody>';
             foreach ($svcs as $sv) {
@@ -304,6 +307,22 @@ trait DescPages
                     $this->say('ok', 'Onaylandı: eklenti panele yazacak.');
                 }
                 $this->descBack('gen', ['v' => 'proposed', 'c' => $cat]);
+                return true;
+            case 'desc_ok_sel':
+                // Seçilenleri onayla: kutudaki (düzeltilmiş) metinle; önerisi olmayan seçilmişler atlanır
+                $texts = is_array($_POST['text'] ?? null) ? $_POST['text'] : [];
+                $n = $skip = 0;
+                foreach (isset($_POST['sids']) && is_array($_POST['sids']) ? array_map('intval', $_POST['sids']) : [] as $sid) {
+                    $row = $this->db->one("SELECT text FROM desc_props WHERE sid = ? AND status IN ('proposed','failed','rejected')", [$sid]);
+                    $t = trim(str_replace(["\r\n", "\r"], "\n", (string)($texts[$sid] ?? ($row['text'] ?? ''))));
+                    if (!$row || $t === '' || mb_strlen($t) > 5000) {
+                        $skip++;
+                        continue;
+                    }
+                    $n += $G->setStatus([$sid], 'approved', $t);
+                }
+                $this->say($n ? 'ok' : 'bad', $n ? "$n açıklama onaylandı: Chrome eklentisi birkaç dakika içinde “Panele ekle” bildirimi gösterir." . ($skip ? " ($skip seçili serviste önce açıklama üret.)" : '') : 'Onaylanacak öneri yok: önce seçilenlere açıklama üret.');
+                $this->descBack('gen', ['v' => 'approved', 'c' => $cat]);
                 return true;
             case 'desc_ok_all':
                 $ids = array_column($this->db->all("SELECT sid FROM desc_props WHERE status = 'proposed' AND text != ''" . ($cat ? ' AND category_id = ' . $cat : '') . ' ORDER BY category_id, sid LIMIT 200'), 'sid');

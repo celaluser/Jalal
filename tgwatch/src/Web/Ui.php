@@ -384,7 +384,7 @@ final class Ui
     var boxes = f.querySelectorAll('input[name="sids[]"]:not(:disabled)'), n = 0;
     boxes.forEach(function (x) { if (x.checked) n++; });
     f.querySelectorAll('[data-selcount]').forEach(function (x) { x.textContent = n ? n + ' seçili' : 'Seçim yok'; });
-    f.querySelectorAll('[data-selbtn]').forEach(function (x) { x.disabled = !n; var sp = x.querySelector('span'); if (sp) sp.textContent = 'Seçilenlere açıklama üret' + (n ? ' (' + n + ')' : ''); });
+    f.querySelectorAll('[data-selbtn]').forEach(function (x) { x.disabled = !n; var sp = x.querySelector('span'); if (sp) sp.textContent = (x.getAttribute('data-selbtn') || 'Seçilenlere açıklama üret') + (n ? ' (' + n + ')' : ''); });
     var ca = f.querySelector('[data-checkall="form"]'); if (ca) { ca.checked = n > 0 && n === boxes.length; ca.indeterminate = n > 0 && n < boxes.length; }
   }
 

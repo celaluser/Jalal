@@ -159,7 +159,11 @@ chrome.alarms && chrome.alarms.onAlarm.addListener((a) => {
   }
 });
 
-chrome.runtime.onInstalled.addListener(() => { register(); schedule(); checkUpdate(); pullDescQueue(); });
+chrome.runtime.onInstalled.addListener(() => {
+  register(); schedule(); checkUpdate(); pullDescQueue();
+  // Güncelleme sayfasından kurulduysa sonucu göstermek için sayfayı yeniden aç
+  chrome.storage.local.get({ updTry: null }, (x) => { if (x.updTry && Date.now() - x.updTry.at < 600000) chrome.tabs.create({ url: chrome.runtime.getURL('update.html') }); });
+});
 chrome.runtime.onStartup.addListener(() => { register(); schedule(); checkUpdate(); pullDescQueue(); });
 
 // ---- arka plan sekmesi: Chrome sayfanın zamanlayıcılarını kısar; içerik script'inin beklemeleri burada yapılır ----

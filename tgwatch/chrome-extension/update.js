@@ -182,6 +182,10 @@ async function install(pkg, from) {
     if (!newer(p.version, mine) && !confirm('Paketteki sürüm ' + p.version + ', çalışan ' + mine + '. Yine de kurulsun mu?')) { log('Vazgeçildi.'); return; }
     log(from + ': ' + p.files.size + ' dosya, sürüm ' + p.version + '. Yazılıyor…');
     const n = await writeAll(p);
+    const back = await readManifest(dir);
+    if (!back || back.version !== p.version) { log('Yazıldı ama klasördeki manifest.json hâlâ ' + (back ? back.version : '?') + ': klasöre yazılamıyor olabilir.', 'bad'); return; }
+    // Yeniden yüklenince bu sayfa kapanır: arka plan sayfayı yeniden açar ve sürüm gerçekten değişti mi bakılır
+    await chrome.storage.local.set({ updTry: { ver: p.version, from: mine, dir: dir.name, at: Date.now() } });
     log(n + ' dosya yazıldı. Eklenti yeniden yükleniyor…', 'ok');
     $('reload').hidden = false;
     setTimeout(() => chrome.runtime.reload(), 1500);
@@ -231,6 +235,22 @@ $('reload').onclick = () => chrome.runtime.reload();
 
 (async () => {
   $('mine').textContent = mine;
+  // Son güncelleme denemesinin sonucu
+  try {
+    const { updTry } = await chrome.storage.local.get({ updTry: null });
+    if (updTry && Date.now() - updTry.at < 3600 * 1000) {
+      if (!newer(updTry.ver, mine)) {
+        log('✓ Güncellendi: şimdi ' + mine + '.', 'ok');
+      } else {
+        const m = $('try-msg');
+        m.hidden = false;
+        m.textContent = 'Dosyalar “' + updTry.dir + '” klasörüne yazıldı (' + updTry.ver + ') ama Chrome hâlâ ' + mine + ' çalıştırıyor: Chrome eklentiyi BAŞKA bir klasörden yüklüyor. '
+          + 'chrome://extensions → Geliştirici modu açık → tgwatch kartında “Yüklendiği yer / Loaded from” satırındaki klasörü bul; aşağıda “Başka klasör” ile tam o klasörü seç ve tekrar kur.';
+        log('Sürüm değişmedi: yanlış klasör (ayrıntı 1. adımda).', 'bad');
+      }
+      await chrome.storage.local.remove('updTry');
+    }
+  } catch (e) { /* yok */ }
   if (!window.showDirectoryPicker) {
     $('dir-msg').textContent = 'Bu tarayıcı klasöre yazmayı desteklemiyor (Chrome 102+ gerekir). Elle güncelle: zip\'i aç, dosyaları eklenti klasörüne kopyala, chrome://extensions → yenile.';
     $('dir-msg').className = 'note bad';
