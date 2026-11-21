@@ -589,7 +589,8 @@ final class DescGen
      * @return array{made:int,skipped:int,kept:int,base:string}
      */
     /** @param list<int>|null $sids yalnızca bu servisler (null: kategorideki bütün açıklamasızlar) */
-    public function generate(int $catId, ?array $sids = null, bool $auto = false): array
+    /** @param bool $force elle istenen yeniden üretim: onaylı (henüz yazılmamış) öneri de yenilenir */
+    public function generate(int $catId, ?array $sids = null, bool $auto = false, bool $force = false): array
     {
         $rules = $this->db->getJson(DescLearn::RULES);
         $rules = is_array($rules) ? $rules + ['*' => [], 'groups' => []] : ['*' => [], 'groups' => []]; // öğrenilmemişse varsayılanlarla üretir
@@ -624,7 +625,7 @@ final class DescGen
         $now = time();
         foreach ($rows as $r) {
             $cur = $this->db->one('SELECT status FROM desc_props WHERE sid = ?', [(int)$r['id']]);
-            if ($cur && in_array($cur['status'], ['approved', 'applied', 'verified'], true)) {
+            if ($cur && in_array($cur['status'], $force ? ['applied', 'verified'] : ['approved', 'applied', 'verified'], true)) {
                 $kept++;
                 continue;
             }
@@ -812,6 +813,37 @@ final class DescGen
         return $n;
     }
 
+    /** Öneriyi sil (panele yazılmış olanlar hariç): servis yine "açıklama yok" olur, istenirse yeniden üretilir. */
+    public function delete(array $sids): int
+    {
+        $n = 0;
+        foreach (array_slice(array_map('intval', $sids), 0, 1000) as $sid) {
+            $n += $this->db->run("DELETE FROM desc_props WHERE sid = ? AND status NOT IN ('applied','verified')", [$sid]);
+        }
+        return $n;
+    }
+
+    /** Seçilenleri yeniden üret (kategorilerine göre), onaylı olanlar dahil. @return int üretilen */
+    public function regen(array $sids): int
+    {
+        $byCat = [];
+        foreach (array_slice(array_map('intval', $sids), 0, 1000) as $sid) {
+            $c = $this->db->one('SELECT category_id FROM panel_desc WHERE id = ?', [$sid]);
+            if ($c) {
+                $byCat[(int)$c['category_id']][] = $sid;
+            }
+        }
+        $n = 0;
+        foreach ($byCat as $cat => $ids) {
+            try {
+                $r = $this->generate($cat, $ids, false, true);
+                $n += $r['made'] + $r['skipped'];
+            } catch (\Throwable) {
+            }
+        }
+        return $n;
+    }
+
     /** Eklentiden vazgeç: onaylı (henüz yazılmamış) açıklamalar öneriye döner. @param list<int>|null $sids null: hepsi */
     public function cancel(?array $sids): int
     {
@@ -873,7 +905,14 @@ final class DescGen
         $api = new PanelServices($this->db, $config);
         if ($ok && $api->configured()) {
             try {
-                $active = $api->activeLangs($ok[0]);
+                // açık diller günde bir sorulur (her dil ayrı API çağrısı: her doğrulamada sormak çok yavaştı)
+                $lc = $this->db->getJson('panel_langs_cache');
+                if (is_array($lc) && time() - (int)($lc['at'] ?? 0) < 86400 && !empty($lc['langs'])) {
+                    $active = $lc['langs'];
+                } else {
+                    $active = $api->activeLangs($ok[0]);
+                    $this->db->setJson('panel_langs_cache', ['at' => time(), 'langs' => $active]);
+                }
                 $nd = $api->namesDescriptions($ok, in_array('az', $active, true) ? 'az' : '');
                 $norm = static fn(string $s): string => trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags(str_ireplace(['<br>', '<br/>', '<br />', '</p>'], "\n", $s)), ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?? $s);
                 foreach ($ok as $sid) {

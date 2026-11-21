@@ -2448,33 +2448,33 @@
       const b = actBtn();
       if (!b) break;
       b.scrollIntoView({ block: 'center' });
-      await sleep(t ? 400 : 150);
+      await sleep(t ? 400 : 60);
       if (t === 1) b.click(); else realClick(b);
-      item = await waitFor(findItem, 2500, 100);
+      item = await waitFor(findItem, 2500, 50);
       if (!item && t === 1 && byId()) { item = byId(); dlog('menü öğesi gizli ama var: doğrudan tıklanıyor'); }
       if (!item) { dlog('menü açılmadı (deneme ' + (t + 1) + '), düğme: ' + b.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 160)); document.body.click(); await sleep(300); }
     }
     if (!item) { dlog('menü öğeleri: ' + [...document.querySelectorAll('.dropdown-menu a, [role=menuitem], .dropdown-item')].filter((e) => visible(e)).map((e) => btnText(e)).slice(0, 12).join(' | ')); document.body.click(); dLastDiag = row.el.outerHTML.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 1500); return { error: 'Actions menüsü açılmadı / "Edit description" yok' }; }
     (item.querySelector('a') || item).click();
-    const dlg = await waitFor(descDialog, 8000);
+    const dlg = await waitFor(descDialog, 8000, 50);
     if (!dlg) return { error: 'açıklama penceresi açılmadı' };
     const field = await waitFor(() => descField(dlg, null), 3000);
     if (!field) { closeDialog(dlg); return { error: 'pencerede açıklama kutusu yok' }; }
     const old = norm(readField(field));
     if (old && old !== norm(it.text)) { closeDialog(dlg); return { error: 'panelde zaten açıklama var (üzerine yazılmadı)', final: true }; }
     writeField(field, it.text);
-    await sleep(150);
+    await sleep(100);
     const save = [...dlg.querySelectorAll('button, a, input[type=submit]')].find((b) => visible(b) && !ours(b) && SAVE_WORDS.includes(lower(b.value || btnText(b))));
     if (!save) { closeDialog(dlg); return { error: 'Save düğmesi yok' }; }
     if (beforeSave) beforeSave(); // Save sayfayı yenilerse kaldığı yer bilinsin
     save.click();
-    const closed = await waitFor(() => !descDialog(), 10000, 120);
+    const closed = await waitFor(() => !descDialog(), 10000, 60);
     if (!closed) {
       const err = [...dlg.querySelectorAll('.alert, .error, .help-block, .invalid-feedback, .text-danger')].map((e) => norm(e.textContent)).filter(Boolean).join(' ').slice(0, 150);
       closeDialog(dlg);
       return { error: 'kaydedilemedi' + (err ? ': ' + err : ' (pencere kapanmadı)') };
     }
-    await sleep(300);
+    await sleep(80);
     return { ok: true };
   }
 
@@ -2646,7 +2646,7 @@
       dlog('ara düğmesi: ' + (sb ? sb.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 120) : 'yok (Enter ile)'));
       if (sb) sb.click();
       else if (box.form) { if (box.form.requestSubmit) box.form.requestSubmit(); else box.form.submit(); }
-      const row = await waitFor(() => findSvc(id), 8000, 200);
+      const row = await waitFor(() => findSvc(id), 8000, 80);
       const ids = [...document.querySelectorAll('[id^="service-"]')].map((e) => e.id.slice(8)).slice(0, 6);
       dlog('arama sonrası: kutu="' + box.value + '", görünen servis: ' + (ids.join(',') || 'yok'));
       if (row) return { row };
@@ -2703,12 +2703,18 @@
     return true;
   }
 
+  // Sonuçlar tgwatch'a arka planda gönderilir (doğrulama Admin API ile yapıldığından beklemek her servisi yavaşlatıyordu)
+  let flushing = null;
+  function flushSoon(st) {
+    if (!flushing) flushing = flushPending(st).finally(() => { flushing = null; });
+    return flushing;
+  }
   async function record(st, it, r) {
     st.results.push({ sid: it.sid, name: it.name || '', category: it.category || '', ok: !!r.ok, error: r.error || '', verified: false });
     (st.pending = st.pending || []).push(r.ok ? { sid: it.sid, ok: true } : { sid: it.sid, ok: false, error: r.error, final: !!r.final });
     st.i++; st.phase = ''; st.cur = 0;
     runSet(st);
-    await flushPending(st);
+    flushSoon(st); // beklenmez
   }
 
   /** Duraklat: iş kayıtlı kalır; "Devam et" (ya da internet gelince) kaldığı yerden. */
@@ -2737,7 +2743,7 @@
     busy(true);
     try {
       await waitFor(() => document.readyState === 'complete', 8000, 100);
-      await sleep(800);
+      await sleep(300);
       await flushPending(st);
       for (;;) {
         if (st.i >= st.items.length) {
@@ -2775,6 +2781,7 @@
         if (w.error && !navigator.onLine) { paused = 'internet yok'; break; }
         await record(st, it, w);
       }
+      if (flushing) await flushing;
       if (paused) pauseRun(st, paused);
       else if (!(await flushPending(st))) pauseRun(st, 'tgwatch\'a ulaşılamadı, sonuçlar gönderilmedi');
       else finishRun(st, false);

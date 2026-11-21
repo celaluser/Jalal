@@ -25,6 +25,8 @@ function syncSel() {
   const all = document.querySelectorAll('#props input[type=checkbox]').length;
   $('ok-sel').disabled = !n;
   $('ok-sel').textContent = n ? 'Seçilenleri onayla (' + n + ')' : 'Seçilenleri onayla';
+  $('regen-sel').disabled = !n;
+  $('del-sel').disabled = !n;
   $('all').checked = n > 0 && n === all;
   $('all').indeterminate = n > 0 && n < all;
 }
@@ -56,13 +58,47 @@ async function loadProps() {
     ok.onclick = async () => { ok.disabled = true; const x = await api('desc_approve', { items: [{ sid: it.sid, text: ta.value }] }); if (x.ok && x.approved) { card.remove(); say('Onaylandı: ' + it.sid + '. Panele yazılacaklar listesinde.'); counts(); } else { ok.disabled = false; say(x.error || 'Onaylanamadı'); } syncSel(); };
     const lines = el('span', 'muted', it.text.split('\n').length + ' satır');
     ta.oninput = () => { lines.textContent = ta.value.split('\n').filter((l) => l.trim()).length + ' satır · düzeltildi'; };
-    row.append(ok, lines);
+    const re = el('button', 'btn ghost sm', 'Yeniden üret');
+    re.title = 'Bu öneriyi güncel kurallarla yeniden yaz';
+    re.onclick = async () => {
+      re.disabled = true;
+      const x = await api('desc_regen', { sids: [it.sid] });
+      if (!x.ok) { re.disabled = false; say(x.error || 'Üretilemedi'); return; }
+      const fresh = (await api('desc_props', { peek: 1 })).items || [];
+      const n = fresh.find((f) => f.sid === it.sid);
+      if (n) { ta.value = n.text; ta.rows = Math.min(16, Math.max(4, n.text.split('\n').length + 1)); lines.textContent = n.text.split('\n').length + ' satır · yeniden üretildi'; }
+      re.disabled = false;
+      say('Yeniden üretildi: ' + it.sid);
+    };
+    const del = el('button', 'btn ghost sm danger', 'Sil');
+    del.title = 'Öneriyi sil (panele yazılmaz; istersen sonra yeniden üretilir)';
+    del.onclick = async () => {
+      del.disabled = true;
+      const x = await api('desc_del', { sids: [it.sid] });
+      if (x.ok && x.deleted) { card.remove(); say('Silindi: ' + it.sid); counts(); syncSel(); } else { del.disabled = false; say(x.error || 'Silinemedi'); }
+    };
+    row.append(ok, re, del, lines);
     card.append(cb, h, el('span'), ta, el('span'), row);
     box.appendChild(card);
   }
   syncSel();
 }
 $('all').onchange = () => { for (const c of document.querySelectorAll('#props input[type=checkbox]')) c.checked = $('all').checked; syncSel(); };
+$('del-sel').onclick = async () => {
+  const sids = selected();
+  if (!sids.length || !confirm(sids.length + ' öneri silinsin mi? Panele yazılmazlar; istersen sonra yeniden üretilir.')) return;
+  const x = await api('desc_del', { sids });
+  say(x.ok ? x.deleted + ' öneri silindi.' : (x.error || 'Silinemedi'));
+  await loadProps(); counts();
+};
+$('regen-sel').onclick = async () => {
+  const sids = selected();
+  if (!sids.length) return;
+  $('regen-sel').disabled = true;
+  const x = await api('desc_regen', { sids });
+  say(x.ok ? x.made + ' öneri yeni kurallarla yeniden üretildi.' : (x.error || 'Üretilemedi'));
+  await loadProps(); counts();
+};
 $('ok-sel').onclick = async () => {
   const sids = selected();
   const items = sids.map((sid) => ({ sid, text: document.querySelector('#props textarea[data-sid="' + sid + '"]').value }));

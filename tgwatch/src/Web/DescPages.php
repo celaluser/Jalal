@@ -156,6 +156,7 @@ trait DescPages
                 . '<span class="muted" data-selcount>Seçim yok</span>'
                 . '<button class="btn sm" data-selbtn="Seçilenlere açıklama üret" disabled>' . Ui::icon('play') . '<span>Seçilenlere açıklama üret</span></button>'
                 . ($nProp ? '<button class="btn primary sm" data-selbtn="Seçilenleri onayla" formaction="?p=desc_ok_sel" disabled>' . Ui::icon('check') . '<span>Seçilenleri onayla</span></button>' : '')
+                . ($nProp ? '<button class="btn ghost sm" data-selbtn="Seçilenlerin önerisini sil" formaction="?p=desc_del_sel" data-confirm="Seçilen servislerin önerileri silinsin mi? (Panele yazılmış olanlar silinmez.)" disabled>' . Ui::icon('x') . '<span>Seçilenlerin önerisini sil</span></button>' : '')
                 . ($nWait ? '<span class="lvl-good">' . $nWait . ' onaylı: eklenti panele yazacak</span>' : '')
                 . '<button class="btn ghost sm" name="all" value="1" formaction="?p=desc_gen">' . Ui::icon('play') . '<span>Bu kategorideki hepsine üret (' . (int)$c['e'] . ')</span></button></div>'
                 . '<div class="table-wrap"><table><tbody>';
@@ -163,12 +164,15 @@ trait DescPages
                 $sid = (int)$sv['id'];
                 $pst = $sv['pst'];
                 $st = $label[$pst ?? ''] ?? null;
-                $locked = in_array($pst, ['approved', 'applied', 'verified'], true);
+                $locked = in_array($pst, ['applied', 'verified'], true);
                 $h .= '<tr id="s' . $sid . '"><td class="tight"><input type="checkbox" name="sids[]" value="' . $sid . '"' . ($locked ? ' disabled' : '') . ' aria-label="Seç ' . $sid . '"></td><td><div class="row desc-svc">'
                     . '<span><b>' . $sid . '</b> ' . Ui::e($sv['name']) . ($sv['status'] !== 'enabled' ? ' <span class="muted">· kapalı</span>' : '') . '</span>'
                     . '<span>' . ($st ? '<span class="' . $st[1] . '">' . $st[0] . '</span> ' : '')
-                    . (!$locked ? '<button class="btn quiet sm" formaction="?p=desc_gen" name="one" value="' . $sid . '">' . Ui::icon('play') . '<span>' . ($pst ? 'Yeniden üret' : 'Açıklama üret') . '</span></button>' : '') . '</span></div>';
-                if ($pst !== null && !$locked) {
+                    . (!$locked ? '<button class="btn quiet sm" formaction="?p=desc_gen" name="one" value="' . $sid . '">' . Ui::icon('play') . '<span>' . ($pst ? 'Yeniden üret' : 'Açıklama üret') . '</span></button>' : '')
+                    . ($pst !== null && !$locked ? '<button class="btn ghost sm" formaction="?p=desc_del" name="sid" value="' . $sid . '" title="Öneriyi sil (panele yazılmaz)">' . Ui::icon('x') . '<span>Sil</span></button>' : '') . '</span></div>';
+                if ($pst === 'approved') {
+                    $h .= '<pre class="src">' . Ui::e($sv['text']) . '</pre><div class="row"><button class="btn ghost sm" formaction="?p=desc_undo" name="sid" value="' . $sid . '">' . Ui::icon('x') . '<span>Onayı geri al (düzeltmek için)</span></button></div>';
+                } elseif ($pst !== null && !$locked) {
                     $warn = array_filter(json_decode((string)$sv['notes'], true) ?: [], static fn($n) => str_starts_with($n, '⚠'));
                     $h .= ($warn ? '<p class="lvl-error">' . Ui::e(implode(' · ', $warn)) . '</p>' : '') . ($sv['error'] !== '' ? '<p class="lvl-error">' . Ui::e($sv['error']) . '</p>' : '')
                         . '<textarea name="text[' . $sid . ']" rows="' . max(3, min(14, substr_count((string)$sv['text'], "\n") + 2)) . '" aria-label="Açıklama ' . $sid . '">' . Ui::e($sv['text']) . '</textarea>'
@@ -280,7 +284,7 @@ trait DescPages
                     if ($sids !== null && count($sids) === 1) {
                         $G->setStatus($sids, 'proposed'); // reddedilmiş/hatalı olsa da yeniden üretilebilsin
                     }
-                    $r = $G->generate($c, $sids);
+                    $r = $G->generate($c, $sids, false, true); // elle: onaylı (yazılmamış) öneri de yenilenir
                     $this->say('ok', $r['made'] . ' öneri hazır' . ($r['skipped'] ? ', ' . $r['skipped'] . ' serviste kullanılabilir bilgi yok' : '') . ($r['kept'] ? ', ' . $r['kept'] . ' onaylı öneri korundu' : '') . '. Metni aşağıda düzeltip onaylayabilirsin.');
                 } catch (\Throwable $e) {
                     $this->say('bad', $e->getMessage());
@@ -323,6 +327,13 @@ trait DescPages
                 }
                 $this->say($n ? 'ok' : 'bad', $n ? "$n açıklama onaylandı: Chrome eklentisi birkaç dakika içinde “Panele ekle” bildirimi gösterir." . ($skip ? " ($skip seçili serviste önce açıklama üret.)" : '') : 'Onaylanacak öneri yok: önce seçilenlere açıklama üret.');
                 $this->descBack('gen', ['v' => 'approved', 'c' => $cat]);
+                return true;
+            case 'desc_del':
+            case 'desc_del_sel':
+                $ids = $p === 'desc_del' ? [(int)($_POST['sid'] ?? 0)] : (isset($_POST['sids']) && is_array($_POST['sids']) ? array_map('intval', $_POST['sids']) : []);
+                $n = $G->delete($ids);
+                $this->say($n ? 'ok' : 'bad', $n ? "$n öneri silindi: servis yine “açıklama yok”, istersen yeniden üret." : 'Silinecek öneri yok (panele yazılmış olanlar silinmez).');
+                $this->descBack('gen', ['v' => 'proposed', 'c' => $cat]);
                 return true;
             case 'desc_ok_all':
                 $ids = array_column($this->db->all("SELECT sid FROM desc_props WHERE status = 'proposed' AND text != ''" . ($cat ? ' AND category_id = ' . $cat : '') . ' ORDER BY category_id, sid LIMIT 200'), 'sid');

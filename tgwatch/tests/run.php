@@ -2708,6 +2708,25 @@ test('Açıklama üretimi: min/max kayıtlı değilse Admin API\'den tamamlanır
     $t = $db->one('SELECT text FROM desc_props WHERE sid = 4732')['text'];
     ok(str_contains($t, '🔸 Min: 50') && str_contains($t, '🔸 Maks: 10.000'), $t);
 });
+test('Öneri sil ve yeniden üret: onaylı da yenilenir, panele yazılmış olana dokunulmaz', function () {
+    [$db] = env();
+    foreach ([1, 2, 3] as $id) {
+        $db->run("INSERT INTO panel_desc(id,name,category_id,category_name,status,description,min,max,at,pos) VALUES(?,?,5,'TikTok Bəyəni','enabled','',10,1000,1,?)", [$id, "TikTok Bəyəni | 30 Gün Qarantili | $id", $id]);
+    }
+    $g = new TgWatch\DescGen($db);
+    $g->generate(5);
+    $g->setStatus([1], 'approved', 'ESKİ METİN');
+    $g->setStatus([2], 'verified', 'YAZILDI');
+    eq(0, $g->generate(5)['made'] - 1, 'otomatik/normal üretim onaylıyı ve yazılanı korur (yalnız 3)');
+    eq('ESKİ METİN', $db->one('SELECT text FROM desc_props WHERE sid = 1')['text']);
+    $api = new TgWatch\ExtApi($db, []);
+    eq(2, $api->handle(['action' => 'desc_regen', 'sids' => [1, 2, 3]])[1]['made'], 'yazılmış (2) hariç');
+    $r1 = $db->one('SELECT status, text FROM desc_props WHERE sid = 1');
+    ok($r1['status'] === 'proposed' && str_contains($r1['text'], '🔸 Qarantiya: 30 gün'), json_encode($r1, JSON_UNESCAPED_UNICODE));
+    eq('YAZILDI', $db->one('SELECT text FROM desc_props WHERE sid = 2')['text']);
+    eq(2, $api->handle(['action' => 'desc_del', 'sids' => [1, 2, 3]])[1]['deleted'], 'yazılmış silinmez');
+    eq([2], array_map('intval', array_column($db->all('SELECT sid FROM desc_props'), 'sid')));
+});
 test('Yeni servis: Admin API listesinde yeni çıkan açıklamasız servise kendiliğinden öneri', function () {
     [$db] = env();
     $db->run("INSERT INTO panel_desc(id,name,category_id,category_name,status,description,at,pos) VALUES(1,'Instagram Bəyəni | Ani',5,'Instagram Bəyəni','enabled','🔗 Link: Paylaşım linki',1,1)");

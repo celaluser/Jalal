@@ -37,3 +37,4 @@ main{max-width:800px;margin:0 auto;padding:16px}
 .warn{color:var(--warn)}
 .msg{position:sticky;bottom:12px;margin:16px 0 0;padding:0}.msg:not(:empty){padding:10px 14px;border-radius:10px;background:var(--ink);color:var(--bg);box-shadow:0 6px 20px rgba(0,0,0,.2)}
 .empty{padding:40px 16px;text-align:center;color:var(--mut)}
+.btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,transparent)}
