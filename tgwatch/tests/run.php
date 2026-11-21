@@ -2567,7 +2567,7 @@ test('Açıklama üretimi: açıklamasız servise kategorideki örnekten öneri;
     $p = $db->one('SELECT * FROM desc_props WHERE sid = 6');
     eq('proposed', $p['status']);
     ok(str_contains($p['text'], 'Qarantiya: 90 gün'), $p['text']);
-    ok(str_contains($p['text'], 'Maks: 200K') && str_contains($p['text'], 'Min: 50'), $p['text']);
+    ok(str_contains($p['text'], '🔸 Maks: 200.000') && str_contains($p['text'], '🔸 Min: 50'), $p['text']);
     ok(!str_contains($p['text'], 'Sürət'), 'adında hız yok: temeldeki hız satırı atılır: ' . $p['text']);
     $p9 = $db->one('SELECT text FROM desc_props WHERE sid = 9')['text'];
     ok(!str_contains($p9, 'Qarantiya') && !str_contains($p9, 'Sürət'), 'adında garanti yok: garanti uydurulmaz: ' . $p9);
@@ -2654,12 +2654,12 @@ test('Açıklama üretimi: boş kategoriye türün dolgun örneği + ortak uyar�
     (new TgWatch\DescLearn($db, []))->learn($list, $nd, ['az']);
     (new TgWatch\DescGen($db))->generate(8);
     $t = $db->one('SELECT text, notes FROM desc_props WHERE sid = 9')['text'];
-    foreach (['♻️ Qarantiya: 30 gün', '📏 Min: 10 / Maks: 50K', '🔗 Link: Paylaşım linki', '⚠️ Sifariş bitmədən eyni linkə 2-ci sifariş verməyin', '🔒 Gizli hesablara sifariş verməyin'] as $want) {
+    foreach (['🔸 Qarantiya: 30 gün', '🔸 Min: 10', '🔸 Maks: 50.000', '🔸 Link: Paylaşım linki', "\nQeydlər:\n", '📌 Sifariş bitmədən eyni linkə 2-ci sifariş verməyin', '📌 Gizli hesablara sifariş verməyin'] as $want) {
         ok(str_contains($t, $want), "\"$want\" yok:\n$t");
     }
     ok(!str_contains($t, 'Profil linki') && !str_contains($t, 'Instagram') && !str_contains($t, 'Başlama'), "olmaması gereken var:\n$t");
     $t10 = $db->one('SELECT text FROM desc_props WHERE sid = 10')['text'];
-    ok(!str_contains($t10, 'Qarantiya: ') && str_contains($t10, 'Min: 100 / Maks: 20K') && str_contains($t10, 'Gizli hesablara'), "garantisiz:\n$t10");
+    ok(str_contains($t10, '🔸 Qarantiya: Yoxdur') && str_contains($t10, '🔸 Min: 100') && str_contains($t10, '🔸 Maks: 20.000') && str_contains($t10, 'Gizli hesablara'), "garantisiz:\n$t10");
 });
 test('Açıklama üretimi: hiç öğrenilmemiş olsa da boş/kısa açıklama yok (varsayılan satırlar, addaki özellikler, emoji)', function () {
     [$db] = env();
@@ -2671,14 +2671,14 @@ test('Açıklama üretimi: hiç öğrenilmemiş olsa da boş/kısa açıklama yo
     $t = $db->one('SELECT text FROM desc_props WHERE sid = 4763')['text'];
     $lines = explode("\n", $t);
     ok(count($lines) >= TgWatch\DescGen::MIN_LINES, "kısa:\n$t");
-    foreach (['🔥 TikTok Özəl Rəy', '🔗 Link: Video linki', '♻️ Qarantiya: 30 gün', '📉 Azalma olmaz', '✅ Keyfiyyətli Hesablar', '📏 Min: 10 / Maks: 5K', 'eyni linkə ikinci sifariş', 'Gizli (private)'] as $w) {
+    foreach (['🔸 Min: 10', '🔸 Maks: 5.000', '🔸 Sürət: Sürətli', '🔸 Link: Video linki', '🔸 Keyfiyyət: Keyfiyyətli Hesablar', '🔸 Qarantiya: 30 gün', '🔸 Azalma: Olmaz', "\nQeydlər:\n", '📌 Sifarişiniz sistemdə tamamlanmadan eyni linkə 2-ci sifarişi verməyin.', '📌 Gizli (private)'] as $w) {
         ok(str_contains($t, $w), "\"$w\" yok:\n$t");
     }
     foreach ($lines as $l) {
-        ok(!preg_match('/^[\p{L}\p{N}]/u', $l), "emojisiz satır: $l");
+        ok($l === '' || $l === 'Qeydlər:' || !preg_match('/^[\p{L}\p{N}]/u', $l), "emojisiz satır: $l");
     }
     $t2 = $db->one('SELECT text FROM desc_props WHERE sid = 1334')['text'];
-    ok(str_contains($t2, '🔗 Link: Kanal və ya qrup linki') && str_contains($t2, '✅ Azalma ola bilər') && str_contains($t2, '✅ Qlobal istifadəçilər') && !str_contains($t2, 'Qarantiya'), "telegram:\n$t2");
+    ok(str_contains($t2, '🔸 Link: Kanal və ya qrup linki') && str_contains($t2, '🔸 Azalma: Ola bilər') && str_contains($t2, '🔸 Keyfiyyət: Qlobal istifadəçilər') && !str_contains($t2, 'Qarantiya') && str_contains($t2, '📌 Kanal və ya qrup açıq'), "telegram:\n$t2");
     // eklentiye: öneriler, yeni olanlar önce; onay
     $db->run("UPDATE desc_props SET auto = 1 WHERE sid = 1334");
     $api = new TgWatch\ExtApi($db, []);

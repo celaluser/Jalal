@@ -245,7 +245,7 @@ final class DescGen
         }
         $out = array_values(array_unique($out));
         $out = self::enrich($out, $svc, $rules, $group, $notes);
-        $out = self::finalize($out, $svc, $group, $notes);
+        $out = self::finalize($out, $svc, $group, $notes, $facts);
         foreach (DescLearn::check($facts, $out, $svc['name']) as $p) {
             if ($p['kind'] === 'conflict') {
                 $notes[] = '⚠ Denetim: ' . $p['msg'];
@@ -304,67 +304,142 @@ final class DescGen
 
     /** Bütün açıklamalarda olması gereken genel qeydlər (öğrenilmiş benzeri varsa eklenmez). [anahtar kalıp, satır] */
     public const NOTES = [
-        ['/eyni\s+link|aynı\s+link|ikinci\s+sifari|2\s*-?\s*ci\s+sifari/u', '🔸 Sifariş tamamlanmadan eyni linkə ikinci sifariş verməyin.'],
-        ['/gizli|private|qapalı\s+(hesab|profil)/u', '🔒 Gizli (private) hesablara sifariş verməyin: hesab açıq olmalıdır.'],
-        ['/düzgün|doğru\s+link|səhv\s+link|istifadəçi\s+adını/u', '🔗 Linki düzgün daxil edin, sifariş bitənə qədər istifadəçi adını dəyişməyin.'],
-        ['/məşğul|sıxlıq|yoğun|gecikmə|gecik/u', '⏳ Xidmət məşğul olduqda başlama vaxtı dəyişə bilər.'],
+        ['/məşğul|sıx\s+olduq|sıxlıq|yoğun|gecikmə|gecik/u', 'Xidmət sıx olduqda işə başlama sürəti dəyişə bilər.'],
+        ['/eyni\s+link|aynı\s+link|ikinci\s+sifari|2\s*-?\s*(ci|ncı|nci)\s+sifari/u', 'Sifarişiniz sistemdə tamamlanmadan eyni linkə 2-ci sifarişi verməyin.'],
+        ['/gizli|private|qapalı\s+(hesab|profil|kanal)/u', 'Gizli (private) hesablara sifariş verməyin: hesab açıq olmalıdır.'],
     ];
     /** Açıklama en az bu kadar satır (kısa açıklama olmaz). */
     public const MIN_LINES = 6;
 
     /**
-     * Son dokunuş: başlık satırı, Link (yoksa), addaki diğer özellikler (Keyfiyyətli Hesablar…), genel qeydlər,
-     * emoji (satır harf/rakamla başlıyorsa). Hiçbir durumda boş ya da çok kısa kalmaz; addaki bilgi dışında bilgi eklenmez.
+     * Düzen (Medyabayim tarzı): önce 🔸 bilgi satırları sabit sırayla — Min, Maks, Başlama, Sürət, Link, Keyfiyyət,
+     * Qarantiya, Azalma, Ləğv, servise özel satırlar — sonra boş satır, "Qeydlər:" ve 📌 genel qeydlər.
+     * Bilgi satırları addan ve API'den yeniden kurulur (ad doğrudur); öğrenilmiş açıklamadan Link değeri, servise özel
+     * satırlar ve qeydlər alınır. Adda olmayan bilgi eklenmez.
      */
-    private static function finalize(array $out, array $svc, string $group, array &$notes): array
+    private static function finalize(array $out, array $svc, string $group, array &$notes, array $facts = []): array
     {
         [$plat, $type] = array_pad(explode('|', $group), 2, 'other');
-        $low = DescLearn::lower(implode("\n", $out));
-        $segs = array_values(array_filter(array_map(static fn($x) => trim(preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}\x{200D}]+/u', '', $x) ?? $x, " \t-–—•·"), preg_split('/\s*[|｜]\s*/u', (string)$svc['name']) ?: [])));
-        $head = [];
-        // başlık: adın ilk parçası (ör. "TikTok Özəl Rəy")
-        if ($segs && !str_contains($low, DescLearn::lower($segs[0]))) {
-            $head[] = '🔥 ' . $segs[0];
-        }
-        // Link satırı
-        if (!preg_match('/(?<![\p{L}])link\s*:/u', $low)) {
-            $l = '🔗 Link: ' . self::linkFor($plat, $type, (string)$svc['name']);
-            $head[] = $l;
-            $notes[] = 'Eklendi (link, platform ve türe göre): ' . $l;
-        }
-        // addaki özellikler: bilgisi başka satırda yazılmamış parçalar ("Keyfiyyətli Hesablar", "Qlobal istifadəçilər")
-        $feat = [];
-        foreach (array_slice($segs, 1) as $seg) {
-            $sl = DescLearn::lower($seg);
-            if (mb_strlen($seg) < 3 || str_contains($low, $sl) || preg_match('/^\d+([.,]\d+)?\s*[km]?$/u', $sl)
-                || preg_match('/qarant|zəmanət|refill|garanti|maks|max|\bmin\b|gündə|günlük|saatda|\/\s*d(ay)?\b|ani\b|instant|azalma olmaz|non.?drop|başla|start|\d+\s*-\s*\d+\s*(saat|dəq|deq|gün|hour|min)/u', $sl)) {
+        $strip = static fn(string $l): string => trim(preg_replace('/^[^\p{L}\p{N}%(]+/u', '', $l) ?? $l);
+        $segs = array_values(array_filter(array_map(static fn($x) => trim(preg_replace('/[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}\x{200D}]+/u', '', $x) ?? $x, " \t-–—•·[]()"), preg_split('/\s*[|｜\[\]]\s*/u', (string)$svc['name']) ?: [])));
+        $title = $segs[0] ?? '';
+        $isNote = static function (string $lc): bool {
+            foreach (self::NOTES as [$re]) {
+                if (preg_match($re, $lc)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        $link = '';
+        $other = [];
+        $noteLines = [];
+        foreach ($out as $l) {
+            $c = $strip($l);
+            $lc = DescLearn::lower($c);
+            if ($c === '' || preg_match('/^(qeyd|qeydlər|notlar?|notes?)\s*:?$/u', $lc) || ($title !== '' && $lc === DescLearn::lower($title))) {
                 continue;
             }
-            $feat[] = '✅ ' . $seg;
+            if (preg_match('/^link\s*:/u', $lc)) {
+                $link = $link ?: trim(explode(':', $c, 2)[1]);
+                continue;
+            }
+            if ($isNote($lc)) {
+                $noteLines[] = $c;
+                continue;
+            }
+            // bilgi satırları addan ve API'den yeniden kurulur
+            if (preg_match('/(?<![\p{L}])(min|max|ani)(?![\p{L}])|maks|başla|start|qarant|zəmanət|telafi|refill|garanti|azalma|düşüş|drop|sürət|speed|gündə|saatda|ləğv|iptal|cancel/u', $lc)) {
+                continue;
+            }
+            $other[] = $c;
         }
-        if ($feat) {
-            $notes[] = 'Eklendi (adındaki özellikler): ' . implode(', ', $feat);
+        $num = static fn($v): string => number_format((float)$v, 0, ',', '.');
+        $L = [];
+        if ($svc['min'] !== null) {
+            $L[] = 'Min: ' . $num($svc['min']);
         }
-        $tail = [];
-        foreach (self::NOTES as [$re, $line]) {
-            if (!preg_match($re, $low)) {
-                if (str_starts_with($line, '🔒') && in_array($plat, ['telegram', 'whatsapp', 'discord'], true)) {
-                    $line = '🔒 Kanal və ya qrup açıq (public) olmalıdır: gizli kanallara sifariş verməyin.';
-                }
-                $tail[] = $line;
+        if ($svc['max'] !== null) {
+            $L[] = 'Maks: ' . $num($svc['max']);
+        }
+        if (!empty($facts['instant'])) {
+            $L[] = 'Başlama: Ani';
+        } elseif (!empty($facts['start']) && is_string($facts['start'])) {
+            $L[] = 'Başlama: ' . $facts['start'];
+        }
+        // addaki parçalar: sürət / keyfiyyət / azalma / ləğv / digər
+        $speedWord = $quality = $drop = $cancel = null;
+        $rest = [];
+        foreach (array_slice($segs, 1) as $seg) {
+            $sl = DescLearn::lower($seg);
+            if (mb_strlen($seg) < 2 || preg_match('/^\d+([.,]\d+)?\s*[km]?$/u', $sl)
+                || preg_match('/qarant|zəmanət|refill|garanti|maks|max|\bmin\b|gündə|günlük|saatda|\/\s*d(ay)?\b|^ani\b|\bani\b|instant|azalma olmaz|non.?drop|başla|start|\d+\s*-\s*\d+\s*(saat|dəq|deq|gün|hour|min)/u', $sl)) {
+                continue; // addaki bilgi: aşağıda kendi satırında
+            }
+            if (preg_match('/ləğv|cancel|iptal/u', $sl)) {
+                $cancel = 'Ləğv düyməsi aktivdir';
+            } elseif (preg_match('/azalma|düşüş|drop/u', $sl)) {
+                $drop = 'Ola bilər';
+            } elseif (preg_match('/sürət|sürətli|yavaş|orta\b|normal|fast|slow/u', $sl)) {
+                $v = trim(preg_replace('/\bsürət\b/iu', '', $seg) ?? $seg);
+                $speedWord = $v !== '' ? mb_strtoupper(mb_substr($v, 0, 1)) . mb_substr($v, 1) : $seg;
+            } elseif (preg_match('/hesab|istifadəçi|user|keyfiyyət|real|bot|qlobal|global|türk|azər|online|premium|hq|aktiv|ərəb|rus|avropa|amerika|şəkilli|profil/u', $sl)) {
+                $quality = $quality ? $quality . ', ' . $seg : $seg;
+            } else {
+                $rest[] = $seg;
             }
         }
-        if ($tail) {
-            $notes[] = 'Eklendi (genel qeydlər): ' . count($tail) . ' satır';
+        if (isset($facts['speed'])) {
+            $L[] = 'Sürət: Gündə ' . DescLearn::fmt((float)$facts['speed']);
+        } elseif (isset($facts['speed_h'])) {
+            $L[] = 'Sürət: Saatda ' . DescLearn::fmt((float)$facts['speed_h']);
+        } elseif ($speedWord) {
+            $L[] = 'Sürət: ' . $speedWord;
         }
-        $all = array_merge($head, $out, $feat, $tail);
-        // emoji: harf/rakamla başlayan satıra
-        $all = array_map(static fn($l) => preg_match('/^[\p{L}\p{N}]/u', $l) ? '🔹 ' . $l : $l, $all);
-        $all = array_values(array_unique($all));
-        if (count($all) < self::MIN_LINES) {
-            $notes[] = '⚠ Kısa kaldı (' . count($all) . ' satır): adında ve öğrenilenlerde başka bilgi yok';
+        $L[] = 'Link: ' . ($link !== '' ? $link : self::linkFor($plat, $type, (string)$svc['name']));
+        if ($quality) {
+            $L[] = 'Keyfiyyət: ' . $quality;
         }
-        return $all;
+        if (isset($facts['guarantee'])) {
+            $L[] = 'Qarantiya: ' . (int)$facts['guarantee'] . ' gün';
+        } elseif (!empty($facts['lifetime'])) {
+            $L[] = 'Qarantiya: Ömürlük';
+        } elseif (!empty($facts['noguarantee'])) {
+            $L[] = 'Qarantiya: Yoxdur';
+        }
+        if (!empty($facts['nondrop'])) {
+            $L[] = 'Azalma: Olmaz';
+        } elseif ($drop) {
+            $L[] = 'Azalma: ' . $drop;
+        }
+        if ($cancel || !empty($facts['cancel'])) {
+            $L[] = 'Ləğv: ' . ($cancel ?? 'Ləğv düyməsi aktivdir');
+        }
+        foreach (array_merge($rest, $other) as $x) {
+            $L[] = $x;
+        }
+        // qeydlər: öğrenilmiş olanlar, eksik konular varsayılanla
+        $Q = [];
+        foreach ($noteLines as $n) {
+            $Q[DescLearn::lower($n)] = $n;
+        }
+        $qlow = DescLearn::lower(implode("\n", $Q));
+        foreach (self::NOTES as [$re, $line]) {
+            if (!preg_match($re, $qlow)) {
+                if (str_starts_with($line, 'Gizli') && in_array($plat, ['telegram', 'whatsapp', 'discord'], true)) {
+                    $line = 'Kanal və ya qrup açıq (public) olmalıdır: gizli kanallara sifariş verməyin.';
+                }
+                $Q[DescLearn::lower($line)] = $line;
+            }
+        }
+        $notes[] = 'Düzen: ' . count($L) . ' bilgi satırı + ' . count($Q) . ' qeyd';
+        $res = array_map(static fn($x) => '🔸 ' . $x, array_values(array_unique($L)));
+        $res[] = '';
+        $res[] = 'Qeydlər:';
+        foreach ($Q as $q) {
+            $res[] = '📌 ' . $q;
+        }
+        return $res;
     }
 
     /** Öğrenilmiş ortak satırların kalıpları (sayılı olsa da korunur). */

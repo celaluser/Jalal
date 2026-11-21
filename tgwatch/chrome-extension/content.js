@@ -2479,7 +2479,7 @@
   }
 
   function buildDescBar() {
-    dbar = h('div', 'tgw-bar tgw-cbar tgw-floating tgw-dbar');
+    dbar = h('div', 'tgw-bar tgw-floating tgw-dbar');
     const brand = h('div', 'tgw-brand');
     brand.appendChild(logo(26));
     const txt = h('div', 'tgw-text');
@@ -2793,7 +2793,7 @@
     const ver = ok.filter((r) => r.verified).length;
     const report = { at: Date.now(), stopped: !!stopped, total: st.items.length, results: st.results };
     send({ type: 'desc-report', report });
-    descStatus((stopped ? 'Durduruldu. ' : 'Bitti. ') + ok.length + ' servise eklendi' + (ver ? ' (' + ver + ' panelden doğrulandı)' : '') + (bad.length ? ', ' + bad.length + ' eklenmedi' : '') + '. Ayrıntı: Raporu göster.', bad.length ? 'bad' : 'ok', 100);
+    descStatus((stopped ? 'Durduruldu. ' : 'Bitti. ') + ok.length + ' servise eklendi' + (ver ? ' (' + ver + ' panelden doğrulandı)' : '') + (bad.length ? ', ' + bad.length + ' eklenmedi' : '') + '.', !ok.length && bad.length ? 'bad' : bad.length ? '' : 'ok', 100);
     showReport(report);
     if (bad.length) dbar.querySelector('.tgw-ddiag').hidden = false;
   }

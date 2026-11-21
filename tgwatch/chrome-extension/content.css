@@ -103,11 +103,20 @@
 .tgw-cbar.tgw-min .tgw-brand{flex:none;justify-content:center;cursor:pointer}
 .tgw-cbar.tgw-min .tgw-brand svg{width:22px;height:22px}
 /* açıklama yazma çubuğu: sağ alt (kategori çubuğu sol altta) */
-.tgw-cbar.tgw-floating.tgw-dbar{left:auto;right:12px}
-.tgw-cbar.tgw-floating.tgw-dbar{border-radius:18px}
-.tgw-cbar.tgw-floating.tgw-dbar .tgw-status{white-space:normal;max-width:44ch;overflow:visible}
 .tgw-dbar .tgw-dlist{position:absolute;right:0;bottom:calc(100% + 8px);width:min(520px,calc(100vw - 24px));max-height:50vh;overflow:auto;background:#fff;border:1px solid #d9dee5;border-radius:12px;box-shadow:0 10px 30px rgba(16,24,40,.25);padding:8px;font:12.5px/1.45 system-ui,sans-serif;color:#1d2733}
 .tgw-dbar .tgw-dlist[hidden]{display:none}
 .tgw-dli{padding:4px 6px;border-radius:6px}
 .tgw-dli.ok{color:#1f7a45}.tgw-dli.bad{color:#b8244b;background:#fdf2f5}
-.tgw-cbar.tgw-floating.tgw-dbar .tgw-status{min-width:24ch}
+/* açıklama yazma kartı: sağ alt, dikey düzen (yazı ayrı satırda, düğmeler altta) */
+.tgw-bar.tgw-floating.tgw-dbar{left:auto;right:16px;width:min(380px,calc(100vw - 32px));flex-direction:column;align-items:stretch;gap:10px;padding:14px 14px 16px;border-radius:16px;background:#fff}
+.tgw-dbar .tgw-brand{flex:none;align-items:flex-start;padding-right:28px}
+.tgw-dbar .tgw-text{min-width:0}
+.tgw-dbar .tgw-title{font-weight:700;font-size:13.5px;margin-bottom:2px}
+.tgw-dbar .tgw-status{display:block;white-space:normal;max-width:none;font-size:12.5px;line-height:1.45;color:var(--tgw-mut)}
+.tgw-dbar .tgw-actions{display:flex;flex-wrap:wrap;gap:6px;margin:0}
+.tgw-dbar .tgw-btn{height:32px;padding:0 12px;border-radius:9px;font-size:12.5px;white-space:nowrap}
+.tgw-dbar .tgw-cclose{position:absolute;top:8px;right:8px;width:28px;height:28px;padding:0;border:0;background:transparent;color:var(--tgw-mut);font-size:18px}
+.tgw-dbar .tgw-cclose:hover{background:#f1f3f6;color:var(--tgw-ink)}
+.tgw-dbar .tgw-progress{position:static;height:4px;border-radius:999px;background:#eef1f4;order:2}
+.tgw-dbar .tgw-actions{order:3}
+.tgw-dbar .tgw-dlist{order:4;position:static;width:auto;max-height:40vh;box-shadow:none;border-color:#e6e9ee}
