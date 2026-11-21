@@ -2429,12 +2429,32 @@
     row.el.scrollIntoView({ block: 'center' });
     row.el.classList.add('tgw-flash');
     setTimeout(() => row.el.classList.remove('tgw-flash'), 1300);
-    realClick(row.btn);
-    const item = await waitFor(() => {
-      const all = [...document.querySelectorAll('a, button, li, [role=menuitem]')].filter((e) => visible(e) && !ours(e) && /^edit\s+description$|^açıklamanı redaktə et$/i.test(btnText(e)));
-      return all.find((e) => row.el.contains(e)) || all[0];
-    }, 3000);
-    if (!item) { dlog('menü öğeleri: ' + [...document.querySelectorAll('.dropdown-menu a, [role=menuitem], .dropdown-item')].filter((e) => visible(e)).map((e) => btnText(e)).slice(0, 12).join(' | ')); document.body.click(); dLastDiag = row.el.outerHTML.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 1500); return { error: 'Actions menüsünde "Edit description" yok' }; }
+    // Perfect Panel menü öğesi kimliği: service-action-<ID>-edit_services_description (menü açılınca çizilir)
+    const byId = () => document.getElementById('service-action-' + it.sid + '-edit_services_description');
+    const findItem = () => {
+      const e = byId();
+      if (e && visible(e)) return e;
+      const all = [...document.querySelectorAll('a, button, li, [role=menuitem]')].filter((x) => visible(x) && !ours(x) && /^edit\s+description$|^açıklamanı redaktə et$/i.test(btnText(x)));
+      return all.find((x) => row.el.contains(x)) || all[0] || null;
+    };
+    const actBtn = () => {
+      const a = document.getElementById('service-action-' + it.sid);
+      const btn = a && (a.matches('button, a, [role=button]') ? a : a.querySelector('button, a, [role=button]'));
+      return btn && visible(btn) ? btn : (row.btn && row.btn.isConnected ? row.btn : (rowById(it.sid) || {}).btn);
+    };
+    let item = null;
+    // Menü bazen ilk tıklamada açılmıyor: 3 kez farklı yollarla dene
+    for (let t = 0; t < 3 && !item; t++) {
+      const b = actBtn();
+      if (!b) break;
+      b.scrollIntoView({ block: 'center' });
+      await sleep(t ? 400 : 150);
+      if (t === 1) b.click(); else realClick(b);
+      item = await waitFor(findItem, 2500, 100);
+      if (!item && t === 1 && byId()) { item = byId(); dlog('menü öğesi gizli ama var: doğrudan tıklanıyor'); }
+      if (!item) { dlog('menü açılmadı (deneme ' + (t + 1) + '), düğme: ' + b.outerHTML.replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 160)); document.body.click(); await sleep(300); }
+    }
+    if (!item) { dlog('menü öğeleri: ' + [...document.querySelectorAll('.dropdown-menu a, [role=menuitem], .dropdown-item')].filter((e) => visible(e)).map((e) => btnText(e)).slice(0, 12).join(' | ')); document.body.click(); dLastDiag = row.el.outerHTML.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 1500); return { error: 'Actions menüsü açılmadı / "Edit description" yok' }; }
     (item.querySelector('a') || item).click();
     const dlg = await waitFor(descDialog, 8000);
     if (!dlg) return { error: 'açıklama penceresi açılmadı' };
