@@ -97,23 +97,34 @@ async function pullDescQueue() {
 }
 self.__pullDescQueue = pullDescQueue; // test kancası
 
-/** Services sayfasını aç (açıksa öne getir) ve açıklama yazmayı başlat. */
+/**
+ * Services sayfasını aç (açıksa öne getir) ve açıklama yazmayı başlat.
+ * Başlatma işareti storage'da (descStart): sayfa yönlendirme yapsa/hash'i silse de yeni yüklenen sayfa görür.
+ * Açık sekmedeki içerik betiği eklenti güncellenince ölür: mesaj gitmezse sekme YENİDEN YÜKLENİR (yalnız hash değiştirmek yetmez).
+ */
 async function openDescTab() {
   const s = await settings();
   if (!s.panel) return { ok: false, error: 'Panel adresi yok' };
-  const base = s.panel.replace(/\/+$/, '') + '/admin/services';
+  const base = s.panel.replace(/\/+$/, '').replace(/\/admin(\/services)?$/i, '') + '/admin/services';
+  await chrome.storage.local.set({ descStart: Date.now() });
   const tabs = await chrome.tabs.query({});
-  const t = tabs.find((x) => x.url && x.url.split('#')[0].replace(/\/+$/, '') === base);
+  const t = tabs.find((x) => x.url && x.url.split('#')[0].split('?')[0].replace(/\/+$/, '') === base);
   if (t) {
     await chrome.tabs.update(t.id, { active: true });
     if (t.windowId != null) chrome.windows.update(t.windowId, { focused: true }).catch(() => {});
     const ok = await new Promise((res) => chrome.tabs.sendMessage(t.id, { type: 'tgw-desc-run' }, (r) => { void chrome.runtime.lastError; res(!!(r && r.ok)); }));
-    if (!ok) await chrome.tabs.update(t.id, { url: base + '#tgw-desc' });
+    if (ok) {
+      await chrome.storage.local.remove('descStart');
+    } else {
+      await chrome.tabs.update(t.id, { url: base });
+      await chrome.tabs.reload(t.id);
+    }
   } else {
-    await chrome.tabs.create({ url: base + '#tgw-desc' });
+    await chrome.tabs.create({ url: base });
   }
   return { ok: true };
 }
+self.openDescTab = openDescTab;
 if (chrome.notifications) {
   chrome.notifications.onClicked.addListener((id) => { if (id === 'tgw-desc') { chrome.notifications.clear(id); openDescTab(); } });
   chrome.notifications.onButtonClicked.addListener((id, i) => {

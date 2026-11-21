@@ -2434,7 +2434,7 @@
       const all = [...document.querySelectorAll('a, button, li, [role=menuitem]')].filter((e) => visible(e) && !ours(e) && /^edit\s+description$|^açıklamanı redaktə et$/i.test(btnText(e)));
       return all.find((e) => row.el.contains(e)) || all[0];
     }, 3000);
-    if (!item) { document.body.click(); dLastDiag = row.el.outerHTML.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 1500); return { error: 'Actions menüsünde "Edit description" yok' }; }
+    if (!item) { dlog('menü öğeleri: ' + [...document.querySelectorAll('.dropdown-menu a, [role=menuitem], .dropdown-item')].filter((e) => visible(e)).map((e) => btnText(e)).slice(0, 12).join(' | ')); document.body.click(); dLastDiag = row.el.outerHTML.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 1500); return { error: 'Actions menüsünde "Edit description" yok' }; }
     (item.querySelector('a') || item).click();
     const dlg = await waitFor(descDialog, 8000);
     if (!dlg) return { error: 'açıklama penceresi açılmadı' };
@@ -2480,11 +2480,12 @@
     rep.addEventListener('click', () => { const l = dbar.querySelector('.tgw-dlist'); if (!l) return; l.hidden = !l.hidden; rep.textContent = l.hidden ? 'Raporu göster' : 'Raporu gizle'; });
     const diag = h('button', 'tgw-btn tgw-ghost tgw-ddiag', 'Teşhisi kopyala');
     diag.type = 'button';
-    diag.hidden = true;
     diag.title = 'Servis satırının yapısını panoya kopyalar (şifre/anahtar yok). Sohbete yapıştır.';
     diag.addEventListener('click', async () => {
       const first = [...serviceRowsIndex().values()][0];
-      const t = JSON.stringify({ surum: chrome.runtime.getManifest().version, adres: location.pathname, servisSatiri: serviceRowsIndex().size, kutucuk: visibleChecks(), son: dLastDiag, ilkSatir: first ? first.el.outerHTML.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 1500) : '' }, null, 1);
+      const sbx = searchBox();
+      const t = JSON.stringify({ surum: chrome.runtime.getManifest().version, adres: location.pathname + location.search, servisSatiri: serviceRowsIndex().size, kutucuk: visibleChecks(), son: dLastDiag, gunluk: dlogGet(),
+        aramaKutusu: sbx ? sbx.outerHTML.slice(0, 300) : 'yok', girdiler: [...document.querySelectorAll('input')].filter((i) => visible(i) && !ours(i) && i.type !== 'checkbox' && i.type !== 'hidden').slice(0, 8).map((i) => i.outerHTML.slice(0, 160)), ilkSatir: first ? first.el.outerHTML.replace(/\s+/g, ' ').replace(/<svg[\s\S]*?<\/svg>/g, '<svg/>').slice(0, 1500) : '' }, null, 1);
       try { await navigator.clipboard.writeText(t); } catch (e) { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
       diag.textContent = 'Kopyalandı ✓';
       setTimeout(() => { diag.textContent = 'Teşhisi kopyala'; }, 1500);
@@ -2499,6 +2500,7 @@
     dbar.append(brand, acts, prog);
   }
   function descStatus(t, kind, pct) {
+    dlog(t);
     if (!dbar) buildDescBar();
     if (!dbar.isConnected) document.body.appendChild(dbar);
     const st = dbar.querySelector('.tgw-status');
@@ -2510,6 +2512,15 @@
 
   // ---- çok adımlı iş: sayfa yenilense de (arama, Save) kaldığı yerden sürer (sekmeye özel sessionStorage) ----
   const RUN_KEY = 'tgw_desc_run';
+  /** Teşhis günlüğü: her adım (sayfa yenilense de sekmede kalır); "Teşhisi kopyala" ile alınır. */
+  function dlog(t) {
+    try {
+      const a = JSON.parse(sessionStorage.getItem('tgw_desc_log') || '[]');
+      a.push(new Date().toTimeString().slice(0, 8) + ' ' + location.pathname + location.search + ' · ' + t);
+      sessionStorage.setItem('tgw_desc_log', JSON.stringify(a.slice(-60)));
+    } catch (e) { /* yok */ }
+  }
+  const dlogGet = () => { try { return JSON.parse(sessionStorage.getItem('tgw_desc_log') || '[]'); } catch (e) { return []; } };
   const runGet = () => { try { return JSON.parse(sessionStorage.getItem(RUN_KEY) || 'null'); } catch (e) { return null; } };
   const runSet = (v) => { try { if (v) sessionStorage.setItem(RUN_KEY, JSON.stringify(v)); else sessionStorage.removeItem(RUN_KEY); } catch (e) { /* yok */ } };
 
@@ -2532,6 +2543,7 @@
   /** ID'yi arat. Sayfa yenilenirse bu fonksiyon yarıda kalır; iş kaydı sayesinde yeni sayfada sürer. */
   async function searchFor(id) {
     const box = searchBox();
+    dlog('arama kutusu: ' + (box ? (box.tagName + ' name=' + box.name + ' placeholder=' + box.placeholder + ' form=' + !!box.form) : 'YOK'));
     if (!box) {
       // Arama kutusu yok: listeyi aç, sonuna kadar yükle, ID'yi orada bul
       await expandAll();
@@ -2545,6 +2557,7 @@
     for (const t of ['keydown', 'keypress', 'keyup']) box.dispatchEvent(new KeyboardEvent(t, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
     await sleep(300);
     const sb = box.form ? box.form.querySelector('button[type=submit], input[type=submit], button:not([type])') : searchButton(box);
+    dlog('ara düğmesi: ' + (sb ? sb.tagName + ' "' + btnText(sb).slice(0, 20) + '"' : 'yok (Enter/form)'));
     if (sb) sb.click();
     else if (box.form) { if (box.form.requestSubmit) box.form.requestSubmit(); else box.form.submit(); }
     const row = await waitFor(() => { const r = serviceRowsIndex().get(String(id)); return r || null; }, 12000, 250);
@@ -2561,7 +2574,11 @@
     if (!onServicesAny()) { descStatus('Services sayfasında çalışır (Admin → Services).', 'bad'); return; }
     descStatus('tgwatch\'tan onaylı açıklamalar alınıyor…', '', 0);
     const q = await api('desc_queue', {});
-    if (!q.ok) { descStatus(/Bilinmeyen işlem/.test(q.error || '') ? 'tgwatch sunucusu eski: güncel tgwatch paketini yükle.' : 'tgwatch: ' + (q.error || 'hata'), 'bad'); return; }
+    if (!q.ok) {
+      const e = q.error || 'hata';
+      descStatus(/context invalidated|Receiving end/i.test(e) ? 'Eklenti güncellendi ama bu sayfa eski: sayfayı yenile (F5), sonra tekrar “Panele ekle”.' : /Bilinmeyen işlem/.test(e) ? 'tgwatch sunucusu eski: güncel tgwatch paketini yükle.' : 'tgwatch: ' + e, 'bad');
+      return;
+    }
     if (!q.items || !q.items.length) { descStatus('Panele yazılacak onaylı açıklama yok.', 'ok', 100); return; }
     runSet({ items: q.items.map((x) => ({ sid: x.sid, text: x.text, name: x.name, category: x.category })), i: 0, phase: '', cur: 0, results: [], at: Date.now() });
     runLoop();
@@ -2584,7 +2601,6 @@
     if (!dbar) buildDescBar();
     descStatus('Sürüyor…');
     dbar.querySelector('.tgw-dgo').hidden = true;
-    dbar.querySelector('.tgw-ddiag').hidden = true;
     dbar.querySelector('.tgw-drep').hidden = true;
     const stopBtn = dbar.querySelector('.tgw-dstop');
     stopBtn.hidden = false; stopBtn.disabled = false;
@@ -2669,9 +2685,13 @@
   async function descCheck() {
     if (!onServicesAny()) return;
     siteOrder();
-    if (runGet()) { setTimeout(() => runLoop(), 600); return; } // yarıda kalan iş (arama/Save sayfayı yeniledi)
-    if (location.hash === '#tgw-desc') {
-      history.replaceState(null, '', location.pathname + location.search);
+    if (runGet()) { dlog('yarıda kalan iş sürüyor'); setTimeout(() => runLoop(), 600); return; } // arama/Save sayfayı yeniledi
+    let start = false;
+    try { const x = await chrome.storage.local.get({ descStart: 0 }); start = Date.now() - x.descStart < 3 * 60 * 1000; if (x.descStart) await chrome.storage.local.remove('descStart'); } catch (e) { /* yok */ }
+    if (location.hash === '#tgw-desc') { start = true; history.replaceState(null, '', location.pathname + location.search); }
+    if (start) {
+      dlog('başlatma isteği alındı (Panele ekle)');
+      descStatus('Başlıyor…', '', 0);
       setTimeout(() => descFlow(), 1500);
       return;
     }
