@@ -302,6 +302,38 @@
     if (it.via !== 'bank') api('learn_desc', { items: [{ en: src, az: it.az }] });
     return { ok: true, src, note: 'açıklama ' + (DESC_VIA[it.via] || it.via) + (it.note ? ' (' + it.note + ')' : '') };
   }
+  /**
+   * Satırdaki Min/Max: 1) adı/etiketi/yer tutucusu min/max olan sayı kutuları, 2) yazı ("Min: 20 Max: 100000";
+   * adın içindeki "Max 100K" değil: iki noktalı ve en sondaki). Bulunamazsa tgwatch sağlayıcı listesinden tamamlar.
+   */
+  function rowMinMax(el, nameEl) {
+    const out = { min: null, max: null };
+    const toNum = (v) => { const d = String(v || '').replace(/[^\d]/g, ''); return d ? Number(d) : null; };
+    for (const inp of el.querySelectorAll('input')) {
+      if (inp === nameEl || ours(inp) || /^(checkbox|hidden|radio)$/i.test(inp.type) || !/^\s*\d[\d.,\s]*$/.test(inp.value)) continue;
+      const sig = [inp.name, inp.id, inp.placeholder, inp.getAttribute('aria-label'), inp.getAttribute('data-name'), typeof inp.className === 'string' ? inp.className : ''].join(' ').toLowerCase();
+      let k = /(^|[^a-z])min(imum)?([^a-z]|$)/.test(sig) ? 'min' : /(^|[^a-z])max(imum)?([^a-z]|$)/.test(sig) ? 'max' : null;
+      if (!k) {
+        const lab = inp.closest('label') || (inp.id ? el.querySelector('label[for="' + CSS.escape(inp.id) + '"]') : null) || inp.previousElementSibling || (inp.parentElement && inp.parentElement.previousElementSibling);
+        const lt = lab ? lower(lab.textContent) : '';
+        k = /^min/.test(lt) ? 'min' : /^max/.test(lt) ? 'max' : null;
+      }
+      if (k && out[k] == null) out[k] = toNum(inp.value);
+    }
+    const head = norm(textWithAlt(el));
+    const last = (re) => { const all = [...head.matchAll(re)]; return all.length ? toNum(all[all.length - 1][1]) : null; };
+    if (out.min == null) out.min = last(/\bMin(?:imum)?\s*:\s*(\d[\d.,]*)(?![\d.,]*\s*[KkMm]\b)/gi);
+    if (out.max == null) out.max = last(/\bMax(?:imum)?\s*:\s*(\d[\d.,]*)(?![\d.,]*\s*[KkMm]\b)/gi);
+    return out;
+  }
+  function dlogImport(id, mm) {
+    try {
+      const a = JSON.parse(sessionStorage.getItem('tgw_imp_log') || '[]');
+      a.push('#' + id + ' min=' + mm.min + ' max=' + mm.max + ' (satırdan okunamadı; tgwatch sağlayıcı listesinden tamamlamayı dener)');
+      sessionStorage.setItem('tgw_imp_log', JSON.stringify(a.slice(-30)));
+    } catch (e) { /* yok */ }
+  }
+
   /** İmportta açıklama: build = tgwatch üretir (kaynak açıklamadaki bilgileri de kullanır), translate = çevirir, off = dokunmaz. */
   const importDescMode = (o) => (['build', 'translate', 'off'].includes(o.descImport) ? o.descImport : (o.descTranslate ? 'translate' : 'off'));
   /** İmport satırında açıklama: satır açıkken çağrılır (ad yazıldıktan hemen sonra; aynı Save ile kaydedilir). */
@@ -321,17 +353,18 @@
     const st = state.get(id) || {};
     const src = st.descSrc !== undefined ? st.descSrc : readField(el); // kaynak (sağlayıcının) açıklaması; geri al için saklanır
     if (st.descSrc === undefined) remember(id, { descSrc: src });
-    const head = norm(textWithAlt(row.el));
-    // satırdaki "Min: 20 Max: 100000" (adın içindeki "Max 100K" değil): iki noktalı, en sondaki
-    const num = (re) => { const all = [...head.matchAll(re)]; const m = all[all.length - 1]; return m ? Number(m[1].replace(/[^\d]/g, '')) || null : null; };
+    const mm = rowMinMax(row.el, input);
     const az = input ? input.value : (st.filled || '');
-    const res = await api('desc_build', { items: [{ id: String(id), name: st.src || row.header.name || az, az, text: src, min: num(/\bMin\s*:\s*(\d[\d.,]*)/gi), max: num(/\bMax\s*:\s*(\d[\d.,]*)/gi) }] });
+    const res = await api('desc_build', { items: [{ id: String(id), name: st.src || row.header.name || az, az, text: src, min: mm.min, max: mm.max }] });
+    if (!mm.min || !mm.max) dlogImport(id, mm);
     if (!res.ok || !res.items || !res.items[0]) {
       return '\nAçıklama üretilemedi: ' + (/Bilinmeyen işlem/.test(res.error || '') ? 'tgwatch sunucusu eski' : (res.error || 'tgwatch hatası'));
     }
     writeField(el, res.items[0].text);
     const f = res.items[0].found || [];
-    return '\nAçıklama üretildi' + (f.length ? ' (kaynak açıklamadan: ' + f.length + ' bilgi)' : norm(src) ? '' : ' (kaynak açıklama boştu)');
+    const txt = res.items[0].text || '';
+    const mmNote = /Min:/.test(txt) ? '' : ' · Min/Max bulunamadı (satırda da tgwatch listesinde de yok)';
+    return '\nAçıklama üretildi' + (f.length ? ' (kaynak açıklamadan: ' + f.length + ' bilgi)' : norm(src) ? '' : ' (kaynak açıklama boştu)') + mmNote;
   }
 
   // ---- "Edit description" penceresi (Services sayfası): "tgwatch: çevir" düğmesi ----
@@ -2481,7 +2514,13 @@
     const field = await waitFor(() => descField(dlg, null), 3000);
     if (!field) { closeDialog(dlg); return { error: 'pencerede açıklama kutusu yok' }; }
     const old = norm(readField(field));
-    if (old && old !== norm(it.text)) { closeDialog(dlg); return { error: 'panelde zaten açıklama var (üzerine yazılmadı)', final: true }; }
+    // karşılaştırma: etiket ve boşluk farkı sayılmaz
+    const flat = (x) => String(x || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, '').toLowerCase();
+    if (old && flat(old) !== flat(it.text)) {
+      if (!it.overwrite) { closeDialog(dlg); return { error: 'panelde zaten açıklama var (üzerine yazılmadı)', final: true }; }
+      if (flat(old) !== flat(it.old)) { closeDialog(dlg); return { error: 'paneldeki metin değişmiş (tgwatch\'ın bildiği eski metin değil): üzerine yazılmadı', final: true }; }
+      dlog('düzeltme: eski metnin üzerine yazılıyor (' + it.sid + ')');
+    }
     writeField(field, it.text);
     await sleep(100);
     const save = [...dlg.querySelectorAll('button, a, input[type=submit]')].find((b) => visible(b) && !ours(b) && SAVE_WORDS.includes(lower(b.value || btnText(b))));
@@ -2682,6 +2721,9 @@
     return r ? { row: r } : { error: 'listede servis bulunamadı (ID ' + id + '; gizli/silinmiş olabilir)' };
   }
 
+  /** Kuyruk öğesi (düzeltmelerde üzerine yazma izni ve eski metin de taşınır). */
+  const qItem = (x) => ({ sid: x.sid, text: x.text, name: x.name, category: x.category, overwrite: !!x.overwrite, old: x.old || '' });
+
   async function descFlow() {
     if (dRunning) return;
     if (!onServicesAny()) { descStatus('Services sayfasında çalışır (Admin → Services).', 'bad'); return; }
@@ -2702,7 +2744,7 @@
       return;
     }
     if (!q.items || !q.items.length) { descStatus('Panele yazılacak onaylı açıklama yok.', 'ok', 100); return; }
-    runSet({ items: q.items.map((x) => ({ sid: x.sid, text: x.text, name: x.name, category: x.category })), i: 0, phase: '', cur: 0, results: [], pending: [], at: Date.now() });
+    runSet({ items: q.items.map(qItem), i: 0, phase: '', cur: 0, results: [], pending: [], at: Date.now() });
     runLoop();
   }
 
@@ -2772,7 +2814,7 @@
           const done = new Set(st.results.map((x) => x.sid));
           const more = q && q.ok ? (q.items || []).filter((x) => !done.has(x.sid)) : [];
           if (!more.length) break;
-          st.items.push(...more.map((x) => ({ sid: x.sid, text: x.text, name: x.name, category: x.category })));
+          st.items.push(...more.map(qItem));
           runSet(st);
         }
         if (dStop) { paused = 'sen durdurdun'; break; }

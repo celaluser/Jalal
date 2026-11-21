@@ -407,6 +407,12 @@ Paneldeki Azerice açıklamaları Admin API'den (Get service list + Get service 
 
 Import ekranında **tgwatch ile çevir**: her satırda ad çevrilir, hemen ardından açıklama kutusuna Azerice açıklama yazılır; aynı Save ile kaydedilir, Import'a basmadan önce satırı açıp bakabilirsin. Sağlayıcının (yabancı dildeki) açıklaması okunur ve içindeki bilgiler kullanılır: başlama süresi (0-1 hour → 0-1 saat), hız (10K/day), garanti / no refill / lifetime, drop may happen / non drop, cancel button, link türü (profile/username → Profil linki, video, channel, group, post, live stream, story, reels…), kalite (real/HQ/mixed/bot/global/turkish), "do not change username" uyarısı. Kalan her şey tgwatch kurallarıyla (adındaki bilgiler, Min/Maks satırdaki değerlerden, Qeydlər). Geri al, açıklamayı da sağlayıcınınkine döndürür. Ayar: eklenti → Ayarlar → Açıklama → **İmportta açıklama**: Üret (varsayılan) / Çevir / Dokunma.
 
+### Düzelt (panelde yazılı ama eksik/çelişen açıklamalar)
+
+**Açıklamalar → Düzelt** sekmesi: panelde açıklaması olup **Min/Maks yazmayan** ya da **adıyla çelişen** servisler. "Düzeltme öner" mevcut açıklamayı temel alır (servise özel satırlar korunur), düzeni ve Min/Maks'ı (Admin API'den) yeniden kurar. Öneriler'de eski ve yeni metin görünür; onaylanınca eklenti **üzerine yazar**, ama yalnız paneldeki metin tgwatch'ın bildiği eski metinle aynıysa (bu arada elle değiştirildiyse dokunmaz, raporda yazar). Yeni import edilen servislerde bu kontrol kendiliğinden yapılır: açıklaması Min/Maks'sız yazılmışsa düzeltme önerisi düşer. Sayfanın üstünde **Yeni servislere otomatik öneri: Açık/Kapalı** anahtarı var.
+
+İmportta Min/Max satırdaki sayı kutularından (adı/etiketi min/max) ya da yazıdan okunur; bulunamazsa tgwatch sağlayıcı listesinden (aynı servis ID'si, ad eşleşmesi) tamamlar, satırdaki açıklama boşsa sağlayıcının oradaki açıklamasını kullanır.
+
 ### Açıklama üretme → onay → eklentiyle panele yazma
 
 **Yeni servisler (kendiliğinden):** tgwatch saatte bir (ve eklenti import bildirince hemen) Admin API'deki servis listesine bakar; bilmediği yeni servisleri kaydeder, açıklaması boş olanlara öneri üretir. Eklenti Chrome bildirimi gösterir: "N yeni servis için açıklama üretildi — **Bak**". Öneriler sayfasında (eklenti → Ana sayfa → Açıklamalar → Bak) metni okur, düzeltir, onaylarsın; onaylamadan panele hiçbir şey yazılmaz. Kapatmak için ayar `desc_auto` = 0.

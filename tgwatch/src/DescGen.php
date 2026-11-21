@@ -674,6 +674,7 @@ final class DescGen
         $nd = $api->namesDescriptions($ids, $lang);
         $pos = (int)($this->db->one('SELECT MAX(pos) m FROM panel_desc')['m'] ?? 0);
         $byCat = [];
+        $fix = [];
         foreach ($new as $sv) {
             $own = ($nd[$sv['id']] ?? [])['az'] ?? (($nd[$sv['id']] ?? []) ? reset($nd[$sv['id']]) : []);
             $desc = trim((string)($own['description'] ?? ''));
@@ -681,9 +682,12 @@ final class DescGen
                 [(int)$sv['id'], $sv['name'], $sv['category_id'], $sv['category_name'], $sv['status'], $desc, $sv['min'] ?? null, $sv['max'] ?? null, !empty($sv['refill']) ? 1 : 0, !empty($sv['cancel']) ? 1 : 0, time(), ++$pos]);
             if ($desc === '') {
                 $byCat[(int)$sv['category_id']][] = (int)$sv['id'];
+            } elseif (!self::hasMinMax($desc)) {
+                $fix[] = (int)$sv['id']; // import'ta yazılmış ama Min/Maks eksik: düzeltme önerisi
             }
         }
         $this->config = $config;
+        $fixed = $fix ? $this->proposeFix($fix, true) : 0;
         $made = 0;
         $cats = [];
         foreach ($byCat as $cat => $sids) {
@@ -691,7 +695,8 @@ final class DescGen
             $made += $r['made'] + $r['skipped'];
             $cats[] = (string)($this->db->one('SELECT category_name FROM panel_desc WHERE category_id = ? LIMIT 1', [$cat])['category_name'] ?? $cat);
         }
-        $this->db->log('info', 'bank', 'Yeni servis: ' . count($new) . ', kendiliğinden açıklama önerisi: ' . $made);
+        $made += $fixed;
+        $this->db->log('info', 'bank', 'Yeni servis: ' . count($new) . ', kendiliğinden açıklama önerisi: ' . $made . ($fixed ? " ($fixed düzeltme: Min/Maks eksikti)" : ''));
         return ['new' => count($new), 'made' => $made, 'cats' => $cats];
     }
 
@@ -708,11 +713,11 @@ final class DescGen
     /** Eklentiye: öneriler (yeni servislerin kendiliğinden üretilenleri önce). seen=1 yapılır. */
     public function proposals(int $limit = 100, bool $mark = true): array
     {
-        $rows = $this->db->all("SELECT sid, category_name, name, text, auto, seen, notes FROM desc_props WHERE status = 'proposed' AND text != '' ORDER BY auto DESC, seen ASC, updated_at DESC LIMIT " . max(1, min(300, $limit)));
+        $rows = $this->db->all("SELECT sid, category_name, name, text, auto, seen, notes, overwrite, old FROM desc_props WHERE status = 'proposed' AND text != '' ORDER BY auto DESC, seen ASC, updated_at DESC LIMIT " . max(1, min(300, $limit)));
         if ($mark && $rows) {
             $this->db->run('UPDATE desc_props SET seen = 1 WHERE sid IN (' . implode(',', array_map(static fn($r) => (int)$r['sid'], $rows)) . ')');
         }
-        return array_map(static fn($r) => ['sid' => (int)$r['sid'], 'category' => (string)$r['category_name'], 'name' => (string)$r['name'], 'text' => (string)$r['text'], 'auto' => (bool)$r['auto'], 'new' => !(int)$r['seen']], $rows);
+        return array_map(static fn($r) => ['sid' => (int)$r['sid'], 'category' => (string)$r['category_name'], 'name' => (string)$r['name'], 'text' => (string)$r['text'], 'auto' => (bool)$r['auto'], 'new' => !(int)$r['seen'], 'fix' => (bool)$r['overwrite'], 'old' => (string)$r['old']], $rows);
     }
 
     public const ORDER = 'panel_cat_order';
@@ -821,6 +826,26 @@ final class DescGen
      */
     public function fromImport(array $it): array
     {
+        // Min/Max ya da açıklama satırdan okunamadıysa: sağlayıcı API'sinden bilinen servis (aynı ID, ad eşleşmesi öncelikli)
+        if ((empty($it['min']) || empty($it['max']) || trim((string)($it['text'] ?? '')) === '') && ($pid = (int)($it['id'] ?? 0)) > 0) {
+            $cands = $this->db->all('SELECT name, min, max, description FROM remote_services WHERE service_id = ? LIMIT 20', [$pid]);
+            $nl = DescLearn::lower((string)($it['name'] ?? ''));
+            $hit = null;
+            foreach ($cands as $c) {
+                if ($nl !== '' && DescLearn::lower((string)$c['name']) === $nl) {
+                    $hit = $c;
+                    break;
+                }
+            }
+            $hit ??= count($cands) === 1 ? $cands[0] : null;
+            if ($hit) {
+                $it['min'] = !empty($it['min']) ? $it['min'] : ($hit['min'] !== null ? (int)$hit['min'] : null);
+                $it['max'] = !empty($it['max']) ? $it['max'] : ($hit['max'] !== null ? (int)$hit['max'] : null);
+                if (trim((string)($it['text'] ?? '')) === '' && trim((string)$hit['description']) !== '') {
+                    $it['text'] = (string)$hit['description'];
+                }
+            }
+        }
         $src = (string)($it['text'] ?? '');
         $low = DescLearn::lower(html_entity_decode(strip_tags(str_ireplace(['<br>', '<br/>', '<br />'], "\n", $src)), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         $name = trim((string)($it['az'] ?? '')) ?: (string)($it['name'] ?? '');
@@ -881,6 +906,86 @@ final class DescGen
         return $r + ['found' => array_values(array_unique($found))];
     }
 
+    /** Paneldeki açıklamada Min/Maks satırı var mı. */
+    public static function hasMinMax(string $desc): bool
+    {
+        return (bool)preg_match('/(?<![\p{L}])(min|minimum)(?![\p{L}])/iu', $desc) && (bool)preg_match('/(?<![\p{L}])(maks|max|maksimum|maximum)(?![\p{L}])/iu', $desc);
+    }
+
+    /**
+     * Düzeltilecek açıklamalar: panelde açıklaması olup Min/Maks yazmayan, ya da adıyla çelişen servisler.
+     * @return list<array{id:int,name:string,category_id:int,category_name:string,why:string,pst:?string}>
+     */
+    public function fixCandidates(): array
+    {
+        $rep = $this->db->getJson(DescLearn::REPORT);
+        $conf = [];
+        foreach (is_array($rep) ? ($rep['issues'] ?? []) : [] as $i) {
+            if (($i['kind'] ?? '') === 'conflict') {
+                $conf[(int)$i['id']] = (string)$i['msg'];
+            }
+        }
+        $out = [];
+        foreach ($this->db->all("SELECT d.id, d.name, d.category_id, d.category_name, d.description, d.pos, p.status pst FROM panel_desc d LEFT JOIN desc_props p ON p.sid = d.id WHERE d.description != '' ORDER BY d.pos, d.id") as $r) {
+            $why = isset($conf[(int)$r['id']]) ? $conf[(int)$r['id']] : (!self::hasMinMax((string)$r['description']) ? 'Min/Maks yazmıyor' : '');
+            if ($why === '' || in_array($r['pst'], ['applied', 'verified'], true)) {
+                continue;
+            }
+            $out[] = ['id' => (int)$r['id'], 'name' => (string)$r['name'], 'category_id' => (int)$r['category_id'], 'category_name' => (string)$r['category_name'], 'why' => $why, 'pst' => $r['pst']];
+        }
+        return $out;
+    }
+
+    /** Min/max kayıtlı değilse Admin API'den tamamla. */
+    private function fillMinMax(array $ids): void
+    {
+        if (!$ids || !$this->config) {
+            return;
+        }
+        try {
+            $api = new PanelServices($this->db, $this->config);
+            if ($api->configured()) {
+                foreach ($api->byIds($ids) as $id => $sv) {
+                    $this->db->run('UPDATE panel_desc SET min = ?, max = ?, cancel = ? WHERE id = ?', [$sv['min'] ?? null, $sv['max'] ?? null, !empty($sv['cancel']) ? 1 : 0, (int)$id]);
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->db->log('warn', 'bank', 'Min/max okunamadı: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Düzeltme önerisi: mevcut açıklama temel alınır (servise özel satırları korunur), yapı ve Min/Maks yeniden kurulur.
+     * Onaylanınca eklenti ÜZERİNE yazar; ama yalnız paneldeki metin bu eski metinle aynıysa.
+     */
+    public function proposeFix(array $sids, bool $auto = false): int
+    {
+        $sids = array_slice(array_map('intval', $sids), 0, 500);
+        $miss = array_map(static fn($r) => (int)$r['id'], $this->db->all('SELECT id FROM panel_desc WHERE (min IS NULL OR max IS NULL) AND id IN (' . (implode(',', $sids) ?: '0') . ')'));
+        $this->fillMinMax($miss);
+        $rules = $this->db->getJson(DescLearn::RULES);
+        $rules = is_array($rules) ? $rules + ['*' => [], 'groups' => []] : ['*' => [], 'groups' => []];
+        $n = 0;
+        $now = time();
+        foreach ($sids as $sid) {
+            $r = $this->db->one('SELECT * FROM panel_desc WHERE id = ?', [$sid]);
+            $cur = $this->db->one('SELECT status FROM desc_props WHERE sid = ?', [$sid]);
+            if (!$r || trim((string)$r['description']) === '' || ($cur && in_array($cur['status'], ['applied', 'verified'], true))) {
+                continue;
+            }
+            $group = (Matcher::platform($r['name'] . ' ' . $r['category_name']) ?: 'diğer') . '|' . DescLearn::type($r['name'] . ' ' . $r['category_name']);
+            $p = self::build(['id' => $sid, 'name' => (string)$r['name'], 'category' => (string)$r['category_name'], 'min' => $r['min'] !== null ? (int)$r['min'] : null,
+                'max' => $r['max'] !== null ? (int)$r['max'] : null, 'cancel' => (int)$r['cancel']], DescLearn::lines((string)$r['description']), $rules, $group);
+            $p['notes'][] = 'Düzeltme: paneldeki mevcut açıklamanın üzerine yazılacak (eski metin saklandı)';
+            $this->db->run('INSERT INTO desc_props(sid, category_id, category_name, name, text, base, notes, status, error, attempts, created_at, updated_at, auto, seen, overwrite, old) VALUES(?,?,?,?,?,?,?,?,?,0,?,?,?,0,1,?)
+                ON CONFLICT(sid) DO UPDATE SET text = excluded.text, base = excluded.base, notes = excluded.notes, status = \'proposed\', error = \'\', attempts = 0, updated_at = excluded.updated_at,
+                auto = excluded.auto, seen = 0, overwrite = 1, old = excluded.old',
+                [$sid, (int)$r['category_id'], (string)$r['category_name'], (string)$r['name'], $p['text'], 'paneldeki mevcut açıklama (düzeltme)', json_encode($p['notes'], JSON_UNESCAPED_UNICODE), 'proposed', '', $now, $now, $auto ? 1 : 0, (string)$r['description']]);
+            $n++;
+        }
+        return $n;
+    }
+
     /** Öneriyi sil (panele yazılmış olanlar hariç): servis yine "açıklama yok" olur, istenirse yeniden üretilir. */
     public function delete(array $sids): int
     {
@@ -932,8 +1037,9 @@ final class DescGen
     /** Eklentinin yazacakları. @return list<array{sid:int,text:string,category:string,name:string}> */
     public function queue(int $limit = 50): array
     {
-        return array_map(static fn($r) => ['sid' => (int)$r['sid'], 'text' => (string)$r['text'], 'category' => (string)$r['category_name'], 'name' => (string)$r['name']],
-            $this->db->all("SELECT sid, text, category_name, name FROM desc_props WHERE status = 'approved' AND attempts < 3 ORDER BY category_id, sid LIMIT " . max(1, min(200, $limit))));
+        return array_map(static fn($r) => ['sid' => (int)$r['sid'], 'text' => (string)$r['text'], 'category' => (string)$r['category_name'], 'name' => (string)$r['name']]
+                + ((int)$r['overwrite'] ? ['overwrite' => true, 'old' => (string)$r['old']] : []),
+            $this->db->all("SELECT sid, text, category_name, name, overwrite, old FROM desc_props WHERE status = 'approved' AND attempts < 3 ORDER BY category_id, sid LIMIT " . max(1, min(200, $limit))));
     }
 
     public function queueCount(): array

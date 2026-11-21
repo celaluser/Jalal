@@ -15,12 +15,13 @@ trait DescPages
         $rep = $L->report();
         $ready = (new PanelServices($this->db, $this->config))->configured();
         $sub = 'Açıklaması olmayan servisleri gör, kategori seç, açıklama ürettir, onayla; Chrome eklentisi panele yazar.';
-        $tab = in_array($_GET['t'] ?? '', ['empty', 'rules', 'tpl', 'issues', 'cats', 'gen'], true) ? (string)$_GET['t'] : 'empty';
+        $tab = in_array($_GET['t'] ?? '', ['empty', 'fix', 'rules', 'tpl', 'issues', 'cats', 'gen'], true) ? (string)$_GET['t'] : 'empty';
 
         $h = '<div class="panel panel-pad stack"><p><b>Nasıl çalışır:</b> 1) <b>Panelden oku</b> — servisler ve açıklamaları Admin API ile okunur, açıklamalı servislerden senin yazım kalıpların öğrenilir. '
             . '2) <b>Açıklamasızlar</b> sekmesinde kategoriyi aç, servisleri seç, <b>Açıklama üret</b>. 3) <b>Öneriler</b>de oku, düzelt, onayla. 4) Chrome eklentisi bildirim gösterir, <b>Panele ekle</b> deyince yazar.</p>'
             . ($rep ? '<p class="muted">Son okuma: ' . Ui::ago((int)$rep['at']) . ' · dil: ' . Ui::e($rep['langs'] ? implode(', ', $rep['langs']) : 'varsayılan') . '. Panelde açıklama ekledin/sildiysen yeniden oku.</p>' : '')
             . '<div class="row">' . ($ready ? $this->ui->action('desc_learn_run', $rep ? 'Panelden yeniden oku' : 'Panelden oku', [], 'primary', 'play')
+                . $this->ui->action('desc_auto_toggle', $this->db->get('desc_auto', '1') === '1' ? 'Yeni servislere otomatik öneri: Açık' : 'Yeni servislere otomatik öneri: Kapalı', [], 'ghost', $this->db->get('desc_auto', '1') === '1' ? 'check' : 'x')
                 : Ui::link('?p=settings&tab=publish', 'Panel API\'yi bağla', 'primary', 'link')) . '</div></div>';
         if (!$rep) {
             $this->render('Açıklamalar', $h . Ui::empty('Panel henüz okunmadı', 'Panelden oku\'ya bas: servisler ve açıklamaları okunur (3–4 bin serviste yaklaşık yarım dakika). Sonra açıklamasız kategoriler burada listelenir.'), ['active' => 'desc', 'sub' => $sub]);
@@ -35,7 +36,8 @@ trait DescPages
             . ($rep['missing'] ? ' <small class="muted">+ ' . (int)$rep['missing'] . ' eksik</small>' : '') . '</div></div></section>';
 
         $nProp = (int)($this->db->one("SELECT COUNT(*) c FROM desc_props WHERE status IN ('proposed','approved','failed')")['c'] ?? 0);
-        $tabs = ['empty' => 'Açıklamasızlar (' . (int)$rep['empty'] . ')', 'gen' => 'Öneriler' . ($nProp ? ' (' . $nProp . ')' : ''), 'rules' => 'Kurallar (' . count($rep['rules']) . ')', 'tpl' => 'Şablonlar (' . count($rep['templates']) . ')', 'issues' => 'Tutarsızlıklar (' . count($rep['issues']) . ')', 'cats' => 'Kategori özeti'];
+        $nFix = count((new \TgWatch\DescGen($this->db))->fixCandidates());
+        $tabs = ['empty' => 'Açıklamasızlar (' . (int)$rep['empty'] . ')', 'fix' => 'Düzelt' . ($nFix ? ' (' . $nFix . ')' : ''), 'gen' => 'Öneriler' . ($nProp ? ' (' . $nProp . ')' : ''), 'rules' => 'Kurallar (' . count($rep['rules']) . ')', 'tpl' => 'Şablonlar (' . count($rep['templates']) . ')', 'issues' => 'Tutarsızlıklar (' . count($rep['issues']) . ')', 'cats' => 'Kategori özeti'];
         $h .= '<nav class="tabs" aria-label="Bölüm">';
         foreach ($tabs as $k => $l) {
             $h .= '<a href="?p=desc&amp;t=' . $k . '"' . ($tab === $k ? ' aria-current="page"' : '') . '>' . Ui::e($l) . '</a>';
@@ -111,6 +113,8 @@ trait DescPages
             $h .= $this->descProposals();
         } elseif ($tab === 'empty') {
             $h .= $this->descEmpty();
+        } elseif ($tab === 'fix') {
+            $h .= $this->descFix();
         }
         $this->render('Açıklamalar', $h, ['active' => 'desc', 'sub' => $sub]);
     }
@@ -190,6 +194,32 @@ trait DescPages
         return $h;
     }
 
+    /** Düzelt: panelde açıklaması olup Min/Maks yazmayan ya da adıyla çelişen servisler → düzeltme önerisi (onaylanınca üzerine yazılır). */
+    private function descFix(): string
+    {
+        $list = (new \TgWatch\DescGen($this->db))->fixCandidates();
+        $h = '<p class="muted">Panelde açıklaması olan ama <b>Min/Maks yazmayan</b> ya da <b>adıyla çelişen</b> servisler. “Düzeltme öner” mevcut açıklamayı temel alır (servise özel satırları korur), düzeni ve Min/Maks\'ı (Admin API) yeniden kurar. '
+            . 'Öneriler sekmesinde eski ve yeni metni görürsün; onaylarsan eklenti <b>üzerine yazar</b> — ama yalnız paneldeki metin tgwatch\'ın bildiği eski metinle aynıysa (bu arada elle değiştirdiysen dokunmaz).</p>';
+        if (!$list) {
+            return $h . Ui::empty('Düzeltilecek açıklama yok', 'Son okumaya göre bütün açıklamalarda Min/Maks var ve adla çelişki yok. Panelde değişiklik yaptıysan “Panelden yeniden oku”.');
+        }
+        $h .= '<form method="post" action="?p=desc_fix" class="stack" data-selbar>' . $this->ui->csrfField()
+            . '<div class="row desc-selbar"><label class="row desc-all"><input type="checkbox" data-checkall="form"><span>Hepsini seç</span></label><span class="muted" data-selcount>Seçim yok</span>'
+            . '<button class="btn primary sm" data-selbtn="Seçilenlere düzeltme öner" disabled>' . Ui::icon('play') . '<span>Seçilenlere düzeltme öner</span></button>'
+            . '<button class="btn ghost sm" name="all" value="1">' . Ui::icon('play') . '<span>Hepsine düzeltme öner (' . count($list) . ')</span></button></div>'
+            . '<div class="table-wrap"><table><thead><tr><th></th><th>Servis</th><th>Neden</th><th>Durum</th></tr></thead><tbody>';
+        $cat = null;
+        foreach (array_slice($list, 0, 600) as $r) {
+            if ($r['category_name'] !== $cat) {
+                $cat = $r['category_name'];
+                $h .= '<tr><td colspan="4"><b>' . Ui::e($cat) . '</b></td></tr>';
+            }
+            $h .= '<tr><td class="tight"><input type="checkbox" name="sids[]" value="' . $r['id'] . '" aria-label="Seç ' . $r['id'] . '"></td><td><b>' . $r['id'] . '</b> ' . Ui::e($r['name']) . '</td>'
+                . '<td class="lvl-warn">' . Ui::e($r['why']) . '</td><td class="muted">' . ($r['pst'] === 'proposed' ? 'öneri hazır' : ($r['pst'] === 'approved' ? 'onaylı' : '')) . '</td></tr>';
+        }
+        return $h . '</tbody></table></div></form>';
+    }
+
     /** İşlemden sonra: Açıklamasızlar'da aynı kategori açık, aynı servise kaydırılmış. */
     private function descBack(string $tab, array $q): void
     {
@@ -259,6 +289,9 @@ trait DescPages
                     . ($v === 'approved' ? '<div class="row">' . $this->ui->action('desc_undo', 'Onayı geri al', ['sid' => $r['sid'], 'c' => $cat], 'ghost sm', 'x') . '</div>' : '')
                     . ($r['status'] === 'verified' ? '<p class="lvl-good">✓ Panelden okunup doğrulandı</p>' : ($r['status'] === 'applied' ? '<p class="muted">Eklenti yazdı (panel API bağlı değilse doğrulanamaz)</p>' : ''));
             }
+            if ((int)($r['overwrite'] ?? 0) && (string)$r['old'] !== '') {
+                $h .= '<details><summary class="lvl-warn">Düzeltme: paneldeki eski metnin üzerine yazılacak — eski metni gör</summary><pre class="src">' . Ui::e($r['old']) . '</pre></details>';
+            }
             if ($notes) {
                 $h .= '<details><summary class="muted">Nasıl üretildi (' . count($notes) . ')</summary><ul class="muted">' . implode('', array_map(static fn($n) => '<li>' . Ui::e($n) . '</li>', $notes)) . '</ul></details>';
             }
@@ -327,6 +360,19 @@ trait DescPages
                 }
                 $this->say($n ? 'ok' : 'bad', $n ? "$n açıklama onaylandı: Chrome eklentisi birkaç dakika içinde “Panele ekle” bildirimi gösterir." . ($skip ? " ($skip seçili serviste önce açıklama üret.)" : '') : 'Onaylanacak öneri yok: önce seçilenlere açıklama üret.');
                 $this->descBack('gen', ['v' => 'approved', 'c' => $cat]);
+                return true;
+            case 'desc_fix':
+                $G2 = new \TgWatch\DescGen($this->db, $this->config);
+                $ids = !empty($_POST['all']) ? array_column($G2->fixCandidates(), 'id') : (isset($_POST['sids']) && is_array($_POST['sids']) ? array_map('intval', $_POST['sids']) : []);
+                $n = $ids ? $G2->proposeFix($ids) : 0;
+                $this->say($n ? 'ok' : 'bad', $n ? "$n düzeltme önerisi hazır: eski ve yeni metni karşılaştırıp onayla." : 'Hiç servis seçilmedi.');
+                $this->redirect('desc', $n ? ['t' => 'gen', 'v' => 'proposed'] : ['t' => 'fix']);
+                return true;
+            case 'desc_auto_toggle':
+                $on = $this->db->get('desc_auto', '1') === '1';
+                $this->db->set('desc_auto', $on ? '0' : '1');
+                $this->say('ok', $on ? 'Yeni servislere otomatik öneri kapatıldı.' : 'Yeni servislere otomatik öneri açıldı (saatte bir ve her importtan sonra).');
+                $this->redirect('desc');
                 return true;
             case 'desc_del':
             case 'desc_del_sel':

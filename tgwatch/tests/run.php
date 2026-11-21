@@ -2741,6 +2741,29 @@ test('İmport: kaynak (İngilizce) açıklamadan bilgi alıp Azerice açıklama 
     $t2 = $r['items'][1]['text'];
     ok(str_contains($t2, '🔸 Link: Video linki') && str_contains($t2, "\nQeydlər:\n") && !str_contains($t2, 'Qarantiya'), "boş kaynak açıklama:\n$t2");
 });
+test('İmport: Min/Max ve boş açıklama sağlayıcı listesinden (remote_services) tamamlanır', function () {
+    [$db] = env();
+    $db->run("INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max,description) VALUES(1,15341,'Instagram Followers | Real','IG',1,25,75000,'Start: 0-1 hour\nLink: profile link')");
+    $db->run("INSERT INTO remote_services(source_id,service_id,name,category,rate,min,max,description) VALUES(2,15341,'Başka servis','X',1,1,2,'')");
+    [, $r] = (new TgWatch\ExtApi($db, []))->handle(['action' => 'desc_build', 'items' => [['id' => '15341', 'name' => 'Instagram Followers | Real', 'az' => 'Instagram İzləyici | Real', 'text' => '', 'min' => null, 'max' => null]]]);
+    $t = $r['items'][0]['text'];
+    ok(str_contains($t, '🔸 Min: 25') && str_contains($t, '🔸 Maks: 75.000') && str_contains($t, '🔸 Başlama: 0-1 saat') && str_contains($t, '🔸 Link: Profil linki'), $t);
+});
+test('Düzelt: Min/Maks yazmayan açıklamaya düzeltme önerisi (üzerine yazma, eski metin saklanır)', function () {
+    [$db] = env();
+    $db->run("INSERT INTO panel_desc(id,name,category_id,category_name,status,description,min,max,at,pos) VALUES(7,'Instagram İzləyici | Ani | Qarantisiz',5,'IG','enabled','🔸 Başlama: Ani\n🔸 Link: Profil linki\n🔸 Xüsusi qeyd sətri',10,5000,1,1)");
+    $db->run("INSERT INTO panel_desc(id,name,category_id,category_name,status,description,min,max,at,pos) VALUES(8,'Instagram İzləyici',5,'IG','enabled','Min: 10 / Maks: 5K',10,5000,1,2)");
+    $g = new TgWatch\DescGen($db);
+    eq([7], array_column($g->fixCandidates(), 'id'));
+    eq(1, $g->proposeFix([7]));
+    $p = $db->one('SELECT text, old, overwrite, status FROM desc_props WHERE sid = 7');
+    ok(str_contains($p['text'], '🔸 Min: 10') && str_contains($p['text'], '🔸 Maks: 5.000') && str_contains($p['text'], '🔸 Xüsusi qeyd sətri') && str_contains($p['text'], '🔸 Qarantiya: Yoxdur'), $p['text']);
+    eq([1, 'proposed'], [(int)$p['overwrite'], $p['status']]);
+    ok(str_contains($p['old'], 'Xüsusi qeyd sətri'));
+    $g->setStatus([7], 'approved');
+    $q = $g->queue();
+    eq([true, true], [$q[0]['overwrite'] ?? false, str_contains($q[0]['old'] ?? '', 'Başlama: Ani')]);
+});
 test('Yeni servis: Admin API listesinde yeni çıkan açıklamasız servise kendiliğinden öneri', function () {
     [$db] = env();
     $db->run("INSERT INTO panel_desc(id,name,category_id,category_name,status,description,at,pos) VALUES(1,'Instagram Bəyəni | Ani',5,'Instagram Bəyəni','enabled','🔗 Link: Paylaşım linki',1,1)");
@@ -2756,10 +2779,10 @@ test('Yeni servis: Admin API listesinde yeni çıkan açıklamasız servise kend
     } finally {
         TgWatch\PanelAdmin::$fake = null;
     }
-    eq([2, 1], [$r['new'], $r['made']]);
+    eq([2, 2], [$r['new'], $r['made']], '1 açıklamasız + 1 Min/Maks yazmayan (düzeltme)');
     $p = $db->one('SELECT status, auto, text FROM desc_props WHERE sid = 2');
     ok($p && $p['status'] === 'proposed' && (int)$p['auto'] === 1 && str_contains($p['text'], 'Qarantiya: 30 gün'), json_encode($p, JSON_UNESCAPED_UNICODE));
-    eq(null, $db->one('SELECT sid FROM desc_props WHERE sid = 3'), 'açıklaması olana öneri yok');
+    eq([1, 'Var'], array_values($db->one('SELECT overwrite, old FROM desc_props WHERE sid = 3')), 'açıklaması var ama Min/Maks yok: düzeltme önerisi');
     eq(3, (int)$db->one('SELECT COUNT(*) c FROM panel_desc')['c']);
 });
 echo "Chrome eklentisi API\n";

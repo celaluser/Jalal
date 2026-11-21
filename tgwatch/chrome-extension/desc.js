@@ -49,10 +49,16 @@ async function loadProps() {
     const h = el('h3');
     h.append(el('small', '', it.sid + ' · '), document.createTextNode(it.name));
     if (it.auto) h.appendChild(el('span', 'tag', it.new ? 'yeni servis' : 'otomatik'));
+    if (it.fix) h.appendChild(el('span', 'tag', 'düzeltme · üzerine yazılır'));
     const ta = document.createElement('textarea');
     ta.value = it.text;
     ta.rows = Math.min(16, Math.max(4, it.text.split('\n').length + 1));
     ta.dataset.sid = it.sid;
+    let oldBox = null;
+    if (it.fix && it.old) {
+      oldBox = el('details', 'old');
+      oldBox.append(el('summary', 'muted', 'Paneldeki eski metin'), el('pre', '', it.old));
+    }
     const row = el('div', 'row');
     const ok = el('button', 'btn sm', 'Onayla');
     ok.onclick = async () => { ok.disabled = true; const x = await api('desc_approve', { items: [{ sid: it.sid, text: ta.value }] }); if (x.ok && x.approved) { card.remove(); say('Onaylandı: ' + it.sid + '. Panele yazılacaklar listesinde.'); counts(); } else { ok.disabled = false; say(x.error || 'Onaylanamadı'); } syncSel(); };
@@ -79,6 +85,7 @@ async function loadProps() {
     };
     row.append(ok, re, del, lines);
     card.append(cb, h, el('span'), ta, el('span'), row);
+    if (oldBox) card.append(el('span'), oldBox);
     box.appendChild(card);
   }
   syncSel();

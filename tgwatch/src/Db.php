@@ -155,7 +155,7 @@ SQL);
             base TEXT NOT NULL DEFAULT \'\', notes TEXT NOT NULL DEFAULT \'[]\', status TEXT NOT NULL DEFAULT \'proposed\', error TEXT NOT NULL DEFAULT \'\', attempts INTEGER NOT NULL DEFAULT 0,
             created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)');
         $dpCols = array_column($this->pdo->query('PRAGMA table_info(desc_props)')->fetchAll(), 'name');
-        foreach (['auto' => 'INTEGER NOT NULL DEFAULT 0', 'seen' => 'INTEGER NOT NULL DEFAULT 0'] as $col => $def) {
+        foreach (['auto' => 'INTEGER NOT NULL DEFAULT 0', 'seen' => 'INTEGER NOT NULL DEFAULT 0', 'overwrite' => 'INTEGER NOT NULL DEFAULT 0', 'old' => "TEXT NOT NULL DEFAULT ''"] as $col => $def) {
             if (!in_array($col, $dpCols, true)) {
                 $this->pdo->exec("ALTER TABLE desc_props ADD COLUMN $col $def"); // auto: yeni servis için kendiliğinden üretildi; seen: eklentide görüldü
             }
