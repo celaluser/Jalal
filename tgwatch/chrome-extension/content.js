@@ -1806,6 +1806,16 @@
       stable = n === lastCount ? stable + 1 : 0;
       lastCount = n;
     }
+    sendCatOrder();
+  }
+  /** Liste sonuna kadar yüklenince sitedeki kategori sırası tgwatch'a (Açıklamalar sayfası bu sırayla listeler). */
+  let catOrderSent = 0;
+  function sendCatOrder() {
+    if (Date.now() - catOrderSent < 60000) return;
+    const names = categoryRows().map((r) => r.name);
+    if (names.length < 3) return;
+    catOrderSent = Date.now();
+    api('cat_order', { names });
   }
 
   const onServicesList = () => /\/admin\/services\/?$/.test(location.pathname);

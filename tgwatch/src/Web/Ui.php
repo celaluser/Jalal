@@ -597,10 +597,11 @@ final class Ui
   d.addEventListener('submit', function (e) { // confirm yukarıda çalıştı; iptal edildiyse dokunma
     var f = e.target;
     if (e.defaultPrevented || !f.method || f.method.toLowerCase() !== 'post' || f.enctype === 'multipart/form-data' || d.body.classList.contains('bare')) return;
-    var act; try { act = new URL(f.action, location.href); } catch (x) { return; }
+    var sb = e.submitter;
+    var act; try { act = new URL(sb && sb.hasAttribute('formaction') ? sb.formAction : f.action, location.href); } catch (x) { return; } // düğmenin kendi hedefi (formaction) önce
     if (act.origin !== location.origin || NOSOFT.indexOf(act.searchParams.get('p') || '') >= 0) return;
     e.preventDefault();
-    var sb = e.submitter; if (sb) sb.classList.add('busy');
+    if (sb) sb.classList.add('busy');
     var fd; try { fd = new FormData(f, sb); } catch (x) { fd = new FormData(f); }
     load(act.href, { method: 'POST', body: fd });
   });

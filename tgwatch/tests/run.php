@@ -2605,6 +2605,21 @@ test('Açıklama üretimi: açıklamasız servise kategorideki örnekten öneri;
     (new TgWatch\ExtApi($db, []))->handle(['action' => 'desc_done', 'items' => [['sid' => 9, 'ok' => false, 'error' => 'panelde zaten açıklama var', 'final' => true]]]);
     eq('failed', $db->one('SELECT status FROM desc_props WHERE sid = 9')['status'], 'kalıcı hata: tek denemede hatalı');
 });
+test('Açıklamasız kategoriler: sitedeki sıra (eklentiden), yoksa Admin API sırası', function () {
+    [$db] = env();
+    $now = time();
+    foreach ([[1, 30, 'B kat', 3], [2, 10, 'A kat', 1], [3, 20, 'C kat', 2], [4, 10, 'A kat', 9]] as [$id, $cat, $name, $pos]) {
+        $db->run("INSERT INTO panel_desc(id,name,category_id,category_name,status,description,at,pos) VALUES(?,?,?,?,'enabled','',?,?)", [$id, 'S' . $id, $cat, $name, $now, $pos]);
+    }
+    $g = new TgWatch\DescGen($db);
+    $e = $g->emptyCategories();
+    eq(['api', [10, 20, 30]], [$e['source'], array_map(static fn($c) => (int)$c['category_id'], $e['cats'])]);
+    eq(0, TgWatch\DescGen::saveOrder($db, ['x']), 'yarım liste kaydedilmez');
+    $api = new TgWatch\ExtApi($db, []);
+    eq(4, $api->handle(['action' => 'cat_order', 'names' => ['C  kat', 'Z kat', 'b kat', 'A kat']])[1]['saved']);
+    $e = $g->emptyCategories();
+    eq(['site', [20, 30, 10]], [$e['source'], array_map(static fn($c) => (int)$c['category_id'], $e['cats'])]);
+});
 test('Açıklama üretimi: önce öğrenme gerekir', function () {
     [$db] = env();
     try {

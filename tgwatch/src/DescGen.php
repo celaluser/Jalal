@@ -318,6 +318,50 @@ final class DescGen
         return ['made' => $made - $skipped, 'skipped' => $skipped, 'kept' => $kept, 'base' => $src];
     }
 
+    public const ORDER = 'panel_cat_order';
+
+    /** Sitedeki kategori sırası (eklenti gönderir): normalize ad → sıra. En az 3 kategori gerekir (yarım liste yazılmasın). */
+    public static function saveOrder(Db $db, array $names): int
+    {
+        $map = [];
+        foreach (array_slice($names, 0, 5000) as $n) {
+            $k = self::catKey((string)$n);
+            if ($k !== '' && !isset($map[$k])) {
+                $map[$k] = count($map) + 1;
+            }
+        }
+        if (count($map) < 3) {
+            return 0;
+        }
+        $db->setJson(self::ORDER, ['at' => time(), 'map' => $map]);
+        return count($map);
+    }
+
+    public static function catKey(string $n): string
+    {
+        return mb_strtolower(trim(preg_replace('/\s+/u', ' ', $n) ?? $n));
+    }
+
+    /**
+     * Açıklamasızı olan kategoriler, sitedeki sırayla (eklenti göndermişse), yoksa Admin API listesindeki sırayla.
+     * @return array{cats:list<array>,source:string}
+     */
+    public function emptyCategories(): array
+    {
+        $cats = $this->db->all("SELECT category_id, MAX(category_name) category_name, COUNT(*) n, SUM(description = '') e, SUM(description = '' AND status = 'enabled') eon, MIN(pos) pos
+            FROM panel_desc GROUP BY category_id HAVING e > 0");
+        $order = $this->db->getJson(self::ORDER);
+        $map = is_array($order) && !empty($order['map']) ? $order['map'] : [];
+        $hit = 0;
+        foreach ($cats as &$c) {
+            $c['site'] = $map[self::catKey((string)$c['category_name'])] ?? null;
+            $hit += $c['site'] !== null ? 1 : 0;
+        }
+        unset($c);
+        usort($cats, static fn($a, $b) => [$a['site'] === null ? 1 : 0, $a['site'] ?? 0, (int)$a['pos'], (int)$a['category_id']] <=> [$b['site'] === null ? 1 : 0, $b['site'] ?? 0, (int)$b['pos'], (int)$b['category_id']]);
+        return ['cats' => $cats, 'source' => $hit ? 'site' : 'api', 'site_at' => (int)($order['at'] ?? 0)];
+    }
+
     public function setStatus(array $sids, string $status, ?string $text = null): int
     {
         $n = 0;

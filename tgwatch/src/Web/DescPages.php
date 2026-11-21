@@ -115,13 +115,13 @@ trait DescPages
         $this->render('Açıklamalar', $h, ['active' => 'desc', 'sub' => $sub]);
     }
 
-    /** Açıklamasız servisler, kategoriye göre: kategoriyi aç → servisleri seç → üret. */
+    /** Açıklamasız servisler, sitedeki kategori sırasıyla: kategoriye tıkla → servisler açılır → servis başına üret / düzelt / onayla. */
     private function descEmpty(): string
     {
         $q = trim((string)($_GET['q'] ?? ''));
         $open = (int)($_GET['c'] ?? 0);
-        $cats = $this->db->all("SELECT category_id, MAX(category_name) category_name, COUNT(*) n, SUM(description = '') e, SUM(description = '' AND status = 'enabled') eon
-            FROM panel_desc GROUP BY category_id HAVING e > 0 ORDER BY (category_id = ?) DESC, e DESC, category_name", [$open]);
+        $E = (new \TgWatch\DescGen($this->db))->emptyCategories();
+        $cats = $E['cats'];
         if ($q !== '') {
             $cats = array_values(array_filter($cats, static fn($c) => mb_stripos((string)$c['category_name'], $q) !== false || (string)$c['category_id'] === $q));
         }
@@ -131,36 +131,65 @@ trait DescPages
         if (!$cats) {
             return $h . Ui::empty($q !== '' ? 'Eşleşen kategori yok' : 'Açıklamasız servis yok', $q !== '' ? 'Başka bir ad dene.' : 'Son okumaya göre bütün servislerin açıklaması var.');
         }
-        $h .= '<p class="muted">' . count($cats) . ' kategoride açıklamasız servis var (en çok olandan başlar). Kategoriye tıkla, servisleri gör, istediklerini seçip <b>Açıklama üret</b>\'e bas.</p>';
+        $h .= '<p class="muted">' . count($cats) . ' kategoride açıklamasız servis var. Sıra: '
+            . ($E['source'] === 'site' ? '<b>sitedeki gibi</b> (eklenti ' . Ui::ago($E['site_at']) . ' okudu)' : 'Admin API listesindeki gibi (sitedeki sıra, eklenti açıklamaları panele ilk yazdığında okunur)')
+            . '. Kategoriye tıkla, servisleri açılır; tek servise ya da seçtiklerine açıklama üret, metni düzelt, onayla.</p>';
         $label = ['proposed' => ['öneri hazır', 'lvl-warn'], 'approved' => ['onaylı, eklentiyi bekliyor', 'lvl-good'], 'applied' => ['panele yazıldı', 'lvl-good'], 'verified' => ['panele yazıldı ✓', 'lvl-good'], 'failed' => ['hatalı', 'lvl-error'], 'rejected' => ['reddedildi', 'muted']];
-        $shown = 0;
+        $ids = array_map(static fn($c) => (int)$c['category_id'], $cats);
+        $byCat = [];
+        foreach (array_chunk($ids, 400) as $chunk) {
+            foreach ($this->db->all('SELECT d.id, d.name, d.status, d.category_id, p.status pst, p.text, p.error, p.notes FROM panel_desc d LEFT JOIN desc_props p ON p.sid = d.id
+                WHERE d.description = \'\' AND d.category_id IN (' . implode(',', $chunk) . ') ORDER BY d.pos, d.id') as $r) {
+                $byCat[(int)$r['category_id']][] = $r;
+            }
+        }
         foreach ($cats as $c) {
-            if (++$shown > 150) {
-                $h .= '<p class="muted">İlk 150 kategori gösterildi; aramayla daralt.</p>';
-                break;
-            }
             $cid = (int)$c['category_id'];
-            $isOpen = $cid === $open || count($cats) === 1;
-            $h .= '<details class="panel panel-pad gap-top"' . ($isOpen ? ' open' : '') . '><summary><b>' . Ui::e($c['category_name']) . '</b> <span class="muted">#' . $cid . ' · ' . (int)$c['e'] . ' açıklamasız / ' . (int)$c['n'] . ' servis'
-                . ((int)$c['eon'] < (int)$c['e'] ? ' (' . ((int)$c['e'] - (int)$c['eon']) . ' kapalı)' : '') . '</span></summary>';
-            if (!$isOpen) {
-                $h .= '<p><a href="?p=desc&amp;t=empty&amp;c=' . $cid . ($q !== '' ? '&amp;q=' . urlencode($q) : '') . '">Servisleri göster</a></p></details>';
-                continue;
-            }
-            $svcs = $this->db->all("SELECT d.id, d.name, d.status, p.status pst FROM panel_desc d LEFT JOIN desc_props p ON p.sid = d.id WHERE d.category_id = ? AND d.description = '' ORDER BY d.id LIMIT 300", [$cid]);
-            $h .= '<form method="post" action="?p=desc_gen" class="stack">' . $this->ui->csrfField() . '<input type="hidden" name="cat" value="' . $cid . '">'
-                . '<div class="table-wrap"><table><thead><tr><th class="tight"><input type="checkbox" checked aria-label="Hepsini seç" onclick="for(const x of this.closest(\'form\').querySelectorAll(\'input[name=&quot;sids[]&quot;]\'))x.checked=this.checked"></th><th>Servis</th><th>Durum</th></tr></thead><tbody>';
+            $svcs = $byCat[$cid] ?? [];
+            $nProp = count(array_filter($svcs, static fn($r) => $r['pst'] !== null));
+            $h .= '<details class="panel panel-pad gap-top desc-cat" id="c' . $cid . '"' . ($cid === $open || count($cats) === 1 ? ' open' : '') . '><summary style="cursor:pointer"><b>' . Ui::e($c['category_name']) . '</b> <span class="muted">#' . $cid . ' · ' . (int)$c['e'] . ' açıklamasız / ' . (int)$c['n'] . ' servis'
+                . ((int)$c['eon'] < (int)$c['e'] ? ' · ' . ((int)$c['e'] - (int)$c['eon']) . ' kapalı' : '') . ($nProp ? ' · ' . $nProp . ' öneri' : '') . '</span></summary>'
+                . '<form method="post" action="?p=desc_gen" class="stack gap-top">' . $this->ui->csrfField() . '<input type="hidden" name="cat" value="' . $cid . '"><input type="hidden" name="back" value="empty">'
+                . '<div class="table-wrap"><table><thead><tr><th class="tight"><input type="checkbox" aria-label="Hepsini seç" onclick="for(const x of this.closest(\'form\').querySelectorAll(\'input[name=&quot;sids[]&quot;]:not(:disabled)\'))x.checked=this.checked"></th><th>Servis ve açıklama</th></tr></thead><tbody>';
             foreach ($svcs as $sv) {
-                $st = $label[$sv['pst'] ?? ''] ?? null;
-                $locked = in_array($sv['pst'], ['approved', 'applied', 'verified'], true);
-                $h .= '<tr><td class="tight"><input type="checkbox" name="sids[]" value="' . (int)$sv['id'] . '"' . ($locked ? ' disabled' : ' checked') . ' aria-label="Seç ' . (int)$sv['id'] . '"></td>'
-                    . '<td><b>' . (int)$sv['id'] . '</b> ' . Ui::e($sv['name']) . ($sv['status'] !== 'enabled' ? ' <span class="muted">· kapalı</span>' : '') . '</td>'
-                    . '<td>' . ($st ? '<span class="' . $st[1] . '">' . $st[0] . '</span>' : '<span class="muted">açıklama yok</span>') . '</td></tr>';
+                $sid = (int)$sv['id'];
+                $pst = $sv['pst'];
+                $st = $label[$pst ?? ''] ?? null;
+                $locked = in_array($pst, ['approved', 'applied', 'verified'], true);
+                $h .= '<tr id="s' . $sid . '"><td class="tight"><input type="checkbox" name="sids[]" value="' . $sid . '"' . ($locked ? ' disabled' : '') . ' aria-label="Seç ' . $sid . '"></td><td><div class="row" style="justify-content:space-between">'
+                    . '<span><b>' . $sid . '</b> ' . Ui::e($sv['name']) . ($sv['status'] !== 'enabled' ? ' <span class="muted">· kapalı</span>' : '') . '</span>'
+                    . '<span>' . ($st ? '<span class="' . $st[1] . '">' . $st[0] . '</span> ' : '')
+                    . (!$locked ? '<button class="btn quiet sm" formaction="?p=desc_gen" name="one" value="' . $sid . '">' . Ui::icon('play') . '<span>' . ($pst ? 'Yeniden üret' : 'Açıklama üret') . '</span></button>' : '') . '</span></div>';
+                if ($pst !== null && !$locked) {
+                    $warn = array_filter(json_decode((string)$sv['notes'], true) ?: [], static fn($n) => str_starts_with($n, '⚠'));
+                    $h .= ($warn ? '<p class="lvl-error">' . Ui::e(implode(' · ', $warn)) . '</p>' : '') . ($sv['error'] !== '' ? '<p class="lvl-error">' . Ui::e($sv['error']) . '</p>' : '')
+                        . '<textarea name="text[' . $sid . ']" rows="' . max(3, min(14, substr_count((string)$sv['text'], "\n") + 2)) . '" aria-label="Açıklama ' . $sid . '" style="width:100%">' . Ui::e($sv['text']) . '</textarea>'
+                        . '<div class="row"><button class="btn primary sm" formaction="?p=desc_ok" name="sid" value="' . $sid . '">' . Ui::icon('check') . '<span>Kaydet ve onayla</span></button>'
+                        . '<button class="btn ghost sm" formaction="?p=desc_save" name="sid" value="' . $sid . '"><span>Yalnızca kaydet</span></button>'
+                        . ($pst !== 'rejected' ? '<button class="btn ghost sm" formaction="?p=desc_reject" name="sid" value="' . $sid . '">' . Ui::icon('x') . '<span>Reddet</span></button>' : '') . '</div>';
+                } elseif ($locked) {
+                    $h .= '<pre class="src">' . Ui::e($sv['text']) . '</pre>'
+                        . ($pst === 'approved' ? '<div class="row"><button class="btn ghost sm" formaction="?p=desc_undo" name="sid" value="' . $sid . '">' . Ui::icon('x') . '<span>Onayı geri al (düzeltmek için)</span></button></div>' : '');
+                }
+                $h .= '</td></tr>';
             }
-            $h .= '</tbody></table></div><div class="row"><button class="btn primary">' . Ui::icon('play') . '<span>Seçilenlere açıklama üret</span></button>'
-                . '<span class="muted">Panele hiçbir şey yazılmaz; öneriler önce sana gösterilir.</span></div></form></details>';
+            $h .= '</tbody></table></div><div class="row"><button class="btn">' . Ui::icon('play') . '<span>Seçilenlere açıklama üret</span></button>'
+                . '<span class="muted">Panele hiçbir şey yazılmaz; önce sen onaylarsın.</span></div></form></details>';
+        }
+        if ($open) {
+            $h .= '<script>(()=>{const e=document.getElementById(' . json_encode('s' . (int)($_GET['s'] ?? 0)) . ')||document.getElementById(' . json_encode('c' . $open) . ');if(e)e.scrollIntoView({block:"center"});})()</script>';
         }
         return $h;
+    }
+
+    /** İşlemden sonra: Açıklamasızlar'da aynı kategori açık, aynı servise kaydırılmış. */
+    private function descBack(string $tab, array $q): void
+    {
+        if (($_POST['back'] ?? '') === 'empty') {
+            $this->redirect('desc', ['t' => 'empty', 'c' => (int)($_POST['cat'] ?? 0), 's' => (int)($_POST['sid'] ?? $_POST['one'] ?? 0)]);
+            return;
+        }
+        $this->redirect('desc', ['t' => $tab] + $q);
     }
 
     private function descProposals(): string
@@ -237,29 +266,43 @@ trait DescPages
         switch ($p) {
             case 'desc_gen':
                 $c = (int)($_POST['cat'] ?? 0);
-                $sids = isset($_POST['sids']) && is_array($_POST['sids']) ? array_map('intval', $_POST['sids']) : null;
-                if ($sids === []) {
-                    $this->say('bad', 'Hiç servis seçilmedi.');
-                    $this->redirect('desc', ['t' => 'empty', 'c' => $c]);
+                $sids = !empty($_POST['one']) ? [(int)$_POST['one']] : (isset($_POST['sids']) && is_array($_POST['sids']) ? array_map('intval', $_POST['sids']) : null);
+                if ($sids === [] || ($sids === null && ($_POST['back'] ?? '') === 'empty')) {
+                    $this->say('bad', 'Hiç servis seçilmedi: servisleri işaretle ya da servisin yanındaki “Açıklama üret”e bas.');
+                    $this->descBack('empty', ['c' => $c]);
                     return true;
                 }
                 try {
+                    if ($sids !== null && count($sids) === 1) {
+                        $G->setStatus($sids, 'proposed'); // reddedilmiş/hatalı olsa da yeniden üretilebilsin
+                    }
                     $r = $G->generate($c, $sids);
-                    $this->say('ok', $r['made'] . ' öneri hazır' . ($r['skipped'] ? ', ' . $r['skipped'] . ' serviste kullanılabilir bilgi yok' : '') . ($r['kept'] ? ', ' . $r['kept'] . ' onaylı öneri korundu' : '') . '. Temel: ' . $r['base'] . '.');
+                    $this->say('ok', $r['made'] . ' öneri hazır' . ($r['skipped'] ? ', ' . $r['skipped'] . ' serviste kullanılabilir bilgi yok' : '') . ($r['kept'] ? ', ' . $r['kept'] . ' onaylı öneri korundu' : '') . '. Metni aşağıda düzeltip onaylayabilirsin.');
                 } catch (\Throwable $e) {
                     $this->say('bad', $e->getMessage());
                 }
-                $this->redirect('desc', ['t' => 'gen', 'v' => 'proposed', 'c' => $c]);
+                if (($_POST['back'] ?? '') === 'empty') {
+                    $this->redirect('desc', ['t' => 'empty', 'c' => $c, 's' => $sids && count($sids) === 1 ? $sids[0] : 0]);
+                } else {
+                    $this->redirect('desc', ['t' => 'gen', 'v' => 'proposed', 'c' => $c]);
+                }
                 return true;
             case 'desc_ok':
-                $text = trim(str_replace(["\r\n", "\r"], "\n", (string)($_POST['text'] ?? '')));
+            case 'desc_save':
+                $sid = (int)($_POST['sid'] ?? 0);
+                $text = $_POST['text'] ?? '';
+                $text = is_array($text) ? (string)($text[$sid] ?? '') : (string)$text;
+                $text = trim(str_replace(["\r\n", "\r"], "\n", $text));
                 if ($text === '' || mb_strlen($text) > 5000) {
                     $this->say('bad', 'Açıklama boş olamaz (en çok 5000 karakter).');
+                } elseif ($p === 'desc_save') {
+                    $G->setStatus([$sid], 'proposed', $text);
+                    $this->say('ok', 'Kaydedildi (henüz onaylanmadı).');
                 } else {
-                    $G->setStatus([(int)($_POST['sid'] ?? 0)], 'approved', $text);
+                    $G->setStatus([$sid], 'approved', $text);
                     $this->say('ok', 'Onaylandı: eklenti panele yazacak.');
                 }
-                $this->redirect('desc', ['t' => 'gen', 'v' => 'proposed', 'c' => $cat]);
+                $this->descBack('gen', ['v' => 'proposed', 'c' => $cat]);
                 return true;
             case 'desc_ok_all':
                 $ids = array_column($this->db->all("SELECT sid FROM desc_props WHERE status = 'proposed' AND text != ''" . ($cat ? ' AND category_id = ' . $cat : '') . ' ORDER BY category_id, sid LIMIT 200'), 'sid');
@@ -270,8 +313,8 @@ trait DescPages
             case 'desc_reject':
             case 'desc_undo':
                 $G->setStatus([(int)($_POST['sid'] ?? 0)], $p === 'desc_reject' ? 'rejected' : 'proposed');
-                $this->say('ok', $p === 'desc_reject' ? 'Reddedildi.' : 'Onay geri alındı.');
-                $this->redirect('desc', ['t' => 'gen', 'v' => $p === 'desc_reject' ? 'proposed' : 'approved', 'c' => $cat]);
+                $this->say('ok', $p === 'desc_reject' ? 'Reddedildi.' : 'Onay geri alındı: metni düzeltebilirsin.');
+                $this->descBack($p === 'desc_reject' ? 'gen' : 'gen', ['v' => $p === 'desc_reject' ? 'proposed' : 'approved', 'c' => $cat]);
                 return true;
         }
         if ($p !== 'desc_learn_run') {

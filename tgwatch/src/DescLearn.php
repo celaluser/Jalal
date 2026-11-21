@@ -442,10 +442,12 @@ final class DescLearn
         }
         $this->db->tx(function () use ($rows): void {
             $this->db->run('DELETE FROM panel_desc');
-            $st = $this->db->pdo->prepare('INSERT OR REPLACE INTO panel_desc(id, name, category_id, category_name, status, description, min, max, refill, cancel, at) VALUES(?,?,?,?,?,?,?,?,?,?,?)');
+            // pos: Admin API listesindeki sıra (panelin kendi sırası); sitedeki kategori sırası eklentiden gelirse o kullanılır
+            $st = $this->db->pdo->prepare('INSERT OR REPLACE INTO panel_desc(id, name, category_id, category_name, status, description, min, max, refill, cancel, at, pos) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)');
             $now = time();
+            $i = 0;
             foreach ($rows as $r) {
-                $st->execute([...$r, $now]);
+                $st->execute([...$r, $now, ++$i]);
             }
         });
         $catRows = array_values($cats);

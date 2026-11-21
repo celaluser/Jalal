@@ -145,7 +145,7 @@ SQL);
         // Paneldeki Azerice açıklamalar (Açıklamalar bölümü okur; panelde değişiklik yapmaz)
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS panel_desc (id INTEGER PRIMARY KEY, name TEXT NOT NULL, category_id INTEGER, category_name TEXT NOT NULL DEFAULT \'\', status TEXT NOT NULL DEFAULT \'\', description TEXT NOT NULL DEFAULT \'\', at INTEGER NOT NULL)');
         $pdCols = array_column($this->pdo->query('PRAGMA table_info(panel_desc)')->fetchAll(), 'name');
-        foreach (['min' => 'INTEGER', 'max' => 'INTEGER', 'refill' => 'INTEGER NOT NULL DEFAULT 0', 'cancel' => 'INTEGER NOT NULL DEFAULT 0'] as $col => $def) {
+        foreach (['min' => 'INTEGER', 'max' => 'INTEGER', 'refill' => 'INTEGER NOT NULL DEFAULT 0', 'cancel' => 'INTEGER NOT NULL DEFAULT 0', 'pos' => 'INTEGER NOT NULL DEFAULT 0'] as $col => $def) {
             if (!in_array($col, $pdCols, true)) {
                 $this->pdo->exec("ALTER TABLE panel_desc ADD COLUMN $col $def");
             }
