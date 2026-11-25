@@ -14,6 +14,7 @@
   button.quiet{background:#fff;color:#0e8c7b}
   #msg{margin-top:16px;padding:10px 12px;border-radius:6px;display:none}
   #msg.ok{display:block;background:#d9f0ec}#msg.bad{display:block;background:#f5d9e1}
+  #pmsg{margin-top:16px;padding:10px 12px;border-radius:6px;display:none}#pmsg.ok{display:block;background:#d9f0ec}#pmsg.bad{display:block;background:#f5d9e1}
 </style>
 </head>
 <body>
@@ -32,6 +33,19 @@
   <div class="row"><button type="submit">Kaydet ve dene</button></div>
 </form>
 <div id="msg"></div>
+
+<h1 style="margin-top:36px">DestekBot profil yoxlaması</h1>
+<p class="sub">DestekBot azalma/bərpa ticketində sifarişin linkini növbəyə qoyur; eklenti onu bu brauzerdə arxa planda yeni tabda açır, izləyici/bəyəni sayını, hesabın mövcudluğunu və gizli olub-olmadığını oxuyur, tabı bağlayır və növbətiyə keçir. Instagram və TikTok-a bu brauzerdə giriş etmiş olmalısınız (ayrıca bir hesab tövsiyə olunur).</p>
+<form id="pf">
+  <label for="dbApi">DestekBot API ünvanı <small>ör. https://…/panelbaku-bot/api.php</small></label>
+  <input id="dbApi" type="url" placeholder="https://…/api.php">
+  <label for="dbKey">DestekBot API açarı <small>DestekBot → API / Webhook → "full" icazəli açar (dbk_…). Yalnız bu brauzerdə saxlanır.</small></label>
+  <input id="dbKey" type="password" autocomplete="off">
+  <label class="check"><input id="profileOn" type="checkbox"> Profil yoxlamasını işə sal</label>
+  <div class="row"><button type="submit">Saxla, icazə ver və yoxla</button></div>
+  <p id="pstat" class="sub" style="margin-top:12px"></p>
+</form>
+<div id="pmsg"></div>
 <script src="options.js"></script>
 </body>
 </html>

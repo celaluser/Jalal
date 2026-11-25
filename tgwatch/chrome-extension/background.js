@@ -1,4 +1,5 @@
 // tgwatch eklentisi — arka plan: tgwatch API çağrıları ve panel sayfasına content script kaydı.
+importScripts('profile.js'); // DestekBot profil/link yoxlaması
 const SCRIPT_ID = 'tgw-import';
 
 async function settings() {
