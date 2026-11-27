@@ -195,3 +195,15 @@ Bu güncellemeden sonraki kayıtlar doğrudan popup altında tutulur; eski kayı
 `/popup/admin/surum.php` (giriş gerekir) hangi dosyaların güncel, hangilerinin eski ya da eksik olduğunu gösterir ve
 "PHP önbelleğini temizle" butonu içerir. Panelin sol altında da "Sürüm N · kontrol" bağlantısı vardır.
 Panelde "Şimdi güncelle" PHP önbelleğini de temizler.
+
+---
+
+## Sayfa hızı (PageSpeed)
+
+Gösterim kuralları → **Hız (PageSpeed)**:
+- **Hız modu (açık):** popup kodu sayfa yüklenip tarayıcı boşa çıkana kadar bekler; ilk gösterim en az 2,5 sn sonra olur.
+- **Poppins yazı tipi (kapalı):** açılırsa Google Fonts'tan 6 ek istek yapılır.
+- **Dönen renkli çerçeve (kapalı):** sürekli animasyondur; kapalıyken çerçeve aynı renklerde ama sabittir.
+
+`.htaccess` artık `embed.js`'i sıkıştırır (yaklaşık 66 KB → 16 KB) ve 10 dk önbellekler.
+PageSpeed/Lighthouse botu popup'ı hiç göstermez (bot filtresi); popup'ın sayfa puanına etkisi bu yüzden sadece `embed.js` dosyasının indirilmesidir.

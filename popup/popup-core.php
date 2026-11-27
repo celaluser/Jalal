@@ -1,6 +1,6 @@
 <?php
-// IGFP-BUILD:10
-define('IGFP_BUILD', 10);
+// IGFP-BUILD:11
+define('IGFP_BUILD', 11);
 /**
  * =============================================================
  *  POPUP ÇEKİRDEĞİ  —  ŞEMA v3
@@ -357,6 +357,10 @@ function popup_defaults(): array {
             'killCheck' => ['enabled' => true, 'url' => ''],
             // bot / tarayıcı otomasyonu filtresi
             'botFilter' => true,
+            // hız (PageSpeed): yükleme bitmeden başlama, harici yazı tipi ve sürekli animasyon yok
+            'perfMode' => true,
+            'webFont' => false,
+            'animatedBorder' => false,
             // kupon limiti sunucusu (çark, kazıma, limitli kuponlar)
             'coupon' => ['url' => ''],
         ],

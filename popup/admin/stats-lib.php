@@ -1,5 +1,5 @@
 <?php
-// IGFP-BUILD:10
+// IGFP-BUILD:11
 if (!defined('IGFP_ADMIN')) { http_response_code(403); exit('Forbidden'); }
 /**
  * İstatistik hesaplama yardımcıları.

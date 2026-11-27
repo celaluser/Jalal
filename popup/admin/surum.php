@@ -1,13 +1,13 @@
 <?php
 define('IGFP_ADMIN', true);
-// IGFP-BUILD:10
+// IGFP-BUILD:11
 /**
  * Kurulum / sürüm kontrolü: hangi dosyalar güncel, hangileri eski? Bu dosya tek başına çalışır.
  * Adres: /popup/admin/surum.php  (giriş gerekir)
  */
 require __DIR__ . '/auth.php';
 if (!adm_logged_in()) { header('Location: ./'); exit; }
-const EXPECT = 10;
+const EXPECT = 11;
 function e($s) { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); }
 
 $msg = '';

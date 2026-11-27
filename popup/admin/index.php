@@ -1,5 +1,5 @@
 <?php
-// IGFP-BUILD:10
+// IGFP-BUILD:11
 define('IGFP_ADMIN', true);
 /**
  * =============================================================
@@ -394,6 +394,9 @@ if ($action === 'save') {
             'segment'   => ['varName' => trim((string) pv('seg_varname')) ?: 'PANEL_USER', 'balanceSelector' => trim((string) pv('seg_balsel'))],
             'killCheck' => ['enabled' => pbool('kill_check'), 'url' => trim((string) pv('kill_url'))],
             'botFilter' => pbool('bot_filter'),
+            'perfMode' => pbool('perf_mode'),
+            'webFont' => pbool('web_font'),
+            'animatedBorder' => pbool('animated_border'),
         ],
     ];
     if (!popup_settings_save($s, 'global ayarlar')) {

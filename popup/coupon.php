@@ -1,5 +1,5 @@
 <?php
-// IGFP-BUILD:10
+// IGFP-BUILD:11
 /**
  * Kupon limiti sunucusu (çark, kazıma kartı ve limitli kuponlar).
  *

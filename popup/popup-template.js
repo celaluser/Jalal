@@ -1,4 +1,4 @@
-/* IGFP-BUILD:10 */
+/* IGFP-BUILD:11 */
 /* =============================================================
    ÇOKLU POPUP - SABLON DOSYASI
    popup-cron.php her calistiginda bu sablonu alir, POPUPS ve
@@ -41,7 +41,10 @@
     // acil durdurma kontrolu (embed.js cache'ini asar)
     killCheck: { enabled: false, url: "" },
     botFilter: true,
-    coupon: { url: "" }
+    coupon: { url: "" },
+    perfMode: true,        // hizli mod: yukleme bitmeden hicbir sey yapma, gecikme en az 2.5 sn
+    webFont: false,        // true: Poppins yazi tipi (ek ag istegi)
+    animatedBorder: false  // true: donen renkli cerceve (surekli animasyon, daha agir)
   };
   /* ===================== /CONFIG ======================== */
 
@@ -712,8 +715,6 @@
   }
 
   var CSS = ''
-  + '@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;800&display=swap");'
-  + '@property --igfp-a{syntax:"<angle>";initial-value:0deg;inherits:false}'
   + '.igfp-ov{'
   +   '--g:#f59e0b,#ec4899,#d946ef,#a855f7,#6366f1,#3b82f6,#f59e0b;'
   +   '--bg:#131221;--glow:rgba(168,85,247,.34);--dot:#ec4899;'
@@ -736,16 +737,14 @@
   +   '--cardb:rgba(139,92,246,.34);--pill:rgba(139,92,246,.18);--pillfg:#a78bfa}'
   + '.igfp-ov{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:flex-start;justify-content:center;'
   + 'padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;'
-  + 'background:rgba(8,6,16,.62);-webkit-backdrop-filter:blur(14px) saturate(120%);backdrop-filter:blur(14px) saturate(120%);'
-  + 'opacity:0;transition:opacity .28s ease;font-family:Poppins,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji"}'
+  + 'background:rgba(8,6,16,.72);'
+  + 'opacity:0;transition:opacity .28s ease;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji"}'
   + '.igfp-ov.igfp-on{opacity:1}'
   + '.igfp-frame{position:relative;width:100%;max-width:830px;margin:auto;padding:2px;border-radius:30px;'
-  + 'background:conic-gradient(from var(--igfp-a),var(--g));'
-  + 'animation:igfp-spin 9s linear infinite;box-shadow:0 40px 90px -20px rgba(0,0,0,.75);'
+  + 'background:linear-gradient(135deg,var(--g));'
+  + 'box-shadow:0 24px 60px -16px rgba(0,0,0,.7);'
   + 'transform:translateY(14px) scale(.97);opacity:0;transition:transform .34s cubic-bezier(.2,.9,.3,1),opacity .34s ease}'
   + '.igfp-ov.igfp-on .igfp-frame{transform:none;opacity:1}'
-  + '@keyframes igfp-spin{to{--igfp-a:360deg}}'
-  + '@supports not (background:conic-gradient(from 0deg,#000,#fff)){.igfp-frame{background:linear-gradient(135deg,var(--g));animation:none}}'
   + '.igfp-box{position:relative;overflow:hidden;border-radius:28px;background:var(--bg);padding:38px 42px 30px}'
   + '.igfp-box:before{content:"";position:absolute;top:-160px;right:-120px;width:420px;height:420px;border-radius:50%;'
   + 'background:radial-gradient(circle,var(--glow),transparent 68%);pointer-events:none}'
@@ -826,7 +825,7 @@
   + '.igfp-card{padding:16px;gap:12px}.igfp-price{font-size:22px}.igfp-name{font-size:14px}'
   + '.igfp-btn{font-size:15.5px;padding:16px}'
   + '.igfp-badge{font-size:11px;padding:8px 14px}.igfp-x{top:16px;right:16px;width:36px;height:36px}}'
-  + '@media(prefers-reduced-motion:reduce){.igfp-frame{animation:none}}';
+  + '@media(prefers-reduced-motion:reduce){.igfp-frame{animation:none!important}}';
 
   function renderServices(p) {
     return p.services.map(function (s) {
@@ -899,8 +898,17 @@
     p = pzPop(p);
     if (!styled) {
       var st = document.createElement("style");
-      st.textContent = CSS;
+      st.textContent = CSS + (CONFIG.animatedBorder
+        ? '@property --igfp-a{syntax:"<angle>";initial-value:0deg;inherits:false}'
+        + '@keyframes igfp-spin{to{--igfp-a:360deg}}'
+        + '.igfp-ov.igfp-anim .igfp-frame{background:conic-gradient(from var(--igfp-a),var(--g));animation:igfp-spin 9s linear infinite}' : "")
+        + (CONFIG.webFont ? ".igfp-ov{font-family:Poppins,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif}" : "");
       document.head.appendChild(st);
+      if (CONFIG.webFont) {
+        var lk = document.createElement("link"); lk.rel = "stylesheet";
+        lk.href = "https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;800&display=swap";
+        document.head.appendChild(lk);
+      }
       styled = true;
     }
 
@@ -921,7 +929,7 @@
 
     ov = document.createElement("div");
     var styled2 = !!(SKINS && (p.skin || lay || p.style));
-    ov.className = "igfp-ov igfp-t-" + pickTheme(p) + (styled2 ? " " + pk(p) + (lay ? " igfp-l-" + lay : "") : "");
+    ov.className = "igfp-ov igfp-t-" + pickTheme(p) + (CONFIG.animatedBorder && !styled2 ? " igfp-anim" : "") + (styled2 ? " " + pk(p) + (lay ? " igfp-l-" + lay : "") : "");
     if (styled2) ensureSkin(p);
     ov.setAttribute("role", "dialog");
     ov.setAttribute("aria-modal", "true");
@@ -1115,7 +1123,7 @@
     }
     loadQ = loadPops.slice().sort(byPri);
     armTriggers(eventPops);
-    setTimeout(pumpLoad, CONFIG.delay);          // 'load' popuplari gecikmeyle
+    setTimeout(pumpLoad, CONFIG.perfMode === false ? CONFIG.delay : Math.max(parseInt(CONFIG.delay, 10) || 0, 2500));   // 'load' popuplari gecikmeyle
   }
 
   function start() {
@@ -1129,8 +1137,18 @@
       return;
     }
     if (CONFIG.botFilter !== false && isBot()) return;   // bot / otomasyon: gosterme, sayma
-    visitBump();                                 // ziyaret sayacini isle (segmentasyon)
-    killCheck(function (off) { if (!off) begin(); });
+    var go = function () {
+      visitBump();                               // ziyaret sayacini isle (segmentasyon)
+      killCheck(function (off) { if (!off) begin(); });
+    };
+    if (CONFIG.perfMode === false) { go(); return; }
+    /* hizli mod: sayfa tamamen yuklenip tarayici bosa cikinca basla (LCP/TBT/CLS'i etkilemesin) */
+    var idle = function () {
+      if (window.requestIdleCallback) window.requestIdleCallback(go, { timeout: 2000 });
+      else setTimeout(go, 200);
+    };
+    if (document.readyState === "complete") idle();
+    else window.addEventListener("load", idle);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();

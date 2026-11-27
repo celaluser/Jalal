@@ -1,5 +1,5 @@
 <?php
-// IGFP-BUILD:10
+// IGFP-BUILD:11
 if (!defined('IGFP_ADMIN')) { http_response_code(403); exit('Forbidden'); }
 $c   = $cfg;
 $cl  = $cfg['client'];
@@ -758,6 +758,19 @@ $nav = [
           <div class="row"><div class="lbl">Açılma gecikmesi<small>Milisaniye — 1000 = 1 saniye</small></div>
             <input type="number" name="delay" min="0" max="60000" step="100" value="<?= (int) $cl['delay'] ?>"></div>
         </div>
+      </div>
+
+      <div class="card">
+        <h2><?= ico('gauge') ?> Hız (PageSpeed)</h2>
+        <p class="hint">Popup kodunun sitenin mobil hız puanını düşürmemesi için. Varsayılanlar önerilen ayardır.</p>
+        <div class="body"><div class="rows">
+          <div class="row"><div class="lbl">Hız modu<small>Sayfa tamamen yüklenip tarayıcı boşa çıkınca başlar; ilk gösterim en az 2,5 sn sonra olur. LCP ve TBT'yi korur.</small></div>
+            <label class="sw"><input type="checkbox" name="perf_mode" <?= ($cl['perfMode'] ?? true) ? 'checked' : '' ?>><i></i></label></div>
+          <div class="row"><div class="lbl">Poppins yazı tipi<small>Kapalıyken cihazın kendi yazı tipi kullanılır (ek ağ isteği yok). Açınca 6 ek istek gelir.</small></div>
+            <label class="sw"><input type="checkbox" name="web_font" <?= !empty($cl['webFont']) ? 'checked' : '' ?>><i></i></label></div>
+          <div class="row"><div class="lbl">Dönen renkli çerçeve<small>Sürekli animasyon, mobilde işlemciyi yorar. Kapalıyken çerçeve aynı renklerde ama sabittir.</small></div>
+            <label class="sw"><input type="checkbox" name="animated_border" <?= !empty($cl['animatedBorder']) ? 'checked' : '' ?>><i></i></label></div>
+        </div></div>
       </div>
 
       <div class="card">

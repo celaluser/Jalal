@@ -1,5 +1,5 @@
 <?php
-// IGFP-BUILD:10
+// IGFP-BUILD:11
 define('IGFP_ADMIN', true);
 /**
  * Panelde, kaydedilmemiş form durumunun canlı önizlemesi.
