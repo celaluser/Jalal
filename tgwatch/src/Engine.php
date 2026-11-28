@@ -38,20 +38,53 @@ final class Engine
         return self::stripBy($this->dict['remove'] ?? [], $name);
     }
 
+    /**
+     * Anlamı olumsuzluk kelimesinden gelen ifadeler: silme kuralı bunların yalnızca bir parçasını (ör. "No") kesemez.
+     * Yoksa "No Refill" → "Refill" → "Qarantili" olur, yani anlam tersine döner.
+     */
+    private const PROTECTED = [
+        '/(?<![\p{L}\p{N}])(?:non|no)[\s\-]*(?:refill|refil|guaranteed?|drop|cancel)(?![\p{L}\p{N}])/iu',
+        '/(?<![\p{L}\p{N}])without[\s\-]+(?:refill|guarantee)(?![\p{L}\p{N}])/iu',
+    ];
+
+    /** Tek bir silme kuralını uygular. Düz metin yalnızca tam kelime/ifade olarak silinir ("no", "Normal"in içinden silinmez). */
+    private static function applyRemove(string $r, string $s): string
+    {
+        if (strlen($r) > 2 && $r[0] === '/' && strrpos($r, '/') > 0) {
+            return @preg_replace($r . 'u', '', $s) ?? $s;
+        }
+        $q = preg_quote($r, '/');
+        $pre = preg_match('/^[\p{L}\p{N}]/u', $r) ? '(?<![\p{L}\p{N}])' : '';
+        $post = preg_match('/[\p{L}\p{N}]$/u', $r) ? '(?![\p{L}\p{N}])' : '';
+        return @preg_replace('/' . $pre . $q . $post . '/iu', '', $s) ?? str_ireplace($r, '', $s);
+    }
+
     public static function stripBy(array $remove, string $name): string
     {
         $s = Normalizer::text($name);
+        // Korunan ifadeleri yer tutucuyla sakla; ifadenin TAMAMINI silen kural (ör. elle eklenmiş "No Refill") yine çalışır
+        $kept = [];
+        foreach (self::PROTECTED as $p) {
+            $s = preg_replace_callback($p, static function (array $m) use (&$kept, $remove): string {
+                foreach ($remove as $r) {
+                    $r = (string)$r;
+                    if ($r !== '' && trim(self::applyRemove($r, $m[0])) === '') {
+                        return $m[0];   // bu kural ifadeni bütünüyle silmek istiyor
+                    }
+                }
+                $kept[] = $m[0];
+                return "\u{E000}" . str_repeat("\u{E002}", count($kept) - 1) . "\u{E001}";   // rakamsız: /\d/ kuralı dokunmasın
+            }, $s) ?? $s;
+        }
         foreach ($remove as $r) {
             $r = (string)$r;
             if ($r === '') {
                 continue;
             }
-            if (strlen($r) > 2 && $r[0] === '/' && strrpos($r, '/') > 0) {
-                $res = @preg_replace($r . 'u', '', $s);
-                $s = $res ?? $s;
-            } else {
-                $s = str_ireplace($r, '', $s);
-            }
+            $s = self::applyRemove($r, $s);
+        }
+        if ($kept) {
+            $s = preg_replace_callback("/\u{E000}(\u{E002}*)\u{E001}/u", static fn(array $m): string => $kept[mb_strlen($m[1])] ?? '', $s) ?? $s;
         }
         $s = preg_replace('/(\s*\|\s*){2,}/u', ' | ', $s) ?? $s;
         $s = preg_replace('/\s{2,}/u', ' ', $s) ?? $s;

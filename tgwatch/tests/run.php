@@ -669,6 +669,22 @@ test('silinecek ifadeler ve ad kalıbı seçenekleri bankadan gelen ada da uygul
     eq('Threads Bəyəni', $e->translate('Threads Likes | Max 10K')['text']);
 });
 
+test('silme kuralı olumsuz ifadeyi bozmaz: "No" silinse de "No Refill" → Qarantisiz', function () {
+    [$db] = env();
+    $d = Dictionary::defaults();
+    $d['remove'] = ['/(?<![\p{L}\p{N}])no(?![\p{L}\p{N}])/i'];   // eklentideki "hiç yazılmasın" kuralı
+    $e = new TgWatch\Engine($db, $d);
+    eq('TikTok Baxış | Qarantisiz', $e->translate('TikTok Views | No Refill')['text']);
+    eq('Threads İzləyici | Azalma olmaz | Maks 50K | Gündə 5K | 30 Gün Qarantili ♻️', $e->translate('Threads Followers | No Drop | Max 50K | 5K/Day | 30 Days Refill ♻️')['text'], '"No Drop" da korunur');
+    eq('Instagram Likes | Non Refill | Normal', TgWatch\Engine::stripBy($d['remove'], 'Instagram Likes | No | Non Refill | Normal'), 'tek başına "No" silinir, ifade ve başka kelime kalır');
+    // düz metin kural tam kelime olarak silinir
+    eq('Normal Views | Refill', TgWatch\Engine::stripBy(['no'], 'Normal Views | no | Refill'));
+    eq('Instagram | Nonstop', TgWatch\Engine::stripBy(['No'], 'Instagram | No | Nonstop'));
+    // ifadenin tamamını silen kural yine çalışır
+    eq('TikTok Views', TgWatch\Engine::stripBy(['No Refill'], 'TikTok Views | No Refill'));
+    eq('TikTok Views | No Refill | 30 Days', TgWatch\Engine::stripBy(['/\d+K/i', 'no'], 'TikTok Views | No Refill 5K | 30 Days'), 'rakam kuralı yer tutucuyu bozmaz');
+});
+
 echo "Eşleştirme (Matcher)\n";
 test('fiyat formülü: satış = 1.5 × sağlayıcı + 0.2 bulunur, aykırı değer atılır', function () {
     $pts = [];
