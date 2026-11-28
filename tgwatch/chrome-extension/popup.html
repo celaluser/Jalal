@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>tgwatch</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header class="nav">
+  <div class="nav-row">
+    <h1>tgwatch</h1>
+    <a href="#" id="tg" class="nav-btn" title="tgwatch panelini aç" hidden>Panel</a>
+  </div>
+  <p class="status"><span id="conn" class="pill wait">Bağlanıyor…</span></p>
+</header>
+
+<main>
+<!-- ANA SAYFA -->
+<div role="tabpanel" id="p-panel" aria-labelledby="t-panel" hidden>
+  <h2 class="sh">Bu sayfa</h2>
+  <section class="group" id="tab">
+    <div class="cell text">
+      <p id="tab-msg">Kontrol ediliyor…</p>
+      <div id="tab-counts" class="counts" hidden>
+        <span class="c ok"><i></i><b id="c-ok">0</b> bankadan</span>
+        <span class="c warn"><i></i><b id="c-warn">0</b> kontrol et</span>
+        <span class="c bad"><i></i><b id="c-bad">0</b> çevrilmedi</span>
+      </div>
+    </div>
+    <div class="cell btns" id="tab-actions" hidden>
+      <button id="run" class="btn">Çevir</button>
+      <button id="undo" class="btn plain" hidden>Geri al</button>
+    </div>
+    <div class="cell btns" id="tab-open" hidden><button id="open-panel" class="btn plain">Panelde Services'i aç</button></div>
+  </section>
+
+  <h2 class="sh">Açıklamalar</h2>
+  <section class="group" id="descq">
+    <button class="cell row" id="dq-props-l">
+      <span class="tile orange"><svg viewBox="0 0 24 24"><path d="M5 5h14v10H9l-4 4z"/></svg></span>
+      <span class="lbl">Öneriler<small id="dq-fresh" hidden></small></span>
+      <span class="val" id="dq-props">–</span><span class="chev"></span>
+    </button>
+    <button class="cell row" id="dq-queue-l">
+      <span class="tile blue"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></span>
+      <span class="lbl">Panele yazılacak</span>
+      <span class="val" id="dq-queue">–</span><span class="go">Ekle</span>
+    </button>
+    <button class="cell row" id="dq-rep-l" hidden>
+      <span class="tile green"><svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg></span>
+      <span class="lbl">Son rapor<small id="dq-rep"></small></span>
+      <span class="chev"></span>
+    </button>
+  </section>
+  <p id="dq-run" class="foot warn" hidden></p>
+
+  <h2 class="sh">Çeviri</h2>
+  <section class="group stats" aria-label="Çeviri sayaçları">
+    <div><b id="s-today">0</b><small>bugün</small></div>
+    <div><b id="s-total">0</b><small>toplam</small></div>
+    <div><b id="s-learned">0</b><small>öğretilen</small></div>
+  </section>
+</div>
+
+<!-- SÖZLÜK -->
+<div role="tabpanel" id="p-bank" aria-labelledby="t-bank" hidden>
+  <h2 class="sh">Kelimenin çevirisini değiştir</h2>
+  <section class="group" id="word">
+    <div class="cell field"><input id="w-en" type="text" placeholder="Kaynak (ör. Almost)" autocomplete="off" spellcheck="false" aria-label="Kaynak kelime"></div>
+    <div class="cell field"><input id="w-az" type="text" placeholder="Azerice karşılığı" autocomplete="off" spellcheck="false" aria-label="Azerice karşılığı"></div>
+    <div class="cell btns"><button id="w-save" class="btn">Değiştir</button></div>
+    <div class="cell btns w-alt"><button id="w-keep" class="mini" title="Marka/özel ad: çevrilmesin">Aynen kalsın</button><button id="w-remove" class="mini" title="Bu kelime adlarda hiç yazılmasın">Hiç yazılmasın</button></div>
+    <div class="cell btns w-alt" id="w-undo-row" hidden><button id="w-undo" class="mini">↶ Geri al</button><small id="w-undo-what" class="muted"></small></div>
+  </section>
+  <p id="w-info" class="foot">Sözlükteki karşılığı ve bankadaki eski kayıtları birlikte değiştirir.</p>
+
+  <h2 class="sh">Bankada ara</h2>
+  <section class="group" id="bank">
+    <form id="b-form" class="cell field search"><input id="b-q" type="search" placeholder="Kelime ya da ad (EN / AZ)" autocomplete="off" spellcheck="false" aria-label="Bankada ara"><button class="mini" type="submit">Ara</button></form>
+    <ul id="b-words" class="b-list"></ul>
+    <ul id="b-rows" class="b-list"></ul>
+  </section>
+  <p id="b-msg" class="foot"></p>
+</div>
+
+<!-- BAKİYE -->
+<div role="tabpanel" id="p-bal" aria-labelledby="t-bal" hidden>
+  <div class="sh-row"><h2 class="sh">Sağlayıcı bakiyeleri</h2><button id="bal-ref" class="link-btn">Yenile</button></div>
+  <section class="group" id="bal">
+    <ul id="bal-list" class="bal"></ul>
+    <p id="bal-tot" class="cell bal-tot" hidden></p>
+  </section>
+  <p id="bal-msg" class="foot"></p>
+</div>
+
+<!-- AYARLAR -->
+<div role="tabpanel" id="p-set" aria-labelledby="t-set" hidden>
+  <h2 class="sh">Sürüm</h2>
+  <section class="group upd-card" id="upd-card">
+    <div class="cell kv"><span>Eklenti</span><span id="v-mine">…</span></div>
+    <div class="cell kv"><span>tgwatch'taki sürüm</span><span id="v-server">…</span></div>
+    <button class="cell row act" id="upd-go"><span class="lbl tint">Güncelle</span><span class="chev"></span></button>
+  </section>
+  <p class="foot"><span id="upd-msg"></span> <a href="#" id="upd-dl">Zip'i indir</a> · <a href="#" id="upd-reload">Yeniden yükle</a> · <a href="#" id="opt">Bağlantı ayarları</a></p>
+
+  <h2 class="sh">Import çevirisi</h2>
+  <section class="group">
+    <label class="cell tog"><input type="checkbox" id="dry"><span class="sw"></span><span class="t"><b>Deneme modu</b><small>Adları yazar, Save'e basmaz</small></span></label>
+    <label class="cell tog"><input type="checkbox" id="skipAz"><span class="sw"></span><span class="t"><b>Azerice olanları atla</b><small>Adında ə olan satırlara dokunmaz</small></span></label>
+    <label class="cell tog"><input type="checkbox" id="bracketSpace"><span class="sw"></span><span class="t"><b>Parantez içinde boşluk</b><small>[Metin] → [ Metin ]</small></span></label>
+    <label class="cell tog"><input type="checkbox" id="stripMinMax"><span class="sw"></span><span class="t"><b>Min/Max'ı adlardan çıkar</b><small>"Max 500K", "[ Min 100 ]"</small></span></label>
+    <label class="cell tog"><input type="checkbox" id="stripSpeed"><span class="sw"></span><span class="t"><b>Günlük hızı adlardan çıkar</b><small>"[500K/D]", "Gündə 500K"</small></span></label>
+    <label class="cell tog"><input type="checkbox" id="notify"><span class="sw"></span><span class="t"><b>Telegram'a bildir</b><small>Import bitince bota özet</small></span></label>
+  </section>
+
+  <h2 class="sh">Kategori</h2>
+  <section class="group">
+    <label class="cell tog"><input type="checkbox" id="autoCat"><span class="sw"></span><span class="t"><b>Import sonrası kategori</b><small>Yeni kategorinin adını çevirip kaydeder</small></span></label>
+    <label class="cell tog"><input type="checkbox" id="catTop"><span class="sw"></span><span class="t"><b>Yeni kategori en üstte</b><small>Listenin başına sürükler</small></span></label>
+    <label class="cell tog"><input type="checkbox" id="catLogo"><span class="sw"></span><span class="t"><b>Kategoriye logo seç</b><small>Mevcut kategorilerinden öğrenilen logo</small></span></label>
+    <label class="cell tog"><input type="checkbox" id="catLogoReplace"><span class="sw"></span><span class="t"><b>Mevcut logoyu değiştir</b><small>Kapalıysa yalnız logosuz kategoriye</small></span></label>
+    <div class="cell btns"><button id="logoTable" class="mini">Logo tablosu</button><button id="learnLogos" class="mini">Logoları şimdi öğren</button></div>
+  </section>
+  <p id="learnMsg" class="foot"></p>
+
+  <h2 class="sh">Açıklama</h2>
+  <section class="group">
+    <label class="cell sel"><span class="t"><b>İmportta açıklama</b><small>Ad çevrilirken aynı anda</small></span><select id="descImport">
+      <option value="build">Üret (tgwatch)</option>
+      <option value="translate">Çevir</option>
+      <option value="off">Dokunma</option>
+    </select></label>
+    <label class="cell tog"><input type="checkbox" id="descTranslate"><span class="sw"></span><span class="t"><b>"Çevir" düğmesi</b><small>"Edit description" penceresinde</small></span></label>
+    <label class="cell sel"><span class="t"><b>Çeviri kaynağı</b></span><select id="descMode">
+      <option value="">tgwatch ayarı</option>
+      <option value="mix">Banka + Google + DeepSeek</option>
+      <option value="google">Yalnız Google (+ banka)</option>
+      <option value="deepseek">Yalnız DeepSeek (+ banka)</option>
+      <option value="bank">Yalnız banka</option>
+    </select></label>
+  </section>
+</div>
+</main>
+
+<nav class="tabs" role="tablist" aria-label="Bölümler">
+  <button role="tab" id="t-panel" aria-controls="p-panel" data-tab="panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg><span>Ana sayfa</span></button>
+  <button role="tab" id="t-bank" aria-controls="p-bank" data-tab="bank"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11"/></svg><span>Sözlük</span></button>
+  <button role="tab" id="t-bal" aria-controls="p-bal" data-tab="bal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v12H3zM3 11h18M16 15h2"/></svg><span>Bakiye</span></button>
+  <button role="tab" id="t-set" aria-controls="p-set" data-tab="set"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>Ayarlar</span><i class="dot" id="upd-dot" hidden></i></button>
+</nav>
+<script src="popup.js"></script>
+</body>
+</html>

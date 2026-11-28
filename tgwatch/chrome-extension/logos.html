@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tgwatch — Logo tablosu</title>
+<link rel="stylesheet" href="logos.css">
+</head>
+<body>
+<header class="top">
+  <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><path class="m1" d="M3.2 28.5V20C3.2 15 6.11 12 8.1 9c1.7 3.2 3.08 6 2.82 11V28.5z"/><path class="m2" d="M12.4 28.5V13.6C12.4 8.6 15.4 5.6 17.6 2.6c1.76 3.2 2.96 6 2.64 11V28.5z"/><path class="m3" d="M21.6 28.5V23.5C21.6 18.5 24.42 15.5 26.2 12.5c1.64 3.2 3.2 6 3 11V28.5z"/></svg>
+  <div><h1>Logo tablosu</h1><p class="sub">Kategori adındaki sosyal ağa hangi logo seçilecek: buradan görür, değiştirir, sabitlersin.</p></div>
+</header>
+
+<section class="card" id="sum">
+  <p id="sum-text" class="lead"></p>
+  <div class="row"><button id="fix-all" class="btn" hidden>Tek logolu olanların hepsini sabitle</button></div>
+  <p class="muted">Sıra: <b>özel kural</b> → <b>sabit</b> logo → listede o platformda <b>en çok kullanılan</b> logo. Sabitlediğin logo, sen değiştirene kadar aynı kalır.</p>
+</section>
+
+<section id="empty" class="card" hidden>
+  <p class="lead">Henüz öğrenilmiş logo yok.</p>
+  <p class="muted">Panelde <b>Services</b> sayfasını aç → eklenti simgesi → <b>Ayarlar</b> → <b>Logoları şimdi öğren</b>. Liste baştan sona gezilir; kategorilerinde kullandığın logolar buraya gelir.</p>
+</section>
+
+<section id="used-wrap" hidden>
+  <h2>Platformlar</h2>
+  <ul id="used" class="list"></ul>
+</section>
+
+<section>
+  <h2>Özel kurallar</h2>
+  <p class="muted">Listede olmayan bir ağ ya da özel bir kategori için: <b>adında bu kelime geçerse → bu logo</b>. Özel kural her şeyden önce gelir.</p>
+  <ul id="rules" class="list"></ul>
+  <form id="rule-add" class="addrow">
+    <input id="rule-word" type="text" placeholder="Adında geçen kelime (ör. Bigo, Reels, Premium)" autocomplete="off" spellcheck="false" maxlength="60">
+    <button class="btn" type="submit">Logo seç ve ekle</button>
+  </form>
+  <p id="rule-msg" class="muted"></p>
+</section>
+
+<details id="other-wrap" hidden>
+  <summary>Logosu olmayan diğer platformlar (<span id="other-n">0</span>)</summary>
+  <ul id="other" class="list"></ul>
+</details>
+
+<dialog id="chooser">
+  <form method="dialog" class="ch-head"><b id="ch-title">Logo seç</b><button class="btn ghost" value="cancel">Kapat</button></form>
+  <p id="ch-note" class="muted"></p>
+  <div id="ch-grid" class="grid"></div>
+  <form id="ch-url" class="addrow">
+    <input id="ch-url-in" type="url" placeholder="ya da resim adresini yapıştır (https://…)" autocomplete="off">
+    <button class="btn ghost" type="submit">Bu adresi kullan</button>
+  </form>
+</dialog>
+<script src="logos.js"></script>
+</body>
+</html>

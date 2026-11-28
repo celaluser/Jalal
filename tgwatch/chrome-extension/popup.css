@@ -1,0 +1,134 @@
+/* tgwatch mini panel — Apple (iOS) tarzı: gruplu listeler, sistem renkleri, buzlu sekme çubuğu */
+:root{
+  --bg:#f2f2f7;--cell:#fff;--label:#000;--label2:rgba(60,60,67,.6);--label3:rgba(60,60,67,.3);--sep:rgba(60,60,67,.18);
+  --fill:rgba(120,120,128,.12);--tint:#007aff;--green:#34c759;--orange:#ff9500;--red:#ff3b30;--yellow:#ffcc00;--on:#fff;
+  --bar:rgba(249,249,249,.82)
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#000;--cell:#1c1c1e;--label:#fff;--label2:rgba(235,235,245,.6);--label3:rgba(235,235,245,.3);--sep:rgba(84,84,88,.6);
+  --fill:rgba(118,118,128,.24);--tint:#0a84ff;--green:#30d158;--orange:#ff9f0a;--red:#ff453a;--yellow:#ffd60a;--bar:rgba(30,30,30,.82)}}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{width:360px;max-height:590px;display:flex;flex-direction:column;background:var(--bg);color:var(--label);
+  font:15px/1.33 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+p{margin:0}
+a{color:var(--tint);text-decoration:none}a:hover{text-decoration:underline}
+
+/* başlık (büyük başlık) */
+.nav{padding:14px 18px 6px;background:var(--bg)}
+.nav-row{display:flex;align-items:center;justify-content:space-between}
+h1{margin:0;font:700 26px/1.15 -apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",system-ui,sans-serif;letter-spacing:-.02em}
+.nav-btn{font-size:15px;color:var(--tint)}
+.status{margin-top:4px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--label2)}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--label3)}
+.pill.ok::before{background:var(--green)}.pill.bad{color:var(--red)}.pill.bad::before{background:var(--red)}
+
+main{flex:1;overflow:auto;padding:0 16px 16px}
+
+/* bölüm başlığı ve alt not */
+.sh{margin:18px 16px 6px;font:400 13px/1.3 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:var(--label2)}
+.sh-row{display:flex;align-items:baseline;justify-content:space-between}.sh-row .sh{margin-right:auto}
+.link-btn{margin-right:16px;border:0;background:none;color:var(--tint);font:inherit;font-size:13px;cursor:pointer;padding:0}
+.foot{margin:6px 16px 0;font-size:12.5px;color:var(--label2)}
+.foot:empty{display:none}
+.warn{color:var(--orange)}
+.muted{color:var(--label2)}
+
+/* gruplu liste */
+.group{background:var(--cell);border-radius:12px;overflow:hidden}
+.cell{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:10px 16px;margin:0;border:0;background:var(--cell);color:var(--label);font:inherit;text-align:left}
+.cell+.cell::before,.group>*+.cell::before{content:"";position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
+.cell.row:has(.tile)+.cell::before{left:58px}
+.cell.text{display:block;color:var(--label2);font-size:14px}
+.cell.text p{color:var(--label)}
+
+button.cell{cursor:pointer}
+button.cell:hover:not(:disabled){background:color-mix(in srgb,var(--cell) 92%,var(--label))}
+button.cell:active:not(:disabled){background:var(--fill)}
+button.cell:disabled{cursor:default}
+.row .lbl{flex:1;min-width:0}
+.row .lbl small{display:block;font-size:12.5px;color:var(--label2);margin-top:1px}
+#dq-fresh{color:var(--orange)!important}
+.row .val{color:var(--label2);font-variant-numeric:tabular-nums}
+.chev{width:8px;height:8px;border-right:2px solid var(--label3);border-top:2px solid var(--label3);transform:rotate(45deg);margin-left:2px}
+.go{padding:4px 12px;border-radius:999px;background:var(--tint);color:var(--on);font-size:13px;font-weight:600}
+.row:disabled .go{background:var(--fill);color:var(--label3)}
+.row:disabled .val{color:var(--label3)}
+.row.hot .val{color:var(--orange);font-weight:600}
+.tint{color:var(--tint)}
+
+.tile{flex:none;display:inline-flex;align-items:center;justify-content:center;width:29px;height:29px;border-radius:7px;color:#fff}
+.tile svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.tile.orange{background:var(--orange)}.tile.blue{background:var(--tint)}.tile.green{background:var(--green)}
+
+/* düğmeler */
+.cell.btns{gap:8px;flex-wrap:wrap}
+.btn{flex:1;height:40px;border:0;border-radius:10px;background:var(--tint);color:var(--on);font:600 15px -apple-system,BlinkMacSystemFont,system-ui,sans-serif;cursor:pointer}
+.btn:active{opacity:.8}.btn:disabled{opacity:.4;cursor:default}
+.btn.plain{background:var(--fill);color:var(--tint)}
+.mini{height:30px;padding:0 12px;border:0;border-radius:8px;background:var(--fill);color:var(--tint);font:600 13px -apple-system,BlinkMacSystemFont,system-ui,sans-serif;cursor:pointer}
+.mini:active{opacity:.7}.mini:disabled{opacity:.4}.mini.danger{color:var(--red)}
+
+.counts{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+.c{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--label2)}.c b{color:var(--label);font-variant-numeric:tabular-nums}
+.c i{width:8px;height:8px;border-radius:50%}.c.ok i{background:var(--green)}.c.warn i{background:var(--yellow)}.c.bad i{background:var(--red)}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr)}
+.stats div{padding:12px 6px;text-align:center;position:relative}
+.stats div+div::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:.5px;background:var(--sep)}
+.stats b{display:block;font:600 20px/1.2 -apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.stats small{font-size:12px;color:var(--label2)}
+
+/* ayarlar: anahtar sağda (iOS) */
+.tog{cursor:pointer}
+.tog input{position:absolute;opacity:0;pointer-events:none}
+.tog .t{order:1;flex:1;min-width:0}
+.tog .t b{display:block;font-weight:400}
+.tog .t small{display:block;font-size:12.5px;color:var(--label2)}
+.tog .sw{order:2;flex:none;width:51px;height:31px;border-radius:999px;background:var(--fill);position:relative;transition:background .2s}
+.tog .sw::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.15),0 1px 1px rgba(0,0,0,.16);transition:transform .2s}
+.tog input:checked+.sw{background:var(--green)}
+.tog input:checked+.sw::after{transform:translateX(20px)}
+.tog input:focus-visible+.sw{outline:2px solid var(--tint);outline-offset:2px}
+.sel .t{flex:1;min-width:0}.sel .t b{display:block;font-weight:400}.sel .t small{display:block;font-size:12.5px;color:var(--label2)}
+.sel select{max-width:200px;border:0;background:transparent;color:var(--label2);font:inherit;font-size:15px;text-align:right;cursor:pointer}
+.kv{justify-content:space-between}.kv span+span{color:var(--label2);font-variant-numeric:tabular-nums}
+#v-server.new{color:var(--red);font-weight:600}
+.upd-card.has #upd-go .lbl{font-weight:600}
+.act .lbl{color:var(--tint)}
+
+/* sözlük */
+.field input{flex:1;min-width:0;height:24px;border:0;background:transparent;color:var(--label);font:inherit;outline:0}
+.field input::placeholder{color:var(--label3)}
+.search{gap:8px}
+#w-info.ok{color:var(--green);font-weight:600}#w-info.bad{color:var(--red)}
+.w-alt{align-items:center}
+.b-list{list-style:none;margin:0;padding:0;max-height:240px;overflow:auto}.b-list:empty{display:none}
+.b-list li{position:relative;padding:10px 16px;font-size:13.5px}
+.b-list li::before{content:"";position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
+.b-list .en{display:block;color:var(--label2);overflow-wrap:anywhere}
+.b-list .az{display:block;font-weight:600;overflow-wrap:anywhere}
+.b-list .acts{display:flex;gap:6px;margin-top:6px;align-items:center}
+.b-list textarea{width:100%;min-height:48px;margin-top:6px;padding:8px 10px;border:0;border-radius:8px;background:var(--fill);color:inherit;font:inherit;font-size:13.5px;resize:vertical}
+.b-list .tag{display:inline-block;padding:0 6px;border-radius:999px;background:var(--fill);color:var(--label2);font-size:11px;line-height:17px;margin-right:4px}
+
+/* bakiye */
+.bal{list-style:none;margin:0;padding:0}
+.bal li{position:relative;display:flex;align-items:baseline;gap:8px;min-height:44px;padding:12px 16px}
+.bal li+li::before{content:"";position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
+.bal .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bal .v{color:var(--label2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.bal .zero .v{color:var(--red)}
+.bal .err .v{color:var(--orange);font-size:13px;max-width:60%;overflow:hidden;text-overflow:ellipsis}
+.bal-tot{display:block;font-size:13px;color:var(--label2)}.bal-tot b{color:var(--label);font-variant-numeric:tabular-nums}
+
+/* sekme çubuğu (buzlu) */
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);padding:6px 4px 8px;background:var(--bar);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--sep)}
+.tabs button{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;height:46px;border:0;background:transparent;color:#8e8e93;font:500 10.5px -apple-system,BlinkMacSystemFont,system-ui,sans-serif;cursor:pointer}
+.tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabs button[aria-selected=true]{color:var(--tint)}
+.tabs button[aria-selected=true] svg{stroke-width:2.2}
+.tabs button:focus-visible{outline:2px solid var(--tint);outline-offset:-4px;border-radius:10px}
+.tabs .dot{position:absolute;top:4px;right:calc(50% - 18px);width:9px;height:9px;border-radius:50%;background:var(--red);border:1.5px solid var(--bar)}

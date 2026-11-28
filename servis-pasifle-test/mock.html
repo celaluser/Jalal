@@ -1,0 +1,173 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Services (mock)</title>
+<style>
+ html,body{margin:0;background:#fff;color:#222;font:14px system-ui}
+ .top{height:40px;background:#334;color:#fff;display:flex;align-items:center;padding:0 12px}
+ .thead{display:flex;gap:10px;align-items:center;padding:6px 12px;background:#f3f3f3;border-bottom:1px solid #ddd}
+ .service-table__header-hide-all{cursor:pointer;padding:2px 6px;margin-left:auto}
+ .vwrap{position:relative}.vwrap > div{position:absolute;left:0;right:0;box-sizing:border-box}
+ .service-table__category{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;background:#f7f7f7;border-bottom:1px solid #ddd}
+ .service-table__category-disabled .service-table__category-name{color:#c4c4c4}
+ .service-table__category-collapse{margin-left:auto;color:#2a6fc9;cursor:pointer;font-size:12px}
+ .service-table__row{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;background:#fff;border-bottom:1px solid #eee}
+ .service-table__row-disabled{color:#bbb}
+ .service-table__service{flex:1}
+ button.actions{background:#fff;color:#222;border:1px solid #bbb;padding:3px 8px;border-radius:4px;cursor:pointer}
+ .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60}
+ .modal{position:fixed;z-index:61;left:50%;top:20%;transform:translateX(-50%);background:#fff;border:1px solid #999;padding:16px;border-radius:8px;width:380px;text-align:center}
+ .toast{position:fixed;right:12px;top:12px;z-index:70;padding:8px 12px;border-radius:6px;color:#fff}
+ .toast.ok{background:#1f7a4a}.toast.err{background:#a02a2a}
+ #scroller{height:440px;overflow:auto}
+</style></head>
+<body><div class="top">Perfect Panel (mock)</div><div id="root"></div>
+<script src="https://panelbaku.com/_react.js"></script><script src="https://panelbaku.com/_react-dom.js"></script>
+<script>
+// Taklit Perfect Panel > Services (gerçek panelden öğrenilenler):
+// - kategori başlığı div.service-table__category#category-NNN (+ -disabled); "Not Assigned" en sonda, Actions'ı yok
+// - "Expand (N)" / "Collapse (N)" (service-table__category-collapse hide-category|show-category)
+// - servis: div.service-table__body#service-NNNN > div.service-table__row.service-table__row-service[.service-table__row-disabled]
+//   Status sütunu "Enabled"/"Disabled"; Actions menüsü satır içinde gizli ul.dropdown-menu, tıklayınca açılır:
+//   Edit service / Edit description / Disable|Enable service / Delete custom rates / Duplicate / Hide service / Delete service
+// - liste sanallaştırılmış (yalnızca ekrandaki satırlar DOM'da)
+const e = React.createElement, { useState, useEffect } = React;
+const cfg = Object.assign({ virtual: true, delay: 300, disableFail: [], disableConfirm: false, resetAfter: false, naNoCollapse: false, naHasActions: false, naPlain: false, cats: [] }, window.__cfg || {});
+// "Sunucu" verisi sayfa yenilense de kalsın (gerçek panel gibi): sekmeye bağlı sessionStorage
+const saved = sessionStorage.getItem('__mockServer');
+const server = window.__server = saved ? JSON.parse(saved) : { cats: JSON.parse(JSON.stringify(cfg.cats)), disabled: [], violations: [], deletes: 0, enables: 0, hides: 0, other: [], menuOpens: [], confirmOpens: 0, confirmCancels: 0 };
+const persist = () => { try { sessionStorage.setItem('__mockServer', JSON.stringify(server)); } catch (e) { /* yok */ } };
+sessionStorage.setItem('__loads', String((+sessionStorage.getItem('__loads') || 0) + 1));
+setInterval(persist, 150); window.addEventListener('pagehide', persist);
+let rerender = () => {};
+let sel = new Set(); // seçili servisler
+window.__selCount = () => sel.size;
+const isNA = (c) => /^not assigned$/i.test(c.name);
+const catOf = (sid) => server.cats.find((c) => c.svcs.some((s) => s.id === sid));
+window.__mutate = (sid, patch) => { for (const c of server.cats) for (const s of c.svcs) if (s.id === sid) Object.assign(s, patch); persist(); rerender(); };
+window.__moveSvc = (sid, toName) => { const from = catOf(sid); const s = from.svcs.find((x) => x.id === sid); from.svcs = from.svcs.filter((x) => x.id !== sid); server.cats.find((c) => c.name === toName).svcs.push(s); rerender(); };
+window.__onCount = (name) => server.cats.find((c) => c.name === name).svcs.filter((s) => s.on).length;
+
+function App() {
+  const [, force] = useState(0);
+  const [key, setKey] = useState(0);
+  const [expanded, setExpanded] = useState(!!cfg.startExpanded);
+  const [openCats, setOpenCats] = useState(new Set());
+  const [menuOpen, setMenuOpen] = useState(null);
+  const [confirm, setConfirm] = useState(null);
+  const [mconf, setMconf] = useState(false); // toplu Disable all onayı
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState(null);
+  rerender = () => force((n) => n + 1);
+  const cats = server.cats;
+  const scroller = () => document.getElementById('scroller');
+  const flash = (t, k) => { setToast({ t, k }); setTimeout(() => setToast(null), 2500); };
+
+  useEffect(() => { const el = scroller(); const vr = () => force((n) => n + 1); el.addEventListener('scroll', vr); return () => el.removeEventListener('scroll', vr); });
+  useEffect(() => { const h = () => setMenuOpen(null); document.addEventListener('click', h); return () => document.removeEventListener('click', h); }, []);
+
+  const dd = (k, items, onOpen) => e('div', { className: 'dropdown btn-group btn-group-xs' + (menuOpen === k ? ' open' : ''), style: { position: 'relative', display: 'inline-block' } },
+    e('button', { className: 'actions dropdown-toggle btn btn-xs btn-default', onClick: (ev) => {
+      ev.stopPropagation();
+      if (menuOpen !== k && onOpen) onOpen();
+      // gerçekte görülen sorunlar: menü açılmıyor / tıklayınca liste başa kayıyor
+      if (k[0] === 's' && cfg.jumpOnMenu) setTimeout(() => { const sc = scroller(); if (sc) sc.scrollTop = 0; force((n) => n + 1); }, 30);
+      if (k[0] === 's' && cfg.menuNoOpen) return;
+      setMenuOpen(menuOpen === k ? null : k);
+    } }, 'Actions ', e('span', { className: 'caret' })),
+    e('ul', { role: 'menu', className: 'dropdown-menu', style: { display: menuOpen === k ? 'block' : 'none', position: 'absolute', zIndex: 40, background: '#fff', border: '1px solid #bbb', listStyle: 'none', margin: 0, padding: '4px 0', minWidth: 190, right: 0, top: '100%' } },
+      items.map(([t, fn]) => e('li', { key: t, role: 'presentation' }, e('a', { role: 'menuitem', href: '#', style: { display: 'block', padding: '4px 12px', color: '#222' }, onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); setMenuOpen(null); fn(); } }, t)))));
+
+  const doMassDisable = () => {
+    const ids = [...sel];
+    setBusy(true);
+    setTimeout(() => {
+      setBusy(false); setMconf(false);
+      if (cfg.massFail) { flash('Error: services were not updated', 'err'); return; }
+      for (const id of ids) {
+        const c = catOf(id); const s = c.svcs.find((x) => x.id === id);
+        if (!isNA(c)) server.violations.push('mass-not-na:' + id);
+        s.on = false;
+      }
+      server.massDisabled = (server.massDisabled || []).concat(ids);
+      sel = new Set(); persist(); flash('Services updated', 'ok');
+      if (cfg.resetAfter) { setKey((x) => x + 1); setExpanded(false); setOpenCats(new Set()); const sc = scroller(); if (sc) sc.scrollTop = 0; } else rerender();
+    }, cfg.delay);
+  };
+  const massMenu = () => ['Enable all', 'Disable all', 'Edit rates', 'Assign category', 'Delete custom rates', 'Make all visible', 'Hide all', 'Delete all'].map((t) => [t, () => {
+    if (t === 'Disable all') { server.massDisableClicks = (server.massDisableClicks || 0) + 1; if (cfg.massConfirm) setMconf(true); else doMassDisable(); }
+    else if (t === 'Delete all') server.massDeleteAll = (server.massDeleteAll || 0) + 1;
+    else if (t === 'Enable all') server.massEnableAll = (server.massEnableAll || 0) + 1;
+    else (server.massOther = server.massOther || []).push(t);
+  }]);
+  const doDisable = (s) => {
+    setBusy(true);
+    setTimeout(() => {
+      setBusy(false); setConfirm(null);
+      if (cfg.disableFail.includes(s.id)) { flash('Error: service status was not changed', 'err'); return; }
+      const c = catOf(s.id);
+      if (!isNA(c)) server.violations.push('not-na:' + s.id);
+      if (!s.on) server.violations.push('already-off:' + s.id);
+      s.on = false; server.disabled.push(s.id); persist();
+      flash('Service disabled', 'ok');
+      if (cfg.resetAfter) { setKey((x) => x + 1); setExpanded(false); setOpenCats(new Set()); const sc = scroller(); if (sc) sc.scrollTop = 0; } else rerender();
+    }, cfg.delay);
+  };
+  const svcMenu = (s) => [['Edit service', () => server.other.push('edit')], ['Edit description', () => server.other.push('desc')],
+    [s.on ? 'Disable service' : 'Enable service', () => { if (!s.on) { server.enables++; return; } if (cfg.disableConfirm) { server.confirmOpens++; setConfirm(s); } else doDisable(s); }],
+    ['Delete custom rates', () => server.other.push('rates')], ['Duplicate', () => server.other.push('dup')], ['Hide service', () => { server.hides++; }], ['Delete service', () => { server.deletes++; }]];
+
+  const catRow = (c, style) => {
+    const open = expanded || openCats.has(c.id);
+    if (isNA(c) && cfg.naPlain) return e('div', { key: 'c' + c.id, style, className: 'na-plain' }, e('b', null, 'Not Assigned'));
+    return e('div', { key: 'c' + c.id, id: isNA(c) ? undefined : 'category-' + c.id, style, className: 'service-table__category' + (c.active ? '' : ' service-table__category-disabled') },
+      e('div', { className: 'service-table__category-handle' }, e('span', { className: 'service-table__handle' }, '⋮⋮')),
+      e('div', { className: 'service-table__category-name' }, e('span', null, e('span', null, c.name))),
+      (!isNA(c) || cfg.naHasActions) && e('div', { className: 'service-table__category-actions' }, dd('c' + c.id, [['Edit category', () => {}], [c.active ? 'Disable category' : 'Enable category', () => {}], ['Select all category services', () => {}]])),
+      !(isNA(c) && cfg.naNoCollapse) && c.svcs.length > 0 && e('div', { className: 'service-table__category-collapse ' + (open ? 'show-category' : 'hide-category'), onClick: () => setOpenCats((x) => { const n = new Set(x); if (n.has(c.id)) n.delete(c.id); else n.add(c.id); return n; }) },
+        e('span', { className: 'service-table__category-collapse-name' }, (open ? 'Collapse (' : 'Expand (') + c.svcs.length + ')')));
+  };
+  const svcRow = (s, style) => e('div', { key: 's' + s.id, id: 'service-' + s.id, style, className: 'service-table__body' },
+    e('div', { className: 'service-table__row service-table__row-service' + (s.on ? '' : ' service-table__row-disabled') },
+      e('div', { className: 'service-table__td service-table__checker' }, e('span', { className: 'service-table__handle' }, '⋮⋮'), e('input', { type: 'checkbox', checked: sel.has(s.id), onChange: () => { if (sel.has(s.id)) sel.delete(s.id); else { sel.add(s.id); if (cfg.badCheckbox === s.id) { const o = server.cats.flatMap((c) => c.svcs).find((x) => x.id !== s.id && !sel.has(x.id)); if (o) sel.add(o.id); } } rerender(); } })),
+      e('div', { className: 'service-table__td service-table__id' }, String(s.id)),
+      e('div', { className: 'service-table__td service-table__service' }, s.name),
+      e('div', { className: 'service-table__td service-table__visibility' }, e('span', { className: 'dot' }, '• '), e('span', { className: 'service-table__visibility-name' }, s.on ? 'Enabled' : 'Disabled')),
+      e('div', { className: 'service-table__td service-table__action' }, dd('s' + s.id, svcMenu(s), () => server.menuOpens.push(s.id)))));
+
+  const items = [];
+  for (const c of cats) {
+    items.push(['c', c]);
+    if (expanded || openCats.has(c.id)) for (const s of c.svcs) items.push(['s', s]);
+  }
+  let list;
+  if (cfg.virtual) {
+    const sc = scroller(); const st = sc ? sc.scrollTop : 0; const first = Math.max(0, Math.floor(st / 40) - 3);
+    list = e('div', { key: 'V' + key, className: 'vwrap', style: { height: items.length * 40 } },
+      items.slice(first, first + 18).map((it, j) => (it[0] === 'c' ? catRow(it[1], { top: (first + j) * 40 }) : svcRow(it[1], { top: (first + j) * 40 }))));
+  } else {
+    list = e('div', { key: 'L' + key }, items.map((it) => (it[0] === 'c' ? catRow(it[1]) : svcRow(it[1]))));
+  }
+  return e('div', null,
+    e('div', { className: 'thead service-table__header' },
+      e('div', { className: 'mass-actions' + (sel.size ? ' mass-actions__active' : '') },
+        e('input', { type: 'checkbox', name: 'mass_action', value: 'checkAll', checked: sel.size > 0, onChange: () => { sel = new Set(); rerender(); } }),
+        sel.size > 0 && e('div', { className: 'mass-actions__selected', style: { display: 'flex', gap: 8 } }, e('div', { className: 'mass-actions__selected-title' }, sel.size + ' services selected'),
+          e('div', { className: 'mass-actions__selected-actions' }, dd('mass', massMenu())))),
+      e('span', null, 'ID  Service  Status'),
+      e('span', { className: 'far service-table__header-hide-all ' + (expanded ? 'fa-compress-alt' : 'fa-expand-alt'), onClick: () => { server.toggles = (server.toggles || 0) + 1; setExpanded((x) => !x); setOpenCats(new Set()); } }, expanded ? '[–]' : '[+]')),
+    e('div', { id: 'scroller', className: 'service-table__container' }, list),
+    mconf && ReactDOM.createPortal(e('div', null, e('div', { className: 'backdrop' }),
+      e('div', { className: 'modal', role: 'dialog' }, e('div', { className: 'modal-content' },
+        e('h4', null, 'Disable services'), e('div', null, 'Are you sure you want to disable ', e('b', null, String(cfg.massConfirmCount || sel.size)), ' services?'),
+        e('div', { style: { marginTop: 12 } },
+          e('button', { className: 'btn btn-danger', disabled: busy, onClick: () => doMassDisable() }, 'Disable'),
+          e('button', { className: 'btn btn-default', onClick: () => { server.massCancels = (server.massCancels || 0) + 1; setMconf(false); } }, 'Cancel'))))), document.body),
+    confirm && ReactDOM.createPortal(e('div', null, e('div', { className: 'backdrop' }),
+      e('div', { className: 'modal', role: 'dialog' }, e('div', { className: 'modal-content' },
+        e('h4', null, 'Disable service'), e('div', null, 'Are you sure you want to disable service ', e('b', null, '#' + confirm.id), '?'),
+        e('div', { style: { marginTop: 12 } },
+          e('button', { className: 'btn btn-danger', disabled: busy, onClick: () => doDisable(confirm) }, 'Disable'),
+          e('button', { className: 'btn btn-default', onClick: () => { server.confirmCancels++; setConfirm(null); } }, 'Cancel'))))), document.body),
+    toast && ReactDOM.createPortal(e('div', { className: 'toast ' + toast.k, role: 'alert' }, toast.t), document.body));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(e(App));
+</script></body></html>

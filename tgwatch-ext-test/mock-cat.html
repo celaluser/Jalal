@@ -1,0 +1,71 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Services (mock) — Edit category</title>
+<style>body{font:14px system-ui;margin:10px}#list{height:260px;overflow:auto;border:1px solid #ddd}.cat{display:flex;gap:8px;align-items:center;height:36px;border-bottom:1px solid #eee;padding:0 8px}
+.service-table__category-image{width:24px;height:24px;background-size:cover;display:inline-block}
+.modal{position:fixed;left:200px;top:40px;width:560px;background:#fff;border:1px solid #999;border-radius:6px;z-index:10}
+.modal-body{position:relative;padding:12px;display:flex;gap:12px;align-items:flex-start}
+.cat-logo-box{width:56px;height:56px;border:1px solid #ccc;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.cat-logo-box img{width:40px;height:40px}
+.picker{position:absolute;left:12px;top:80px;width:420px;background:#fff;border:1px solid #bbb;border-radius:4px;padding:8px;z-index:20}
+.picker .tabs a{margin-right:12px;cursor:pointer}.picker .grid img,.picker .grid i{width:40px;height:40px;margin:3px;cursor:pointer;display:inline-block}</style></head>
+<body>
+<div id="list"></div>
+<div class="modal" role="dialog" id="cdlg"><div class="modal-content">
+  <div class="modal-header"><h4 class="modal-title">Edit category (ID: 219197)</h4><button class="close">×</button></div>
+  <div class="modal-body">
+    <div class="cat-logo-box" id="logo"></div><a href="#" id="addicon" style="display:none">Add icon</a>
+    <div style="flex:1"><label>Category name</label><br><input type="text" id="cname" style="width:360px"></div>
+    <div class="picker" id="picker" style="display:none">
+      <ul class="tabs" style="list-style:none;padding:0;display:flex;gap:12px"><li><a data-t="icons"><i class="far fa-smile"></i> Icons</a></li><li><a data-t="emoji"><i class="far fa-grin"></i> Emoji</a></li><li><a data-t="uploaded"><i class="fas fa-upload"></i> Uploaded</a></li><li style="margin-left:auto"><a class="rm">Remove</a></li></ul>
+      <div class="grid" id="grid"></div>
+      <button id="upl" style="display:none">Upload file</button>
+    </div>
+  </div>
+  <div class="modal-footer"><button id="csave">Save changes</button></div>
+</div></div>
+<script>
+const C = 'https://storage.perfectcdn.com/fsvl4a/';
+const cfg = Object.assign({ name: 'TikTok Followers', logo: '' }, window.__catCfg || {});
+// kategori listesi (dialogun arkasında): adına göre kullanılan logolar
+// gerçekçi dosya adı (gerçek panelde: rastgele 16 harf)
+const N = (f) => (cfg.longNames && f === 'tt-a.gif' ? 'nylack51yquk11yq.gif' : f);
+const cats = cfg.cats || [
+  ['TikTok Takipçi', 'tt-a.gif'], ['TikTok Bəyəni', 'tt-a.gif'], ['𝐓𝐢𝐤𝐓𝐨𝐤 → Takipçi', 'tt-a.gif'], ['TikTok Video Baxış', 'tt-b.png'],
+  ['Instagram Takipçi', 'ig.png'], ['Instagram Bəyəni', 'ig.png'], ['YouTube Baxış', 'yt.png'], ['Facebook Takipçi', 'fb.gif'], ['Kateqoriya logosuz', ''],
+];
+document.getElementById('list').innerHTML = cats.map(([n, f]) => '<div class="cat service-table__category"><span class="service-table__category-image" style="' + (f ? 'background-image:url(&quot;' + C + N(f) + '&quot;)' : '') + '"></span><span class="service-table__category-name">' + n + '</span><button>Actions</button></div>').join('');
+// pencere
+document.getElementById('cname').value = cfg.name;
+const logo = document.getElementById('logo');
+const addicon = document.getElementById('addicon');
+const setLogo = (u) => { logo.innerHTML = u ? '<img src="' + u + '">' : ''; logo.style.display = u ? '' : 'none'; addicon.style.display = u ? 'none' : ''; };
+setLogo(cfg.logo);
+const picker = document.getElementById('picker'); const grid = document.getElementById('grid');
+const uploaded = cfg.uploaded || ['ig.png', 'yt.png', 'tt-b.png', 'fb.gif', 'tt-a.gif', 'tg.png', 'other.png'];
+function tab(t) {
+  window.__tab = t;
+  const th = (f) => (cfg.thumbs ? f.replace('.', '_thumb.') : f);
+  if (t === 'uploaded') grid.innerHTML = uploaded.map((f) => (cfg.lazy ? '<img data-f="' + f + '" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" data-src="' + C + th(N(f)) + '">' : '<img data-f="' + f + '" src="' + C + th(N(f)) + '">')).join('');
+  else grid.innerHTML = '<i class="fab fa-tiktok"></i><i class="fab fa-instagram"></i><i class="fab fa-youtube"></i>'; // simge sekmesi: resim yok
+  document.getElementById('upl').style.display = t === 'uploaded' ? '' : 'none';
+}
+const openPicker = () => { window.__logoClicks = (window.__logoClicks || 0) + 1; picker.style.display = picker.style.display === 'none' ? '' : 'none'; tab('icons'); };
+logo.onclick = openPicker;
+addicon.onclick = (e) => { e.preventDefault(); window.__addClicks = (window.__addClicks || 0) + 1; openPicker(); };
+picker.querySelector('.tabs').onclick = (e) => { const a = e.target.closest('a'); const t = a && a.getAttribute('data-t'); if (t) tab(t); };
+grid.onclick = (e) => { const img = e.target.closest('img'); if (!img) return; const u = img.getAttribute('data-src') || img.src; setLogo(u); picker.style.display = 'none'; window.__picked = u; };
+document.querySelector('.modal-title').onclick = () => { picker.style.display = 'none'; };
+window.__reopen = (name, lg) => { document.getElementById('cname').value = name; setLogo(lg || ''); document.getElementById('cdlg').style.display = ''; window.__savedCat = null; };
+document.getElementById('csave').onclick = () => { window.__savedCat = { name: document.getElementById('cname').value, logo: (logo.querySelector('img') || {}).src || '' }; document.getElementById('cdlg').style.display = 'none'; };
+// × pencereyi kaydetmeden kapatır; cfg.closed: pencere kapalı başlar, Actions → "Edit category" ile açılır
+document.querySelector('#cdlg .close').onclick = () => { window.__closes = (window.__closes || 0) + 1; picker.style.display = 'none'; document.getElementById('cdlg').style.display = 'none'; };
+if (cfg.closed) document.getElementById('cdlg').style.display = 'none';
+document.getElementById('list').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); const row = e.target.closest('.cat');
+  if (b && row && !row.querySelector('.menu')) { const m = document.createElement('div'); m.className = 'menu'; m.innerHTML = '<a href="#" class="edit">Edit category</a>'; row.appendChild(m); return; }
+  const ed = e.target.closest('a.edit');
+  if (ed) { e.preventDefault(); ed.parentElement.remove(); window.__opens = (window.__opens || 0) + 1; const im = row.querySelector('.service-table__category-image').style.backgroundImage.match(/url\(["']?([^"')]+)/); window.__reopen(row.querySelector('.service-table__category-name').textContent, im ? im[1] : ''); }
+});
+// gerçek hissi: rastgele resim yüklemesi yok; görünürlük için boyut veriyoruz
+for (const s of document.querySelectorAll('img')) s.width = 40;
+</script></body></html>
